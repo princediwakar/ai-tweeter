@@ -50,21 +50,20 @@ const gibbiPostingPattern: HourlySchedule = {
  * 5-minute interval support for thread progression
  */
 const princeGenerationPattern: HourlySchedule = {
-  // 8: ['satirist'],   // Morning thread generation
-  // 10: ['satirist'],              // Mid-morning satirical tweet
-  // 16: ['satirist'],              // Late afternoon satirical tweet
-  16: ['business_storyteller'],  // Evening thread generation
-  19: ['cricket_storyteller'],   // Evening cricket story generation
+  8: ['satirist'],   // Morning satirical tweet generation
+  14: ['satirist'],  // Afternoon satirical tweet generation
+  16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
+  20: ['satirist'],  // Late evening satirical tweet generation
 };
 
 const princePostingPattern: HourlySchedule = {
-  // 9: ['satirist'],          // Business hours thread posting
-  // 12: ['satirist'],                     // Lunch break satirical content
-  // 14: ['satirist'],         // Afternoon thread posting
-  // 17: ['satirist'],                     // Evening satirical content
-  17: ['business_storyteller'],         // Prime time thread posting
-  20: ['cricket_storyteller'],          // Prime time cricket story posting
-  // 22: ['satirist'],         // Late evening thread posting
+  9: ['satirist'],          // Morning satirical tweet posting
+  13: ['satirist'],         // Lunch break satirical tweet posting
+  15: ['satirist'],         // Afternoon satirical tweet posting
+  17: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
+  20: ['satirist'],         // Evening satirical tweet posting
+  21: ['satirist'],         // Late night satirical tweet posting
+  22: ['satirist'],         // Late night satirical tweet posting
 };
 
 // Account ID mapping - maps database UUIDs to schedule keys
@@ -93,7 +92,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       0: gibbiGenerationPattern, // Sunday
       1: gibbiGenerationPattern, // Monday
       2: gibbiGenerationPattern, // Tuesday
-      // 3: gibbiGenerationPattern, // Wednesday
+      3: gibbiGenerationPattern, // Wednesday
       4: gibbiGenerationPattern, // Thursday
       5: gibbiGenerationPattern, // Friday
       6: gibbiGenerationPattern, // Saturday
@@ -102,7 +101,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       0: gibbiPostingPattern, // Sunday
       1: gibbiPostingPattern, // Monday
       2: gibbiPostingPattern, // Tuesday
-      // 3: gibbiPostingPattern, // Wednesday
+      3: gibbiPostingPattern, // Wednesday
       4: gibbiPostingPattern, // Thursday
       5: gibbiPostingPattern, // Friday
       6: gibbiPostingPattern, // Saturday
@@ -178,6 +177,16 @@ export function getPostingSchedule(accountId: string): DailySchedule {
 }
 
 /**
+ * Randomly selects between business_storyteller and cricket_storyteller for Prince's account
+ * Returns the selected persona for daily thread generation
+ */
+function getRandomThreadPersonaForPrince(): string {
+  const threadPersonas = ['business_storyteller', 'cricket_storyteller'];
+  const randomIndex = Math.floor(Math.random() * threadPersonas.length);
+  return threadPersonas[randomIndex];
+}
+
+/**
  * Get personas scheduled for generation at a specific time for an account
  */
 export function getScheduledPersonasForGeneration(
@@ -187,7 +196,19 @@ export function getScheduledPersonasForGeneration(
 ): string[] {
   const schedule = getGenerationSchedule(accountId);
   const daySchedule = schedule[dayOfWeek];
-  return daySchedule?.[hour] || [];
+  let personas = daySchedule?.[hour] || [];
+  
+  // For Prince's account, randomize between thread personas
+  if (accountId === '550e8400-e29b-41d4-a716-446655440001' || accountId === 'prince_account') {
+    personas = personas.map(persona => {
+      if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
+        return getRandomThreadPersonaForPrince();
+      }
+      return persona;
+    });
+  }
+  
+  return personas;
 }
 
 /**
@@ -200,7 +221,19 @@ export function getScheduledPersonasForPosting(
 ): string[] {
   const schedule = getPostingSchedule(accountId);
   const daySchedule = schedule[dayOfWeek];
-  return daySchedule?.[hour] || [];
+  let personas = daySchedule?.[hour] || [];
+  
+  // For Prince's account, randomize between thread personas
+  if (accountId === '550e8400-e29b-41d4-a716-446655440001' || accountId === 'prince_account') {
+    personas = personas.map(persona => {
+      if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
+        return getRandomThreadPersonaForPrince();
+      }
+      return persona;
+    });
+  }
+  
+  return personas;
 }
 
 /**

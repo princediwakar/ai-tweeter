@@ -99,7 +99,7 @@ function selectRandomSources<T>(items: T[], count: number): T[] {
  */
 async function fetchFromGoogle(topic: string): Promise<string[]> {
   const userAgent = getRandomUserAgent();
-  const query = `${topic} when:3d`;
+  const query = `"${topic}" OR ${topic} when:1d`;
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
 
   try {
@@ -137,7 +137,7 @@ async function fetchFromTwitter(sources: Sources, topic: string): Promise<string
 
   for (const handle of selectedHandles) {
     const cleanHandle = handle.replace('@', '');
-    const query = `site:x.com/${cleanHandle} "${topic}" when:3d`;
+    const query = `site:x.com/${cleanHandle} "${topic}" when:1d`;
     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
 
     try {
@@ -200,7 +200,7 @@ async function fetchFromReddit(sources: Sources, topic: string): Promise<string[
 // 🚀 Main API
 // ─────────────────────────────────────────────
 export async function getDynamicContext(persona: string, topic: string): Promise<string> {
-  const supportedPersonas = ['product_insights', 'startup_content', 'satirist'];
+  const supportedPersonas = ['satirist'];
   if (!supportedPersonas.includes(persona)) {
     return "";
   }

@@ -173,12 +173,12 @@ function generateThreadPrompt(template: ThreadTemplate, persona?: PersonaConfig)
     storyContext = `You are an expert Indian business storyteller creating compelling Twitter threads about authentic business stories with emotional depth and strategic insights.`;
     
     storyRequirements = `STORY REQUIREMENTS:
-• Focus on authentic Indian business stories (Tata, Reliance, Infosys, newer startups, family businesses, etc.)
-• Include emotional elements - human struggles, difficult decisions, family dynamics
+• Focus on authentic Indian business stories (newer startups, older companies, enterprises, NGOs, family businesses, etc.)
 • Provide strategic business insights and universal lessons
 • Use specific numbers, dates, and concrete details when possible
 • Connect historical context with modern business principles
 • Each tweet should be engaging standalone while advancing the narrative
+• Include simile/metaphor/alliteration/personification or nine emotions (navras) 
 • IMPORTANT: Use Twitter handles (@username) instead of names when mentioning people, companies, or organizations`;
 
     contextualElements = `INDIAN BUSINESS CONTEXT:
@@ -213,22 +213,23 @@ CONTENT APPROACH:
 • Start with an engaging hook
 • Tell the story with natural flow and pacing
 • Include human elements and emotional depth
-• End with meaningful insights or lessons
 • Use conversational storytelling tone
 • Include specific, memorable details
 
-THREADING FORMAT:
-• Generate clean content without numbering - numbering will be added automatically
-• Each tweet should be engaging standalone while advancing the narrative
-• Thread length should serve the story, not arbitrary constraints
-• Content will be processed for threading after generation
+THREADING FORMAT - BE NATURALLY HUMAN:
+• Mix varied thread indicators: "1/7 🧵",  "3/", "6/7", or NO indicators on obvious continuations
+• Use conversational transitions instead: "But here's the twist...", "The real lesson?", "Here's what happened next:", "The problem?"
+• Place indicators naturally - either at start OR end of tweets, NEVER mid-sentence
+• Keep language simple, conversational, readable - avoid perfect embellishment or corporate speak
+• Sound like a real person telling a story, not an AI generating content
 
 CHARACTER LIMITS - CRITICAL:
-• EACH TWEET MUST BE STRICTLY UNDER 270 CHARACTERS (including spaces and punctuation)
-• This leaves 10 characters buffer for thread indicators (X/Y) and hashtags
+• EACH TWEET MUST BE STRICTLY UNDER 260 CHARACTERS (including thread indicators)
+• This leaves 20 characters buffer for hashtags
+• Thread indicators are included in your content - count them in character limit
 • If content exceeds 280 characters, BREAK IT INTO TWO TWEETS instead
 • Count characters carefully - Twitter rejects tweets over 280 characters
-• Shorter tweets are better for engagement - aim for 200-260 characters per tweet
+• Shorter tweets are better for engagement - aim for 180-240 characters per tweet
 
 FORBIDDEN:
 • Generic business advice without specific story

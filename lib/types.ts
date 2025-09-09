@@ -1,3 +1,5 @@
+//types.ts
+
 // Core Account and User Types
 export interface Account {
   id: string;
@@ -51,6 +53,8 @@ export interface Tweet {
   parent_twitter_id?: string | null;
   content_type: 'single_tweet' | 'thread';
   hook_type?: 'opener' | 'context' | 'crisis' | 'resolution' | 'lesson';
+  // Image support
+  image_url?: string; // Cloudinary URL for image-based tweets
 }
 
 export interface EnhancedTweet {
@@ -62,7 +66,16 @@ export interface EnhancedTweet {
   engagementHooks: string[];
   gibbiCTA?: string;
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
-  imageBuffer?: Buffer; // Image data for image-based tweets
+  imageUrl?: string; // Cloudinary URL for image-based tweets
+}
+
+export interface VocabularyCard {
+  word: string;
+  meaning: string;
+  example?: string;
+  pronunciation?: string;
+  partOfSpeech?: string;
+  synonyms?: string[];
 }
 
 export interface TweetJob {
@@ -101,6 +114,28 @@ export interface TweetGenerationConfig {
   topic?: string;
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
 }
+
+// **FIX:** Moved ImageConfig interface here from imageGenerationService.ts
+export interface ImageConfig {
+  enabled: boolean;
+  unsplashQuery?: string;
+  dimensions: {
+    width: number;
+    height: number;
+  };
+  textStyle: {
+    wordSize: number;
+    meaningSize: number;
+    exampleSize: number;
+    wordColor: string;
+    meaningColor: string;
+    exampleColor: string;
+    fontFamily: string;
+    backgroundColor: string;
+    backgroundOpacity: number;
+  };
+}
+
 
 // Form and UI Types
 export interface GenerateFormState {

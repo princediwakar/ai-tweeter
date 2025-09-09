@@ -361,6 +361,7 @@ export async function getAllTweets(): Promise<Tweet[]> {
       twitter_id: row.twitter_id,
       twitter_url: row.twitter_url,
       error_message: row.error_message,
+      image_url: row.image_url,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -402,6 +403,7 @@ export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
       twitter_id: row.twitter_id,
       twitter_url: row.twitter_url,
       error_message: row.error_message,
+      image_url: row.image_url,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -438,6 +440,7 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
       twitter_id: getProperty(tweetObj, 'twitter_id', 'twitterId'),
       twitter_url: getProperty(tweetObj, 'twitter_url', 'twitterUrl'),
       error_message: getProperty(tweetObj, 'error_message', 'errorMessage'),
+      image_url: getProperty(tweetObj, 'image_url', 'imageUrl'),
       quality_score: tweetObj.quality_score ? JSON.stringify(tweetObj.quality_score) : (tweetObj.qualityScore ? JSON.stringify(tweetObj.qualityScore) : undefined),
       // Threading support
       content_type: tweet.content_type || 'single_tweet',
@@ -466,7 +469,7 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
     await sql`
       INSERT INTO tweets (
         id, account_id, content, hashtags, persona, posted_at, 
-        twitter_id, twitter_url, error_message, status, created_at, quality_score,
+        twitter_id, twitter_url, error_message, image_url, status, created_at, quality_score,
         thread_id, thread_sequence, parent_twitter_id, content_type, hook_type
       ) VALUES (
         ${tweet.id},
@@ -478,6 +481,7 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
         ${getProperty(tweetObj, 'twitter_id', 'twitterId')},
         ${getProperty(tweetObj, 'twitter_url', 'twitterUrl')},
         ${getProperty(tweetObj, 'error_message', 'errorMessage')},
+        ${getProperty(tweetObj, 'image_url', 'imageUrl')},
         ${tweet.status},
         ${tweet.createdAt || getProperty(tweetObj, 'created_at', 'createdAt') || new Date().toISOString()},
         ${tweetObj.quality_score ? JSON.stringify(tweetObj.quality_score) : (tweetObj.qualityScore ? JSON.stringify(tweetObj.qualityScore) : null)},
@@ -539,6 +543,7 @@ export async function getReadyTweets(): Promise<Tweet[]> {
       twitter_id: row.twitter_id,
       twitter_url: row.twitter_url,
       error_message: row.error_message,
+      image_url: row.image_url,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -580,6 +585,7 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       twitter_id: row.twitter_id,
       twitter_url: row.twitter_url,
       error_message: row.error_message,
+      image_url: row.image_url,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -669,6 +675,7 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
       twitter_id: row.twitter_id,
       twitter_url: row.twitter_url,
       error_message: row.error_message,
+      image_url: row.image_url,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support

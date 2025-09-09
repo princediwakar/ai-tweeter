@@ -65,8 +65,6 @@ function setCachedContext(key: string, context: string): void {
 // ─────────────────────────────────────────────
 async function loadSources(persona: string): Promise<Sources> {
   const personaToFile: Record<string, string> = {
-    'product_insights': 'sources-product.json',
-    'startup_content': 'sources-startup.json',
     'satirist': 'sources-satirist.json',
   };
   const sourceFile = personaToFile[persona];

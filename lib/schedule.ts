@@ -30,16 +30,16 @@ interface AccountSchedules {
 const gibbiGenerationPattern: HourlySchedule = {
   6: ['english_vocab_builder'],         // Mid-morning generation
   13: ['english_vocab_builder'],        // Morning generation
-  16: ['english_vocab_builder'], // Evening generation
+  16: ['english_vocab_builder'],        // Evening generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
-  7: ['english_vocab_builder'],   // Morning motivation
+  7: ['english_vocab_builder'],         // Morning motivation
   9: ['english_vocab_builder'],         // Lunch break learning
-  16: ['english_vocab_builder'],         // Post-work session
-  18: ['english_vocab_builder'],  // Evening study prep
+  16: ['english_vocab_builder'],        // Post-work session
+  18: ['english_vocab_builder'],        // Evening study prep
   20: ['english_vocab_builder'],        // Prime time engagement
-  22: ['english_vocab_builder'],         // Night revision
+  22: ['english_vocab_builder'],        // Night revision
 };
 
 /**
@@ -316,10 +316,11 @@ export function getGenerationBatchInfo(accountId: string, date: Date = new Date(
   
   // In debug mode, provide default personas if none scheduled
   if (debugMode && personas.length === 0) {
-    // Provide default personas based on account type
-    if (accountId.includes('gibbi') || accountId === 'bc1165c3-aa53-492c-83c2-d0fc68753f0f') {
-      personas = ['english_vocab_builder', 'english_grammar_master', 'english_communication_expert'];
-    } else if (accountId.includes('prince') || accountId === 'b36846db-08f1-4d1d-88ec-bd01ca964774') {
+    // Provide default personas based on account type using the schedule key mapping
+    const scheduleKey = getScheduleKey(accountId);
+    if (scheduleKey === 'gibbi_account' || accountId === '550e8400-e29b-41d4-a716-446655440000') {
+      personas = ['english_vocab_builder'];
+    } else if (scheduleKey === 'prince_account' || accountId === '550e8400-e29b-41d4-a716-446655440001') {
       personas = ['business_storyteller', 'satirist', 'cricket_storyteller'];
     } else {
       // Generic default personas for unknown accounts

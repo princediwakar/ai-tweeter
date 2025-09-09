@@ -1,3 +1,4 @@
+// app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -220,7 +221,8 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
           status: 'ready' as const,
           created_at: new Date().toISOString(),
           quality_score: 1,
-          content_type: 'single_tweet' as const
+          content_type: 'single_tweet' as const,
+          image_url: generatedTweet.imageUrl
         };
 
         await saveTweet(tweet);

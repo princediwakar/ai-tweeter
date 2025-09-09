@@ -1,6 +1,8 @@
+//generationService.ts
+
 import OpenAI from 'openai';
 import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, getHashtagsForPersona, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
-import { EnhancedTweet, TweetGenerationConfig, VariationMarkers } from './types';
+import { EnhancedTweet, TweetGenerationConfig, VariationMarkers, VocabularyCard } from './types';
 import { getAccount } from './db';
 import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
@@ -39,55 +41,6 @@ const TOPIC_GUIDELINES = {
     scenarios: ['job interviews', 'academic writing', 'sounding more articulate'],
     engagement: 'Challenge viewers to create their own sentence with the word'
   },
-  eng_vocab_fill_blanks: {
-    focus: 'Applying vocabulary in the right context to complete a sentence',
-    hook: 'This sentence stumps 9 out of 10 people. Can you pick the perfect word?',
-    scenarios: ['writing professional emails', 'giving presentations', 'crafting the perfect social media post'],
-    engagement: 'Provide a challenging sentence and have them choose the best fit from multiple options'
-  },
-  eng_vocab_word_forms: {
-    focus: 'Mastering the different forms of a word (noun, verb, adjective, etc.)',
-    hook: 'One word, four forms. Using the wrong one is a common mistake. Let\'s fix it!',
-    scenarios: ['grammar accuracy', 'formal writing', 'sentence variety'],
-    engagement: 'Challenge them to correctly change a word to fit three different sentences'
-  },
-
-  // --- Word Relationships ---
-  eng_vocab_synonyms: {
-    focus: 'Choosing the most precise synonym to elevate language',
-    hook: 'Why say "good" when you could say "excellent," "superb," or "magnificent"?',
-    scenarios: ['avoiding repetition in writing', 'expressing specific emotions', 'enhancing descriptive language'],
-    engagement: 'Help them choose the perfect word for a specific emotional or descriptive context'
-  },
-  eng_vocab_antonyms: {
-    focus: 'Understanding opposite word pairs to express contrast effectively',
-    hook: 'What\'s the opposite of "fragile"? It might not be what you think!',
-    scenarios: ['debates and arguments', 'comparative analysis', 'making your point more powerful'],
-    engagement: 'Challenge their knowledge with words that have surprising or non-obvious opposites'
-  },
-  eng_vocab_shades_of_meaning: {
-    focus: 'Distinguishing the subtle nuances between very similar words',
-    hook: 'What\'s the real difference between "walk," "stroll," "stride," and "trudge"?',
-    scenarios: ['creative writing', 'conveying precise meaning', 'understanding authorial intent'],
-    engagement: 'Ask them to rank similar words by intensity (e.g., tap, hit, smack, punch)'
-  },
-
-  // --- Practical & Contextual Vocabulary ---
-  eng_vocab_thematic_words: {
-    focus: 'Building a specialized vocabulary for a specific topic or industry',
-    hook: 'Ace your next meeting with these 5 essential business terms.',
-    scenarios: ['business negotiations', 'traveling abroad', 'discussing technology or science'],
-    engagement: 'Help them build a "vocabulary toolkit" for a specific goal or event'
-  },
-  eng_vocab_register: {
-    focus: 'Knowing when to use formal vs. informal language (code-switching)',
-    hook: 'Don\'t text your boss like you text your friends! Master the difference.',
-    scenarios: ['writing a cover letter vs. a text message', 'speaking to a professor vs. a classmate'],
-    engagement: 'Challenge them to "translate" a casual sentence into a professional one, and vice-versa'
-  },
-
-
-
 };
 
 /**
@@ -116,34 +69,27 @@ function generateContentHash(tweet: EnhancedTweet): string {
 function shouldUseRSSSources(account: Account | null): boolean {
   if (!account) return false;
   
-  // Remove @ symbol and convert to lowercase for comparison
   const handle = account.twitter_handle.replace('@', '').toLowerCase();
   
-  // Specific account-based RSS usage (absolute clarity)
   switch (handle) {
     case 'gibbi_ai':
-      // English learning account - no RSS sources, focus on educational content
       return false;
     
     case 'princediwakar25':
-      // Personal/professional account - use RSS sources for current events and trends
       return true;
     
     default:
-      // For any future accounts, default to RSS enabled for professional content
       return true;
   }
 }
 
 /**
  * Generates enhanced tweet prompts using topic guidelines and variation markers
- * Inspired by the YouTube system's sophisticated prompt generation
  */
 async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown }> {
   const markers = generateVariationMarkers();
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
-  // Get account context if provided
   let account: Account | null = null;
   
   if (config.account_id && config.account_id !== 'fallback') {
@@ -153,15 +99,12 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     }
   }
   
-  // Determine if RSS sources should be used
   const useRSSSources = shouldUseRSSSources(account);
   console.log(`📰 RSS sources ${useRSSSources ? 'enabled' : 'disabled'} for account: ${account?.name || 'unknown'}`);
   
-  // Fetch RSS context if RSS sources are enabled
   let rssContext = '';
   if (useRSSSources && config.persona) {
     try {
-      // Fetch RSS context for personas that use current events
       if (['product_insights', 'startup_content', 'tech_commentary', 'satirist', 'business_storyteller', 'cricket_storyteller'].includes(config.persona)) {
         const topicForRSS = config.topic || 'technology';
         rssContext = await getDynamicContext(config.persona, topicForRSS);
@@ -172,11 +115,9 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     }
   }
   
-  // Select persona with account-aware validation based on Twitter handle
   let persona: PersonaConfig | undefined;
   
   if (config.persona) {
-    // Use specifically requested persona but validate it's allowed for this account
     if (config.account_id && config.account_id !== 'fallback' && account) {
       if (!isPersonaAllowedForHandle(config.persona, account.twitter_handle)) {
         console.warn(`⚠️  Persona ${config.persona} not allowed for handle @${account.twitter_handle}, using allowed persona instead`);
@@ -189,7 +130,6 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
         }
       }
     } else {
-      // No account ID provided, use requested persona (legacy support)
       persona = getPersonaByKey(config.persona);
       if (persona) {
         console.log(`✅ Using requested persona (no account validation): ${persona.displayName}`);
@@ -198,19 +138,16 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   }
   
   if (!persona) {
-    // No specific persona requested or not found/allowed - use account-specific selection
     if (config.account_id && config.account_id !== 'fallback' && account) {
       try {
         persona = getRandomPersonaForHandle(account.twitter_handle);
         console.log(`🔒 Using handle-allowed random persona: ${persona.displayName} for @${account.twitter_handle}`);
       } catch (error) {
         console.error(`❌ Failed to get persona for handle @${account.twitter_handle}:`, error);
-        // Fall back to legacy random selection
         persona = selectPersonaByWeight();
         console.log(`⚠️  Falling back to legacy random persona: ${persona.displayName}`);
       }
     } else {
-      // No account ID provided, use legacy random selection
       persona = selectPersonaByWeight();
       console.log(`🎲 Using legacy random persona: ${persona.displayName}`);
     }
@@ -220,7 +157,6 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     throw new Error('Invalid persona specified');
   }
 
-  // Select topic (either specified or random from persona)
   const topic = config.topic 
     ? persona.topics.find(t => t.key === config.topic)
     : getRandomTopicForPersona(persona.key);
@@ -233,11 +169,9 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   
   let basePrompt = '';
   
-  // Get topic guidelines for enhanced prompting
   const topicKey = (topic as { key: string; displayName: string }).key;
   const guidelines = TOPIC_GUIDELINES[topicKey as keyof typeof TOPIC_GUIDELINES];
   
-  // Generate prompts based on persona type and account context with enhanced guidelines
   if (persona.key === 'english_vocab_builder') {
     const enhancedGuidelines = guidelines || {
       focus: 'Essential vocabulary building with practical applications',
@@ -246,184 +180,35 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
       engagement: 'Help learners use words confidently'
     };
 
-    basePrompt = `You are a viral English education expert creating engaging vocabulary content for Twitter.
+    basePrompt = `You are a viral English education expert creating engaging vocabulary content for Twitter. Your goal is to generate content for an image-based tweet.
 
 TOPIC: "${topic.displayName}" - ${enhancedGuidelines.focus}
 
-VIRAL LEARNING STRATEGY:
-• HOOK: ${enhancedGuidelines.hook}
-• SCENARIOS: Focus on ${enhancedGuidelines.scenarios?.join(', ')}
-• ENGAGEMENT: ${enhancedGuidelines.engagement}
+TASK: Generate a single vocabulary lesson. Provide the output in a structured JSON format containing two main parts:
+1.  \`tweetText\`: A short, engaging text for the Twitter post itself (under 180 characters). This text should encourage users to look at the image for the lesson.
+2.  \`cardData\`: A detailed object containing the vocabulary information to be displayed on the image.
 
-Generate Twitter content that targets intermediate English learners (B1-B2 level) who want to sound more fluent and professional:
+JSON STRUCTURE:
+{
+  "tweetText": "A short, catchy tweet. Example: 'Don't just say 'important'! 🤯 Level up your vocabulary with this powerful alternative. Check the image to learn more! ✨'",
+  "cardData": {
+    "word": "The main vocabulary word (e.g., 'Crucial')",
+    "partOfSpeech": "The part of speech (e.g., 'adjective')",
+    "meaning": "A clear, concise definition (e.g., 'Extremely important or necessary for a particular situation or outcome.')",
+    "example": "A practical example sentence (e.g., 'Clear communication is crucial for the project's success.')"
+  },
+  "hashtags": ["An", "array", "of", "4 relevant hashtags"],
+  "gibbiCTA": "A CTA string or null"
+}
 
-CONTENT APPROACH:
-• Lead with confidence-building ("Master this and sound fluent!")
-• Present vocabulary that elevates communication skills
-• Include practical, immediate application opportunities
-• Create "aha!" moments that boost learning motivation
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound like a helpful teacher who makes learning exciting
-${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
-
-CONTENT TYPE: ${contentType}
-EDUCATIONAL FOCUS: Practical vocabulary mastery
-
-[${timeMarker}-${tokenMarker}]`;
-
-  } else if (persona.key === 'english_grammar_master') {
-    const enhancedGuidelines = guidelines || {
-      focus: 'Essential grammar rules with clear, practical explanations',
-      hook: 'Reveal the grammar rule that most people get wrong',
-      scenarios: ['professional writing', 'academic papers', 'clear communication'],
-      engagement: 'Master grammar that makes you sound professional'
-    };
-
-    basePrompt = `You are a viral English grammar expert creating engaging educational content for Twitter.
-
-TOPIC: "${topic.displayName}" - ${enhancedGuidelines.focus}
-
-VIRAL LEARNING STRATEGY:
-• HOOK: ${enhancedGuidelines.hook}
-• SCENARIOS: Focus on ${enhancedGuidelines.scenarios?.join(', ')}
-• ENGAGEMENT: ${enhancedGuidelines.engagement}
-
-Generate grammar content that helps learners avoid common mistakes and communicate more clearly:
-
-CONTENT APPROACH:
-• Start with a common grammar confusion or mistake
-• Provide clear explanation with memorable patterns or rules
-• Include practical examples that learners can apply immediately
-• Explain why this grammar point matters for professional communication
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound like a patient teacher who makes complex grammar simple
-${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
-
-CONTENT TYPE: ${contentType}
-EDUCATIONAL FOCUS: Practical grammar mastery
+GUIDELINES:
+- The \`tweetText\` must be engaging and separate from the main lesson.
+- The \`cardData\` must be accurate and easy to understand for an intermediate English learner.
+- Ensure the \`word\` is impactful and the \`example\` is practical.
 
 [${timeMarker}-${tokenMarker}]`;
-
-  } else if (persona.key === 'english_communication_expert') {
-    const enhancedGuidelines = guidelines || {
-      focus: 'Practical communication skills for confident interactions',
-      hook: 'The communication technique that transforms conversations',
-      scenarios: ['presentations', 'job interviews', 'networking events'],
-      engagement: 'Communicate with confidence and clarity'
-    };
-
-    basePrompt = `You are a viral English communication expert creating engaging content for confident communication.
-
-TOPIC: "${topic.displayName}" - ${enhancedGuidelines.focus}
-
-VIRAL LEARNING STRATEGY:
-• HOOK: ${enhancedGuidelines.hook}
-• SCENARIOS: Focus on ${enhancedGuidelines.scenarios?.join(', ')}
-• ENGAGEMENT: ${enhancedGuidelines.engagement}
-
-Generate communication content that builds genuine confidence and practical skills:
-
-CONTENT APPROACH:
-• Address a common communication challenge that learners face
-• Break it down into simple, actionable steps
-• Include relatable scenarios that make the advice memorable
-• Connect to professional and personal communication benefits
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound like an encouraging coach who makes complex skills accessible
-${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
-
-CONTENT TYPE: ${contentType}
-EDUCATIONAL FOCUS: Practical communication mastery
-
-[${timeMarker}-${tokenMarker}]`;
-
-  } else if (persona.key === 'product_insights') {
-    const enhancedGuidelines = guidelines || {
-      focus: 'Practical product development insights from real experience',
-      hook: 'The product insight that changes everything',
-      scenarios: ['feature decisions', 'user research', 'roadmap planning'],
-      engagement: 'Build better products with proven strategies'
-    };
-
-    // Build RSS context for professional personas
-    let rssSourceContext = '';
-    if (rssContext.length > 0) {
-      rssSourceContext = `\n\nRECENT INDUSTRY DEVELOPMENTS (from RSS sources):\n${rssContext}`;
-    }
-
-    basePrompt = `You are a seasoned product expert sharing viral product development insights on Twitter.
-
-TOPIC: "${topic.displayName}" - ${enhancedGuidelines.focus}
-
-VIRAL STRATEGY:
-• HOOK: ${enhancedGuidelines.hook}
-• SCENARIOS: Focus on ${enhancedGuidelines.scenarios?.join(', ')}
-• ENGAGEMENT: ${enhancedGuidelines.engagement}
-
-Generate product content that provides genuine value to product managers and builders:
-
-CONTENT APPROACH:
-• Share a hard-learned insight or counterintuitive lesson about ${topic.displayName}
-• Include specific examples or scenarios that illustrate the point
-• Explain why this matters for product success and user experience
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound authentic and based on real experience - avoid generic advice
-• Focus on actionable insights that product people can apply immediately
-${useRSSSources ? '• May reference current industry trends or recent product examples' : ''}${rssSourceContext}
-
-CONTENT TYPE: ${contentType}
-PROFESSIONAL FOCUS: Practical product insights
-
-[${timeMarker}-${tokenMarker}]`;
-
-  } else if (persona.key === 'startup_content') {
-    // Build RSS context for startup personas
-    let rssSourceContext = '';
-    if (rssContext.length > 0) {
-      rssSourceContext = `\n\nRECENT STARTUP DEVELOPMENTS (from RSS sources):\n${rssContext}`;
-    }
-
-    basePrompt = `Write valuable startup content about "${topic.displayName}" from the perspective of someone building in the trenches.
-
-ENTREPRENEUR APPROACH:
-• Share an honest insight or hard-learned lesson about ${topic.displayName}
-• Include the reality behind the challenge - not just the highlight reel
-• Explain what you wish you'd known earlier or what surprised you
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound authentic and vulnerable - startup life is messy
-• Focus on real experiences that fellow entrepreneurs can relate to
-${useRSSSources ? '• You may reference current startup trends, funding news, or market insights if relevant' : ''}${rssSourceContext}
-
-CONTENT TYPE: ${contentType}
-STARTUP FOCUS: Honest entrepreneurship insights
-
-[${timeMarker}-${tokenMarker}]`;
-
-  } else if (persona.key === 'tech_commentary') {
-    // Build RSS context for tech personas
-    let rssSourceContext = '';
-    if (rssContext.length > 0) {
-      rssSourceContext = `\n\nRECENT TECH DEVELOPMENTS (from RSS sources):\n${rssContext}`;
-    }
-
-    basePrompt = `Write thoughtful tech commentary about "${topic.displayName}" from a developer/tech professional perspective.
-
-TECH PROFESSIONAL APPROACH:
-• Share a nuanced take or observation about ${topic.displayName}
-• Include technical insight without being overly complex
-• Explain the broader implications or why this matters to the industry
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound knowledgeable but accessible - not gatekeeping
-• Focus on insights that tech professionals would find valuable
-${useRSSSources ? '• You may reference current tech trends, recent developments, or industry news if it enhances the insight' : ''}${rssSourceContext}
-
-CONTENT TYPE: ${contentType}
-TECH FOCUS: Thoughtful industry commentary
-
-[${timeMarker}-${tokenMarker}]`;
-
+  
   } else if (persona.key === 'satirist') {
-    // Build RSS context for satirist persona - needs current news for fresh satirical content
     let rssSourceContext = '';
     if (rssContext.length > 0) {
       rssSourceContext = `\n\nRECENT NEWS & DEVELOPMENTS (from RSS sources):\n${rssContext}`;
@@ -448,7 +233,6 @@ SATIRE FOCUS: Current events, political news, and social trend satirical comment
 [${timeMarker}-${tokenMarker}]`;
 
   } else if (persona.key === 'business_storyteller') {
-    // Build RSS context for business storytelling
     let rssSourceContext = '';
     if (rssContext.length > 0) {
       rssSourceContext = `\n\nRECENT BUSINESS DEVELOPMENTS (from RSS sources):\n${rssContext}`;
@@ -481,7 +265,6 @@ BUSINESS STORYTELLING FOCUS: Indian business narratives with emotional depth and
 [${timeMarker}-${tokenMarker}]`;
 
   } else if (persona.key === 'cricket_storyteller') {
-    // Build RSS context for cricket storytelling
     let rssSourceContext = '';
     if (rssContext.length > 0) {
       rssSourceContext = `\n\nRECENT CRICKET DEVELOPMENTS (from RSS sources):\n${rssContext}`;
@@ -514,10 +297,7 @@ CRICKET STORYTELLING FOCUS: Human stories through cricket lens with character an
 [${timeMarker}-${tokenMarker}]`;
   }
 
-  // Add account-specific CTAs based on account context
   if (account) {
-    // For now, add Gibbi CTA for gibbi-related accounts (15% chance)
-    // In the future, this would be configurable per account in database
     const isGibbiAccount = account.twitter_handle.includes('gibbi') || account.name.toLowerCase().includes('gibbi');
     if (isGibbiAccount && Math.random() < 0.15) {
       basePrompt += `\n\nIMPORTANT: Include a natural Gibbi AI mention like "Practice more English at gibbi.vercel.app" or "Improve your skills at gibbi.vercel.app" - keep it helpful and non-promotional.`;
@@ -525,76 +305,85 @@ CRICKET STORYTELLING FOCUS: Human stories through cricket lens with character an
   }
 
   return {
-    prompt: basePrompt + `\n\nCRITICAL: Keep your content under 200 characters. Twitter has a 280 character limit and hashtags will be added separately.
-
-Format as JSON with: "content", "teachingElements" (array of educational approaches used like "analogy", "common mistake", "practical tip"), "hashtags" (array of 3-4 specific, relevant hashtags that authentically relate to your content), "gibbiCTA" (string or null).
-
-HASHTAG INSTRUCTIONS:
-• Generate hashtags that are SPECIFIC to your content
-• If teaching "affect vs effect", use #AffectVsEffect not #Grammar
-• If explaining pronunciation, use the specific sound/word, not #Pronunciation
-• If it's a satirical take on a specific news event, reference that event
-• Be authentic and avoid generic hashtags like #Learning #Tips #English
-• Focus on what makes THIS specific content unique and discoverable
-• Maximum 4 hashtags for optimal engagement
-
-Write like a helpful teacher, not a marketer!`,
+    prompt: basePrompt + `\n\nCRITICAL: Keep tweet text content under 200 characters. Format the entire output as a single, valid JSON object. For non-vocabulary personas, use the key "content" for the tweet text. For the vocabulary persona, use the "tweetText" and "cardData" structure as specified. Always include the "hashtags" array.`,
     persona,
     topic
   };
 }
 
 /**
- * Parse and validate the AI response for tweet content with AI-generated hashtags
+ * Parse and validate the AI response for tweet content
  */
-function parseAndValidateTweetResponse(content: string, persona: string, topic: { key: string; displayName: string }, personaConfig?: PersonaConfig): EnhancedTweet | null {
+function parseAndValidateTweetResponse(
+  content: string, 
+  persona: string, 
+  topic: { key: string; displayName: string }, 
+  personaConfig?: PersonaConfig
+): { tweet: EnhancedTweet; cardData: VocabularyCard | null } | null {
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
     const data = JSON.parse(cleanedContent);
-    
-    if (!data.content || typeof data.content !== 'string' ||
-        !data.teachingElements || !Array.isArray(data.teachingElements) ||
-        !data.hashtags || !Array.isArray(data.hashtags)) {
-      throw new Error('AI response missing required fields or has invalid structure.');
+
+    let cardData: VocabularyCard | null = null;
+    let tweetContent: string;
+
+    if (persona === 'english_vocab_builder') {
+      if (!data.tweetText || !data.cardData || !data.cardData.word || !data.cardData.meaning) {
+        throw new Error('AI response for vocab_builder missing required fields: tweetText or cardData.');
+      }
+      tweetContent = data.tweetText;
+      cardData = {
+        word: data.cardData.word,
+        meaning: data.cardData.meaning,
+        partOfSpeech: data.cardData.partOfSpeech,
+        example: data.cardData.example,
+        synonyms: data.cardData.synonyms,
+      };
+    } else {
+      if (!data.content || typeof data.content !== 'string') {
+        throw new Error('AI response missing required "content" field.');
+      }
+      tweetContent = data.content;
+    }
+
+    if (!data.hashtags || !Array.isArray(data.hashtags)) {
+        throw new Error('AI response missing required hashtags array.');
     }
     
-    // Use AI-generated hashtags, fallback to persona hashtags if needed
-    let hashtags = data.hashtags.slice(0, 4); // Limit to 4 hashtags
+    let hashtags = data.hashtags.slice(0, 4);
     
-    // Fallback to persona hashtags only if AI didn't generate any valid hashtags
     if (!hashtags.length && personaConfig && personaConfig.hashtag_sets && personaConfig.hashtag_sets.length > 0) {
       const variation = Math.floor(Math.random() * personaConfig.hashtag_sets.length);
       hashtags = getHashtagsForPersona(personaConfig, variation);
     }
     
-    // STRICT character limit enforcement - much stricter to avoid any issues
     const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => `#${tag}`).join(' ') : '';
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
-    const totalLength = data.content.length + hashtagString.length + ctaString.length;
+    const totalLength = tweetContent.length + hashtagString.length + ctaString.length;
     
-    // Enforce strict 270 character limit (10 char buffer from Twitter's 280)
     if (totalLength > 270) {
       console.warn(`Generated tweet exceeds 270 characters (${totalLength}), truncating content...`);
       const availableLength = 270 - hashtagString.length - ctaString.length;
       if (availableLength > 0) {
-        data.content = data.content.substring(0, availableLength - 3) + '...';
+        tweetContent = tweetContent.substring(0, availableLength - 3) + '...';
       } else {
-        // If hashtags and CTA take too much space, prioritize content
-        data.content = data.content.substring(0, 200);
-        hashtags = hashtags.slice(0, 2); // Reduce hashtags
+        tweetContent = tweetContent.substring(0, 200);
+        hashtags = hashtags.slice(0, 2);
       }
     }
 
-    return {
-      content: data.content,
+    const tweet: EnhancedTweet = {
+      content: tweetContent,
       hashtags: hashtags,
       persona: persona,
-      category: topic.key.split('_')[1] || 'general', // Extract category from topic key
+      category: topic.key.split('_')[1] || 'general',
       topic: topic.key,
-      engagementHooks: data.teachingElements, // Map teachingElements to engagementHooks for backward compatibility
+      engagementHooks: data.teachingElements || [],
       gibbiCTA: data.gibbiCTA || undefined,
-      contentType: 'explanation' // Default content type for teacher approach
+      contentType: 'explanation'
     };
+
+    return { tweet, cardData };
     
   } catch (error) {
     console.error(`Failed to parse AI tweet response. Content: "${content}"`, error);
@@ -607,16 +396,15 @@ function parseAndValidateTweetResponse(content: string, persona: string, topic: 
  */
 export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
   try {
-    
-
     const { prompt, persona, topic } = await generateTweetPrompt(config);
     const markers = generateVariationMarkers();
-  const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
+    const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
 
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
+      response_format: { type: "json_object" },
     });
 
     const content = response.choices[0].message.content;
@@ -628,34 +416,39 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       throw new Error('Invalid persona or topic configuration');
     }
 
-    const tweetData = parseAndValidateTweetResponse(content, persona.key, topic as { key: string; displayName: string }, persona);
-    if (!tweetData) {
+    const parsedResponse = parseAndValidateTweetResponse(content, persona.key, topic as { key: string; displayName: string }, persona);
+    if (!parsedResponse) {
       throw new Error('Failed to parse or validate AI response.');
     }
 
-    // Generate image if persona supports it
-    let imageBuffer: Buffer | undefined = undefined;
-    if (persona.image_generation?.enabled) {
+    const { tweet: tweetData, cardData } = parsedResponse;
+
+    let imageUrl: string | undefined = undefined;
+    console.log(`🔍 Checking image generation for persona ${persona.displayName}: enabled=${persona.image_generation?.enabled}`);
+    if (persona.image_generation?.enabled && cardData) {
       try {
-        const generatedImage = await generatePersonaImage(tweetData.content, persona.key);
-        if (generatedImage) {
-          imageBuffer = generatedImage;
-          console.log(`🖼️ Generated image for ${persona.displayName} tweet`);
+        console.log(`🖼️ Starting image generation for ${persona.displayName} with key ${persona.key}`);
+        const generatedImageUrl = await generatePersonaImage(cardData, persona.key);
+        if (generatedImageUrl) {
+          imageUrl = generatedImageUrl;
+          console.log(`🖼️ Generated and uploaded image for ${persona.displayName} tweet: ${imageUrl}`);
+        } else {
+          console.log(`⚠️ Image generation returned null for ${persona.displayName}`);
         }
       } catch (error) {
         console.warn(`⚠️ Image generation failed for ${persona.displayName}:`, error);
       }
+    } else {
+      console.log(`🔍 Image generation disabled or no card data for persona ${persona.displayName}`);
     }
 
-    // Add content hash for duplicate detection (not stored in DB)
     const contentHash = generateContentHash(tweetData);
     
     console.log(`✅ Generated enhanced tweet for ${persona.displayName} on ${(topic as { key: string; displayName: string }).displayName} [${timeMarker}-${tokenMarker}] Hash: ${contentHash}`);
     
-    // Add image to tweet data if generated
     return {
       ...tweetData,
-      imageBuffer
+      imageUrl
     };
 
   } catch (error) {

@@ -36,16 +36,12 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
   topics: [
     // --- Core Vocabulary Skills ---
     { key: 'eng_vocab_word_meaning', displayName: 'What Does This Word Mean? 📖' },
-    { key: 'eng_vocab_fill_blanks', displayName: 'Fill in the Blank! ✍️' },
-    { key: 'eng_vocab_word_forms', displayName: 'Which Word Form Fits? 🔄' },
+    // { key: 'eng_vocab_fill_blanks', displayName: 'Fill in the Blank! ✍️' },
+    // { key: 'eng_vocab_word_forms', displayName: 'Which Word Form Fits? 🔄' },
 
-    // --- Word Relationships ---
-    { key: 'eng_vocab_synonyms', displayName: 'Word Twins (Synonyms) 👯' },
-    { key: 'eng_vocab_antonyms', displayName: 'Opposites Attract (Antonyms) ↔️' },
-
-    // --- Practical & Contextual Vocabulary ---
-    { key: 'eng_vocab_thematic_words', displayName: 'Thematic Vocab (e.g., Business, Travel) ✈️' },
-    { key: 'eng_vocab_register', displayName: 'Formal vs. Casual Words 👔/👕' },
+    // // --- Word Relationships ---
+    // { key: 'eng_vocab_synonyms', displayName: 'Word Twins (Synonyms) 👯' },
+    // { key: 'eng_vocab_antonyms', displayName: 'Opposites Attract (Antonyms) ↔️' },
   ]
 };
 
@@ -159,18 +155,16 @@ export const PERSONAS: PersonaConfig[] = [
   VOCABULARY_BUILDER, 
 ] as const;
 
-// Type helpers
 export type PersonaKey = typeof PERSONAS[number]['key'];
 
-// Utility functions
 export function getPersonaByKey(key: string): PersonaConfig | undefined {
+  if (!key) return undefined;
   return PERSONAS.find(p => p.key === key);
 }
 
-// Topic selection functions
 export function getRandomTopicForPersona(personaKey: string): PersonaTopic | undefined {
   const persona = getPersonaByKey(personaKey);
-  if (!persona || persona.topics.length === 0) return undefined;
+  if (!persona?.topics?.length) return undefined;
   
   const randomIndex = Math.floor(Math.random() * persona.topics.length);
   return persona.topics[randomIndex];
@@ -189,23 +183,12 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 // Account-to-persona mapping for strict isolation based on Twitter handles
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
-  // Gibbi English Learning Account (@gibbi_ai)
-  'gibbi_ai': [
-    'english_vocab_builder',
-  ],
-  // Prince Business Account (
-  'princediwakar25': [
-    'satirist',
-    'business_storyteller',
-    'cricket_storyteller'
-  ]
+  'gibbi_ai': ['english_vocab_builder'],
+  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller']
 };
 
-/**
- * Get allowed personas for a specific Twitter handle
- */
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
-  // Remove @ symbol if present and convert to lowercase
+  if (!twitterHandle) return [];
   const cleanHandle = twitterHandle.replace('@', '').toLowerCase();
   return ACCOUNT_PERSONA_MAPPING[cleanHandle] || [];
 }
@@ -317,12 +300,15 @@ export function getAllPersonas(): PersonaConfig[] {
   return PERSONAS;
 }
 
-// Legacy compatibility export
-export const personas = PERSONAS.map(p => ({
-  id: p.key,
-  name: p.displayName,
-  emoji: p.displayName.includes('🏆') ? '🏆' : p.displayName.includes('📚') ? '📚' : '🗣️',
-  description: p.description,
-}));
+// Legacy compatibility export with a more robust emoji fallback
+export const personas = PERSONAS.map(p => {
+  const emojiMatch = p.displayName.match(/\p{Emoji}/u);
+  return {
+      id: p.key,
+      name: p.displayName,
+      emoji: emojiMatch ? emojiMatch[0] : '🗣️', // Safer emoji extraction
+      description: p.description,
+  };
+});
 
 export default PERSONAS;

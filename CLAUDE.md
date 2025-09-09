@@ -119,6 +119,9 @@ gibbi-tweeter/
 - `POST /api/generate` - Generate content with account context
 - `GET /api/debug/*` - Account-specific debugging endpoints
 
+
+
+
 ### **Content Sources & Configuration**
 
 The system uses category-based source files for different content types:

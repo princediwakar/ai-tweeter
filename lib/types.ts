@@ -1,4 +1,4 @@
-//types.ts
+// types.ts
 
 // Core Account and User Types
 export interface Account {
@@ -66,6 +66,7 @@ export interface EnhancedTweet {
   engagementHooks: string[];
   gibbiCTA?: string;
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
+  imageBuffer?: Buffer; // Image data for image-based tweets (deprecated)
   imageUrl?: string; // Cloudinary URL for image-based tweets
 }
 
@@ -76,6 +77,7 @@ export interface VocabularyCard {
   pronunciation?: string;
   partOfSpeech?: string;
   synonyms?: string[];
+  type?: 'single_word' | 'confused_pair' | 'synonym_list' | 'idiom' | 'phrasal_verb';
 }
 
 export interface TweetJob {
@@ -115,7 +117,14 @@ export interface TweetGenerationConfig {
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
 }
 
-// **FIX:** Moved ImageConfig interface here from imageGenerationService.ts
+// NEW: Added the complete type definition for the object returned by generateThread
+export interface ThreadGenerationResult {
+  thread_id: string;
+  total_tweets: number;
+  template_used: string;
+  story_category: string;
+}
+
 export interface ImageConfig {
   enabled: boolean;
   unsplashQuery?: string;

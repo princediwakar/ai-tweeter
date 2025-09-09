@@ -31,17 +31,21 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
   description: 'Master new words, meanings, and usage in engaging ways',
   image_generation: {
     enabled: true,
-    unsplash_query: 'minimal'
+    unsplash_query: 'minimal,calm,nature'
   },
+  // MODIFIED: Added a wide variety of topics to ensure unique content generation
   topics: [
-    // --- Core Vocabulary Skills ---
-    { key: 'eng_vocab_word_meaning', displayName: 'What Does This Word Mean? 📖' },
-    // { key: 'eng_vocab_fill_blanks', displayName: 'Fill in the Blank! ✍️' },
-    // { key: 'eng_vocab_word_forms', displayName: 'Which Word Form Fits? 🔄' },
-
-    // // --- Word Relationships ---
-    // { key: 'eng_vocab_synonyms', displayName: 'Word Twins (Synonyms) 👯' },
-    // { key: 'eng_vocab_antonyms', displayName: 'Opposites Attract (Antonyms) ↔️' },
+    { key: 'eng_vocab_word_meaning', displayName: 'A Powerful Vocabulary Word' },
+    { key: 'eng_vocab_confused_words', displayName: 'Commonly Confused Words (e.g., Affect vs. Effect)' },
+    { key: 'eng_vocab_synonyms_good', displayName: 'Advanced Synonyms for "Good"' },
+    { key: 'eng_vocab_synonyms_important', displayName: 'Powerful Alternatives to "Important"' },
+    { key: 'eng_vocab_synonyms_said', displayName: 'Descriptive Synonyms for "Said"' },
+    { key: 'eng_vocab_business', displayName: 'A Key Business English Term' },
+    { key: 'eng_vocab_formal_casual', displayName: 'Formal vs. Casual Language' },
+    { key: 'eng_vocab_idiom', displayName: 'A Common English Idiom Explained' },
+    { key: 'eng_vocab_phrasal_verb', displayName: 'A Useful Phrasal Verb' },
+    { key: 'eng_vocab_adjective', displayName: 'A More Descriptive Adjective' },
+    { key: 'eng_vocab_power_verb', displayName: 'A Stronger Verb to Use' },
   ]
 };
 

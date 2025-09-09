@@ -1,6 +1,6 @@
-//generationService.ts
-
+// generationService.ts
 import OpenAI from 'openai';
+import { randomBytes } from 'crypto';
 import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, getHashtagsForPersona, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
 import { EnhancedTweet, TweetGenerationConfig, VariationMarkers, VocabularyCard } from './types';
 import { getAccount } from './db';
@@ -19,7 +19,7 @@ const deepseekClient = new OpenAI({
 function generateVariationMarkers(): VariationMarkers {
   const timestamp = Date.now();
   const timeMarker = `T${timestamp}`;
-  const tokenMarker = `TK${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  const tokenMarker = `TK${randomBytes(4).toString('hex').toUpperCase()}`;
   
   return { 
     time_marker: timeMarker, 
@@ -31,15 +31,69 @@ function generateVariationMarkers(): VariationMarkers {
 
 /**
  * Topic-specific guidelines for enhanced content generation
- * Inspired by the YouTube system's comprehensive topic guidelines
  */
 const TOPIC_GUIDELINES = {
-  // --- Core Vocabulary Skills ---
+  // --- Core Vocabulary & Nuance ---
   eng_vocab_word_meaning: {
-    focus: 'Clarifying the precise meaning of a word with memorable examples',
-    hook: 'You might know this word, but are you using it correctly? Let\'s find out!',
+    focus: 'Clarifying the precise meaning of a powerful word with a memorable example.',
+    hook: 'You might know this word, but are you using it to its full potential?',
     scenarios: ['job interviews', 'academic writing', 'sounding more articulate'],
-    engagement: 'Challenge viewers to create their own sentence with the word'
+  },
+  eng_vocab_confused_words: {
+    focus: 'Clearly differentiating between two words that are often mixed up.',
+    hook: 'Stop making this common mistake! Master the difference between these tricky words.',
+    scenarios: ['professional emails', 'writing reports', 'avoiding embarrassing mix-ups'],
+  },
+  eng_vocab_formal_casual: {
+    focus: 'Showing the difference between formal and casual ways to express the same idea.',
+    hook: 'Sound more professional at work and more natural with friends. Here’s how.',
+    scenarios: ['adapting your language for different audiences', 'job interviews vs. texting', 'email etiquette'],
+  },
+  
+  // --- Synonyms & Alternatives ---
+  eng_vocab_synonyms_good: {
+    focus: 'Moving beyond "good" to use more precise and impactful positive adjectives.',
+    hook: 'Why say "good" when you could say "exceptional," "superb," or "marvelous"?',
+    scenarios: ['giving feedback', 'writing reviews', 'expressing strong positive feelings'],
+  },
+  eng_vocab_synonyms_important: {
+    focus: 'Replacing "important" with stronger, more specific alternatives.',
+    hook: 'Make your point more powerful. Stop saying "important" and start using these words.',
+    scenarios: ['making a business case', 'prioritizing tasks', 'academic arguments'],
+  },
+  eng_vocab_synonyms_said: {
+    focus: 'Using descriptive verbs instead of the generic word "said."',
+    hook: 'Bring your stories to life! Don’t just say they "said" something.',
+    scenarios: ['storytelling', 'creative writing', 'reporting conversations'],
+  },
+
+  // --- Practical English ---
+  eng_vocab_business: {
+    focus: 'Explaining a key term used in corporate environments to boost professional fluency.',
+    hook: 'Want to sound like a pro in your next meeting? You need to know this business term.',
+    scenarios: ['team meetings', 'client negotiations', 'understanding corporate jargon'],
+  },
+  eng_vocab_idiom: {
+    focus: 'Defining a common English idiom and explaining how to use it naturally.',
+    hook: 'Unlock the secrets of native speakers! What does this common idiom *really* mean?',
+    scenarios: ['understanding movies and TV shows', 'casual conversations', 'sounding more fluent'],
+  },
+  eng_vocab_phrasal_verb: {
+    focus: 'Breaking down a useful phrasal verb with a clear example.',
+    hook: 'This is one phrasal verb you will use all the time. Let\'s master it.',
+    scenarios: ['daily conversation', 'making plans', 'understanding context'],
+  },
+  
+  // --- Word Types ---
+  eng_vocab_adjective: {
+    focus: 'Introducing a descriptive adjective to make your language more vivid.',
+    hook: 'Add some color to your English! Here’s a great adjective to do it.',
+    scenarios: ['describing people, places, or experiences', 'storytelling', 'making your writing more engaging'],
+  },
+  eng_vocab_power_verb: {
+    focus: 'Showcasing a strong, active verb to make sentences more dynamic.',
+    hook: 'Make your sentences move! Replace weak verbs with this powerful alternative.',
+    scenarios: ['resume writing', 'professional communication', 'clear and concise writing'],
   },
 };
 
@@ -86,7 +140,7 @@ function shouldUseRSSSources(account: Account | null): boolean {
 /**
  * Generates enhanced tweet prompts using topic guidelines and variation markers
  */
-async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown }> {
+async function generateTweetPrompt(config: TweetGenerationConfig & { batchPosition?: number; batchSize?: number }): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown }> {
   const markers = generateVariationMarkers();
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
@@ -105,8 +159,8 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   let rssContext = '';
   if (useRSSSources && config.persona) {
     try {
-      if (['product_insights', 'startup_content', 'tech_commentary', 'satirist', 'business_storyteller', 'cricket_storyteller'].includes(config.persona)) {
-        const topicForRSS = config.topic || 'technology';
+      if (['satirist', 'business_storyteller', 'cricket_storyteller'].includes(config.persona)) {
+        const topicForRSS = config.topic || 'India';
         rssContext = await getDynamicContext(config.persona, topicForRSS);
         console.log(`📰 Fetched RSS context for ${config.persona}: ${rssContext.length > 0 ? 'success' : 'no content'}`);
       }
@@ -165,46 +219,61 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     throw new Error('No valid topic found for persona');
   }
 
-  const contentType = config.contentType || 'challenge';
-  
   let basePrompt = '';
-  
   const topicKey = (topic as { key: string; displayName: string }).key;
   const guidelines = TOPIC_GUIDELINES[topicKey as keyof typeof TOPIC_GUIDELINES];
   
   if (persona.key === 'english_vocab_builder') {
     const enhancedGuidelines = guidelines || {
-      focus: 'Essential vocabulary building with practical applications',
-      hook: 'Present vocabulary that elevates communication skills',
-      scenarios: ['professional communication', 'academic writing', 'daily conversations'],
-      engagement: 'Help learners use words confidently'
+      focus: 'Essential vocabulary building.',
+      hook: 'Level up your English skills!',
+      scenarios: ['daily conversation'],
     };
 
-    basePrompt = `You are a viral English education expert creating engaging vocabulary content for Twitter. Your goal is to generate content for an image-based tweet.
+    // Generate random approach variations for stronger uniqueness
+    const approaches = [
+      'Focus on etymology and word origins',
+      'Emphasize practical usage in professional settings', 
+      'Highlight common mistakes and how to avoid them',
+      'Show formal vs informal usage patterns',
+      'Demonstrate usage in different contexts',
+      'Focus on pronunciation and spelling patterns'
+    ];
+    const randomApproach = approaches[Math.floor(Math.random() * approaches.length)];
+    
+    const batchContext = config.batchPosition && config.batchSize 
+      ? `\n\nBATCH CONTEXT: This is generation ${config.batchPosition} of ${config.batchSize}. Generate completely UNIQUE content - avoid repeating words, examples, or concepts from previous generations in this batch.`
+      : '';
+
+    basePrompt = `You are a viral English education expert. Your goal is to generate a vocabulary lesson for an image-based tweet.
 
 TOPIC: "${topic.displayName}" - ${enhancedGuidelines.focus}
+APPROACH: ${randomApproach}
 
-TASK: Generate a single vocabulary lesson. Provide the output in a structured JSON format containing two main parts:
-1.  \`tweetText\`: A short, engaging text for the Twitter post itself (under 180 characters). This text should encourage users to look at the image for the lesson.
-2.  \`cardData\`: A detailed object containing the vocabulary information to be displayed on the image.
+UNIQUENESS REQUIREMENT: Generate COMPLETELY UNIQUE vocabulary content. Even if this topic category was used before, choose a different word/pair/concept. Be creative and avoid repetition.${batchContext}
 
-JSON STRUCTURE:
+TASK: Generate a single vocabulary lesson and provide the output in a structured JSON format.
+
+### JSON STRUCTURE:
 {
-  "tweetText": "A short, catchy tweet. Example: 'Don't just say 'important'! 🤯 Level up your vocabulary with this powerful alternative. Check the image to learn more! ✨'",
+  "tweetText": "A short, engaging hook for the Twitter post (under 180 chars). Use the style: '${enhancedGuidelines.hook}'",
   "cardData": {
-    "word": "The main vocabulary word (e.g., 'Crucial')",
-    "partOfSpeech": "The part of speech (e.g., 'adjective')",
-    "meaning": "A clear, concise definition (e.g., 'Extremely important or necessary for a particular situation or outcome.')",
-    "example": "A practical example sentence (e.g., 'Clear communication is crucial for the project's success.')"
+    "type": "The type of lesson. MUST be one of: 'single_word', 'confused_pair', 'synonym_list', 'idiom', 'phrasal_verb'.",
+    "word": "The main word, phrase, or pair. For confused pairs, format as 'Word1 vs. Word2'.",
+    "partOfSpeech": "The part of speech. For confused pairs, provide for the first word.",
+    "meaning": "The definition. For confused pairs, define BOTH words, separated by a newline '\\n'. For synonym lists, this should be a brief description.",
+    "example": "A practical example sentence. For confused pairs, use the first word in the sentence.",
+    "synonyms": ["An", "array", "of", "synonyms", "if the topic is about synonyms."]
   },
   "hashtags": ["An", "array", "of", "4 relevant hashtags"],
   "gibbiCTA": "A CTA string or null"
 }
 
-GUIDELINES:
-- The \`tweetText\` must be engaging and separate from the main lesson.
-- The \`cardData\` must be accurate and easy to understand for an intermediate English learner.
-- Ensure the \`word\` is impactful and the \`example\` is practical.
+### CRITICAL INSTRUCTIONS:
+- Adhere strictly to the "type" options.
+- For "confused_pair", the 'word' field MUST contain " vs. " and the 'meaning' field MUST contain a newline '\\n'.
+- For "synonym_list", the 'synonyms' array MUST be populated.
+- ENSURE COMPLETE UNIQUENESS: Choose different words/concepts even within the same topic category.
 
 [${timeMarker}-${tokenMarker}]`;
   
@@ -227,7 +296,7 @@ SATIRIST APPROACH:
 • Comment on media coverage patterns, political rhetoric, or societal contradictions
 ${useRSSSources ? '• Use current political news, business headlines, social controversies, or trending topics as satirical material' : ''}${rssSourceContext}
 
-CONTENT TYPE: ${contentType}
+CONTENT TYPE: "single_tweet"
 SATIRE FOCUS: Current events, political news, and social trend satirical commentary
 
 [${timeMarker}-${tokenMarker}]`;
@@ -259,7 +328,7 @@ THREAD STRUCTURE:
 • Tweet 6: Climax/decision/outcome
 • Tweet 7: Strategic lesson or insight for modern entrepreneurs
 
-CONTENT TYPE: ${contentType}
+CONTENT TYPE: "thread"
 BUSINESS STORYTELLING FOCUS: Indian business narratives with emotional depth and strategic insights
 
 [${timeMarker}-${tokenMarker}]`;
@@ -291,7 +360,7 @@ THREAD STRUCTURE:
 • Tweet 6: Climax/moment/outcome of the cricket situation
 • Tweet 7: Life lesson or character insight that transcends cricket
 
-CONTENT TYPE: ${contentType}
+CONTENT TYPE: "thread"
 CRICKET STORYTELLING FOCUS: Human stories through cricket lens with character and life lessons
 
 [${timeMarker}-${tokenMarker}]`;
@@ -338,6 +407,7 @@ function parseAndValidateTweetResponse(
         partOfSpeech: data.cardData.partOfSpeech,
         example: data.cardData.example,
         synonyms: data.cardData.synonyms,
+        type: data.cardData.type,
       };
     } else {
       if (!data.content || typeof data.content !== 'string') {
@@ -394,7 +464,7 @@ function parseAndValidateTweetResponse(
 /**
  * Main enhanced tweet generation function with multi-account support
  */
-export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
+export async function generateTweet(config: TweetGenerationConfig & { batchPosition?: number; batchSize?: number } = {}): Promise<EnhancedTweet | null> {
   try {
     const { prompt, persona, topic } = await generateTweetPrompt(config);
     const markers = generateVariationMarkers();
@@ -403,7 +473,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      temperature: 0.9,
       response_format: { type: "json_object" },
     });
 

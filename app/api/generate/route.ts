@@ -1,4 +1,3 @@
-// app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -10,17 +9,26 @@ import {
   getSchedulingInsights
 } from '@/lib/schedule';
 import { TweetGenerationConfig } from '@/lib/types';
-import { getRandomTopicForPersona, getPersonaByKey } from '@/lib/personas';
+import { getPersonaByKey, getAllTopicsForPersona } from '@/lib/personas';
 
-// Job tracking removed - using synchronous generation
+/**
+ * A utility function to shuffle an array (Fisher-Yates algorithm).
+ * This ensures we don't repeat topics within a single generation batch.
+ */
+function shuffleArray<T>(array: T[]): T[] {
+    const newArr = [...array]; // Create a copy to avoid modifying the original
+    for (let i = newArr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArr[i], newArr[j]] = [newArr[j], newArr[i]]; // Swap elements
+    }
+    return newArr;
+}
 
 /**
  * Enhanced Multi-Account Content Generation API
- * Inspired by the YouTube system's sophisticated batch processing and account-specific logic
  */
 export async function GET(request: NextRequest) {
   try {
-    // Verify authorization
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -31,18 +39,15 @@ export async function GET(request: NextRequest) {
     const twitterHandle = searchParams.get('twitter_handle');
     const debugMode = searchParams.get('debug') === 'true';
     
-    // Include scheduling insights in debug mode
     if (debugMode) {
       const insights = getSchedulingInsights();
       logger.info('Scheduling insights requested', 'generate-debug', insights);
     }
     
-    // If account_id is provided, generate for specific account using enhanced logic
     if (accountId) {
       return await generateForAccountEnhanced(accountId, debugMode);
     }
     
-    // If twitter_handle is provided, lookup account and generate
     if (twitterHandle) {
       const account = await getAccountByTwitterHandle(twitterHandle);
       if (!account) {
@@ -53,7 +58,6 @@ export async function GET(request: NextRequest) {
       return await generateForAccountEnhanced(account.id, debugMode);
     }
     
-    // Otherwise, generate for all active accounts with improved orchestration
     return await generateForAllAccountsEnhanced(debugMode);
     
   } catch (error) {
@@ -69,22 +73,18 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Enhanced account-specific generation using YouTube system's intelligent batch processing
+ * Enhanced account-specific generation using intelligent batch processing
  */
 async function generateForAccountEnhanced(accountId: string, debugMode = false) {
   const nowIST = getCurrentTimeInIST();
   const callId = Math.random().toString(36).substring(2, 8);
   
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced');
-
-  // Check debug mode from environment variable
-  const isDebugMode = process.env.DEBUG_MODE === 'true';
   
-  // Get enhanced batch information using YouTube-inspired scheduling logic
-  const batchInfo = getGenerationBatchInfo(accountId, nowIST, isDebugMode);
-  logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${isDebugMode})`, 'generate-debug');
+  const batchInfo = getGenerationBatchInfo(accountId, nowIST, debugMode);
+  logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${debugMode})`, 'generate-debug');
   
-  if (!batchInfo.should_generate && !isDebugMode) {
+  if (!batchInfo.should_generate && !debugMode) {
     return NextResponse.json({
       success: true,
       message: `⏳ No generation scheduled for account ${accountId} at ${nowIST.getHours()}:00 IST`,
@@ -94,14 +94,12 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
     });
   }
   
-  if (isDebugMode && !batchInfo.should_generate) {
+  if (debugMode && !batchInfo.should_generate) {
     logger.info(`[Enhanced:${callId}] Debug mode enabled - bypassing schedule for account ${accountId}`, 'generate-debug');
   }
 
-  // Get account details and current pipeline status
-  const activeAccounts = await getActiveAccounts();
-  const account = activeAccounts.find(a => a.id === accountId);
-  if (!account) {
+  const account = await getAccount(accountId);
+  if (!account || account.status !== 'active') {
     return NextResponse.json({
       success: false,
       error: `Account ${accountId} not found or inactive`
@@ -111,8 +109,7 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
   const accountTweets = await getTweetsByAccount(accountId);
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
   
-  // Enhanced pipeline management - different thresholds per account strategy
-  const maxPipelineSize = accountId.includes('gibbi') ? 8 : 30; // Educational accounts can have larger pipeline
+  const maxPipelineSize = account.twitter_handle.includes('gibbi') ? 8 : 30;
   
   if (pendingTweets.length >= maxPipelineSize) {
     return NextResponse.json({
@@ -127,23 +124,30 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
     });
   }
 
-  // Enhanced batch generation with threading support
   const targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
+    if (targetBatchSize <= 0) {
+    return NextResponse.json({
+        success: true,
+        message: `✅ Account pipeline is healthy. No new tweets needed at this time.`,
+        generated: 0,
+    });
+  }
+  
   const generatedTweets = [];
   const generatedThreads = [];
   const errors = [];
   
-  // Check if account supports threading
-  const accountEntity = await getAccount(accountId);
-  const supportsThreading = accountEntity ? canGenerateThreads(accountEntity) : false;
+  const supportsThreading = canGenerateThreads(account);
   
   logger.info(`[Enhanced:${callId}] Generating batch for account ${accountId} (Threading: ${supportsThreading ? 'enabled' : 'disabled'})`, 'generate-batch');
 
+  // Pre-fetch and shuffle topics to GUARANTEE variety within the batch.
+  const selectedPersonaKey = batchInfo.personas[0]; // Assumes one primary persona for the batch
+  const allTopics = getAllTopicsForPersona(selectedPersonaKey);
+  const shuffledTopics = shuffleArray(allTopics);
+
   for (let i = 0; i < targetBatchSize; i++) {
     try {
-      // Intelligent persona selection - rotate through available personas
-      const selectedPersonaKey = batchInfo.personas[i % batchInfo.personas.length];
-      logger.info(`[Enhanced:${callId}] Account ${accountId} selectedPersonaKey: ${selectedPersonaKey}`, 'generate-debug');
       const persona = getPersonaByKey(selectedPersonaKey);
       
       if (!persona) {
@@ -151,49 +155,27 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
         continue;
       }
 
-      // Threading decision for storytelling personas
-      let shouldGenerateThread = false;
-      if (supportsThreading && (selectedPersonaKey === 'business_storyteller' || selectedPersonaKey === 'cricket_storyteller')) {
-        // 70% chance to generate thread for storytelling personas
-        shouldGenerateThread = Math.random() < 0.7;
-      }
+      const shouldGenerateThread = supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey) && Math.random() < 0.7;
 
       if (shouldGenerateThread) {
-        // Generate business thread
         logger.info(`[Enhanced:${callId}] Generating thread for ${selectedPersonaKey}`, 'generate-thread');
-        
-        const threadResult = await generateThread({
-          account_id: accountId,
-          persona: selectedPersonaKey
-        });
+        const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });
         
         if (threadResult) {
-          generatedThreads.push({
-            thread_id: threadResult.thread_id,
-            persona: selectedPersonaKey,
-            template: threadResult.template_used,
-            total_tweets: threadResult.total_tweets,
-            story_category: threadResult.story_category
-          });
-          
-          // Count as multiple generation units based on thread size
-          logger.info(`[Enhanced:${callId}] Generated thread "${threadResult.template_used}" with ${threadResult.total_tweets} tweets`, 'generate-success');
-          
-          // Skip ahead in loop since thread counts as multiple content units
+          generatedThreads.push(threadResult);
           i += Math.max(1, Math.floor(threadResult.total_tweets / 2));
         } else {
           errors.push(`Failed to generate thread for persona ${selectedPersonaKey}`);
         }
       } else {
-        // Generate single tweet
-        const topic = getRandomTopicForPersona(selectedPersonaKey);
+        // Use the pre-shuffled list to pick a unique topic for each tweet in the batch.
+        const topic = shuffledTopics[i % shuffledTopics.length];
         if (!topic) {
-          errors.push(`No topics available for persona ${selectedPersonaKey}`);
+          errors.push(`No unique topics left for persona ${selectedPersonaKey}`);
           continue;
         }
         logger.info(`[Enhanced:${callId}] Account ${accountId} selected topic: ${topic?.displayName || 'N/A'} for persona ${selectedPersonaKey}`, 'generate-debug');
 
-        // Intelligent content type selection based on time and account strategy
         const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
         const contentType = contentTypes[(nowIST.getHours() + i) % contentTypes.length];
 
@@ -210,8 +192,7 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
           errors.push(`Failed to generate tweet for persona ${selectedPersonaKey}`);
           continue;
         }
-        logger.info(`[Enhanced:${callId}] Account ${accountId} generatedTweet content (first 100 chars): ${generatedTweet?.content.substring(0, 100)}... for persona ${generatedTweet?.persona}`, 'generate-debug');
-
+        
         const tweet = {
           id: generateTweetId(),
           account_id: accountId,
@@ -226,7 +207,6 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
         };
 
         await saveTweet(tweet);
-        logger.info(`[Enhanced:${callId}] Account ${accountId} saved tweet ${tweet.id} with persona ${tweet.persona} and content_type ${tweet.content_type}`, 'generate-debug');
         generatedTweets.push({
           persona: selectedPersonaKey,
           topic: topic.displayName,
@@ -263,7 +243,7 @@ async function generateForAccountEnhanced(accountId: string, debugMode = false) 
     maxPipeline: maxPipelineSize,
     batchInfo: debugMode ? batchInfo : undefined,
     generatedTweets: debugMode ? generatedTweets : generatedTweets.length,
-    generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ template: t.template, tweets: t.total_tweets })),
+    generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ template: t.template_used, tweets: t.total_tweets })),
     errors: errors.length > 0 ? errors : undefined,
     timestamp: new Date().toISOString()
   };
@@ -292,7 +272,6 @@ async function generateForAllAccountsEnhanced(debugMode = false) {
     });
   }
 
-  // Process accounts in parallel for better performance (inspired by YouTube system)
   const accountPromises = activeAccounts.map(async (account) => {
     try {
       const result = await generateForAccountEnhanced(account.id, debugMode);
@@ -302,7 +281,7 @@ async function generateForAllAccountsEnhanced(debugMode = false) {
         accountId: account.id,
         accountName: account.name,
         success: data.success,
-        generated: data.generated, // Keep the full object
+        generated: data.generated,
         strategy: data.strategy || 'Unknown',
         currentPipeline: data.currentPipeline || 0,
         message: data.message || data.error,
@@ -323,15 +302,12 @@ async function generateForAllAccountsEnhanced(debugMode = false) {
     }
   });
 
-  // Wait for all accounts to complete processing
   const results = await Promise.all(accountPromises);
   
-  // Aggregate results with enhanced metrics
   const totalGenerated = results.reduce((sum, r) => sum + (r.generated?.total_content_units || 0), 0);
   const successfulAccounts = results.filter(r => r.success).length;
   const accountsWithGeneration = results.filter(r => (r.generated?.total_content_units || 0) > 0).length;
   
-  // Include scheduling insights for monitoring
   const insights = getSchedulingInsights();
   
   const response = {
@@ -357,5 +333,3 @@ async function generateForAllAccountsEnhanced(debugMode = false) {
   
   return NextResponse.json(response);
 }
-
-

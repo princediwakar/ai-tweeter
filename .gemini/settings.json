@@ -1,0 +1,18 @@
+{
+    "mcpServers": {
+      "playwright": {
+        "command": "npx",
+        "args": [
+          "@playwright/mcp"
+        ]
+      },
+      "Neon": {
+        "command": "npx",
+        "args": [
+          "-y",
+          "mcp-remote@latest",
+          "https://mcp.neon.tech/mcp"
+        ]
+      }
+    }
+  }

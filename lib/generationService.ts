@@ -297,7 +297,7 @@ CONTENT APPROACH:
 • Present vocabulary that elevates communication skills
 • Include practical, immediate application opportunities
 • Create "aha!" moments that boost learning motivation
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound like a helpful teacher who makes learning exciting
 ${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
 
@@ -330,7 +330,7 @@ CONTENT APPROACH:
 • Provide clear explanation with memorable patterns or rules
 • Include practical examples that learners can apply immediately
 • Explain why this grammar point matters for professional communication
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound like a patient teacher who makes complex grammar simple
 ${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
 
@@ -363,7 +363,7 @@ CONTENT APPROACH:
 • Break it down into simple, actionable steps
 • Include relatable scenarios that make the advice memorable
 • Connect to professional and personal communication benefits
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound like an encouraging coach who makes complex skills accessible
 ${!useRSSSources ? '• Focus on timeless educational content - avoid current events' : ''}
 
@@ -401,7 +401,7 @@ CONTENT APPROACH:
 • Share a hard-learned insight or counterintuitive lesson about ${topic.displayName}
 • Include specific examples or scenarios that illustrate the point
 • Explain why this matters for product success and user experience
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound authentic and based on real experience - avoid generic advice
 • Focus on actionable insights that product people can apply immediately
 ${useRSSSources ? '• May reference current industry trends or recent product examples' : ''}${rssSourceContext}
@@ -424,7 +424,7 @@ ENTREPRENEUR APPROACH:
 • Share an honest insight or hard-learned lesson about ${topic.displayName}
 • Include the reality behind the challenge - not just the highlight reel
 • Explain what you wish you'd known earlier or what surprised you
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound authentic and vulnerable - startup life is messy
 • Focus on real experiences that fellow entrepreneurs can relate to
 ${useRSSSources ? '• You may reference current startup trends, funding news, or market insights if relevant' : ''}${rssSourceContext}
@@ -447,7 +447,7 @@ TECH PROFESSIONAL APPROACH:
 • Share a nuanced take or observation about ${topic.displayName}
 • Include technical insight without being overly complex
 • Explain the broader implications or why this matters to the industry
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound knowledgeable but accessible - not gatekeeping
 • Focus on insights that tech professionals would find valuable
 ${useRSSSources ? '• You may reference current tech trends, recent developments, or industry news if it enhances the insight' : ''}${rssSourceContext}
@@ -470,7 +470,7 @@ SATIRIST APPROACH:
 • Create clever, satirical observations about current political news, business developments, and social trends
 • Use irony, wit, and humor to highlight absurdities or contradictions in news events
 • Reference specific current news, political developments, or trending topics for timely satirical commentary
-• Keep under 240 characters (excluding hashtags)
+• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
 • Sound intelligent and observant - satirical but not mean-spirited or offensive
 • Focus on making people both laugh and think about the absurdity of current events
 • Draw from political news, business headlines, celebrity controversies, and social media trends
@@ -560,7 +560,9 @@ CRICKET STORYTELLING FOCUS: Human stories through cricket lens with character an
   }
 
   return {
-    prompt: basePrompt + `\n\nFormat as JSON with: "content", "teachingElements" (array of educational approaches used like "analogy", "common mistake", "practical tip"), "hashtags" (array of 3-4 specific, relevant hashtags that authentically relate to your content), "gibbiCTA" (string or null).
+    prompt: basePrompt + `\n\nCRITICAL: Keep your content under 200 characters. Twitter has a 280 character limit and hashtags will be added separately.
+
+Format as JSON with: "content", "teachingElements" (array of educational approaches used like "analogy", "common mistake", "practical tip"), "hashtags" (array of 3-4 specific, relevant hashtags that authentically relate to your content), "gibbiCTA" (string or null).
 
 HASHTAG INSTRUCTIONS:
 • Generate hashtags that are SPECIFIC to your content
@@ -600,14 +602,22 @@ function parseAndValidateTweetResponse(content: string, persona: string, topic: 
       hashtags = getHashtagsForPersona(personaConfig, variation);
     }
     
-    // Ensure content is under 280 characters including hashtags
-    const hashtagString = hashtags.join(' ');
-    const totalLength = data.content.length + hashtagString.length + (data.gibbiCTA ? data.gibbiCTA.length : 0) + 2; // +2 for spaces
+    // STRICT character limit enforcement - much stricter to avoid any issues
+    const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => `#${tag}`).join(' ') : '';
+    const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
+    const totalLength = data.content.length + hashtagString.length + ctaString.length;
     
-    if (totalLength > 280) {
-      console.warn('Generated tweet exceeds 280 characters, truncating...');
-      const availableLength = 280 - hashtagString.length - (data.gibbiCTA ? data.gibbiCTA.length : 0);
-      data.content = data.content.substring(0, availableLength);
+    // Enforce strict 270 character limit (10 char buffer from Twitter's 280)
+    if (totalLength > 270) {
+      console.warn(`Generated tweet exceeds 270 characters (${totalLength}), truncating content...`);
+      const availableLength = 270 - hashtagString.length - ctaString.length;
+      if (availableLength > 0) {
+        data.content = data.content.substring(0, availableLength - 3) + '...';
+      } else {
+        // If hashtags and CTA take too much space, prioritize content
+        data.content = data.content.substring(0, 200);
+        hashtags = hashtags.slice(0, 2); // Reduce hashtags
+      }
     }
 
     return {

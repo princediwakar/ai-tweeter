@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
     if (action === 'generate') {
       const personaKey = data.persona || 'english_vocab_builder'; // Default to educational persona
-      const topic = data.topic; // Optional specific topic
+      const topic = data.topic || data.customPrompt; // Handle both topic and customPrompt for backward compatibility
       const accountId = data.account_id; // Optional for backward compatibility
       
       // Allow fallback to environment variables if no account_id provided (for development/testing)
@@ -140,6 +140,7 @@ export async function POST(request: Request) {
     if (action === 'bulk_generate') {
       const personaKey = data.persona; // Optional - will use weighted selection if not provided
       const accountId = data.account_id; // Optional for backward compatibility
+      const topic = data.topic || data.customPrompt; // Handle custom prompts for bulk generation
       
       // Allow fallback to environment variables if no account_id provided (for development/testing)
       if (!accountId) {
@@ -159,6 +160,7 @@ export async function POST(request: Request) {
       const config: TweetGenerationConfig = {
         account_id: accountId || 'fallback',
         persona: personaKey,
+        topic: topic, // Pass custom prompts/topics to bulk generation
         contentType: contentType as 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy'
       };
 

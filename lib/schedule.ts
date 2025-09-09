@@ -51,17 +51,16 @@ const gibbiPostingPattern: HourlySchedule = {
  */
 const princeGenerationPattern: HourlySchedule = {
   8: ['satirist'],   // Morning satirical tweet generation
-  14: ['satirist'],  // Afternoon satirical tweet generation
   16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   20: ['satirist'],  // Late evening satirical tweet generation
 };
 
 const princePostingPattern: HourlySchedule = {
-  9: ['satirist'],          // Morning satirical tweet posting
-  13: ['satirist'],         // Lunch break satirical tweet posting
-  15: ['satirist'],         // Afternoon satirical tweet posting
-  17: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
-  20: ['satirist'],         // Evening satirical tweet posting
+  7: ['satirist'],          // Morning satirical tweet posting
+  9: ['satirist'],         // Lunch break satirical tweet posting
+  16: ['satirist'],         // Afternoon satirical tweet posting
+  19: ['satirist'],         // Afternoon satirical tweet posting
+  20: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
   21: ['satirist'],         // Late night satirical tweet posting
   22: ['satirist'],         // Late night satirical tweet posting
 };

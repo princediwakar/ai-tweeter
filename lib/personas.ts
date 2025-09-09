@@ -215,12 +215,12 @@ export const CRICKET_STORYTELLER: PersonaConfig = {
 
 // Active personas optimized for current multi-account strategy
 export const PERSONAS: PersonaConfig[] = [
+  SATIRIST,
+  BUSINESS_STORYTELLER,
+  CRICKET_STORYTELLER,
   VOCABULARY_BUILDER, 
   GRAMMAR_MASTER, 
   COMMUNICATION_EXPERT,
-  SATIRIST,
-  BUSINESS_STORYTELLER,
-  CRICKET_STORYTELLER
 ] as const;
 
 // Type helpers
@@ -259,7 +259,7 @@ const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
     'english_grammar_master', 
     'english_communication_expert'
   ],
-  // Prince Business Account (@princediwakar25)  
+  // Prince Business Account (
   'princediwakar25': [
     'satirist',
     'business_storyteller',

@@ -189,7 +189,7 @@ export async function postCompleteThread(
         
         if (!twitterId) {
           throw new Error('Twitter API returned no tweet ID');
-        che}
+        }
         
         twitterIds.push(twitterId);
         parentTweetId = twitterId;

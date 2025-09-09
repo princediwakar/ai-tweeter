@@ -294,7 +294,7 @@ function parseThreadResponse(content: string, template: ThreadTemplate): { title
         const splitTweets = splitLongTweet(tweet.content);
         
         // Add split tweets with correct sequencing
-        splitTweets.forEach((content, splitIndex) => {
+        splitTweets.forEach((content) => {
           processedTweets.push({
             sequence: processedTweets.length + 1,
             content: content

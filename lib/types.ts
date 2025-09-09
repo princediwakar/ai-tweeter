@@ -62,6 +62,7 @@ export interface EnhancedTweet {
   engagementHooks: string[];
   gibbiCTA?: string;
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
+  imageBuffer?: Buffer; // Image data for image-based tweets
 }
 
 export interface TweetJob {

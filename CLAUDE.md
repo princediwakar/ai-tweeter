@@ -33,7 +33,7 @@ This is an AI-powered multi-account Twitter automation system built with Next.js
 
 ### 🤖 Dynamic Persona System
 - **English Learning Account (@gibbi_ai)**:
-  - **Vocabulary Builder** 🏆 - Master new words, meanings, and usage
+  - **Vocabulary Builder** 🏆 - Master new words, meanings, and usage (with image generation)
   - **Grammar Master** 📚 - Perfect grammar rules and sentence construction
   - **Communication Expert** 🗣️ - Enhance speaking, writing, and conversation skills
 
@@ -53,6 +53,7 @@ This is an AI-powered multi-account Twitter automation system built with Next.js
 - **Multi-Language Support**: Extensible for different languages and markets
 - **Engagement Optimization**: Account-specific engagement strategies
 - **Brand Integration**: Strategic CTAs and brand mentions per account
+- **Image Generation**: Vocabulary card images with Unsplash backgrounds for educational content
 
 ### 🕒 Advanced Scheduling & Automation
 - **Multi-Account Processing**: Simultaneous handling of all active accounts
@@ -153,6 +154,9 @@ POSTGRES_URL_NON_POOLING=postgresql://username:password@host/database
 # Security
 CRON_SECRET=your_random_secret_key_here
 ENCRYPTION_KEY=your_encryption_key_for_credentials  # For Twitter credential encryption
+
+# Image Generation (Unsplash API)
+UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here  # For background images in vocabulary cards
 
 # Note: Twitter API credentials are now stored per account in the database
 # No longer needed in environment variables for multi-account setup

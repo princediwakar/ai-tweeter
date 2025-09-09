@@ -41,9 +41,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { endpoint, secret } = await request.json();
+    const { endpoint, secret, method = 'GET', body } = await request.json();
     
-    logger.info(`🧪 Testing cron endpoint: ${endpoint}`, 'debug-cron');
+    logger.info(`🧪 Testing cron endpoint: ${endpoint} with method ${method}`, 'debug-cron');
     
     // Simulate cron authorization header
     const headers = {
@@ -58,8 +58,9 @@ export async function POST(request: NextRequest) {
     logger.info(`📡 Making request to: ${testUrl}`, 'debug-cron');
     
     const response = await fetch(testUrl, {
-      method: 'GET',
-      headers
+      method: method,
+      headers: headers,
+      body: body ? JSON.stringify(body) : undefined,
     });
     
     const result = await response.json();

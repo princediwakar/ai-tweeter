@@ -14,7 +14,7 @@ import {
   isPostingScheduled 
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
-import { postTweet } from '@/lib/twitter';
+import { postTweet, postTweetWithImage } from '@/lib/twitter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -120,12 +120,53 @@ export async function GET(request: NextRequest) {
           try {
             logger.info(`📤 ${account.name}: Posting tweet: ${tweet.content.substring(0, 50)}...`, 'auto-post');
             
-            // Combine content with hashtags
-            const fullContent = tweet.hashtags?.length > 0 
-              ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}`
-              : tweet.content;
+            // Check if this is an image-enabled persona
+            const { getPersonaByKey } = await import('@/lib/personas');
+            const persona = getPersonaByKey(tweet.persona);
             
-            const result = await postTweet(fullContent, twitterCredentials);
+            let result;
+            
+            // Handle image tweets for image-enabled personas
+            if (persona?.image_generation?.enabled && tweet.persona === 'english_vocab_builder') {
+              logger.info(`🖼️ ${account.name}: Generating image for vocabulary tweet`, 'auto-post');
+              
+              try {
+                // Generate image for this tweet
+                const { generatePersonaImage } = await import('@/lib/imageGenerationService');
+                const imageBuffer = await generatePersonaImage(tweet.content, tweet.persona);
+                
+                if (imageBuffer) {
+                  // Post with image and minimal hashtag text
+                  const minimalContent = tweet.hashtags?.length > 0 
+                    ? tweet.hashtags.map(tag => `#${tag}`).join(' ')
+                    : '#EnglishLearning #Vocabulary';
+                  
+                  logger.info(`🖼️ ${account.name}: Posting image tweet with minimal text`, 'auto-post');
+                  result = await postTweetWithImage(minimalContent, imageBuffer, twitterCredentials);
+                } else {
+                  // Fallback to text tweet if image generation fails
+                  logger.warn(`⚠️ ${account.name}: Image generation failed, posting as text`, 'auto-post');
+                  const fullContent = tweet.hashtags?.length > 0 
+                    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}`
+                    : tweet.content;
+                  result = await postTweet(fullContent, twitterCredentials);
+                }
+              } catch (imageError) {
+                logger.warn(`⚠️ ${account.name}: Image generation/posting failed, falling back to text: ${imageError}`, 'auto-post');
+                // Fallback to text tweet
+                const fullContent = tweet.hashtags?.length > 0 
+                  ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}`
+                  : tweet.content;
+                result = await postTweet(fullContent, twitterCredentials);
+              }
+            } else {
+              // Regular text tweet
+              const fullContent = tweet.hashtags?.length > 0 
+                ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}`
+                : tweet.content;
+              
+              result = await postTweet(fullContent, twitterCredentials);
+            }
             
             // Update tweet status
             const updatedTweet = {

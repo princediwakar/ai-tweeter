@@ -4,6 +4,7 @@ import { EnhancedTweet, TweetGenerationConfig, VariationMarkers } from './types'
 import { getAccount } from './db';
 import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
+import { generatePersonaImage } from './imageGenerationService';
 
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -31,98 +32,62 @@ function generateVariationMarkers(): VariationMarkers {
  * Inspired by the YouTube system's comprehensive topic guidelines
  */
 const TOPIC_GUIDELINES = {
-  // English Learning Categories - Educational Focus
+  // --- Core Vocabulary Skills ---
   eng_vocab_word_meaning: {
-    focus: 'Essential word definitions with memorable contexts and usage',
-    hook: 'Test knowledge of a word that sounds simple but most people misuse',
-    scenarios: ['job interviews', 'academic writing', 'professional communication'],
-    engagement: 'Challenge viewers to use the word correctly'
+    focus: 'Clarifying the precise meaning of a word with memorable examples',
+    hook: 'You might know this word, but are you using it correctly? Let\'s find out!',
+    scenarios: ['job interviews', 'academic writing', 'sounding more articulate'],
+    engagement: 'Challenge viewers to create their own sentence with the word'
   },
   eng_vocab_fill_blanks: {
-    focus: 'Context-based vocabulary application and sentence completion',
-    hook: 'Present a sentence that stumps even native speakers',
-    scenarios: ['writing emails', 'giving presentations', 'casual conversations'],
-    engagement: 'Test their sentence completion skills'
+    focus: 'Applying vocabulary in the right context to complete a sentence',
+    hook: 'This sentence stumps 9 out of 10 people. Can you pick the perfect word?',
+    scenarios: ['writing professional emails', 'giving presentations', 'crafting the perfect social media post'],
+    engagement: 'Provide a challenging sentence and have them choose the best fit from multiple options'
   },
-  eng_vocab_synonyms: {
-    focus: 'Word relationships and precise synonym usage',
-    hook: 'Reveal synonym pairs that seem identical but have crucial differences',
-    scenarios: ['avoiding repetition', 'upgrading vocabulary', 'expressing nuance'],
-    engagement: 'Help them choose the perfect word'
-  },
-  eng_vocab_antonyms: {
-    focus: 'Opposite word relationships and contrasting meanings',
-    hook: 'Test antonym knowledge with words that have surprising opposites',
-    scenarios: ['debates and arguments', 'creative writing', 'expressing contrast'],
-    engagement: 'Challenge their opposite-word knowledge'
-  },
-  eng_vocab_confusing_words: {
-    focus: 'Commonly mixed-up word pairs and how to use them correctly',
-    hook: 'Expose the word mistake that makes you sound less intelligent',
-    scenarios: ['affect vs effect', 'complement vs compliment', 'principal vs principle'],
-    engagement: 'Help them avoid embarrassing mistakes'
-  },
-  eng_grammar_parts_of_speech: {
-    focus: 'Essential grammar foundations with clear examples',
-    hook: 'Reveal the grammar rule that 90% of people get wrong',
-    scenarios: ['writing professionally', 'academic papers', 'clear communication'],
-    engagement: 'Master the grammar that matters most'
-  },
-  eng_grammar_verb_tenses: {
-    focus: 'Tense usage with practical applications',
-    hook: 'The tense mistake that changes your entire meaning',
-    scenarios: ['telling stories', 'describing experiences', 'making plans'],
-    engagement: 'Perfect your tense timing'
-  },
-  eng_comm_pronunciation: {
-    focus: 'Clear pronunciation for confident communication',
-    hook: 'The pronunciation mistake that undermines your credibility',
-    scenarios: ['presentations', 'job interviews', 'networking events'],
-    engagement: 'Sound more professional instantly'
-  },
-  eng_comm_conversation_starters: {
-    focus: 'Natural conversation skills for social confidence',
-    hook: 'The conversation starter that never fails',
-    scenarios: ['networking events', 'social gatherings', 'professional meetings'],
-    engagement: 'Start conversations with confidence'
+  eng_vocab_word_forms: {
+    focus: 'Mastering the different forms of a word (noun, verb, adjective, etc.)',
+    hook: 'One word, four forms. Using the wrong one is a common mistake. Let\'s fix it!',
+    scenarios: ['grammar accuracy', 'formal writing', 'sentence variety'],
+    engagement: 'Challenge them to correctly change a word to fit three different sentences'
   },
 
-  product_user_research: {
-    focus: 'User research insights and practical application methods',
-    hook: 'The user research mistake that kills great products',
-    scenarios: ['conducting interviews', 'analyzing feedback', 'making decisions'],
-    engagement: 'Understand your users better'
+  // --- Word Relationships ---
+  eng_vocab_synonyms: {
+    focus: 'Choosing the most precise synonym to elevate language',
+    hook: 'Why say "good" when you could say "excellent," "superb," or "magnificent"?',
+    scenarios: ['avoiding repetition in writing', 'expressing specific emotions', 'enhancing descriptive language'],
+    engagement: 'Help them choose the perfect word for a specific emotional or descriptive context'
   },
-  product_feature_decisions: {
-    focus: 'Strategic feature development and prioritization',
-    hook: 'Why most feature decisions fail and how to fix them',
-    scenarios: ['roadmap planning', 'stakeholder alignment', 'resource allocation'],
-    engagement: 'Build features that matter'
+  eng_vocab_antonyms: {
+    focus: 'Understanding opposite word pairs to express contrast effectively',
+    hook: 'What\'s the opposite of "fragile"? It might not be what you think!',
+    scenarios: ['debates and arguments', 'comparative analysis', 'making your point more powerful'],
+    engagement: 'Challenge their knowledge with words that have surprising or non-obvious opposites'
   },
-  startup_validation: {
-    focus: 'Idea validation techniques and market research strategies',
-    hook: 'The validation step most founders skip (and regret)',
-    scenarios: ['idea testing', 'customer discovery', 'pivot decisions'],
-    engagement: 'Validate before you build'
+  eng_vocab_shades_of_meaning: {
+    focus: 'Distinguishing the subtle nuances between very similar words',
+    hook: 'What\'s the real difference between "walk," "stroll," "stride," and "trudge"?',
+    scenarios: ['creative writing', 'conveying precise meaning', 'understanding authorial intent'],
+    engagement: 'Ask them to rank similar words by intensity (e.g., tap, hit, smack, punch)'
   },
-  startup_funding: {
-    focus: 'Funding strategies and investor relations insights',
-    hook: 'What investors really look for (it\'s not what you think)',
-    scenarios: ['pitch preparation', 'due diligence', 'negotiation'],
-    engagement: 'Get funded faster'
+
+  // --- Practical & Contextual Vocabulary ---
+  eng_vocab_thematic_words: {
+    focus: 'Building a specialized vocabulary for a specific topic or industry',
+    hook: 'Ace your next meeting with these 5 essential business terms.',
+    scenarios: ['business negotiations', 'traveling abroad', 'discussing technology or science'],
+    engagement: 'Help them build a "vocabulary toolkit" for a specific goal or event'
   },
-  tech_ai_trends: {
-    focus: 'AI developments and practical implications for developers',
-    hook: 'The AI trend that will change everything (not ChatGPT)',
-    scenarios: ['tool selection', 'skill development', 'career planning'],
-    engagement: 'Stay ahead of AI disruption'
+  eng_vocab_register: {
+    focus: 'Knowing when to use formal vs. informal language (code-switching)',
+    hook: 'Don\'t text your boss like you text your friends! Master the difference.',
+    scenarios: ['writing a cover letter vs. a text message', 'speaking to a professor vs. a classmate'],
+    engagement: 'Challenge them to "translate" a casual sentence into a professional one, and vice-versa'
   },
-  tech_web_development: {
-    focus: 'Modern web development practices and emerging technologies',
-    hook: 'The web development practice that separates seniors from juniors',
-    scenarios: ['architecture decisions', 'performance optimization', 'best practices'],
-    engagement: 'Level up your development skills'
-  }
+
+
+
 };
 
 /**
@@ -668,11 +633,30 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       throw new Error('Failed to parse or validate AI response.');
     }
 
+    // Generate image if persona supports it
+    let imageBuffer: Buffer | undefined = undefined;
+    if (persona.image_generation?.enabled) {
+      try {
+        const generatedImage = await generatePersonaImage(tweetData.content, persona.key);
+        if (generatedImage) {
+          imageBuffer = generatedImage;
+          console.log(`🖼️ Generated image for ${persona.displayName} tweet`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Image generation failed for ${persona.displayName}:`, error);
+      }
+    }
+
     // Add content hash for duplicate detection (not stored in DB)
     const contentHash = generateContentHash(tweetData);
     
     console.log(`✅ Generated enhanced tweet for ${persona.displayName} on ${(topic as { key: string; displayName: string }).displayName} [${timeMarker}-${tokenMarker}] Hash: ${contentHash}`);
-    return tweetData;
+    
+    // Add image to tweet data if generated
+    return {
+      ...tweetData,
+      imageBuffer
+    };
 
   } catch (error) {
     console.error(`❌ Failed to generate enhanced tweet:`, error);

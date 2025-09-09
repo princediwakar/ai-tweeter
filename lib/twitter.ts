@@ -259,6 +259,55 @@ Current error: ${errorObj.detail || errorText}`);
   }
 }
 
+export async function postTweetWithImage(
+  content: string, 
+  imageBuffer: Buffer, 
+  credentials: TwitterCredentials
+): Promise<{ data: { id: string; text: string } }> {
+  try {
+    const { TwitterApi } = await import('twitter-api-v2');
+    
+    // Create Twitter client
+    const client = new TwitterApi({
+      appKey: credentials.apiKey,
+      appSecret: credentials.apiSecret,
+      accessToken: credentials.accessToken,
+      accessSecret: credentials.accessSecret,
+    });
+
+    // Upload image using v1.1 API
+    console.log(`📤 Uploading image (${imageBuffer.length} bytes)`);
+    const mediaUpload = await client.v1.uploadMedia(imageBuffer, { 
+      mimeType: 'image/jpeg',
+      target: 'tweet' 
+    });
+    
+    console.log(`✅ Image uploaded successfully. Media ID: ${mediaUpload}`);
+
+    // Post tweet with image using v2 API
+    const tweet = await client.v2.tweet({
+      text: content,
+      media: { media_ids: [mediaUpload.toString()] }
+    });
+
+    console.log('✅ Tweet with image posted successfully to X/Twitter!');
+    console.log(`📝 Content: ${content}`);
+    console.log(`🆔 Tweet ID: ${tweet.data.id}`);
+    console.log(`📊 Length: ${content.length} characters`);
+    console.log(`🔗 URL: https://x.com/user/status/${tweet.data.id}`);
+
+    return {
+      data: {
+        id: tweet.data.id,
+        text: content
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error posting tweet with image:', error);
+    throw error;
+  }
+}
+
 export async function postToTwitter(content: string, hashtags: string[], credentials: TwitterCredentials): Promise<{ data: { id: string; text: string } }> {
   // Combine content and hashtags if hashtags aren't already in content
   const hasHashtagsInContent = hashtags.some(hashtag => content.includes(hashtag));

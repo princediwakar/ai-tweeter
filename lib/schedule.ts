@@ -29,18 +29,16 @@ interface AccountSchedules {
  */
 const gibbiGenerationPattern: HourlySchedule = {
   6: ['english_vocab_builder'],         // Mid-morning generation
-  8: ['english_grammar_master'],        // Morning generation
-  10: ['english_vocab_builder'],        // Late morning generation
-  17: ['english_communication_expert'], // Evening generation
+  13: ['english_vocab_builder'],        // Morning generation
+  16: ['english_vocab_builder'], // Evening generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
-  7: ['english_communication_expert'],   // Morning motivation
-  12: ['english_vocab_builder'],         // Lunch break learning
-  13: ['english_grammar_master'],        // Post-lunch engagement
+  7: ['english_vocab_builder'],   // Morning motivation
+  9: ['english_vocab_builder'],         // Lunch break learning
   16: ['english_vocab_builder'],         // Post-work session
-  18: ['english_communication_expert'],  // Evening study prep
-  20: ['english_grammar_master'],        // Prime time engagement
+  18: ['english_vocab_builder'],  // Evening study prep
+  20: ['english_vocab_builder'],        // Prime time engagement
   22: ['english_vocab_builder'],         // Night revision
 };
 

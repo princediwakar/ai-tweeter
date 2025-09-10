@@ -397,9 +397,9 @@ export async function generateVocabularyCardImage(
 
   // --- 2. Optimized Overlay ---
 
-  const plaqueY = height;
+  const plaqueY = height * 0.45;
 
-  const plaqueHeight = height;
+  const plaqueHeight = height * 0.55;
 
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
 

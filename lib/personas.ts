@@ -36,16 +36,16 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
   // MODIFIED: Added a wide variety of topics to ensure unique content generation
   topics: [
     { key: 'eng_vocab_word_meaning', displayName: 'A Powerful Vocabulary Word' },
-    { key: 'eng_vocab_confused_words', displayName: 'Commonly Confused Words (e.g., Affect vs. Effect)' },
-    { key: 'eng_vocab_synonyms_good', displayName: 'Advanced Synonyms for "Good"' },
-    { key: 'eng_vocab_synonyms_important', displayName: 'Powerful Alternatives to "Important"' },
-    { key: 'eng_vocab_synonyms_said', displayName: 'Descriptive Synonyms for "Said"' },
-    { key: 'eng_vocab_business', displayName: 'A Key Business English Term' },
-    { key: 'eng_vocab_formal_casual', displayName: 'Formal vs. Casual Language' },
-    { key: 'eng_vocab_idiom', displayName: 'A Common English Idiom Explained' },
-    { key: 'eng_vocab_phrasal_verb', displayName: 'A Useful Phrasal Verb' },
-    { key: 'eng_vocab_adjective', displayName: 'A More Descriptive Adjective' },
-    { key: 'eng_vocab_power_verb', displayName: 'A Stronger Verb to Use' },
+    // { key: 'eng_vocab_confused_words', displayName: 'Commonly Confused Words (e.g., Affect vs. Effect)' },
+    // { key: 'eng_vocab_synonyms_good', displayName: 'Advanced Synonyms for "Good"' },
+    // { key: 'eng_vocab_synonyms_important', displayName: 'Powerful Alternatives to "Important"' },
+    // { key: 'eng_vocab_synonyms_said', displayName: 'Descriptive Synonyms for "Said"' },
+    // { key: 'eng_vocab_business', displayName: 'A Key Business English Term' },
+    // { key: 'eng_vocab_formal_casual', displayName: 'Formal vs. Casual Language' },
+    // { key: 'eng_vocab_idiom', displayName: 'A Common English Idiom Explained' },
+    // { key: 'eng_vocab_phrasal_verb', displayName: 'A Useful Phrasal Verb' },
+    // { key: 'eng_vocab_adjective', displayName: 'A More Descriptive Adjective' },
+    // { key: 'eng_vocab_power_verb', displayName: 'A Stronger Verb to Use' },
   ]
 };
 

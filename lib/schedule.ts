@@ -1,6 +1,5 @@
 /**
  * Enhanced Multi-Account Tweet Scheduling System
- * Inspired by the YouTube system's sophisticated scheduling approach
  * Each account has its own independent schedule with specific persona assignments and timing strategies.
  */
 
@@ -63,23 +62,23 @@ const princePostingPattern: HourlySchedule = {
   22: ['satirist'],         // Late night satirical tweet posting
 };
 
-// Account ID mapping - maps database UUIDs to schedule keys
-const ACCOUNT_ID_MAPPING: Record<string, string> = {
-  '550e8400-e29b-41d4-a716-446655440000': 'gibbi_account',  // @gibbi_ai
-  '550e8400-e29b-41d4-a716-446655440001': 'prince_account', // @princediwakar25
+// Twitter handle mapping - maps twitter handles to schedule keys
+const TWITTER_HANDLE_MAPPING: Record<string, string> = {
+  '@gibbi_ai': 'gibbi_account',
+  '@princediwakar25': 'prince_account',
 };
 
-// Reverse mapping - from schedule keys to database UUIDs
-const SCHEDULE_KEY_TO_ID: Record<string, string> = {
-  'gibbi_account': '550e8400-e29b-41d4-a716-446655440000',
-  'prince_account': '550e8400-e29b-41d4-a716-446655440001',
+// Reverse mapping - from schedule keys to twitter handles
+const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
+  'gibbi_account': '@gibbi_ai',
+  'prince_account': '@princediwakar25',
 };
 
 /**
- * Map database account ID to schedule key
+ * Map twitter handle to schedule key
  */
-function getScheduleKey(accountId: string): string | undefined {
-  return ACCOUNT_ID_MAPPING[accountId];
+function getScheduleKey(twitterHandle: string): string | undefined {
+  return TWITTER_HANDLE_MAPPING[twitterHandle];
 }
 
 // Enhanced account-specific schedules with metadata and strategy information
@@ -144,15 +143,15 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
 /**
  * Get generation schedule for a specific account
  */
-export function getGenerationSchedule(accountId: string): DailySchedule {
-  const scheduleKey = getScheduleKey(accountId);
+export function getGenerationSchedule(twitterHandle: string): DailySchedule {
+  const scheduleKey = getScheduleKey(twitterHandle);
   if (!scheduleKey) {
-    throw new Error(`No schedule mapping found for account: ${accountId}`);
+    throw new Error(`No schedule mapping found for twitter handle: ${twitterHandle}`);
   }
   
   const schedules = ACCOUNT_SCHEDULES[scheduleKey];
   if (!schedules) {
-    throw new Error(`No generation schedule found for account: ${accountId} (scheduleKey: ${scheduleKey})`);
+    throw new Error(`No generation schedule found for twitter handle: ${twitterHandle} (scheduleKey: ${scheduleKey})`);
   }
   return schedules.generation;
 }
@@ -160,15 +159,15 @@ export function getGenerationSchedule(accountId: string): DailySchedule {
 /**
  * Get posting schedule for a specific account
  */
-export function getPostingSchedule(accountId: string): DailySchedule {
-  const scheduleKey = getScheduleKey(accountId);
+export function getPostingSchedule(twitterHandle: string): DailySchedule {
+  const scheduleKey = getScheduleKey(twitterHandle);
   if (!scheduleKey) {
-    throw new Error(`No schedule mapping found for account: ${accountId}`);
+    throw new Error(`No schedule mapping found for twitter handle: ${twitterHandle}`);
   }
   
   const schedules = ACCOUNT_SCHEDULES[scheduleKey];
   if (!schedules) {
-    throw new Error(`No posting schedule found for account: ${accountId} (scheduleKey: ${scheduleKey})`);
+    throw new Error(`No posting schedule found for twitter handle: ${twitterHandle} (scheduleKey: ${scheduleKey})`);
   }
   return schedules.posting;
 }
@@ -187,16 +186,16 @@ function getRandomThreadPersonaForPrince(): string {
  * Get personas scheduled for generation at a specific time for an account
  */
 export function getScheduledPersonasForGeneration(
-  accountId: string,
+  twitterHandle: string,
   dayOfWeek: number,
   hour: number
 ): string[] {
-  const schedule = getGenerationSchedule(accountId);
+  const schedule = getGenerationSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
   let personas = daySchedule?.[hour] || [];
   
   // For Prince's account, randomize between thread personas
-  if (accountId === '550e8400-e29b-41d4-a716-446655440001' || accountId === 'prince_account') {
+  if (twitterHandle === '@princediwakar25') {
     personas = personas.map(persona => {
       if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
         return getRandomThreadPersonaForPrince();
@@ -212,16 +211,16 @@ export function getScheduledPersonasForGeneration(
  * Get personas scheduled for posting at a specific time for an account
  */
 export function getScheduledPersonasForPosting(
-  accountId: string,
+  twitterHandle: string,
   dayOfWeek: number,
   hour: number
 ): string[] {
-  const schedule = getPostingSchedule(accountId);
+  const schedule = getPostingSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
   let personas = daySchedule?.[hour] || [];
   
   // For Prince's account, randomize between thread personas
-  if (accountId === '550e8400-e29b-41d4-a716-446655440001' || accountId === 'prince_account') {
+  if (twitterHandle === '@princediwakar25') {
     personas = personas.map(persona => {
       if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
         return getRandomThreadPersonaForPrince();
@@ -236,35 +235,35 @@ export function getScheduledPersonasForPosting(
 /**
  * Check if generation is scheduled for an account at current time
  */
-export function isGenerationScheduled(accountId: string, date: Date = new Date()): boolean {
+export function isGenerationScheduled(twitterHandle: string, date: Date = new Date()): boolean {
   const dayOfWeek = date.getDay();
   const hour = date.getHours();
-  const personas = getScheduledPersonasForGeneration(accountId, dayOfWeek, hour);
+  const personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
   return personas.length > 0;
 }
 
 /**
  * Check if posting is scheduled for an account at current time
  */
-export function isPostingScheduled(accountId: string, date: Date = new Date()): boolean {
+export function isPostingScheduled(twitterHandle: string, date: Date = new Date()): boolean {
   const dayOfWeek = date.getDay();
   const hour = date.getHours();
-  const personas = getScheduledPersonasForPosting(accountId, dayOfWeek, hour);
+  const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
   return personas.length > 0;
 }
 
 /**
- * Get all available account IDs with schedules
+ * Get all available twitter handles with schedules
  */
-export function getScheduledAccountIds(): string[] {
-  return Object.values(SCHEDULE_KEY_TO_ID);
+export function getScheduledTwitterHandles(): string[] {
+  return Object.values(SCHEDULE_KEY_TO_HANDLE);
 }
 
 /**
  * Get account metadata for scheduling strategy insights
  */
-export function getAccountMetadata(accountId: string): AccountSchedules['metadata'] | null {
-  const scheduleKey = getScheduleKey(accountId);
+export function getAccountMetadata(twitterHandle: string): AccountSchedules['metadata'] | null {
+  const scheduleKey = getScheduleKey(twitterHandle);
   if (!scheduleKey) {
     return null;
   }
@@ -277,7 +276,7 @@ export function getAccountMetadata(accountId: string): AccountSchedules['metadat
  * Get current scheduled activity for all accounts (for monitoring/debugging)
  */
 export function getCurrentScheduledActivity(date: Date = new Date()): {
-  accountId: string;
+  twitterHandle: string;
   metadata: AccountSchedules['metadata'];
   generation_personas: string[];
   posting_personas: string[];
@@ -285,13 +284,13 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
   const dayOfWeek = date.getDay();
   const hour = date.getHours();
   
-  return getScheduledAccountIds().map(accountId => {
-    const generationPersonas = getScheduledPersonasForGeneration(accountId, dayOfWeek, hour);
-    const postingPersonas = getScheduledPersonasForPosting(accountId, dayOfWeek, hour);
-    const metadata = getAccountMetadata(accountId)!;
+  return getScheduledTwitterHandles().map(twitterHandle => {
+    const generationPersonas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
+    const postingPersonas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
+    const metadata = getAccountMetadata(twitterHandle)!;
     
     return {
-      accountId,
+      twitterHandle,
       metadata,
       generation_personas: generationPersonas,
       posting_personas: postingPersonas
@@ -303,7 +302,7 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
  * Check if an account should generate content at current time with batch size information
  * Inspired by YouTube system's intelligent batch management
  */
-export function getGenerationBatchInfo(accountId: string, date: Date = new Date(), debugMode: boolean = false): {
+export function getGenerationBatchInfo(twitterHandle: string, date: Date = new Date(), debugMode: boolean = false): {
   should_generate: boolean;
   personas: string[];
   batch_size: number;
@@ -311,16 +310,15 @@ export function getGenerationBatchInfo(accountId: string, date: Date = new Date(
 } {
   const dayOfWeek = date.getDay();
   const hour = date.getHours();
-  let personas = getScheduledPersonasForGeneration(accountId, dayOfWeek, hour);
-  const metadata = getAccountMetadata(accountId);
+  let personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
+  const metadata = getAccountMetadata(twitterHandle);
   
   // In debug mode, provide default personas if none scheduled
   if (debugMode && personas.length === 0) {
-    // Provide default personas based on account type using the schedule key mapping
-    const scheduleKey = getScheduleKey(accountId);
-    if (scheduleKey === 'gibbi_account' || accountId === '550e8400-e29b-41d4-a716-446655440000') {
+    // Provide default personas based on account type using the twitter handle
+    if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
-    } else if (scheduleKey === 'prince_account' || accountId === '550e8400-e29b-41d4-a716-446655440001') {
+    } else if (twitterHandle === '@princediwakar25') {
       personas = ['business_storyteller', 'satirist', 'cricket_storyteller'];
     } else {
       // Generic default personas for unknown accounts
@@ -332,7 +330,7 @@ export function getGenerationBatchInfo(accountId: string, date: Date = new Date(
   let batchSize = 2; // Default
   if (metadata) {
     // Educational accounts (like Gibbi) generate more content per batch
-    if (accountId.includes('gibbi') || metadata.target_audience.includes('learners')) {
+    if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
       batchSize = 3;
     }
     // Professional accounts generate focused content
@@ -356,7 +354,7 @@ export function getGenerationBatchInfo(accountId: string, date: Date = new Date(
  * Get posting eligibility with intelligent rate limiting
  * Inspired by YouTube system's account-aware posting logic
  */
-export function getPostingEligibility(accountId: string, date: Date = new Date()): {
+export function getPostingEligibility(twitterHandle: string, date: Date = new Date()): {
   should_post: boolean;
   personas: string[];
   max_posts_this_hour: number;
@@ -364,14 +362,14 @@ export function getPostingEligibility(accountId: string, date: Date = new Date()
 } {
   const dayOfWeek = date.getDay();
   const hour = date.getHours();
-  const personas = getScheduledPersonasForPosting(accountId, dayOfWeek, hour);
-  const metadata = getAccountMetadata(accountId);
+  const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
+  const metadata = getAccountMetadata(twitterHandle);
   
   // Intelligent posting limits based on account strategy
   let maxPostsThisHour = 1; // Conservative default
   if (metadata) {
     // Educational accounts can post more frequently during peak learning times
-    if (accountId.includes('gibbi')) {
+    if (twitterHandle === '@gibbi_ai') {
       // Peak learning hours (7-9, 12-14, 18-22)
       if ((hour >= 7 && hour <= 9) || (hour >= 12 && hour <= 14) || (hour >= 18 && hour <= 22)) {
         maxPostsThisHour = 2;
@@ -404,18 +402,18 @@ export function getSchedulingInsights(): {
   generation_strategies: Record<string, string>;
   current_activity_summary: string;
 } {
-  const accountIds = getScheduledAccountIds();
+  const twitterHandles = getScheduledTwitterHandles();
   const now = new Date();
   const currentActivity = getCurrentScheduledActivity(now);
   
   const dailyTargets: Record<string, number> = {};
   const generationStrategies: Record<string, string> = {};
   
-  accountIds.forEach(accountId => {
-    const metadata = getAccountMetadata(accountId);
+  twitterHandles.forEach(twitterHandle => {
+    const metadata = getAccountMetadata(twitterHandle);
     if (metadata) {
-      dailyTargets[accountId] = metadata.daily_post_target;
-      generationStrategies[accountId] = metadata.strategy;
+      dailyTargets[twitterHandle] = metadata.daily_post_target;
+      generationStrategies[twitterHandle] = metadata.strategy;
     }
   });
   
@@ -424,7 +422,7 @@ export function getSchedulingInsights(): {
   );
   
   return {
-    total_accounts: accountIds.length,
+    total_accounts: twitterHandles.length,
     accounts_with_metadata: Object.keys(dailyTargets).length,
     daily_targets: dailyTargets,
     generation_strategies: generationStrategies,

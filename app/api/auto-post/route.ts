@@ -9,7 +9,7 @@ import { logger } from '@/lib/logger';
 import { getCurrentTimeInIST } from '@/lib/utils';
 import { 
   getScheduledPersonasForPosting, 
-  getScheduledAccountIds,
+  getScheduledTwitterHandles,
   isPostingScheduled 
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
@@ -100,15 +100,18 @@ export async function GET(request: NextRequest) {
     
     logger.info(`🔍 [GET] Multi-account posting check at ${currentHourIST}:00 IST`, 'auto-post');
 
-    const scheduledAccountIds = getScheduledAccountIds();
-    const activeScheduledAccounts = scheduledAccountIds.filter(id => isPostingScheduled(id, nowIST));
+    const scheduledTwitterHandles = getScheduledTwitterHandles();
+    const allAccounts = await accountService.getAllAccounts();
+    const activeScheduledAccounts = scheduledTwitterHandles.filter(handle => {
+      const account = allAccounts.find(acc => acc.twitter_handle === handle);
+      return account && isPostingScheduled(handle, nowIST);
+    });
 
     if (activeScheduledAccounts.length === 0) {
       return NextResponse.json({ success: true, message: `⏳ No accounts scheduled for posting now.` });
     }
     
-    const allAccounts = await accountService.getAllAccounts();
-    const accountsToProcess = allAccounts.filter(acc => activeScheduledAccounts.includes(acc.id));
+    const accountsToProcess = allAccounts.filter(acc => activeScheduledAccounts.includes(acc.twitter_handle));
 
     let totalPosted = 0;
     let totalErrors = 0;
@@ -117,7 +120,7 @@ export async function GET(request: NextRequest) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
         const readyTweets = await getReadyTweetsByAccount(account.id);
-        const accountScheduledPersonas = getScheduledPersonasForPosting(account.id, dayOfWeek, currentHourIST);
+        const accountScheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
         const scheduledTweets = readyTweets
           .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
           .filter(tweet => isTweetReadyForPosting(tweet));
@@ -186,13 +189,13 @@ export async function POST(request: NextRequest) {
        const account = allAccounts.find(a => a.id === requestBody.account_id);
        if(account) accountsToProcess.push(account);
     } else {
-      const scheduledAccountIds = getScheduledAccountIds();
+      const scheduledTwitterHandles = getScheduledTwitterHandles();
       const allAccounts = await accountService.getAllAccounts();
       if (debugMode) {
-        accountsToProcess = allAccounts.filter(acc => scheduledAccountIds.includes(acc.id));
+        accountsToProcess = allAccounts.filter(acc => scheduledTwitterHandles.includes(acc.twitter_handle));
         logger.info(`🔍 [POST] Debug mode: Processing ${accountsToProcess.length} accounts regardless of schedule`, 'auto-post');
       } else {
-        accountsToProcess = allAccounts.filter(acc => scheduledAccountIds.includes(acc.id) && isPostingScheduled(acc.id, nowIST));
+        accountsToProcess = allAccounts.filter(acc => scheduledTwitterHandles.includes(acc.twitter_handle) && isPostingScheduled(acc.twitter_handle, nowIST));
       }
     }
 
@@ -207,7 +210,7 @@ export async function POST(request: NextRequest) {
     for (const account of accountsToProcess) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
-        let scheduledPersonas = getScheduledPersonasForPosting(account.id, nowIST.getDay(), nowIST.getHours());
+        let scheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, nowIST.getDay(), nowIST.getHours());
         
         if (debugMode && scheduledPersonas.length === 0) {
           if (account.twitter_handle.includes('gibbi')) {

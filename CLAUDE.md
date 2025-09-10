@@ -52,3 +52,4 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
 * **API Separation:** The `/api/generate` route creates content and saves it to the DB. The `/api/auto-post` route reads from the DB and posts to Twitter. Do not mix these concerns.
 * **Pre-Commit Cheks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
 * **Documentation:** When significant features are added or changed, update the main project `README.md` to reflect the new state.
+- neon projectID: round-sun-88150229

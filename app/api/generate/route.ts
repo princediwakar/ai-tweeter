@@ -92,7 +92,15 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced');
   
-  const batchInfo = getGenerationBatchInfo(accountId, nowIST, debugMode);
+  const account = await getAccount(accountId);
+  if (!account) {
+    return NextResponse.json({
+      success: false,
+      error: `Account ${accountId} not found`
+    }, { status: 404 });
+  }
+  
+  const batchInfo = getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
   logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${debugMode})`, 'generate-debug');
   
   if (!batchInfo.should_generate && !debugMode) {
@@ -109,11 +117,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     logger.info(`[Enhanced:${callId}] Debug mode enabled - bypassing schedule for account ${accountId}`, 'generate-debug');
   }
 
-  const account = await getAccount(accountId);
-  if (!account || account.status !== 'active') {
+  if (account.status !== 'active') {
     return NextResponse.json({
       success: false,
-      error: `Account ${accountId} not found or inactive`
+      error: `Account ${accountId} is inactive`
     }, { status: 404 });
   }
 

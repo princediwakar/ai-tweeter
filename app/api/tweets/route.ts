@@ -119,6 +119,9 @@ export async function POST(request: Request) {
           created_at: new Date().toISOString(),
           quality_score: 1,
           content_type: 'single_tweet' as const,
+          image_url: generatedTweet.imageUrl,
+          image_status: generatedTweet.imageStatus || 'none',
+          card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
         };
 
         await saveTweet(tweet);
@@ -186,6 +189,9 @@ export async function POST(request: Request) {
             created_at: new Date().toISOString(),
             quality_score: 1,
             content_type: 'single_tweet' as const,
+            image_url: generatedTweet.imageUrl,
+            image_status: generatedTweet.imageStatus || 'none',
+            card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
           };
 
           await saveTweet(tweet);

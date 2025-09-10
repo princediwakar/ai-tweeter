@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { 
   getReadyTweetsByAccount, 
   saveTweet, 
-  getReadyThreads,
-  getAccountByTwitterHandle
+  getReadyThreads
 } from '@/lib/db';
 import { postCompleteThread } from '@/lib/instantThreadService';
 import { logger } from '@/lib/logger';
@@ -15,7 +14,8 @@ import {
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import { postTweet, postTweetWithImage } from '@/lib/twitter';
-import { Account, Tweet } from '@/lib/types';
+import { AccountWithCredentials, Tweet } from '@/lib/types';
+
 
 /**
  * Fetches an image from a URL and returns it as a Buffer.
@@ -35,10 +35,23 @@ async function fetchImageFromUrl(imageUrl: string): Promise<Buffer | null> {
 }
 
 /**
+ * Checks if a tweet is ready for posting, including image status validation
+ */
+function isTweetReadyForPosting(tweet: Tweet): boolean {
+  // If no image is expected, tweet is ready
+  if (!tweet.image_status || tweet.image_status === 'none') {
+    return true;
+  }
+  
+  // If image is expected, only post when image is completed or failed (with fallback to text)
+  return tweet.image_status === 'completed' || tweet.image_status === 'failed';
+}
+
+/**
  * Handles posting a single tweet. It posts with an image if image_url is present,
  * otherwise posts as a text-only tweet. On-the-fly image generation is removed.
  */
-async function postSingleTweet(tweet: Tweet, account: Account) {
+async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
   const credentials = {
     apiKey: account.twitter_api_key,
     apiSecret: account.twitter_api_secret,
@@ -51,14 +64,13 @@ async function postSingleTweet(tweet: Tweet, account: Account) {
     ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}` 
     : tweet.content;
 
-  // If an image_url exists from the generation step, post a tweet with an image.
-  if (tweet.image_url) {
-    logger.info(`🖼️ ${account.name}: Tweet has image URL. Fetching from: ${tweet.image_url}`, 'auto-post');
+  // If an image_url exists and image processing is complete, post with image
+  if (tweet.image_url && tweet.image_status === 'completed') {
+    logger.info(`🖼️ ${account.name}: Tweet has completed image. Fetching from: ${tweet.image_url}`, 'auto-post');
     try {
       const imageBuffer = await fetchImageFromUrl(tweet.image_url);
       if (imageBuffer) {
         logger.info(`🖼️ ${account.name}: Posting tweet with attached image.`, 'auto-post');
-        // Post the full text content along with the fetched image.
         return await postTweetWithImage(fullContent, imageBuffer, credentials);
       } else {
         logger.warn(`⚠️ ${account.name}: Failed to fetch image buffer from Cloudinary, posting as text-only.`, 'auto-post');
@@ -66,6 +78,8 @@ async function postSingleTweet(tweet: Tweet, account: Account) {
     } catch (imageError) {
       logger.error(`⚠️ ${account.name}: Error fetching Cloudinary image, falling back to text-only.`, 'auto-post', imageError as Error);
     }
+  } else if (tweet.image_status === 'failed') {
+    logger.info(`⚠️ ${account.name}: Image generation failed, posting as text-only tweet.`, 'auto-post');
   }
 
   // Fallback for text-only tweets or if image fetching failed.
@@ -104,7 +118,9 @@ export async function GET(request: NextRequest) {
       try {
         const readyTweets = await getReadyTweetsByAccount(account.id);
         const accountScheduledPersonas = getScheduledPersonasForPosting(account.id, dayOfWeek, currentHourIST);
-        const scheduledTweets = readyTweets.filter(tweet => accountScheduledPersonas.includes(tweet.persona));
+        const scheduledTweets = readyTweets
+          .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
+          .filter(tweet => isTweetReadyForPosting(tweet));
 
         logger.info(`📝 Found ${scheduledTweets.length} scheduled tweets for ${account.name}`, 'auto-post');
 
@@ -161,9 +177,9 @@ export async function POST(request: NextRequest) {
     const nowIST = getCurrentTimeInIST();
     logger.info(`🚀 [POST] Instant thread posting check${debugMode ? ' (DEBUG MODE)' : ''}`, 'auto-post');
 
-    let accountsToProcess: Account[] = [];
+    let accountsToProcess: AccountWithCredentials[] = [];
     if (requestBody.twitter_handle) {
-      const account = await getAccountByTwitterHandle(requestBody.twitter_handle);
+      const account = await accountService.getAccountByTwitterHandle(requestBody.twitter_handle);
       if (account) accountsToProcess.push(account);
     } else if (requestBody.account_id) {
        const allAccounts = await accountService.getAllAccounts();

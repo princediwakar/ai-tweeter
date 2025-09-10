@@ -6,10 +6,13 @@ export interface Account {
   name: string;
   twitter_handle: string;
   status: 'active' | 'inactive' | 'suspended';
-  twitter_api_key: string;
-  twitter_api_secret: string;
-  twitter_access_token: string;
-  twitter_access_token_secret: string;
+  twitter_api_key_encrypted: string;
+  twitter_api_secret_encrypted: string;
+  twitter_access_token_encrypted: string;
+  twitter_access_token_secret_encrypted: string;
+  cloudinary_cloud_name_encrypted?: string;
+  cloudinary_api_key_encrypted?: string;
+  cloudinary_api_secret_encrypted?: string;
   personas: string[];
   branding: {
     theme: string;
@@ -20,6 +23,17 @@ export interface Account {
   };
   created_at: Date;
   updated_at: Date;
+}
+
+// Extended account with decrypted credentials for internal use
+export interface AccountWithCredentials extends Account {
+  twitter_api_key: string;
+  twitter_api_secret: string;
+  twitter_access_token: string;
+  twitter_access_token_secret: string;
+  cloudinary_cloud_name?: string;
+  cloudinary_api_key?: string;
+  cloudinary_api_secret?: string;
 }
 
 export interface Persona {
@@ -55,6 +69,8 @@ export interface Tweet {
   hook_type?: 'opener' | 'context' | 'crisis' | 'resolution' | 'lesson';
   // Image support
   image_url?: string; // Cloudinary URL for image-based tweets
+  image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+  card_data?: string; // JSON-encoded VocabularyCard data for async image generation
 }
 
 export interface EnhancedTweet {
@@ -68,6 +84,8 @@ export interface EnhancedTweet {
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
   imageBuffer?: Buffer; // Image data for image-based tweets (deprecated)
   imageUrl?: string; // Cloudinary URL for image-based tweets
+  imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+  cardData?: VocabularyCard; // Vocabulary card data for async image generation
 }
 
 export interface VocabularyCard {

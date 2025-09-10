@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
-import type { Account } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -45,7 +44,18 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, twitter_handle, twitter_api_key, twitter_api_secret, twitter_access_token, twitter_access_token_secret, status } = body;
+    const { 
+      name, 
+      twitter_handle, 
+      twitter_api_key, 
+      twitter_api_secret, 
+      twitter_access_token, 
+      twitter_access_token_secret, 
+      cloudinary_cloud_name,
+      cloudinary_api_key,
+      cloudinary_api_secret,
+      status 
+    } = body;
 
     // Check if account exists
     const existingAccount = await getAccount(id);
@@ -56,14 +66,17 @@ export async function PATCH(
       );
     }
 
-    // Prepare updates object
-    const updates: Partial<Omit<Account, 'id' | 'created_at' | 'updated_at'>> = {};
+    // Prepare updates object with decrypted credentials (AccountService expects decrypted values)
+    const updates: Record<string, string | string[] | object> = {};
     if (name !== undefined) updates.name = name;
     if (twitter_handle !== undefined) updates.twitter_handle = twitter_handle;
     if (twitter_api_key !== undefined) updates.twitter_api_key = twitter_api_key;
     if (twitter_api_secret !== undefined) updates.twitter_api_secret = twitter_api_secret;
     if (twitter_access_token !== undefined) updates.twitter_access_token = twitter_access_token;
     if (twitter_access_token_secret !== undefined) updates.twitter_access_token_secret = twitter_access_token_secret;
+    if (cloudinary_cloud_name !== undefined) updates.cloudinary_cloud_name = cloudinary_cloud_name;
+    if (cloudinary_api_key !== undefined) updates.cloudinary_api_key = cloudinary_api_key;
+    if (cloudinary_api_secret !== undefined) updates.cloudinary_api_secret = cloudinary_api_secret;
     if (status !== undefined) updates.status = status;
 
     // Update account with optional credential validation

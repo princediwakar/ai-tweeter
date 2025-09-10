@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
-import type { Account } from './types';
+import type { Account, AccountWithCredentials } from './types';
 
 interface AccountRow {
   id: string;
@@ -11,17 +11,33 @@ interface AccountRow {
   twitter_api_secret_encrypted: string;
   twitter_access_token_encrypted: string;
   twitter_access_token_secret_encrypted: string;
+  cloudinary_cloud_name_encrypted?: string;
+  cloudinary_api_key_encrypted?: string;
+  cloudinary_api_secret_encrypted?: string;
   personas: string[];
   branding: Account['branding'];
   created_at: Date;
   updated_at: Date;
 }
 
+interface AccountCreationData {
+  id: string;
+  name: string;
+  twitter_handle: string;
+  status: Account['status'];
+  twitter_api_key: string;
+  twitter_api_secret: string;
+  twitter_access_token: string;
+  twitter_access_token_secret: string;
+  personas: string[];
+  branding: Account['branding'];
+}
+
 
 class AccountService {
   private readonly encryptionKey: Buffer;
   private readonly algorithm = 'aes-256-gcm';
-  private accountCache: Map<string, Account> = new Map();
+  private accountCache: Map<string, AccountWithCredentials> = new Map();
   private cacheExpiry: Map<string, number> = new Map();
   private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
 
@@ -72,21 +88,32 @@ class AccountService {
     return expiry ? Date.now() < expiry : false;
   }
 
-  private setCacheEntry(accountId: string, account: Account): void {
+  private setCacheEntry(accountId: string, account: AccountWithCredentials): void {
     this.accountCache.set(accountId, account);
     this.cacheExpiry.set(accountId, Date.now() + this.cacheTimeout);
   }
 
-  private mapRowToAccount(row: AccountRow): Account {
+  private mapRowToAccount(row: AccountRow): AccountWithCredentials {
     return {
       id: row.id,
       name: row.name,
       twitter_handle: row.twitter_handle,
       status: row.status as Account['status'],
+      twitter_api_key_encrypted: row.twitter_api_key_encrypted,
+      twitter_api_secret_encrypted: row.twitter_api_secret_encrypted,
+      twitter_access_token_encrypted: row.twitter_access_token_encrypted,
+      twitter_access_token_secret_encrypted: row.twitter_access_token_secret_encrypted,
+      cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
+      cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
+      cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
+      // Decrypted credentials for internal use
       twitter_api_key: this.decrypt(row.twitter_api_key_encrypted),
       twitter_api_secret: this.decrypt(row.twitter_api_secret_encrypted),
       twitter_access_token: this.decrypt(row.twitter_access_token_encrypted),
       twitter_access_token_secret: this.decrypt(row.twitter_access_token_secret_encrypted),
+      cloudinary_cloud_name: row.cloudinary_cloud_name_encrypted ? this.decrypt(row.cloudinary_cloud_name_encrypted) : undefined,
+      cloudinary_api_key: row.cloudinary_api_key_encrypted ? this.decrypt(row.cloudinary_api_key_encrypted) : undefined,
+      cloudinary_api_secret: row.cloudinary_api_secret_encrypted ? this.decrypt(row.cloudinary_api_secret_encrypted) : undefined,
       personas: row.personas,
       branding: row.branding,
       created_at: row.created_at,
@@ -94,7 +121,7 @@ class AccountService {
     };
   }
 
-  async getAccount(accountId: string): Promise<Account | null> {
+  async getAccount(accountId: string): Promise<AccountWithCredentials | null> {
     // Check cache first
     if (this.isValidCache(accountId)) {
       return this.accountCache.get(accountId) || null;
@@ -118,7 +145,7 @@ class AccountService {
     }
   }
 
-  async getAllAccounts(): Promise<Account[]> {
+  async getAllAccounts(): Promise<AccountWithCredentials[]> {
     try {
       const result = await sql`
         SELECT * FROM accounts WHERE status = 'active' ORDER BY created_at
@@ -131,7 +158,7 @@ class AccountService {
     }
   }
 
-  async createAccount(accountData: Omit<Account, 'created_at' | 'updated_at'>): Promise<Account> {
+  async createAccount(accountData: AccountCreationData): Promise<AccountWithCredentials> {
     try {
       const result = await sql`
         INSERT INTO accounts (
@@ -163,7 +190,7 @@ class AccountService {
     }
   }
 
-  async updateAccount(accountId: string, updates: Partial<Omit<Account, 'id' | 'created_at' | 'updated_at'>>): Promise<Account> {
+  async updateAccount(accountId: string, updates: Partial<Omit<Account, 'id' | 'created_at' | 'updated_at'>>): Promise<AccountWithCredentials> {
     const setClause: string[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const values: any[] = [];
@@ -187,6 +214,18 @@ class AccountService {
             break;
           case 'twitter_access_token_secret':
             setClause.push(`twitter_access_token_secret_encrypted = $${paramIndex++}`);
+            values.push(this.encrypt(value as string));
+            break;
+          case 'cloudinary_cloud_name':
+            setClause.push(`cloudinary_cloud_name_encrypted = $${paramIndex++}`);
+            values.push(this.encrypt(value as string));
+            break;
+          case 'cloudinary_api_key':
+            setClause.push(`cloudinary_api_key_encrypted = $${paramIndex++}`);
+            values.push(this.encrypt(value as string));
+            break;
+          case 'cloudinary_api_secret':
+            setClause.push(`cloudinary_api_secret_encrypted = $${paramIndex++}`);
             values.push(this.encrypt(value as string));
             break;
           case 'personas':
@@ -256,7 +295,38 @@ class AccountService {
     }
   }
 
-  async getAccountForPersona(persona: string): Promise<Account | null> {
+  async getAccountByTwitterHandle(twitterHandle: string): Promise<AccountWithCredentials | null> {
+    // Normalize handle - try both with and without @ prefix
+    const withPrefix = twitterHandle.startsWith('@') ? twitterHandle : `@${twitterHandle}`;
+    const withoutPrefix = twitterHandle.replace('@', '');
+
+    try {
+      // Try with @ prefix first (most common storage format)
+      let result = await sql`
+        SELECT * FROM accounts
+        WHERE twitter_handle = ${withPrefix} AND status = 'active'
+      `;
+      
+      // If not found, try without @ prefix
+      if (result.rows.length === 0) {
+        result = await sql`
+          SELECT * FROM accounts
+          WHERE twitter_handle = ${withoutPrefix} AND status = 'active'
+        `;
+      }
+      
+      if (result.rows.length === 0) return null;
+      
+      const account = this.mapRowToAccount(result.rows[0] as AccountRow);
+      this.setCacheEntry(account.id, account);
+      return account;
+    } catch (error) {
+      console.error('Error getting account by twitter handle:', error);
+      return null;
+    }
+  }
+
+  async getAccountForPersona(persona: string): Promise<AccountWithCredentials | null> {
     try {
       const result = await sql`
         SELECT * FROM accounts 

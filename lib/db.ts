@@ -31,34 +31,29 @@ export interface Thread {
 // Encryption key for future use - currently using unencrypted storage
 // const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'default-key-please-change-in-production';
 
-function encrypt(text: string): string {
-  try {
-    // For development/testing, just use simple base64 encoding
-    // In production, use proper encryption with IV
-    const encoded = Buffer.from(text).toString('base64');
-    return `enc_${encoded}`;
-  } catch (error) {
-    console.error('Encryption error:', error);
-    // Fallback: return original text (not recommended for production)
-    return text;
-  }
-}
-
 function decrypt(encryptedText: string): string {
   try {
-    if (encryptedText.startsWith('enc_')) {
-      // Remove prefix and decode
-      const encoded = encryptedText.substring(4);
-      return Buffer.from(encoded, 'base64').toString('utf8');
-    }
-    // Fallback for unencrypted data
-    return encryptedText;
+    // Remove prefix and decode
+    const encoded = encryptedText.substring(4);
+    return Buffer.from(encoded, 'base64').toString('utf8');
   } catch (error) {
     console.error('Decryption error:', error);
     // Fallback: return original text
     return encryptedText;
   }
 }
+
+// Helper function to get decrypted credentials from account
+export function getAccountCredentials(account: Account) {
+  return {
+    apiKey: decrypt(account.twitter_api_key_encrypted),
+    apiSecret: decrypt(account.twitter_api_secret_encrypted),
+    accessToken: decrypt(account.twitter_access_token_encrypted),
+    accessSecret: decrypt(account.twitter_access_token_secret_encrypted),
+  };
+}
+
+
 
 // Account management functions
 export async function getAllAccounts(): Promise<Account[]> {
@@ -77,10 +72,13 @@ export async function getAllAccounts(): Promise<Account[]> {
       id: row.id,
       name: row.name,
       twitter_handle: row.twitter_handle,
-      twitter_api_key: decrypt(row.twitter_api_key),
-      twitter_api_secret: decrypt(row.twitter_api_secret),
-      twitter_access_token: decrypt(row.twitter_access_token),
-      twitter_access_token_secret: decrypt(row.twitter_access_token_secret),
+      twitter_api_key_encrypted: row.twitter_api_key_encrypted,
+      twitter_api_secret_encrypted: row.twitter_api_secret_encrypted,
+      twitter_access_token_encrypted: row.twitter_access_token_encrypted,
+      twitter_access_token_secret_encrypted: row.twitter_access_token_secret_encrypted,
+      cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
+      cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
+      cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
       personas: Array.isArray(row.personas) ? row.personas : (row.personas ? JSON.parse(row.personas) : []),
       branding: (typeof row.branding === 'object' && row.branding !== null) ? row.branding : (row.branding ? JSON.parse(row.branding) : {
         theme: 'educational',
@@ -116,10 +114,13 @@ export async function getAccount(id: string): Promise<Account | null> {
       id: row.id,
       name: row.name,
       twitter_handle: row.twitter_handle,
-      twitter_api_key: decrypt(row.twitter_api_key),
-      twitter_api_secret: decrypt(row.twitter_api_secret),
-      twitter_access_token: decrypt(row.twitter_access_token),
-      twitter_access_token_secret: decrypt(row.twitter_access_token_secret),
+      twitter_api_key_encrypted: row.twitter_api_key_encrypted,
+      twitter_api_secret_encrypted: row.twitter_api_secret_encrypted,
+      twitter_access_token_encrypted: row.twitter_access_token_encrypted,
+      twitter_access_token_secret_encrypted: row.twitter_access_token_secret_encrypted,
+      cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
+      cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
+      cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
       personas: Array.isArray(row.personas) ? row.personas : (row.personas ? JSON.parse(row.personas) : []),
       branding: (typeof row.branding === 'object' && row.branding !== null) ? row.branding : (row.branding ? JSON.parse(row.branding) : {
         theme: 'educational',
@@ -171,10 +172,13 @@ export async function getAccountByTwitterHandle(twitterHandle: string): Promise<
       id: row.id,
       name: row.name,
       twitter_handle: row.twitter_handle,
-      twitter_api_key: decrypt(row.twitter_api_key),
-      twitter_api_secret: decrypt(row.twitter_api_secret),
-      twitter_access_token: decrypt(row.twitter_access_token),
-      twitter_access_token_secret: decrypt(row.twitter_access_token_secret),
+      twitter_api_key_encrypted: row.twitter_api_key_encrypted,
+      twitter_api_secret_encrypted: row.twitter_api_secret_encrypted,
+      twitter_access_token_encrypted: row.twitter_access_token_encrypted,
+      twitter_access_token_secret_encrypted: row.twitter_access_token_secret_encrypted,
+      cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
+      cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
+      cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
       personas: Array.isArray(row.personas) ? row.personas : (row.personas ? JSON.parse(row.personas) : []),
       branding: (typeof row.branding === 'object' && row.branding !== null) ? row.branding : (row.branding ? JSON.parse(row.branding) : {
         theme: 'educational',
@@ -208,15 +212,20 @@ export async function saveAccount(account: Omit<Account, 'id' | 'created_at' | '
   try {
     const result = await sql`
       INSERT INTO accounts (
-        name, twitter_handle, twitter_api_key, twitter_api_secret,
-        twitter_access_token, twitter_access_token_secret, personas, branding, status
+        name, twitter_handle, twitter_api_key_encrypted, twitter_api_secret_encrypted,
+        twitter_access_token_encrypted, twitter_access_token_secret_encrypted, 
+        cloudinary_cloud_name_encrypted, cloudinary_api_key_encrypted, cloudinary_api_secret_encrypted,
+        personas, branding, status
       ) VALUES (
         ${account.name},
         ${account.twitter_handle},
-        ${encrypt(account.twitter_api_key)},
-        ${encrypt(account.twitter_api_secret)},
-        ${encrypt(account.twitter_access_token)},
-        ${encrypt(account.twitter_access_token_secret)},
+        ${account.twitter_api_key_encrypted},
+        ${account.twitter_api_secret_encrypted},
+        ${account.twitter_access_token_encrypted},
+        ${account.twitter_access_token_secret_encrypted},
+        ${account.cloudinary_cloud_name_encrypted || null},
+        ${account.cloudinary_api_key_encrypted || null},
+        ${account.cloudinary_api_secret_encrypted || null},
         ${JSON.stringify(account.personas)},
         ${JSON.stringify(account.branding)},
         ${account.status}
@@ -247,21 +256,33 @@ export async function updateAccount(id: string, updates: Partial<Omit<Account, '
       updateFields.push(`twitter_handle = $${paramIndex++}`);
       values.push(updates.twitter_handle);
     }
-    if (updates.twitter_api_key) {
-      updateFields.push(`twitter_api_key = $${paramIndex++}`);
-      values.push(encrypt(updates.twitter_api_key));
+    if (updates.twitter_api_key_encrypted) {
+      updateFields.push(`twitter_api_key_encrypted = $${paramIndex++}`);
+      values.push(updates.twitter_api_key_encrypted);
     }
-    if (updates.twitter_api_secret) {
-      updateFields.push(`twitter_api_secret = $${paramIndex++}`);
-      values.push(encrypt(updates.twitter_api_secret));
+    if (updates.twitter_api_secret_encrypted) {
+      updateFields.push(`twitter_api_secret_encrypted = $${paramIndex++}`);
+      values.push(updates.twitter_api_secret_encrypted);
     }
-    if (updates.twitter_access_token) {
-      updateFields.push(`twitter_access_token = $${paramIndex++}`);
-      values.push(encrypt(updates.twitter_access_token));
+    if (updates.twitter_access_token_encrypted) {
+      updateFields.push(`twitter_access_token_encrypted = $${paramIndex++}`);
+      values.push(updates.twitter_access_token_encrypted);
     }
-    if (updates.twitter_access_token_secret) {
-      updateFields.push(`twitter_access_token_secret = $${paramIndex++}`);
-      values.push(encrypt(updates.twitter_access_token_secret));
+    if (updates.twitter_access_token_secret_encrypted) {
+      updateFields.push(`twitter_access_token_secret_encrypted = $${paramIndex++}`);
+      values.push(updates.twitter_access_token_secret_encrypted);
+    }
+    if (updates.cloudinary_cloud_name_encrypted !== undefined) {
+      updateFields.push(`cloudinary_cloud_name_encrypted = $${paramIndex++}`);
+      values.push(updates.cloudinary_cloud_name_encrypted);
+    }
+    if (updates.cloudinary_api_key_encrypted !== undefined) {
+      updateFields.push(`cloudinary_api_key_encrypted = $${paramIndex++}`);
+      values.push(updates.cloudinary_api_key_encrypted);
+    }
+    if (updates.cloudinary_api_secret_encrypted !== undefined) {
+      updateFields.push(`cloudinary_api_secret_encrypted = $${paramIndex++}`);
+      values.push(updates.cloudinary_api_secret_encrypted);
     }
     if (updates.personas !== undefined) {
       updateFields.push(`personas = $${paramIndex++}`);
@@ -315,10 +336,13 @@ export async function getActiveAccounts(): Promise<Account[]> {
       id: row.id,
       name: row.name,
       twitter_handle: row.twitter_handle,
-      twitter_api_key: decrypt(row.twitter_api_key),
-      twitter_api_secret: decrypt(row.twitter_api_secret),
-      twitter_access_token: decrypt(row.twitter_access_token),
-      twitter_access_token_secret: decrypt(row.twitter_access_token_secret),
+      twitter_api_key_encrypted: row.twitter_api_key_encrypted,
+      twitter_api_secret_encrypted: row.twitter_api_secret_encrypted,
+      twitter_access_token_encrypted: row.twitter_access_token_encrypted,
+      twitter_access_token_secret_encrypted: row.twitter_access_token_secret_encrypted,
+      cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
+      cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
+      cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
       personas: Array.isArray(row.personas) ? row.personas : (row.personas ? JSON.parse(row.personas) : []),
       branding: (typeof row.branding === 'object' && row.branding !== null) ? row.branding : (row.branding ? JSON.parse(row.branding) : {
         theme: 'educational',
@@ -362,6 +386,8 @@ export async function getAllTweets(): Promise<Tweet[]> {
       twitter_url: row.twitter_url,
       error_message: row.error_message,
       image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -470,7 +496,8 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
       INSERT INTO tweets (
         id, account_id, content, hashtags, persona, posted_at, 
         twitter_id, twitter_url, error_message, image_url, status, created_at, quality_score,
-        thread_id, thread_sequence, parent_twitter_id, content_type, hook_type
+        thread_id, thread_sequence, parent_twitter_id, content_type, hook_type,
+        image_status, card_data
       ) VALUES (
         ${tweet.id},
         ${tweet.account_id},
@@ -489,7 +516,9 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
         ${(tweetObj.thread_sequence as number) || null},
         ${(tweetObj.parent_twitter_id as string) || null},
         ${tweet.content_type || 'single_tweet'},
-        ${(tweetObj.hook_type as string) || null}
+        ${(tweetObj.hook_type as string) || null},
+        ${getProperty(tweetObj, 'image_status', 'imageStatus') || 'none'},
+        ${getProperty(tweetObj, 'card_data', 'cardData')}
       )
       ON CONFLICT (id) 
       DO UPDATE SET
@@ -507,7 +536,9 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
         thread_sequence = EXCLUDED.thread_sequence,
         parent_twitter_id = EXCLUDED.parent_twitter_id,
         content_type = EXCLUDED.content_type,
-        hook_type = EXCLUDED.hook_type
+        hook_type = EXCLUDED.hook_type,
+        image_status = EXCLUDED.image_status,
+        card_data = EXCLUDED.card_data
     `;
     
     console.log(`[Neon] Saved tweet ${tweet.id}`);
@@ -586,6 +617,8 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       twitter_url: row.twitter_url,
       error_message: row.error_message,
       image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -676,6 +709,8 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
       twitter_url: row.twitter_url,
       error_message: row.error_message,
       image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
       created_at: row.created_at,
       quality_score: row.quality_score,
       // Threading support
@@ -952,5 +987,99 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
   } catch (error) {
     console.error('[Neon] Error getting last posted tweet in thread:', error);
     return null;
+  }
+}
+
+// Image queue management functions
+export async function getTweetsWithPendingImages(limit: number = 5): Promise<Tweet[]> {
+  if (USE_IN_MEMORY) {
+    return inMemoryTweets
+      .filter(t => t.image_status === 'pending' || t.image_status === 'failed')
+      .slice(0, limit)
+      .map(t => ({ ...t }));
+  }
+
+  try {
+    const result = await sql`
+      SELECT * FROM tweets
+      WHERE image_status = 'pending' OR image_status = 'failed'
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `;
+    
+    return result.rows.map(row => ({
+      id: row.id,
+      account_id: row.account_id,
+      content: row.content,
+      hashtags: row.hashtags || [],
+      persona: row.persona,
+      posted_at: row.posted_at,
+      twitter_id: row.twitter_id,
+      twitter_url: row.twitter_url,
+      error_message: row.error_message,
+      status: row.status,
+      created_at: row.created_at,
+      quality_score: row.quality_score,
+      image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
+      thread_id: row.thread_id,
+      thread_sequence: row.thread_sequence,
+      parent_twitter_id: row.parent_twitter_id,
+      content_type: row.content_type || 'single_tweet',
+      hook_type: row.hook_type
+    }));
+  } catch (error) {
+    console.error('[Neon] Error getting tweets with pending images:', error);
+    return [];
+  }
+}
+
+export async function updateTweetImage(
+  tweetId: string, 
+  imageUrl?: string, 
+  imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed'
+): Promise<void> {
+  if (USE_IN_MEMORY) {
+    const tweetIndex = inMemoryTweets.findIndex(t => t.id === tweetId);
+    if (tweetIndex >= 0) {
+      if (imageUrl !== undefined) {
+        inMemoryTweets[tweetIndex].image_url = imageUrl;
+      }
+      if (imageStatus !== undefined) {
+        inMemoryTweets[tweetIndex].image_status = imageStatus;
+      }
+    }
+    return;
+  }
+
+  try {
+    const updates: string[] = [];
+    const values: (string | undefined)[] = [];
+    
+    if (imageUrl !== undefined) {
+      updates.push(`image_url = $${updates.length + 2}`);
+      values.push(imageUrl);
+    }
+    
+    if (imageStatus !== undefined) {
+      updates.push(`image_status = $${updates.length + 2}`);
+      values.push(imageStatus);
+    }
+    
+    if (updates.length === 0) return;
+
+    const query = `
+      UPDATE tweets 
+      SET ${updates.join(', ')}
+      WHERE id = $1
+    `;
+    
+    await sql.query(query, [tweetId, ...values]);
+    
+    console.log(`[Neon] Updated tweet ${tweetId} image: url=${imageUrl || 'unchanged'}, status=${imageStatus || 'unchanged'}`);
+  } catch (error) {
+    console.error('[Neon] Error updating tweet image:', error);
+    throw error;
   }
 }

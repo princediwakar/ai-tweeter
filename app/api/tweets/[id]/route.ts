@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getAllTweets, saveTweet, deleteTweet, getAccount } from '@/lib/db';
+import { getAllTweets, saveTweet, deleteTweet } from '@/lib/db';
+import { accountService } from '@/lib/accountService';
 import { postTweet } from '@/lib/twitter';
 
 export async function GET(
@@ -54,7 +55,7 @@ export async function PUT(
     if (action === 'post') {
       try {
         // Get account credentials for posting
-        const account = await getAccount(tweet.account_id);
+        const account = await accountService.getAccount(tweet.account_id);
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }

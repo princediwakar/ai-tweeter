@@ -26,8 +26,8 @@ export async function GET() {
       created_at: account.created_at,
       updated_at: account.updated_at,
       // Health indicators without exposing credentials
-      credentials_configured: !!(account.twitter_api_key && account.twitter_api_secret && 
-                                account.twitter_access_token && account.twitter_access_token_secret),
+      credentials_configured: !!(account.twitter_api_key_encrypted && account.twitter_api_secret_encrypted && 
+                                account.twitter_access_token_encrypted && account.twitter_access_token_secret_encrypted),
       persona_count: account.personas?.length || 0
     }));
 

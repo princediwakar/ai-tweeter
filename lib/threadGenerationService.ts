@@ -262,6 +262,7 @@ Create hashtags that are authentic and specific to your story content. Avoid gen
 [${timeMarker}-${tokenMarker}-${diversityMarker}]`;
 }
 
+
 /**
  * Parse and validate thread generation response
  */
@@ -356,11 +357,14 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     // Generate thread content using AI
     const prompt = generateThreadPrompt(template, persona);
     
+    console.log(`🤖 Sending thread generation request to DeepSeek (prompt length: ${prompt.length} chars)`);
+    
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.8, // Higher creativity for storytelling
-      max_tokens: 4000, // Allow for longer responses
+      max_tokens: 3000, // Reduced from 4000 for faster generation
+      stream: false, // Ensure non-streaming for faster response
     });
 
     const aiContent = response.choices[0].message.content;
@@ -390,8 +394,9 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     // Use AI-generated hashtags from the thread response
     const hashtags = threadData.hashtags;
 
-    // Create and save individual tweets
+    // Create and save individual tweets (optimized with batch preparation)
     const tweets: Tweet[] = [];
+    const tweetsToSave: Tweet[] = [];
     
     for (const tweetData of threadData.tweets) {
       const tweetId = generateTweetId();
@@ -413,8 +418,13 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
         content_type: 'thread'
       };
 
-      await saveTweet(tweet);
+      tweetsToSave.push(tweet);
       tweets.push(tweet);
+    }
+    
+    // Save all tweets sequentially (could be optimized further with bulk insert)
+    for (const tweet of tweetsToSave) {
+      await saveTweet(tweet);
     }
 
     console.log(`🎉 Thread generation complete: ${tweets.length} tweets saved for thread ${threadId}`);

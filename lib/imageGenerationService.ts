@@ -82,11 +82,11 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
   textStyle: {
 
-    wordSize: 60,
+    wordSize: 80,
 
-    meaningSize: 24,
+    meaningSize: 30,
 
-    exampleSize: 20,
+    exampleSize: 24,
 
     wordColor: '#1A1A1A',
 

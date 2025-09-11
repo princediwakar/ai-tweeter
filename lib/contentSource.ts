@@ -195,6 +195,49 @@ async function fetchFromReddit(sources: Sources, topic: string): Promise<string[
 }
 
 // ─────────────────────────────────────────────
+// 📰 Real News Query Generation for Satirist
+// ─────────────────────────────────────────────
+function generateRealNewsQueries(persona: string): string[] {
+  if (persona === 'satirist') {
+    const newsQueries = [
+      // Indian Political Headlines
+      "Modi BJP India today news",
+      "Indian politics parliament latest", 
+      "Congress opposition India news",
+      "AAP Delhi politics news",
+      "Indian government policy today",
+      
+      // Indian Business Headlines  
+      "Indian startup funding latest news",
+      "Tata Reliance Adani business news",
+      "RBI India economy today",
+      "Indian stock market news",
+      "unicorn startup India news",
+      
+      // India Geopolitics Headlines
+      "India China border latest news",
+      "India US relations today",
+      "India Pakistan news today",
+      "India Russia defense news",
+      "India Israel partnership news",
+      "QUAD BRICS India diplomacy",
+      
+      // Indian Social & Cultural
+      "Bollywood politics controversy",
+      "Indian social media viral news",
+      "Indian cricket politics news",
+      "Indian education policy news"
+    ];
+    
+    // Return 2-3 random queries for variety
+    return newsQueries.sort(() => 0.5 - Math.random()).slice(0, 3);
+  }
+  
+  // Fallback for other personas - use topic as before
+  return [];
+}
+
+// ─────────────────────────────────────────────
 // 🚀 Main API
 // ─────────────────────────────────────────────
 export async function getDynamicContext(persona: string, topic: string): Promise<string> {
@@ -203,11 +246,24 @@ export async function getDynamicContext(persona: string, topic: string): Promise
     return "";
   }
 
-  const cacheKey = `${persona}_${topic.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '_')}`;
+  // For satirist persona, ignore topic and use real news queries
+  let searchQueries: string[];
+  let cacheKey: string;
+  
+  if (persona === 'satirist') {
+    searchQueries = generateRealNewsQueries(persona);
+    // Create cache key based on date to ensure fresh news daily
+    const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    cacheKey = `${persona}_real_news_${dateKey}_${Math.floor(Date.now() / (1000 * 60 * 15))}`; // 15-min cache
+    console.log(`[Content Source] 🎯 Fetching real news headlines for satirical commentary using queries: ${searchQueries.join(', ')}`);
+  } else {
+    searchQueries = [topic];
+    cacheKey = `${persona}_${topic.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '_')}`;
+    console.log(`[Content Source] 🎯 Fetching context for persona "${persona}" on topic "${topic}"`);
+  }
+
   const cached = getCachedContext(cacheKey);
   if (cached) return cached;
-
-  console.log(`[Content Source] 🎯 Fetching real-time context for persona "${persona}" on topic "${topic}"`);
 
   try {
     const sources = await loadSources(persona);
@@ -216,11 +272,22 @@ export async function getDynamicContext(persona: string, topic: string): Promise
         throw new Error("No valid sources found after loading configuration.");
     }
     
-    const fetchPromises = [
-      fetchFromGoogle(topic),
-      fetchFromTwitter(sources, topic),
-      fetchFromReddit(sources, topic)
-    ];
+    // For satirist, use multiple real news queries
+    let fetchPromises: Promise<string[]>[];
+    
+    if (persona === 'satirist') {
+      fetchPromises = [
+        ...searchQueries.map(query => fetchFromGoogle(query)),
+        fetchFromTwitter(sources, 'India news today'), // Get general Indian news from Twitter
+        fetchFromReddit(sources, 'India') // Get Indian discussions
+      ];
+    } else {
+      fetchPromises = [
+        fetchFromGoogle(topic),
+        fetchFromTwitter(sources, topic),
+        fetchFromReddit(sources, topic)
+      ];
+    }
 
     const results = await Promise.allSettled(fetchPromises);
     const allContent: string[] = [];
@@ -231,17 +298,26 @@ export async function getDynamicContext(persona: string, topic: string): Promise
     });
 
     if (allContent.length === 0) {
-        console.warn(`[Content Source] ⚠️ No dynamic content found for "${topic}". Using fallback.`);
-        return "No specific recent news events were found for this topic. Generate a question based on general knowledge.";
+        if (persona === 'satirist') {
+          console.warn(`[Content Source] ⚠️ No real news headlines found. Using fallback.`);
+          return "No specific recent news events were found. Generate satirical commentary on general Indian political and business trends.";
+        } else {
+          console.warn(`[Content Source] ⚠️ No dynamic content found for "${topic}". Using fallback.`);
+          return "No specific recent news events were found for this topic. Generate a question based on general knowledge.";
+        }
     }
 
-    const finalContext = "Recent developments and discussions include:\n" + allContent.map(c => `- ${c}`).join('\n');
+    const finalContext = persona === 'satirist' 
+      ? "Recent real news headlines to satirize:\n" + allContent.slice(0, 8).map(c => `- ${c}`).join('\n') + "\n\nGenerate witty satirical commentary on these specific real events."
+      : "Recent developments and discussions include:\n" + allContent.map(c => `- ${c}`).join('\n');
     
     setCachedContext(cacheKey, finalContext);
     return finalContext;
 
   } catch (error) {
-    console.error(`[Content Source] ❌ Top-level failure in getDynamicContext for "${topic}":`, error);
-    return "Could not fetch latest news due to a system error. Using general knowledge.";
+    console.error(`[Content Source] ❌ Top-level failure in getDynamicContext:`, error);
+    return persona === 'satirist' 
+      ? "Could not fetch latest news. Generate satirical commentary on general Indian current events."
+      : "Could not fetch latest news due to a system error. Using general knowledge.";
   }
 }

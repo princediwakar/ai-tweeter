@@ -128,6 +128,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
   
   const maxPipelineSize = account.twitter_handle.includes('gibbi') ? 8 : 30;
+  const supportsThreading = canGenerateThreads(account);
   
   if (pendingTweets.length >= maxPipelineSize) {
     return NextResponse.json({
@@ -142,7 +143,14 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     });
   }
 
-  const targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
+  let targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
+  
+  // For threading personas, only generate one thread per call  
+  if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(batchInfo.personas[0])) {
+    targetBatchSize = 1; // Only one thread per generation call
+    logger.info(`[Enhanced:${callId}] Threading persona detected - limiting batch size to 1`, 'generate-batch');
+  }
+  
   if (targetBatchSize <= 0) {
     return NextResponse.json({
         success: true,
@@ -156,8 +164,6 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const errors: string[] = [];
   let imageIsNeeded = false;
   
-  const supportsThreading = canGenerateThreads(account);
-  
   logger.info(`[Enhanced:${callId}] Generating batch for account ${accountId} (Threading: ${supportsThreading ? 'enabled' : 'disabled'})`, 'generate-batch');
 
   const selectedPersonaKey = batchInfo.personas[0];
@@ -169,12 +175,37 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     const persona = getPersonaByKey(selectedPersonaKey);
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
-    if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey) && Math.random() < 0.7) {
-      const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });
-      if (threadResult) return { type: 'thread', data: threadResult };
-      throw new Error(`Failed to generate thread for persona ${selectedPersonaKey}`);
+    // For threading personas, generate thread asynchronously to avoid timeout
+    if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey)) {
+      // Start async thread generation to avoid timeout
+      logger.info(`🚀 [Enhanced:${callId}] Starting async thread generation for ${selectedPersonaKey}`, 'async-thread');
+      
+      generateThread({ account_id: accountId, persona: selectedPersonaKey })
+        .then(threadResult => {
+          if (threadResult) {
+            logger.info(`✅ [Enhanced:${callId}] Async thread generated: ${threadResult.thread_id} - "${threadResult.template_used}"`, 'async-thread');
+          } else {
+            logger.error(`❌ [Enhanced:${callId}] Async thread generation failed for ${selectedPersonaKey}`, 'async-thread');
+          }
+        })
+        .catch(error => {
+          logger.error(`❌ [Enhanced:${callId}] Async thread generation error for ${selectedPersonaKey}: ${error.message}`, 'async-thread', error as Error);
+        });
+      
+      // Return immediately with placeholder - thread will be generated in background
+      return { 
+        type: 'thread', 
+        data: { 
+          thread_id: 'generating-async', 
+          total_tweets: 1, 
+          tweets: [], 
+          template_used: 'async_generation', 
+          story_category: 'pending_generation' 
+        } as ThreadGenerationResult
+      };
     }
 
+    // For non-threading personas, generate regular tweets
     const topic = shuffledTopics[i % shuffledTopics.length];
     if (!topic) throw new Error(`No unique topics left for persona ${selectedPersonaKey}`);
 

@@ -77,14 +77,25 @@ export const SATIRIST: PersonaConfig = {
   description: 'Witty and satirical observations about current events, politics, business, and social trends',
   content_types: ['single_tweet'],
   topics: [
-    { key: 'political_satire', displayName: 'Political News Satire' },
-    { key: 'current_events_humor', displayName: 'Current Events Humor' },
-    { key: 'business_news_irony', displayName: 'Business News Irony' },
-    { key: 'social_trends_comedy', displayName: 'Social Trends Comedy' },
-    { key: 'news_absurdity', displayName: 'News Absurdity Commentary' },
-    { key: 'media_parody', displayName: 'Media Coverage Parody' },
-    { key: 'economic_humor', displayName: 'Economic News Humor' },
-    { key: 'celebrity_politics_satire', displayName: 'Celebrity Politics Satire' },
+    // Indian Domestic Politics & Society (Primary Focus)
+    { key: 'political_satire', displayName: 'Indian Political Drama' },
+    { key: 'current_events_humor', displayName: 'Indian Current Events' },
+    { key: 'business_news_irony', displayName: 'Indian Business & Startup Scene' },
+    { key: 'social_trends_comedy', displayName: 'Indian Social Media & Trends' },
+    { key: 'bollywood_politics_satire', displayName: 'Bollywood Meets Politics' },
+    { key: 'indian_bureaucracy_humor', displayName: 'Indian Bureaucracy & Governance' },
+    { key: 'economic_policies_satire', displayName: 'Indian Economic Policies & RBI' },
+    { key: 'sports_politics_india', displayName: 'Indian Sports & Politics' },
+    
+    // India-Centric Geopolitics (Strategic Relations)
+    { key: 'india_us_relations', displayName: 'India-US Strategic Partnership' },
+    { key: 'india_china_tensions', displayName: 'India-China Border & Trade' },
+    { key: 'india_pakistan_dynamics', displayName: 'India-Pakistan Relations' },
+    { key: 'india_russia_ties', displayName: 'India-Russia Strategic Relations' },
+    { key: 'india_israel_partnership', displayName: 'India-Israel Defense & Tech' },
+    { key: 'india_middle_east', displayName: 'India-Middle East Energy & Diaspora' },
+    { key: 'india_global_south', displayName: 'India & Global South Leadership' },
+    { key: 'quad_brics_diplomacy', displayName: 'QUAD vs BRICS Balancing Act' },
   ],
   hashtag_sets: [
     ['#PoliticalSatire', '#CurrentEvents', '#NewsHumor', '#Satire'],

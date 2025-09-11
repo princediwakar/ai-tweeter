@@ -1,6 +1,6 @@
 import { TwitterApi } from 'twitter-api-v2';
 import { Tweet } from './types';
-import { saveTweet, getThreadTweet, Thread } from './db';
+import { saveTweet, getThreadTweet, Thread, updateThreadAfterPosting } from './db';
 
 interface TwitterCredentials {
   apiKey: string;
@@ -231,6 +231,10 @@ export async function postCompleteThread(
       
       previousTwitterId = twitterId;
     }
+
+    // Update thread status to completed
+    await updateThreadAfterPosting(threadId, twitterIds[0], true);
+    console.log(`✅ Updated thread ${threadId} status to 'completed'`);
 
     // Log thread URLs for easy access
     if (twitterIds.length > 0) {

@@ -4,8 +4,8 @@ import type { VariationMarkers } from './types';
 
 export function generateVariationMarkers(): VariationMarkers {
   const timestamp = Date.now();
-  const timeMarker = `T${timestamp}`;
-  const tokenMarker = `TK${randomBytes(4).toString('hex').toUpperCase()}`;
+  const timeMarker = `T${timestamp}-${randomBytes(2).toString('hex').toUpperCase()}`;
+  const tokenMarker = `TK${randomBytes(4).toString('hex').toUpperCase()}-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`;
   
   return { 
     time_marker: timeMarker, 

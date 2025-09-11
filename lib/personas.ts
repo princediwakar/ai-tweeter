@@ -33,19 +33,39 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
     enabled: true,
     unsplash_query: 'minimal,calm,nature'
   },
-  // MODIFIED: Added a wide variety of topics to ensure unique content generation
+  // MODIFIED: Comprehensive vocabulary topics for competitive exam preparation
   topics: [
-    { key: 'eng_vocab_word_meaning', displayName: 'A Powerful Vocabulary Word' },
-    // { key: 'eng_vocab_confused_words', displayName: 'Commonly Confused Words (e.g., Affect vs. Effect)' },
-    // { key: 'eng_vocab_synonyms_good', displayName: 'Advanced Synonyms for "Good"' },
-    // { key: 'eng_vocab_synonyms_important', displayName: 'Powerful Alternatives to "Important"' },
-    // { key: 'eng_vocab_synonyms_said', displayName: 'Descriptive Synonyms for "Said"' },
-    // { key: 'eng_vocab_business', displayName: 'A Key Business English Term' },
-    // { key: 'eng_vocab_formal_casual', displayName: 'Formal vs. Casual Language' },
-    // { key: 'eng_vocab_idiom', displayName: 'A Common English Idiom Explained' },
-    // { key: 'eng_vocab_phrasal_verb', displayName: 'A Useful Phrasal Verb' },
-    // { key: 'eng_vocab_adjective', displayName: 'A More Descriptive Adjective' },
-    // { key: 'eng_vocab_power_verb', displayName: 'A Stronger Verb to Use' },
+    // Core Categories
+    { key: 'eng_vocab_professional', displayName: 'Professional Vocabulary' },
+    { key: 'eng_vocab_academic', displayName: 'Academic Words' },
+    { key: 'eng_vocab_sophisticated', displayName: 'Sophisticated Daily Words' },
+    { key: 'eng_vocab_business', displayName: 'Business Communication' },
+    { key: 'eng_vocab_descriptive', displayName: 'Descriptive Adjectives' },
+    { key: 'eng_vocab_action', displayName: 'Powerful Action Words' },
+    { key: 'eng_vocab_emotions', displayName: 'Emotion & Feeling Words' },
+    { key: 'eng_vocab_formal', displayName: 'Formal Writing Words' },
+    { key: 'eng_vocab_alternatives', displayName: 'Better Word Alternatives' },
+    { key: 'eng_vocab_intellectual', displayName: 'Intellectual Discourse' },
+    
+    // Competitive Exam Categories
+    { key: 'eng_vocab_gre_advanced', displayName: 'GRE Advanced Vocabulary' },
+    { key: 'eng_vocab_gmat_precision', displayName: 'GMAT Precision Words' },
+    { key: 'eng_vocab_upsc_governance', displayName: 'UPSC Governance & Policy Terms' },
+    { key: 'eng_vocab_ielts_academic', displayName: 'IELTS Academic Writing' },
+    { key: 'eng_vocab_toefl_scholarly', displayName: 'TOEFL Scholarly Discourse' },
+    
+    // Specialized Advanced Categories
+    { key: 'eng_vocab_etymology_roots', displayName: 'Etymology & Word Roots' },
+    { key: 'eng_vocab_literary_advanced', displayName: 'Literary & Nuanced Words' },
+    { key: 'eng_vocab_scientific_discourse', displayName: 'Scientific & Technical Terms' },
+    { key: 'eng_vocab_philosophical', displayName: 'Philosophical & Abstract Concepts' },
+    { key: 'eng_vocab_rare_sophisticated', displayName: 'Rare but Useful Words' },
+    
+    // Contextual Categories
+    { key: 'eng_vocab_debate_rhetoric', displayName: 'Debate & Rhetorical Terms' },
+    { key: 'eng_vocab_critical_analysis', displayName: 'Critical Analysis Vocabulary' },
+    { key: 'eng_vocab_research_methodology', displayName: 'Research & Methodology Terms' },
+    { key: 'eng_vocab_policy_administration', displayName: 'Policy & Administration' }
   ]
 };
 

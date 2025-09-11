@@ -253,20 +253,28 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
 export async function generateBatchTweets(count: number, config: TweetGenerationConfig = {}): Promise<EnhancedTweet[]> {
   const tweets: EnhancedTweet[] = [];
-  const promises: Promise<EnhancedTweet | null>[] = [];
+  const generatedWords: string[] = [];
 
   for (let i = 0; i < count; i++) {
-    promises.push(generateTweet(config));
-  }
-
-  const results = await Promise.all(promises);
-  
-  for (const result of results) {
+    const batchConfig = {
+      ...config,
+      batchPosition: i + 1,
+      batchSize: count,
+      previousWords: generatedWords.length > 0 ? generatedWords : undefined
+    };
+    
+    const result = await generateTweet(batchConfig);
+    
     if (result) {
       tweets.push(result);
+      // Track the word for vocabulary builder persona to prevent duplicates
+      if (result.persona === 'english_vocab_builder' && result.cardData?.word) {
+        generatedWords.push(result.cardData.word);
+      }
     }
   }
 
   console.log(`📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`);
+  console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
   return tweets;
 }

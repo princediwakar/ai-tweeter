@@ -22,24 +22,6 @@ import { accountService } from './accountService';
 
 function configureCloudinary(account: AccountWithCredentials): boolean {
 
-  console.log(`🔍 Checking Cloudinary credentials for account: ${account.name}`);
-
-  console.log(`🔍 Cloud name exists: ${!!account.cloudinary_cloud_name_encrypted}`);
-
-  console.log(`🔍 API key exists: ${!!account.cloudinary_api_key_encrypted}`);
-
-  console.log(`🔍 API secret exists: ${!!account.cloudinary_api_secret_encrypted}`);
-
-
-  // The AccountService already provides decrypted credentials
-
-  console.log(`🔍 Decrypted cloud name: ${account.cloudinary_cloud_name ? 'exists' : 'missing'}`);
-
-  console.log(`🔍 Decrypted API key: ${account.cloudinary_api_key ? 'exists' : 'missing'}`);
-
-  console.log(`🔍 Decrypted API secret: ${account.cloudinary_api_secret ? 'exists' : 'missing'}`);
-
-
   // Check if account has Cloudinary credentials configured
 
   if (!account.cloudinary_cloud_name ||
@@ -88,7 +70,7 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
   enabled: true,
 
-  unsplashQuery: 'background',
+  unsplashQuery: 'white background',
 
   dimensions: {
 
@@ -100,17 +82,17 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
   textStyle: {
 
-    wordSize: 110,
+    wordSize: 60,
 
-    meaningSize: 36,
+    meaningSize: 24,
 
-    exampleSize: 30,
+    exampleSize: 20,
 
-    wordColor: '#FFFFFF',
+    wordColor: '#1A1A1A',
 
-    meaningColor: '#E0E0E0',
+    meaningColor: '#333333',
 
-    exampleColor: '#BDBDBD',
+    exampleColor: '#555555',
 
     fontFamily: 'Helvetica Neue, Arial, sans-serif',
 
@@ -340,7 +322,6 @@ function fitTextOnCanvas(
 
 
 
-
 /**
 
 * Generate a beautiful, aesthetic vocabulary image with a content-aware layout.
@@ -395,161 +376,86 @@ export async function generateVocabularyCardImage(
 
 
 
-  // --- 2. Optimized Overlay ---
-
-  const plaqueY = height * 0.45;
-
-  const plaqueHeight = height * 0.55;
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-
-  ctx.fillRect(0, plaqueY, width, plaqueHeight);
-
-
-  const gradient = ctx.createLinearGradient(0, height, 0, plaqueY);
-
-  gradient.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
-
-  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-  ctx.fillStyle = gradient;
-
-  ctx.fillRect(0, plaqueY, width, plaqueHeight);
+  // --- 2. Clean layout for white backgrounds (plaque removed) ---
 
 
   // --- 3. Text Content ---
+  ctx.textAlign = 'left';
+  const leftMargin = width * 0.1; // 10% margin from left
+  const rightMargin = width * 0.1; // 10% margin from right
+  const contentMaxWidth = width - leftMargin - rightMargin; // Text width between margins
 
-  ctx.textAlign = 'center';
+  let currentY = height * 0.35; // Start at 15% from top
 
-  const contentMaxWidth = width * 0.8;
-
-  let currentY = height - 80;
-
-
-
-  // Draw Example
-
-  if (card.example) {
-
-    ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${config.textStyle.fontFamily}`;
-
-    ctx.fillStyle = config.textStyle.exampleColor;
-
-    const exLines = wrapText(ctx, `"${card.example}"`, contentMaxWidth);
-
-    for (let i = exLines.length - 1; i >= 0; i--) {
-
-      ctx.fillText(exLines[i], width / 2, currentY);
-
-      currentY -= config.textStyle.exampleSize + 10;
-
-    }
-
-    currentY -= 30;
-
-  }
-
-
-  // Draw Main Content
-
-  switch (card.type) {
-
-    case 'synonym_list':
-
-      if (card.synonyms && card.synonyms.length > 0) {
-
-        ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${config.textStyle.fontFamily}`;
-
-        ctx.fillStyle = '#FFFFFF';
-
-        const synonymText = card.synonyms.join(' • ');
-
-        const synLines = wrapText(ctx, synonymText, contentMaxWidth);
-
-        for (let i = synLines.length - 1; i >= 0; i--) {
-
-          ctx.fillText(synLines[i], width / 2, currentY);
-
-          currentY -= config.textStyle.meaningSize + 15;
-
-        }
-
-      }
-
-      currentY -= 15;
-
-      break;
-
-
-
-    default:
-
-      ctx.font = `normal ${config.textStyle.meaningSize}px ${config.textStyle.fontFamily}`;
-
-      ctx.fillStyle = config.textStyle.meaningColor;
-
-      const meaningLines = card.meaning.split('\n').flatMap(line => wrapText(ctx, line, contentMaxWidth));
-
-      for (let i = meaningLines.length - 1; i >= 0; i--) {
-
-        ctx.fillText(meaningLines[i], width / 2, currentY);
-
-        currentY -= config.textStyle.meaningSize + 10;
-
-      }
-
-      currentY -= 15;
-
-      break;
-
-  }
-
-
-  // Draw Part of Speech
-
-  if (card.type === 'single_word' && card.partOfSpeech) {
-
-    ctx.font = `italic bold ${config.textStyle.exampleSize}px ${config.textStyle.fontFamily}`;
-
-    ctx.fillStyle = config.textStyle.meaningColor;
-
-    ctx.fillText(`(${card.partOfSpeech})`, width / 2, currentY);
-
-    currentY -= config.textStyle.exampleSize + 20;
-
-  }
-
-
-
-  // --- ✅ FIX: Replace static font size logic with the new dynamic function ---
-
+  // Draw Main Word First
   const titleMaxWidth = width * 0.9; // Use 90% of canvas width for the title
 
-
   ctx.font = fitTextOnCanvas(
-
     ctx,
-
     card.word.toUpperCase(),
-
     config.textStyle.fontFamily,
-
     titleMaxWidth,
-
     config.textStyle.wordSize // Start with the ideal max size
-
   );
 
-
   ctx.fillStyle = config.textStyle.wordColor;
-
   ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-
   ctx.shadowBlur = 15;
-
   ctx.shadowOffsetY = 5;
+  ctx.fillText(card.word.toUpperCase(), leftMargin, currentY);
+  
+  // Get the actual font size used for spacing
+  const wordFontSize = parseInt(ctx.font.match(/(\d+)px/)?.[1] || '60');
+  currentY += wordFontSize * 0.3; // Reduce spacing between word and part of speech
 
-  ctx.fillText(card.word.toUpperCase(), width / 2, currentY);
+  // Draw Part of Speech
+  if (card.type === 'single_word' && card.partOfSpeech) {
+    ctx.font = `italic bold ${config.textStyle.exampleSize}px ${config.textStyle.fontFamily}`;
+    ctx.fillStyle = config.textStyle.meaningColor;
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillText(`(${card.partOfSpeech})`, leftMargin, currentY);
+    currentY += config.textStyle.exampleSize + 30; // Increase spacing before definition
+  }
+
+  // Draw Main Content
+  switch (card.type) {
+    case 'synonym_list':
+      if (card.synonyms && card.synonyms.length > 0) {
+        ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${config.textStyle.fontFamily}`;
+        ctx.fillStyle = config.textStyle.meaningColor;
+        const synonymText = card.synonyms.join(' • ');
+        const synLines = wrapText(ctx, synonymText, contentMaxWidth);
+        for (const line of synLines) {
+          ctx.fillText(line, leftMargin, currentY);
+          currentY += config.textStyle.meaningSize + 15;
+        }
+      }
+      currentY += 15;
+      break;
+
+    default:
+      ctx.font = `normal ${config.textStyle.meaningSize}px ${config.textStyle.fontFamily}`;
+      ctx.fillStyle = config.textStyle.meaningColor;
+      const meaningLines = card.meaning.split('\n').flatMap(line => wrapText(ctx, line, contentMaxWidth));
+      for (const line of meaningLines) {
+        ctx.fillText(line, leftMargin, currentY);
+        currentY += config.textStyle.meaningSize + 10;
+      }
+      currentY += 15;
+      break;
+  }
+
+  // Draw Example
+  if (card.example) {
+    ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${config.textStyle.fontFamily}`;
+    ctx.fillStyle = config.textStyle.exampleColor;
+    const exLines = wrapText(ctx, `"${card.example}"`, contentMaxWidth);
+    for (const line of exLines) {
+      ctx.fillText(line, leftMargin, currentY);
+      currentY += config.textStyle.exampleSize + 10;
+    }
+  }
 
 
 
@@ -557,7 +463,7 @@ export async function generateVocabularyCardImage(
 
   ctx.font = `bold 18px ${config.textStyle.fontFamily}`;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.fillStyle = 'rgba(72, 72, 72, 0.7)';
 
   ctx.textAlign = 'right';
 
@@ -571,7 +477,6 @@ export async function generateVocabularyCardImage(
   return canvas.toBuffer('image/jpeg', { quality: 0.85 });
 
 }
-
 
 
 

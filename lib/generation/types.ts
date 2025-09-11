@@ -13,6 +13,7 @@ export interface TweetGenerationConfig {
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
   batchPosition?: number;
   batchSize?: number;
+  previousWords?: string[];
 }
 
 import type { Account } from '../types';

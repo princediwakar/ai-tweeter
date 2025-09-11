@@ -31,7 +31,7 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
   description: 'Master new words, meanings, and usage in engaging ways',
   image_generation: {
     enabled: true,
-    unsplash_query: 'minimal,calm,nature'
+    unsplash_query: 'white background'
   },
   // MODIFIED: Comprehensive vocabulary topics for competitive exam preparation
   topics: [

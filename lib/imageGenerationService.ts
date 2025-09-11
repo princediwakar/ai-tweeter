@@ -406,7 +406,7 @@ export async function generateVocabularyCardImage(
   
   // Get the actual font size used for spacing
   const wordFontSize = parseInt(ctx.font.match(/(\d+)px/)?.[1] || '60');
-  currentY += wordFontSize * 0.3; // Reduce spacing between word and part of speech
+  currentY += wordFontSize * 0.5; // Reduce spacing between word and part of speech
 
   // Draw Part of Speech
   if (card.type === 'single_word' && card.partOfSpeech) {

@@ -82,7 +82,8 @@ function splitLongTweet(content: string): string[] {
 }
 
 /**
- * Select appropriate thread template for business storyteller persona
+ * Select appropriate thread template using persona configuration
+ * OPTIMIZED: Uses persona.thread_templates instead of separate persona mapping
  */
 function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string): ThreadTemplate {
   if (templateOverride) {
@@ -118,146 +119,89 @@ function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string)
 
 /**
  * Generate thread-specific prompt for storytelling (business or cricket)
+ * OPTIMIZED: Uses persona config directly instead of duplicating context
  */
 function generateThreadPrompt(template: ThreadTemplate, persona?: PersonaConfig): string {
   const timeMarker = `T${Date.now()}`;
   const tokenMarker = `TK${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
   const diversityMarker = `D${Math.random().toString(36).substring(2, 4).toUpperCase()}`;
   
-  // Add variation instructions based on persona type
-  let variationPrompts: string[];
-  let storyContext: string;
-  let storyRequirements: string;
-  let contextualElements: string;
+  // Get persona-specific context from persona config instead of hardcoding
+  const storyContext = persona?.description || 'Expert storyteller creating compelling narratives';
   
-  if (persona?.key === 'cricket_storyteller') {
-    variationPrompts = [
-      "Focus on a lesser-known cricket moment that revealed character",
-      "Tell a story about pressure and how a cricketer handled it",
-      "Share a comeback story from cricket history",
-      "Explore a rivalry that went beyond the game",
-      "Highlight a career-defining moment with life lessons",
-      "Discuss a cricket personality who transcended the sport"
-    ];
-    
-    storyContext = `You are an expert cricket storyteller creating compelling Twitter threads that use cricket as a backdrop to explore human nature, character, and life lessons.`;
-    
-    storyRequirements = `STORY REQUIREMENTS:
-• Focus on authentic cricket stories (international, domestic, historical moments)
-• Include emotional elements - human struggles, pressure moments, character revelations
-• Provide psychological insights and universal life lessons
-• Use specific match details, scores, and outcomes when possible
-• Connect cricket situations to broader human themes of resilience, pressure, and growth
-• Each tweet should be engaging standalone while advancing the narrative
-• IMPORTANT: Use Twitter handles (@username) instead of names when mentioning players, teams, or cricket personalities`;
-
-    contextualElements = `CRICKET STORYTELLING CONTEXT:
-• Draw from rich cricket history - from legendary matches to personal battles
-• Include human elements - how cricket moments revealed true character
-• Reference iconic cricket personalities and their psychological journeys
-• Highlight cricket as a mirror for human nature - pressure, rivalry, friendship, leadership
-• Connect with universal themes that non-cricket fans can relate to
-• Focus on entertainment value and larger-than-life personalities who transcended cricket`;
-
-  } else {
-    // Default to business storytelling
-    variationPrompts = [
-      "Focus on a lesser-known regional business story",
-      "Tell a story from the startup ecosystem (2010-2024)",
-      "Share a family business transition story", 
-      "Explore a crisis management story",
-      "Highlight an unexpected business pivot",
-      "Discuss a cultural adaptation success"
-    ];
-    
-    storyContext = `You are an expert Indian business storyteller creating compelling Twitter threads about authentic business stories with emotional depth and strategic insights.`;
-    
-    storyRequirements = `STORY REQUIREMENTS:
-• Focus on authentic Indian business stories (newer startups, older companies, enterprises, NGOs, family businesses, etc.)
-• Provide strategic business insights and universal lessons
-• Use specific numbers, dates, and concrete details when possible
-• Connect historical context with modern business principles
-• Each tweet should be engaging standalone while advancing the narrative
-• Include simile/metaphor/alliteration/personification or nine emotions (navras) 
-• IMPORTANT: Use Twitter handles (@username) instead of names when mentioning people, companies, or organizations`;
-
-    contextualElements = `INDIAN BUSINESS CONTEXT:
-• Draw from rich Indian business history - from independence era to modern startups
-• Include cultural elements - family business dynamics, traditional vs modern approaches
-• Reference iconic Indian business leaders and their decision-making patterns
-• Highlight uniquely Indian business concepts like 'Jugaad', family succession, regulatory challenges
-• Connect with current Indian startup ecosystem and unicorn stories`;
-  }
+  // Use persona topics for variation instead of hardcoded arrays
+  const availableTopics = persona?.topics || [];
+  const randomTopic = availableTopics.length > 0 
+    ? availableTopics[Math.floor(Math.random() * availableTopics.length)]
+    : { displayName: 'General storytelling' };
   
-  const selectedVariation = variationPrompts[Math.floor(Math.random() * variationPrompts.length)];
+  const selectedVariation = `Focus on ${randomTopic.displayName.toLowerCase()}`;
+
+  // Get persona-specific requirements and context 
+  const personaHashtags = persona?.hashtag_sets?.[Math.floor(Math.random() * persona.hashtag_sets.length)] || 
+    ['#Stories', '#Leadership', '#Inspiration'];
+  
+  const isBusinessPersona = persona?.key === 'business_storyteller';
+  const isCricketPersona = persona?.key === 'cricket_storyteller';
+  
+  // Context-specific requirements based on persona
+  const specificRequirements = isBusinessPersona 
+    ? `• Focus on authentic business stories with strategic insights
+• Include specific details, numbers, and concrete outcomes  
+• Connect with Indian business culture and context
+• Blend business strategy with human elements`
+    : isCricketPersona 
+    ? `• Focus on authentic cricket stories with psychological depth
+• Include match details, scores, and specific moments
+• Connect cricket situations to universal human themes
+• Highlight character revelations and life lessons`
+    : `• Focus on authentic, engaging stories with emotional depth
+• Include specific details and memorable moments
+• Connect with universal human themes`;
 
   return `${storyContext}
 
 UNIQUENESS INSTRUCTION: ${selectedVariation}
 
 THREAD TEMPLATE: "${template.displayName}"
-
 STORY BRIEF: ${template.story_prompt}
 
-CREATIVE FREEDOM:
-• Find and weave a compelling, authentic story
-• Use your knowledge to discover interesting, lesser-known stories or fresh angles
+CREATIVE APPROACH:
+• Find compelling, lesser-known stories or fresh angles on known stories
 • Focus on emotional depth and meaningful insights
+• Use conversational storytelling tone with natural flow
+• Include human elements and specific, memorable details
 • Each thread should be completely unique and original
 
-${storyRequirements}
+PERSONA-SPECIFIC REQUIREMENTS:
+${specificRequirements}
+• Use Twitter handles (@username) when mentioning people/companies
+• Start with an engaging hook and maintain narrative pacing
+• Each tweet should be standalone engaging while advancing the story
 
-${contextualElements}
-
-CONTENT APPROACH:
-• Start with an engaging hook
-• Tell the story with natural flow and pacing
-• Include human elements and emotional depth
-• Use conversational storytelling tone
-• Include specific, memorable details
-
-THREADING FORMAT - BE NATURALLY HUMAN:
-• Mix varied thread indicators: "1/7 🧵",  "3/", "6/7", or NO indicators on obvious continuations
-• Use conversational transitions instead: "But here's the twist...", "The real lesson?", "Here's what happened next:", "The problem?"
-• Place indicators naturally - either at start OR end of tweets, NEVER mid-sentence
-• Keep language simple, conversational, readable - avoid perfect embellishment or corporate speak
-• Sound like a real person telling a story, not an AI generating content
+THREADING FORMAT - NATURAL & HUMAN:
+• Mix varied thread indicators: "1/7 🧵", "3/", "6/7"  
+• Use conversational transitions: "But here's the twist...", "The real lesson?", "Here's what happened next:"
+• Place indicators naturally at start OR end of tweets, NEVER mid-sentence
+• Keep language simple, conversational, readable - avoid corporate speak
 
 CHARACTER LIMITS - CRITICAL:
-• EACH TWEET MUST BE STRICTLY UNDER 260 CHARACTERS (including thread indicators)
-• This leaves 20 characters buffer for hashtags
-• Thread indicators are included in your content - count them in character limit
-• If content exceeds 280 characters, BREAK IT INTO TWO TWEETS instead
-• Count characters carefully - Twitter rejects tweets over 280 characters
-• Shorter tweets are better for engagement - aim for 180-240 characters per tweet
+• EACH TWEET MUST BE UNDER 260 CHARACTERS (including thread indicators)
+• Thread indicators count toward character limit
+• Shorter tweets are better - aim for 180-240 characters per tweet
+• If content exceeds limit, BREAK INTO TWO TWEETS
 
-FORBIDDEN:
-• Generic business advice without specific story
-• Western business examples (focus on Indian context)
-• Overly promotional tone
-• Facts without emotional connection
-• Stories that are too well-known (find lesser-known angles)
-
-Generate a complete thread with optimal length for your story. Return ONLY valid JSON with this exact format:
+Generate a complete thread. Return ONLY valid JSON:
 
 {
   "title": "Thread title",
   "story_category": "${template.name}",
-  "hashtags": ["Relevant hashtags for your specific story"],
+  "hashtags": ${JSON.stringify(personaHashtags)},
   "tweets": [
-    {
-      "sequence": 1,
-      "content": "Tweet 1 content"
-    },
-    {
-      "sequence": 2,
-      "content": "Tweet 2 content"
-    }
-    // ... continue for all tweets in your thread
+    {"sequence": 1, "content": "Tweet 1 content"},
+    {"sequence": 2, "content": "Tweet 2 content"}
   ]
 }
-
-Create hashtags that are authentic and specific to your story content. Avoid generic business hashtags.
 
 [${timeMarker}-${tokenMarker}-${diversityMarker}]`;
 }

@@ -212,36 +212,8 @@ export function getRandomThreadTemplate(): ThreadTemplate {
   return templates[randomIndex];
 }
 
-export function getThreadTemplatesByPersona(personaKey: string): ThreadTemplate[] {
-  if (personaKey === 'business_storyteller') {
-    return [
-      FOUNDER_STRUGGLE_TEMPLATE,
-      BUSINESS_DECISION_TEMPLATE,
-      FAMILY_BUSINESS_TEMPLATE,
-      CROSS_ERA_PARALLEL_TEMPLATE,
-      FAILURE_RECOVERY_TEMPLATE,
-      MARKET_DISRUPTION_TEMPLATE,
-      CRISIS_LEADERSHIP_TEMPLATE,
-      INNOVATION_BREAKTHROUGH_TEMPLATE,
-      CULTURAL_ADAPTATION_TEMPLATE,
-      SUCCESSION_STORY_TEMPLATE
-    ];
-  } else if (personaKey === 'cricket_storyteller') {
-    return [
-      ICONIC_INNINGS_TEMPLATE,
-      PRESSURE_PSYCHOLOGY_TEMPLATE,
-      CRICKET_COMEBACK_TEMPLATE,
-      CRICKET_PERSONALITY_TEMPLATE,
-      CRICKET_RIVALRY_TEMPLATE,
-      CRICKET_CROSSROADS_TEMPLATE,
-      CRICKET_DRAMA_TEMPLATE,
-      CRICKET_PERSONAL_BATTLE_TEMPLATE,
-      CRICKET_LEADERSHIP_TEMPLATE,
-      CRICKET_LEGACY_TEMPLATE
-    ];
-  }
-  return [];
-}
+// REMOVED: getThreadTemplatesByPersona - redundant with persona.thread_templates
+// Use persona.thread_templates array directly instead of this function
 
 // Template structure validation
 export function validateThreadStructure(template: ThreadTemplate): boolean {

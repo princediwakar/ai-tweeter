@@ -126,13 +126,37 @@ export const BUSINESS_STORYTELLER: PersonaConfig = {
   ],
   topics: [
     { key: 'founder_stories', displayName: 'Founder Journey Stories' },
+    { key: 'produce_stories', displayName: 'Product Journey Stories' },
     { key: 'business_decisions', displayName: 'Strategic Business Decisions' },
-    { key: 'family_business', displayName: 'Family Business Dynamics' },
     { key: 'market_disruption', displayName: 'Market Disruption Stories' },
     { key: 'crisis_management', displayName: 'Crisis Leadership Stories' },
     { key: 'cultural_business', displayName: 'Cultural Adaptation in Business' },
     { key: 'succession_planning', displayName: 'Business Succession Stories' },
-    { key: 'innovation_breakthroughs', displayName: 'Innovation Breakthrough Stories' }
+    { key: 'innovation_breakthroughs', displayName: 'Innovation Breakthrough Stories' },
+    
+    // Tech Stories from India
+    { key: 'indian_tech_unicorns', displayName: 'Indian Tech Unicorns & Scaling Stories' },
+    { key: 'indian_tech_pioneers', displayName: 'Indian Tech Pioneers & Early Internet' },
+    { key: 'fintech_revolution_india', displayName: 'FinTech Revolution in India' },
+    { key: 'edtech_transformation', displayName: 'EdTech Transformation Stories' },
+    { key: 'ecommerce_battles_india', displayName: 'E-commerce Wars & Market Battles' },
+    { key: 'digital_payments_upi', displayName: 'Digital Payments & UPI Revolution' },
+    { key: 'saas_india_global', displayName: 'Indian SaaS Going Global' },
+    { key: 'gaming_content_creators', displayName: 'Gaming & Content Creator Economy' },
+    { key: 'deep_tech_ai_india', displayName: 'Deep Tech & AI Innovation in India' },
+    { key: 'space_tech_startups', displayName: 'Space Tech & NewSpace Startups' },
+    
+    // Global Tech Stories
+    { key: 'silicon_valley_legends', displayName: 'Silicon Valley Origin Stories' },
+    { key: 'big_tech_evolution', displayName: 'Big Tech Company Evolution' },
+    { key: 'startup_ecosystem_global', displayName: 'Global Startup Ecosystem Stories' },
+    { key: 'tech_disruption_industries', displayName: 'Tech Disrupting Traditional Industries' },
+    { key: 'crypto_blockchain_stories', displayName: 'Crypto & Blockchain Revolution' },
+    { key: 'ai_ml_breakthrough', displayName: 'AI/ML Breakthrough Moments' },
+    { key: 'social_media_impact', displayName: 'Social Media Platform Stories' },
+    { key: 'mobile_revolution', displayName: 'Mobile & App Revolution Stories' },
+    { key: 'cloud_computing_shift', displayName: 'Cloud Computing Transformation' },
+    { key: 'cybersecurity_battles', displayName: 'Cybersecurity & Digital Warfare' }
   ],
   hashtag_sets: [
     ['#IndianBusiness', '#Entrepreneurship', '#StartupStories', '#Leadership'],
@@ -140,7 +164,12 @@ export const BUSINESS_STORYTELLER: PersonaConfig = {
     ['#TataGroup', '#Reliance', '#BusinessLessons', '#Success'],
     ['#StartupIndia', '#Jugaad', '#BusinessWisdom', '#Founders'],
     ['#FamilyBusiness', '#Succession', '#Legacy', '#Vision'],
-    ['#BusinessDecisions', '#CrisisLeadership', '#MarketDisruption', '#Growth']
+    ['#BusinessDecisions', '#CrisisLeadership', '#MarketDisruption', '#Growth'],
+    ['#TechStories', '#IndianTech', '#Innovation', '#StartupEcosystem'],
+    ['#Unicorns', '#TechFounders', '#ScaleUp', '#DigitalIndia'],
+    ['#FinTech', '#UPI', '#DigitalPayments', '#TechRevolution'],
+    ['#GlobalTech', '#SiliconValley', '#TechDisruption', '#AI'],
+    ['#SaaS', '#TechExport', '#IndianSaaS', '#GlobalMarket']
   ]
 };
 
@@ -312,11 +341,11 @@ export async function getRandomPersonaForAccount(accountId: string, personaKeys?
 
 export function getHashtagsForPersona(persona: PersonaConfig, variation = 0): string[] {
   if (!persona.hashtag_sets || persona.hashtag_sets.length === 0) {
-    // Generate default hashtags for active personas
+    // Generate default hashtags for active personas (including tech stories)
     const defaultHashtags: Record<string, string[]> = {
       english_vocab_builder: ['#EnglishLearning', '#Vocabulary', '#WordPower', '#Learning'],
       satirist: ['#StartupLife', '#TechHumor', '#BusinessReality', '#Satire'],
-      business_storyteller: ['#IndianBusiness', '#Entrepreneurship', '#StartupStories', '#Leadership'],
+      business_storyteller: ['#IndianBusiness', '#Entrepreneurship', '#TechStories', '#Leadership'],
       cricket_storyteller: ['#Cricket', '#HumanStories', '#Character', '#Psychology']
     };
     

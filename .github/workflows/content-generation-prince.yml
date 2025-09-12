@@ -2,7 +2,7 @@ name: Content Generation - Prince
 
 on:
   schedule:
-    - cron: '35 * * * *'  # Every hour at 35 minutes past (5 min after Gibbi)
+    - cron: '40 * * * *'  # Every hour at 35 minutes past (5 min after Gibbi)
 
 jobs:
   generate-prince:

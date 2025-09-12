@@ -85,19 +85,14 @@ function generateCronExpressions(istHours, skipWednesday = false) {
 }
 
 /**
- * Generate separate account workflows that run every hour
+ * Generate matrix-based workflows - cleaner approach with fewer files
  * Uses existing schedule functions to determine if work should be done
  */
-function generateAccountWorkflows() {
+function generateMatrixWorkflows() {
   const workflows = [];
-  const accounts = [
-    { handle: '@gibbi_ai', name: 'Gibbi' },
-    { handle: '@princediwakar25', name: 'Prince' }
-  ];
   
-  // Generate Content Workflows - one per account (using GET)
-  accounts.forEach(({ handle, name }) => {
-    const generateWorkflow = `name: ${name} Generation
+  // Content Generation Workflow - uses matrix for both accounts
+  const generateWorkflow = `name: Content Generation
 
 on:
   schedule:
@@ -105,22 +100,19 @@ on:
 
 jobs:
   generate:
-    name: Generate Content for ${handle}
+    name: Generate Content
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        account: ['@gibbi_ai', '@princediwakar25']
     steps:
-      - name: Generate content for ${handle}
+      - name: Generate content for \${{ matrix.account }}
         run: |
-          curl -X GET "\${{ secrets.VERCEL_URL }}/api/generate?twitter_handle=${encodeURIComponent(handle)}&source=github-actions" \\
+          curl -X GET "\${{ secrets.VERCEL_URL }}/api/generate?twitter_handle=\${{ matrix.account }}&source=github-actions" \\
             -H "Authorization: Bearer \${{ secrets.CRON_SECRET }}"
 `;
 
-    workflows.push({
-      fileName: `${name.toLowerCase()}-generation.yml`,
-      content: generateWorkflow
-    });
-  });
-
-  // Auto Post Workflow - single workflow for all accounts (API processes all scheduled accounts)
+  // Auto Post Workflow - single job for all accounts
   const postWorkflow = `name: Auto Post
 
 on:
@@ -138,10 +130,10 @@ jobs:
             -H "Authorization: Bearer \${{ secrets.CRON_SECRET }}"
 `;
 
-  workflows.push({
-    fileName: 'auto-post.yml',
-    content: postWorkflow
-  });
+  workflows.push(
+    { fileName: 'content-generation.yml', content: generateWorkflow },
+    { fileName: 'auto-post.yml', content: postWorkflow }
+  );
   
   return workflows;
 }
@@ -178,8 +170,8 @@ function main() {
     });
     console.log(`🧹 Cleaned ${existingFiles.length} existing workflow files`);
     
-    // Generate account-specific hourly workflows
-    const allWorkflows = generateAccountWorkflows();
+    // Generate matrix-based workflows
+    const allWorkflows = generateMatrixWorkflows();
     
     allWorkflows.forEach(({ fileName, content }) => {
       fs.writeFileSync(path.join(workflowsDir, fileName), content);
@@ -191,12 +183,12 @@ function main() {
     });
     
     console.log(`\n📊 Summary:`);
-    console.log(`  - 3 workflows created total`);
-    console.log(`  - 2 generation workflows (1 per account, uses GET with twitter_handle)`);
-    console.log(`  - 1 posting workflow (processes all accounts, uses GET)`);
-    console.log(`  - All run every hour and use existing schedule logic`);
+    console.log(`  - 2 clean workflows created using matrix strategy`);
+    console.log(`  - content-generation.yml: Matrix job for both @gibbi_ai and @princediwakar25`);
+    console.log(`  - auto-post.yml: Single job for all accounts`);
+    console.log(`  - All use GET methods and existing schedule logic`);
+    console.log(`  - Matrix approach: cleaner than separate files per account`);
     console.log(`  - APIs will check isGenerationScheduled() and isPostingScheduled()`);
-    console.log(`  - Fixed HTTP methods: GET for both generation and posting`);
     
   } catch (error) {
     console.error('❌ Error generating workflows:', error.message);

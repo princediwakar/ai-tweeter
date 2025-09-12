@@ -1,0 +1,18 @@
+name: Content Generation
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Every hour
+
+jobs:
+  generate:
+    name: Generate Content
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        account: ['@gibbi_ai', '@princediwakar25']
+    steps:
+      - name: Generate content for ${{ matrix.account }}
+        run: |
+          curl -X GET "${{ secrets.VERCEL_URL }}/api/generate?twitter_handle=${{ matrix.account }}&source=github-actions" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

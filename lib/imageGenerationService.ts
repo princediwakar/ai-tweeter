@@ -1,6 +1,7 @@
 //imageGenerationService.ts
 
-import { createCanvas, loadImage, CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, loadImage, CanvasRenderingContext2D, registerFont } from 'canvas';
+import path from 'path';
 
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -11,6 +12,11 @@ import { accountService } from './accountService';
 
 
 // Note: Cloudinary will be configured dynamically per account using decrypted credentials from AccountService
+
+// Register Poppins fonts
+const fontsPath = path.join(process.cwd(), 'public', 'fonts');
+registerFont(path.join(fontsPath, 'Poppins-Regular.ttf'), { family: 'Poppins', weight: 'normal' });
+registerFont(path.join(fontsPath, 'Poppins-Bold.ttf'), { family: 'Poppins', weight: 'bold' });
 
 
 
@@ -94,7 +100,7 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
     exampleColor: '#555555',
 
-    fontFamily: 'Helvetica Neue, Arial, sans-serif',
+    fontFamily: 'Poppins',
 
     backgroundColor: '',
 
@@ -278,6 +284,43 @@ function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: num
 
 
 /**
+* Validates that a font is properly loaded by testing text measurement
+*/
+function validateFont(ctx: CanvasRenderingContext2D, fontFamily: string): boolean {
+  try {
+    ctx.font = `20px ${fontFamily}`;
+    const testWidth = ctx.measureText('Test').width;
+    // If font is not loaded, Canvas might return 0 or very small width
+    return testWidth > 10;
+  } catch (error) {
+    console.warn(`Font validation failed for ${fontFamily}:`, error);
+    return false;
+  }
+}
+
+/**
+* Get a safe font family with fallback validation
+*/
+function getSafeFont(ctx: CanvasRenderingContext2D, preferredFont: string): string {
+  const fontOptions = [
+    preferredFont,
+    'Arial, sans-serif',
+    'Helvetica, sans-serif', 
+    'sans-serif'
+  ];
+  
+  for (const font of fontOptions) {
+    if (validateFont(ctx, font)) {
+      console.log(`✅ Using font: ${font}`);
+      return font;
+    }
+  }
+  
+  console.warn('⚠️ All font validation failed, using system default');
+  return 'sans-serif';
+}
+
+/**
 
 * ✅ NEW: Dynamically adjusts font size to fit text within a max width.
 
@@ -342,6 +385,9 @@ export async function generateVocabularyCardImage(
 
   const ctx = canvas.getContext('2d');
 
+  // Validate and get safe font family
+  const safeFont = getSafeFont(ctx, config.textStyle.fontFamily);
+
 
 
   // --- 1. Background Image ---
@@ -393,7 +439,7 @@ export async function generateVocabularyCardImage(
   ctx.font = fitTextOnCanvas(
     ctx,
     card.word.toUpperCase(),
-    config.textStyle.fontFamily,
+    safeFont,
     titleMaxWidth,
     config.textStyle.wordSize // Start with the ideal max size
   );
@@ -410,7 +456,7 @@ export async function generateVocabularyCardImage(
 
   // Draw Part of Speech
   if (card.type === 'single_word' && card.partOfSpeech) {
-    ctx.font = `italic bold ${config.textStyle.exampleSize}px ${config.textStyle.fontFamily}`;
+    ctx.font = `italic bold ${config.textStyle.exampleSize}px ${safeFont}`;
     ctx.fillStyle = config.textStyle.meaningColor;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
@@ -422,7 +468,7 @@ export async function generateVocabularyCardImage(
   switch (card.type) {
     case 'synonym_list':
       if (card.synonyms && card.synonyms.length > 0) {
-        ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${config.textStyle.fontFamily}`;
+        ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${safeFont}`;
         ctx.fillStyle = config.textStyle.meaningColor;
         const synonymText = card.synonyms.join(' • ');
         const synLines = wrapText(ctx, synonymText, contentMaxWidth);
@@ -435,7 +481,7 @@ export async function generateVocabularyCardImage(
       break;
 
     default:
-      ctx.font = `normal ${config.textStyle.meaningSize}px ${config.textStyle.fontFamily}`;
+      ctx.font = `normal ${config.textStyle.meaningSize}px ${safeFont}`;
       ctx.fillStyle = config.textStyle.meaningColor;
       const meaningLines = card.meaning.split('\n').flatMap(line => wrapText(ctx, line, contentMaxWidth));
       for (const line of meaningLines) {
@@ -448,7 +494,7 @@ export async function generateVocabularyCardImage(
 
   // Draw Example
   if (card.example) {
-    ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${config.textStyle.fontFamily}`;
+    ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${safeFont}`;
     ctx.fillStyle = config.textStyle.exampleColor;
     const exLines = wrapText(ctx, `"${card.example}"`, contentMaxWidth);
     for (const line of exLines) {
@@ -461,7 +507,7 @@ export async function generateVocabularyCardImage(
 
   // --- 4. Branding Watermark ---
 
-  ctx.font = `bold 18px ${config.textStyle.fontFamily}`;
+  ctx.font = `bold 18px ${safeFont}`;
 
   ctx.fillStyle = 'rgba(72, 72, 72, 0.7)';
 

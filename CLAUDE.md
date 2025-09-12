@@ -51,7 +51,7 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
     * Posting API: `app/api/auto-post/route.ts`
 * **API Separation:** The `/api/generate` route creates content and saves it to the DB. The `/api/auto-post` route reads from the DB and posts to Twitter. Do not mix these concerns.
 * **Pre-Commit Checks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
-* **GitHub Actions Automation:** The project uses GitHub Actions for automated content generation and posting. Workflow files are auto-generated from `lib/schedule.ts` via the postbuild script. When schedule changes are made, run `npm run build` to regenerate workflows.
+* **GitHub Actions Automation:** The project uses GitHub Actions for automated content generation and posting. Workflows are static matrix-based files that leverage existing TypeScript schedule logic.
 * **Documentation:** When significant features are added or changed, update the main project `README.md` to reflect the new state.
 - neon projectID: round-sun-88150229
 
@@ -64,7 +64,7 @@ The system uses GitHub Actions for automated cron-based content generation and p
   - `auto-post.yml`: Single job for all accounts using `GET /api/auto-post`
 * **Smart Scheduling:** APIs use existing `isGenerationScheduled()` and `isPostingScheduled()` functions; workflows return "not scheduled" when outside schedule times
 * **Matrix Strategy Benefits:** Cleaner than separate files, easier to add accounts, better GitHub UI, less duplication
-* **Auto-Generation:** Workflows automatically regenerated via `scripts/generate-github-actions.js` on every `npm run build`
+* **Static Workflows:** Matrix-based workflows are static files that don't need regeneration
 * **Production URL:** `https://aitweeter.vercel.app` (verified working)
 
 **Production Test Results (✅ Verified):**

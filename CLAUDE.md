@@ -50,6 +50,22 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
     * Generation API: `app/api/generate/route.ts`
     * Posting API: `app/api/auto-post/route.ts`
 * **API Separation:** The `/api/generate` route creates content and saves it to the DB. The `/api/auto-post` route reads from the DB and posts to Twitter. Do not mix these concerns.
-* **Pre-Commit Cheks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
+* **Pre-Commit Checks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
+* **GitHub Actions Automation:** The project uses GitHub Actions for automated content generation and posting. Workflow files are auto-generated from `lib/schedule.ts` via the postbuild script. When schedule changes are made, run `npm run build` to regenerate workflows.
 * **Documentation:** When significant features are added or changed, update the main project `README.md` to reflect the new state.
 - neon projectID: round-sun-88150229
+
+## 🤖 GitHub Actions Workflows
+
+The system uses GitHub Actions for automated cron-based content generation and posting:
+
+* **Simple Hourly Workflows:** 4 workflows run every hour - 2 for generation, 2 for posting (1 per account)
+* **Smart Scheduling:** Each workflow calls your APIs with specific account parameter; APIs use existing `isGenerationScheduled()` and `isPostingScheduled()` functions to determine if work should be done
+* **Account Isolation:** Separate workflows per account prevent conflicts when both accounts are scheduled simultaneously
+* **Auto-Generation:** Workflows are automatically generated via `scripts/generate-github-actions.js` on every `npm run build`
+* **No Timezone Issues:** All scheduling logic remains in TypeScript using IST; no UTC conversion needed
+
+**Required Repository Secrets:**
+- `VERCEL_URL`: Your deployment URL
+- `CRON_SECRET`: Authentication token for API endpoints
+- All environment variables needed by your APIs (DATABASE_URL, Twitter keys, etc.)

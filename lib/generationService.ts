@@ -251,16 +251,65 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
   }
 }
 
+async function getRecentVocabularyWords(accountId: string, days: number = 30): Promise<string[]> {
+  try {
+    // Import here to avoid circular dependency
+    const { sql } = await import('@vercel/postgres');
+    
+    const result = await sql`
+      SELECT DISTINCT card_data
+      FROM tweets 
+      WHERE account_id = ${accountId} 
+        AND persona = 'english_vocab_builder'
+        AND card_data IS NOT NULL
+        AND created_at > NOW() - INTERVAL '${days} days'
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+    
+    const recentWords: string[] = [];
+    for (const row of result.rows) {
+      if (row.card_data) {
+        try {
+          const cardData = typeof row.card_data === 'string' 
+            ? JSON.parse(row.card_data) 
+            : row.card_data;
+          if (cardData?.word) {
+            recentWords.push(cardData.word.toLowerCase());
+          }
+        } catch {
+          // Skip malformed card data
+        }
+      }
+    }
+    
+    return recentWords;
+  } catch (error) {
+    console.warn('Failed to fetch recent vocabulary words:', error);
+    return [];
+  }
+}
+
 export async function generateBatchTweets(count: number, config: TweetGenerationConfig = {}): Promise<EnhancedTweet[]> {
   const tweets: EnhancedTweet[] = [];
   const generatedWords: string[] = [];
+  
+  // Get recent words from database to avoid repetition
+  let recentWords: string[] = [];
+  if (config.account_id && config.persona === 'english_vocab_builder') {
+    recentWords = await getRecentVocabularyWords(config.account_id, 30);
+    console.log(`📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`);
+  }
 
   for (let i = 0; i < count; i++) {
+    // Combine recent database words with current batch words
+    const allPreviousWords = [...recentWords, ...generatedWords];
+    
     const batchConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
-      previousWords: generatedWords.length > 0 ? generatedWords : undefined
+      previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined
     };
     
     const result = await generateTweet(batchConfig);
@@ -269,12 +318,15 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
       tweets.push(result);
       // Track the word for vocabulary builder persona to prevent duplicates
       if (result.persona === 'english_vocab_builder' && result.cardData?.word) {
-        generatedWords.push(result.cardData.word);
+        const newWord = result.cardData.word.toLowerCase();
+        generatedWords.push(newWord);
+        console.log(`🆕 New word generated: ${newWord}`);
       }
     }
   }
 
   console.log(`📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`);
   console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
+  console.log(`🚫 Avoided ${recentWords.length} recent words from database`);
   return tweets;
 }

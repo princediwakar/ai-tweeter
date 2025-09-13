@@ -445,9 +445,6 @@ export async function generateVocabularyCardImage(
   );
 
   ctx.fillStyle = config.textStyle.wordColor;
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-  ctx.shadowBlur = 15;
-  ctx.shadowOffsetY = 5;
   ctx.fillText(card.word.toUpperCase(), leftMargin, currentY);
   
   // Get the actual font size used for spacing

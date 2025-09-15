@@ -76,7 +76,7 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
   enabled: true,
 
-  unsplashQuery: 'white background',
+  unsplashQuery: 'minimalist white clean bright light background texture',
 
   dimensions: {
 
@@ -88,11 +88,11 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
   textStyle: {
 
-    wordSize: 100,
+    wordSize: 90,
 
     meaningSize: 40,
 
-    exampleSize: 34,
+    exampleSize: 30,
 
     wordColor: '#1A1A1A',
 
@@ -202,9 +202,20 @@ async function fetchUnsplashImage(query: string, width: number, height: number):
 
   try {
 
-    const url = `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape`;
+    const url = `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape&color=white&per_page=1`;
 
-    const response = await fetch(url, { headers: { 'Authorization': `Client-ID ${accessKey}` } });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(url, { 
+      headers: { 
+        'Authorization': `Client-ID ${accessKey}`,
+        'Accept': 'application/json'
+      },
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
 
 
     if (!response.ok) {
@@ -221,10 +232,13 @@ async function fetchUnsplashImage(query: string, width: number, height: number):
 
     if (data.urls?.raw) {
 
-      return `${data.urls.raw}&w=${width}&h=${height}&fit=crop&fm=jpg&q=80`;
+      const optimizedUrl = `${data.urls.raw}&w=${width}&h=${height}&fit=crop&fm=jpg&q=80&sat=-20&bright=10`;
+      console.log('✅ Successfully fetched Unsplash background image');
+      return optimizedUrl;
 
     }
-
+    
+    console.warn('⚠️ Unsplash response missing image URLs');
     return '';
 
 
@@ -414,9 +428,11 @@ export async function generateVocabularyCardImage(
 
     const fallback = ctx.createLinearGradient(0, 0, width, height);
 
-    fallback.addColorStop(0, '#6D8299'); fallback.addColorStop(1, '#2E384D');
+    fallback.addColorStop(0, '#F8F9FA'); fallback.addColorStop(1, '#E9ECEF');
 
-    ctx.fillStyle = fallback; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = fallback; 
+    ctx.fillRect(0, 0, width, height);
+    console.log('🎨 Using light fallback background gradient');
 
   }
 
@@ -444,6 +460,11 @@ export async function generateVocabularyCardImage(
     config.textStyle.wordSize // Start with the ideal max size
   );
 
+  // Add text outline for better visibility on any background
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 4;
+  ctx.strokeText(card.word.toUpperCase(), leftMargin, currentY);
+  
   ctx.fillStyle = config.textStyle.wordColor;
   ctx.fillText(card.word.toUpperCase(), leftMargin, currentY);
   
@@ -454,6 +475,12 @@ export async function generateVocabularyCardImage(
   // Draw Part of Speech
   if (card.type === 'single_word' && card.partOfSpeech) {
     ctx.font = `italic bold ${config.textStyle.exampleSize}px ${safeFont}`;
+    
+    // Add subtle outline for part of speech
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeText(`(${card.partOfSpeech})`, leftMargin, currentY);
+    
     ctx.fillStyle = config.textStyle.meaningColor;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
@@ -466,10 +493,16 @@ export async function generateVocabularyCardImage(
     case 'synonym_list':
       if (card.synonyms && card.synonyms.length > 0) {
         ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${safeFont}`;
-        ctx.fillStyle = config.textStyle.meaningColor;
+        
         const synonymText = card.synonyms.join(' • ');
         const synLines = wrapText(ctx, synonymText, contentMaxWidth);
         for (const line of synLines) {
+          // Add outline for synonyms
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 2;
+          ctx.strokeText(line, leftMargin, currentY);
+          
+          ctx.fillStyle = config.textStyle.meaningColor;
           ctx.fillText(line, leftMargin, currentY);
           currentY += config.textStyle.meaningSize + 15;
         }
@@ -479,9 +512,15 @@ export async function generateVocabularyCardImage(
 
     default:
       ctx.font = `normal ${config.textStyle.meaningSize}px ${safeFont}`;
-      ctx.fillStyle = config.textStyle.meaningColor;
+      
       const meaningLines = card.meaning.split('\n').flatMap(line => wrapText(ctx, line, contentMaxWidth));
       for (const line of meaningLines) {
+        // Add outline for meaning text
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.strokeText(line, leftMargin, currentY);
+        
+        ctx.fillStyle = config.textStyle.meaningColor;
         ctx.fillText(line, leftMargin, currentY);
         currentY += config.textStyle.meaningSize + 10;
       }
@@ -492,9 +531,15 @@ export async function generateVocabularyCardImage(
   // Draw Example
   if (card.example) {
     ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${safeFont}`;
-    ctx.fillStyle = config.textStyle.exampleColor;
+    
     const exLines = wrapText(ctx, `"${card.example}"`, contentMaxWidth);
     for (const line of exLines) {
+      // Add outline for example text
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 2;
+      ctx.strokeText(line, leftMargin, currentY);
+      
+      ctx.fillStyle = config.textStyle.exampleColor;
       ctx.fillText(line, leftMargin, currentY);
       currentY += config.textStyle.exampleSize + 10;
     }

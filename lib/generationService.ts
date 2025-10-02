@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, getHashtagsForPersona, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
+import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
 import { EnhancedTweet, VocabularyCard } from './types';
 import { getAccount } from './db';
 import type { Account } from './types';
@@ -121,8 +121,7 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
 function parseAndValidateTweetResponse(
   content: string, 
   persona: string, 
-  topic: { key: string; displayName: string }, 
-  personaConfig?: PersonaConfig
+  topic: { key: string; displayName: string }
 ): { tweet: EnhancedTweet; cardData: VocabularyCard | null } | null {
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
@@ -155,12 +154,7 @@ function parseAndValidateTweetResponse(
         throw new Error('AI response missing required hashtags array.');
     }
     
-    let hashtags = data.hashtags.slice(0, 4);
-    
-    if (!hashtags.length && personaConfig && personaConfig.hashtag_sets && personaConfig.hashtag_sets.length > 0) {
-      const variation = Math.floor(Math.random() * personaConfig.hashtag_sets.length);
-      hashtags = getHashtagsForPersona(personaConfig, variation);
-    }
+    let hashtags = data.hashtags.slice(0, 2);
     
     const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => `#${tag}`).join(' ') : '';
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
@@ -216,7 +210,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       throw new Error('Invalid persona or topic configuration');
     }
 
-    const parsedResponse = parseAndValidateTweetResponse(content, persona.key, topic as { key: string; displayName: string }, persona);
+    const parsedResponse = parseAndValidateTweetResponse(content, persona.key, topic as { key: string; displayName: string });
     if (!parsedResponse) {
       throw new Error('Failed to parse or validate AI response.');
     }

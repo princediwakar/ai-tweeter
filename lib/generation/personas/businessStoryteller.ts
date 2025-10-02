@@ -18,20 +18,7 @@ export class BusinessStorytellerGenerator extends BasePersonaGenerator {
       ? availableTemplates[Math.floor(Math.random() * availableTemplates.length)]
       : 'founder_struggle';
 
-    // Get appropriate hashtags from persona config with tech story preference
-    const hashtagSets = persona.hashtag_sets || [['#IndianBusiness', '#Entrepreneurship', '#Leadership']];
     const topicContext = this.getTopicContext(topic);
-    
-    // Use tech-specific hashtags for tech topics
-    let selectedHashtags = hashtagSets[Math.floor(Math.random() * hashtagSets.length)];
-    if (topicContext && topic.key.includes('tech')) {
-      const techHashtagSets = hashtagSets.filter(set => 
-        set.some(tag => ['#TechStories', '#IndianTech', '#Unicorns', '#GlobalTech', '#SaaS'].includes(tag))
-      );
-      if (techHashtagSets.length > 0) {
-        selectedHashtags = techHashtagSets[Math.floor(Math.random() * techHashtagSets.length)];
-      }
-    }
     
     let rssSourceContext = '';
     if (context.rssContext.length > 0) {
@@ -61,8 +48,6 @@ PERSONA-DRIVEN APPROACH:
 
 AVAILABLE TOPICS (choose relevant angle):
 ${persona.topics?.map(t => `• ${t.displayName}`).join('\n') || '• Business strategy and leadership'}
-
-SUGGESTED HASHTAGS: ${selectedHashtags.join(' ')}
 ${context.useRSSSources ? '• May reference current business/tech developments' : ''}${rssSourceContext}
 
 CONTENT TYPE: "thread"

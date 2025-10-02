@@ -51,29 +51,27 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
     * Posting API: `app/api/auto-post/route.ts`
 * **API Separation:** The `/api/generate` route creates content and saves it to the DB. The `/api/auto-post` route reads from the DB and posts to Twitter. Do not mix these concerns.
 * **Pre-Commit Checks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
-* **GitHub Actions Automation:** The project uses GitHub Actions for automated content generation and posting. Workflows are static matrix-based files that leverage existing TypeScript schedule logic.
+* **Cron Automation:** The project uses cron-job.org for automated content generation and posting. The APIs leverage existing TypeScript schedule logic.
 * **Documentation:** When significant features are added or changed, update the main project `README.md` to reflect the new state.
 - neon projectID: round-sun-88150229
 
-## 🤖 GitHub Actions Workflows
+## ⏰ Cron-job.org Automation
 
-The system uses GitHub Actions for automated cron-based content generation and posting:
+The system uses cron-job.org for automated cron-based content generation and posting:
 
-* **2 Clean Matrix-Based Workflows:** Production-ready and tested
-  - `content-generation.yml`: Matrix job for both @gibbi_ai and @princediwakar25 using `GET /api/generate?twitter_handle=${{ matrix.account }}`
-  - `auto-post.yml`: Single job for all accounts using `GET /api/auto-post`
-* **Smart Scheduling:** APIs use existing `isGenerationScheduled()` and `isPostingScheduled()` functions; workflows return "not scheduled" when outside schedule times
-* **Matrix Strategy Benefits:** Cleaner than separate files, easier to add accounts, better GitHub UI, less duplication
-* **Static Workflows:** Matrix-based workflows are static files that don't need regeneration
+* **External Cron Service:** Uses cron-job.org to trigger API endpoints at scheduled intervals
+* **Two Main Endpoints:**
+  - Content Generation: `GET /api/generate?twitter_handle={account}` for each account
+  - Auto Posting: `GET /api/auto-post` for all accounts
+* **Smart Scheduling:** APIs use existing `isGenerationScheduled()` and `isPostingScheduled()` functions; endpoints return "not scheduled" when outside configured schedule times
 * **Production URL:** `https://aitweeter.vercel.app` (verified working)
 
 **Production Test Results (✅ Verified):**
 - All endpoints respond correctly with proper authentication
 - Schedule logic working: shows "not scheduled" outside configured hours
-- Debug mode generates content successfully (3 tweets for Gibbi in 12s)
-- Ready for GitHub Actions deployment
+- Debug mode generates content successfully
+- Ready for cron-job.org scheduling
 
-**Required Repository Secrets:**
-- `VERCEL_URL`: https://aitweeter.vercel.app
-- `CRON_SECRET`: added in .env.local
-- All other environment variables from your production deployment
+**Required Environment Variables:**
+- `CRON_SECRET`: Authentication for cron endpoints
+- All other environment variables from production deployment

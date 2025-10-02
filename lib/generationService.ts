@@ -150,11 +150,11 @@ function parseAndValidateTweetResponse(
       tweetContent = data.content;
     }
 
-    if (!data.hashtags || !Array.isArray(data.hashtags)) {
-        throw new Error('AI response missing required hashtags array.');
+    // Handle optional hashtags array
+    let hashtags: string[] = [];
+    if (data.hashtags && Array.isArray(data.hashtags)) {
+      hashtags = data.hashtags.slice(0, 2);
     }
-    
-    let hashtags = data.hashtags.slice(0, 2);
     
     const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => `#${tag}`).join(' ') : '';
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';

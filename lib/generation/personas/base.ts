@@ -34,14 +34,13 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   protected addCommonSuffix(prompt: string): string {
     return prompt + `\n\nCRITICAL: Keep tweet text content under 200 characters. Format the entire output as a single, valid JSON object. For non-vocabulary personas, use the key "content" for the tweet text. For the vocabulary persona, use the "tweetText" and "cardData" structure as specified. 
 
-HASHTAG GENERATION: Generate exactly 2 subtle, engaging hashtags that are:
-- Relevant but not literal descriptions of the content
-- Creative and memorable, not obvious content labels
-- Avoid meta tags like #PoliticalSatire, #Business, #Stories, #IndianPolitics
-- Focus on clever wordplay, cultural references, or unexpected angles
-- Think like trending topics - catchy but meaningful
-- Examples of GOOD hashtags: #SwadeshiVsSponsors, #FrenemyNations, #DigitalDiplomacy
-- Examples of BAD hashtags: #PoliticalSatire, #BusinessStory, #IndianPolitics
-Always include the "hashtags" array with exactly 2 subtle, creative hashtags.`;
+HASHTAG DECISION: Only include hashtags if they genuinely add value to the tweet. Most tweets should NOT have hashtags.
+- Include hashtags ONLY if they make the tweet more discoverable or add humor/context
+- Prefer NO hashtags over forced, mechanical, or obvious ones
+- If including hashtags, use 1-2 maximum and make them creative/memorable
+- Consider: Does this hashtag make the tweet better? If not, don't include it
+- Examples where hashtags might work: trending topics, cultural moments, wordplay
+- Most satirical/story tweets work better WITHOUT hashtags
+Include the "hashtags" array - it can be empty [] if no meaningful hashtags fit.`;
   }
 }

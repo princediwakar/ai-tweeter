@@ -32,7 +32,13 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   }
 
   protected addCommonSuffix(prompt: string): string {
-    return prompt + `\n\nCRITICAL: Keep tweet text content under 200 characters. Format the entire output as a single, valid JSON object. For non-vocabulary personas, use the key "content" for the tweet text. For the vocabulary persona, use the "tweetText" and "cardData" structure as specified. 
+    return prompt + `\n\nCRITICAL CHARACTER LIMITS: 
+- EACH TWEET MUST BE UNDER 250 CHARACTERS TOTAL (including hashtags)
+- For single tweets: aim for 180-240 characters
+- For thread tweets: aim for 160-220 characters per tweet
+- Count characters carefully - exceeding limits causes splitting/truncation
+
+FORMAT: Return as valid JSON object. For non-vocabulary personas, use "content" key. For vocabulary persona, use "tweetText" and "cardData" structure.
 
 HASHTAG DECISION: Only include hashtags if they genuinely add value to the tweet. Most tweets should NOT have hashtags.
 - Include hashtags ONLY if they make the tweet more discoverable or add humor/context

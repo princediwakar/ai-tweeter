@@ -185,11 +185,12 @@ THREADING FORMAT - NATURAL & HUMAN:
 • Place indicators naturally at start OR end of tweets, NEVER mid-sentence
 • Keep language simple, conversational, readable - avoid corporate speak
 
-CHARACTER LIMITS - CRITICAL:
-• EACH TWEET MUST BE UNDER 260 CHARACTERS (including thread indicators)
-• Thread indicators count toward character limit
-• Shorter tweets are better - aim for 180-240 characters per tweet
-• If content exceeds limit, BREAK INTO TWO TWEETS
+CHARACTER LIMITS - ABSOLUTELY CRITICAL:
+• EACH TWEET MUST BE UNDER 240 CHARACTERS (including thread indicators like "1/7")
+• Thread indicators (1/7, 2/7, etc.) count toward the 240 character limit
+• Aim for 160-220 characters per tweet for better readability
+• If any tweet exceeds 240 characters, IMMEDIATELY break it into multiple shorter tweets
+• Better to have more tweets than overly long ones that get truncated
 
 Generate a complete thread. Return ONLY valid JSON:
 

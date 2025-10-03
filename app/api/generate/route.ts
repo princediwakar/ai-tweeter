@@ -266,26 +266,61 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   const totalContentUnits = generatedTweets.length + generatedThreads.reduce((sum, thread) => sum + thread.total_tweets, 0);
   
-  // ✅ PRODUCTION-READY CHANGE: Trigger image processing in the background without waiting for it.
+  // ✅ FIXED: Process images synchronously during generation to ensure reliability
   if (imageIsNeeded) {
-    logger.info(`[Enhanced:${callId}] Firing non-blocking request to process images for account ${accountId}`, 'image-trigger');
+    logger.info(`[Enhanced:${callId}] Processing images synchronously for account ${accountId}`, 'image-processing');
     
-    // Construct a full URL that works in both dev and production (Vercel, etc.)
-    const triggerUrl = new URL('/api/process-images', request.url).href;
-    
-    // Fire-and-forget: we don't `await` this, so the main response is sent immediately.
-    fetch(triggerUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${process.env.CRON_SECRET}` }
-    }).catch(error => {
-      // Log errors but don't let them affect the main API response.
-      logger.error(`[Enhanced:${callId}] Background image processing trigger failed`, 'image-trigger-error', error as Error);
-    });
+    try {
+      // Import the image processing logic directly
+      const { getTweetsWithPendingImages, updateTweetImage } = await import('@/lib/db');
+      const { generatePersonaImage } = await import('@/lib/imageGenerationService');
+      
+      const pendingImageTweets = await getTweetsWithPendingImages(10, accountId);
+      
+      if (pendingImageTweets.length > 0) {
+        logger.info(`[Enhanced:${callId}] Found ${pendingImageTweets.length} tweets needing images`, 'image-processing');
+        
+        // Process images in parallel but wait for completion
+        const imageProcessingPromises = pendingImageTweets.map(async (tweet) => {
+          try {
+            await updateTweetImage(tweet.id, undefined, 'processing');
+            
+            if (!tweet.card_data) {
+              throw new Error('No card_data found for image generation');
+            }
+
+            const cardData = JSON.parse(tweet.card_data);
+            const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.account_id);
+            
+            if (imageUrl) {
+              await updateTweetImage(tweet.id, imageUrl, 'completed');
+              logger.info(`[Enhanced:${callId}] Image completed for tweet ${tweet.id}`, 'image-success');
+              return { success: true, tweetId: tweet.id, imageUrl };
+            } else {
+              throw new Error('Image generation returned null');
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            await updateTweetImage(tweet.id, undefined, 'failed');
+            logger.error(`[Enhanced:${callId}] Image failed for tweet ${tweet.id}: ${errorMsg}`, 'image-error', error as Error);
+            return { success: false, tweetId: tweet.id, error: errorMsg };
+          }
+        });
+        
+        const imageResults = await Promise.allSettled(imageProcessingPromises);
+        const successful = imageResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        const failed = imageResults.length - successful;
+        
+        logger.info(`[Enhanced:${callId}] Image processing complete: ${successful} successful, ${failed} failed`, 'image-processing');
+      }
+    } catch (error) {
+      logger.error(`[Enhanced:${callId}] Failed to process images synchronously`, 'image-processing-error', error as Error);
+    }
   }
 
   const response = {
     success: true,
-    message: `✅ Batch generation complete for account ${accountId}. ${imageIsNeeded ? 'Image processing triggered.' : ''}`.trim(),
+    message: `✅ Batch generation complete for account ${accountId}. ${imageIsNeeded ? 'Images processed.' : ''}`.trim(),
     accountId,
     accountName: account.name,
     strategy: batchInfo.account_strategy,

@@ -991,21 +991,28 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
 }
 
 // Image queue management functions
-export async function getTweetsWithPendingImages(limit: number = 5): Promise<Tweet[]> {
+export async function getTweetsWithPendingImages(limit: number = 5, accountId?: string): Promise<Tweet[]> {
   if (USE_IN_MEMORY) {
     return inMemoryTweets
-      .filter(t => t.image_status === 'pending' || t.image_status === 'failed')
+      .filter(t => (t.image_status === 'pending' || t.image_status === 'failed') && (!accountId || t.account_id === accountId))
       .slice(0, limit)
       .map(t => ({ ...t }));
   }
 
   try {
-    const result = await sql`
-      SELECT * FROM tweets
-      WHERE image_status = 'pending' OR image_status = 'failed'
-      ORDER BY created_at ASC
-      LIMIT ${limit}
-    `;
+    const result = accountId 
+      ? await sql`
+          SELECT * FROM tweets
+          WHERE (image_status = 'pending' OR image_status = 'failed') AND account_id = ${accountId}
+          ORDER BY created_at ASC
+          LIMIT ${limit}
+        `
+      : await sql`
+          SELECT * FROM tweets
+          WHERE image_status = 'pending' OR image_status = 'failed'
+          ORDER BY created_at ASC
+          LIMIT ${limit}
+        `;
     
     return result.rows.map(row => ({
       id: row.id,

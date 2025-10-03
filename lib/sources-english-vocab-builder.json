@@ -1,0 +1,26 @@
+{
+  "twitter": {
+    "handles": [
+      "@MerriamWebster", "@OxfordWords", "@CambridgeWords", "@VocabularyDaily",
+      "@WordOfTheDay", "@EnglishTips4U", "@GrammarGirl", "@engvid", "@bbclearningenglish",
+      "@learnenglish_bc", "@EngVocab", "@VocabBuilder", "@WordPowerMadeEasy",
+      "@EnglishClub", "@LearningEnglish", "@PerfectEnglish", "@VocabularyTips",
+      "@WordsmithOrg", "@ThesaurusCom", "@LanguageTool", "@GrammarlyOfficial",
+      "@WriteByNight", "@EditingWriting", "@WordsDaily", "@EnglishGrammar",
+      "@ielts_exam", "@TOEFLOfficial", "@ets_gre", "@gmac_gmat", "@CambridgeEng",
+      "@IELTSorg", "@petersons_test", "@kaptest", "@manhattanprep", "@varsitytutors",
+      "@PrepScholar", "@ThePrincetonRev", "@Examrace", "@EduRev", "@unacademy",
+      "@byjus", "@vedantu", "@WhiteHatJr", "@TopperLearning", "@embibe",
+      "@testbook", "@gradeup", "@oliveboard", "@adda247", "@BankersAdda"
+    ]
+  },
+  "reddit": {
+    "subreddits": [
+      "EnglishLearning", "grammar", "vocabulary", "languagelearning", "IELTS",
+      "TOEFL", "GRE", "GMAT", "SAT", "ACT", "linguistics", "etymology",
+      "words", "logophilia", "whatstheword", "tipofmytongue", "writing",
+      "WritingPrompts", "writers", "editing", "proofreading", "wordplay",
+      "wordoftheday", "englishlearners", "speakenglish", "languageexchange"
+    ]
+  }
+}

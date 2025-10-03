@@ -66,11 +66,15 @@ function setCachedContext(key: string, context: string): void {
 async function loadSources(persona: string): Promise<Sources> {
   const personaToFile: Record<string, string> = {
     'satirist': 'sources-satirist.json',
+    'business_storyteller': 'sources-business-storyteller.json',
+    'cricket_storyteller': 'sources-cricket-storyteller.json',
+    'english_vocab_builder': 'sources-english-vocab-builder.json',
   };
   const sourceFile = personaToFile[persona];
 
   if (!sourceFile) {
-     throw new Error(`No source file mapping found for persona: ${persona}`);
+     console.warn(`[Content Source] No source file for persona: ${persona}, using default sources`);
+     return { twitter: { handles: [] }, reddit: { subreddits: [] } };
   }
 
   try {
@@ -107,22 +111,58 @@ async function fetchFromGoogle(topic: string): Promise<string[]> {
     });
 
     if (!response.ok) {
-      // Throw an error if the response is not ok
       throw new Error(`Google News responded with status: ${response.status}`);
     }
 
     const xml = await response.text();
     const parsed = await parseStringPromise(xml);
-    const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 3) ?? [];
+    const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 4) ?? [];
     
-    // Use map to transform items into an array of titles
     return items.map(item => item.title?.[0]).filter((title): title is string => !!title);
 
   } catch (error) {
     console.warn(`[Content Source] ⚠️ Failed to fetch from Google News:`, error);
-    // Return an empty array on failure
     return [];
   }
+}
+
+/**
+ * Fetches from dedicated Indian news RSS feeds for better coverage.
+ */
+async function fetchFromIndianNewsRSS(): Promise<string[]> {
+  const userAgent = getRandomUserAgent();
+  const rssFeeds = [
+    'https://feeds.feedburner.com/NDTV-LatestNews',
+    'https://timesofindia.indiatimes.com/rssfeedstopstories.cms',
+    'https://www.business-standard.com/rss/home_page_top_stories.rss',
+  ];
+  
+  const results: string[] = [];
+  
+  for (const feed of rssFeeds) {
+    try {
+      const response = await fetchFn(feed, {
+        headers: { 'User-Agent': userAgent },
+        signal: AbortSignal.timeout(4000),
+      });
+      
+      if (!response.ok) continue;
+      
+      const xml = await response.text();
+      const parsed = await parseStringPromise(xml);
+      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 2) ?? [];
+      
+      items.forEach(item => {
+        const title = item.title?.[0];
+        if (title) results.push(title);
+      });
+      
+    } catch (error) {
+      console.warn(`[Content Source] ⚠️ Failed to fetch from RSS feed: ${feed}`);
+    }
+  }
+  
+  return results.slice(0, 6);
 }
 
 /**
@@ -197,56 +237,129 @@ async function fetchFromReddit(sources: Sources, topic: string): Promise<string[
 // ─────────────────────────────────────────────
 // 📰 Real News Query Generation for Satirist
 // ─────────────────────────────────────────────
-function generateRealNewsQueries(persona: string): string[] {
+function generateRealNewsQueries(persona: string, topic?: string): string[] {
   if (persona === 'satirist') {
+    // PRIORITIZED: High-engagement, positive-spin news sources
     const newsQueries = [
-      // Indian Political Headlines
-      "Modi BJP India today news",
-      "Indian politics parliament latest", 
-      "Congress opposition India news",
-      "AAP Delhi politics news",
-      "Indian government policy today",
+      // TOP PRIORITY: Indian Innovation & Success Stories
+      "Indian startup unicorn success today",
+      "Indian space ISRO achievement news",
+      "Indian technology breakthrough latest",
+      "Indian athletes Olympic achievement",
+      "Indian scientists research breakthrough",
       
-      // Indian Business Headlines  
-      "Indian startup funding latest news",
-      "Tata Reliance Adani business news",
-      "RBI India economy today",
-      "Indian stock market news",
-      "unicorn startup India news",
+      // HIGH PRIORITY: Economic Success Stories
+      "Indian economy growth positive news",
+      "Indian exports record breaking",
+      "Make in India manufacturing success",
+      "Indian digital payments UPI growth",
+      "Indian renewable energy milestone",
       
-      // India Geopolitics Headlines
-      "India China border latest news",
-      "India US relations today",
-      "India Pakistan news today",
-      "India Russia defense news",
-      "India Israel partnership news",
-      "QUAD BRICS India diplomacy",
+      // MEDIUM PRIORITY: Political/Policy (for positive angles)
+      "Indian government infrastructure project",
+      "Digital India initiative success",
+      "Swachh Bharat cleanliness achievement",
+      "Indian education digitalization success",
+      "Indian healthcare telemedicine growth",
       
-      // Indian Social & Cultural
-      "Bollywood politics controversy",
-      "Indian social media viral news",
-      "Indian cricket politics news",
-      "Indian education policy news"
+      // CULTURAL CELEBRATIONS
+      "Indian festival global celebration",
+      "Bollywood international recognition",
+      "Indian cuisine global popularity",
+      "Indian classical music international"
     ];
     
-    // Return 2-3 random queries for variety
+    // Return 3 random queries from prioritized list for variety
     return newsQueries.sort(() => 0.5 - Math.random()).slice(0, 3);
   }
   
+  if (persona === 'business_storyteller') {
+    // PRIORITIZED: High-impact business stories with narrative potential
+    const businessQueries = [
+      // TOP PRIORITY: Indian Founder Stories & Unicorn News
+      "Indian startup founder success story",
+      "Indian unicorn company IPO news",
+      "Indian entrepreneur global expansion",
+      "Indian startup acquisition deal",
+      "Indian business leader achievement",
+      
+      // HIGH PRIORITY: Innovation & Technology Stories
+      "Indian fintech breakthrough innovation",
+      "Indian SaaS company global success",
+      "Indian AI startup international",
+      "Indian space technology private",
+      "Indian edtech revolution story",
+      
+      // MEDIUM PRIORITY: Corporate Strategy Stories
+      "Tata group strategic transformation",
+      "Reliance new business venture",
+      "Infosys digital innovation project",
+      "Adani infrastructure expansion",
+      "Mahindra electric vehicle strategy"
+    ];
+    
+    // Return 2 random queries from prioritized list for variety
+    return businessQueries.sort(() => 0.5 - Math.random()).slice(0, 2);
+  }
+  
+  if (persona === 'cricket_storyteller') {
+    const cricketQueries = [
+      // Indian Cricket News
+      "Virat Kohli performance latest news",
+      "Rohit Sharma captain India cricket",
+      "MS Dhoni CSK IPL news",
+      "Indian cricket team selection news",
+      "IPL auction 2024 latest news",
+      "Hardik Pandya MI captain news",
+      "Rishabh Pant injury comeback news",
+      "Jasprit Bumrah bowling performance",
+      "India vs Australia cricket series",
+      "India vs England cricket news",
+      "World Cup India cricket team",
+      "BCCI cricket policy decisions",
+      "Women cricket India team news",
+      "Ranji Trophy domestic cricket"
+    ];
+    
+    return cricketQueries.sort(() => 0.5 - Math.random()).slice(0, 2);
+  }
+  
+  if (persona === 'english_vocab_builder') {
+    const vocabQueries = [
+      // Educational Content Sources
+      "English vocabulary learning tips",
+      "new words English language today",
+      "English grammar rules latest",
+      "competitive exam vocabulary words",
+      "IELTS TOEFL vocabulary preparation",
+      "advanced English words usage",
+      "common English mistakes avoid",
+      "English pronunciation techniques",
+      "academic writing vocabulary",
+      "business English communication",
+      "confusing English words pairs",
+      "English idioms expressions meaning",
+      "word etymology origin history",
+      "English learning resources online"
+    ];
+    
+    return vocabQueries.sort(() => 0.5 - Math.random()).slice(0, 2);
+  }
+  
   // Fallback for other personas - use topic as before
-  return [];
+  return topic ? [topic] : [];
 }
 
 // ─────────────────────────────────────────────
 // 🚀 Main API
 // ─────────────────────────────────────────────
 export async function getDynamicContext(persona: string, topic: string): Promise<string> {
-  const supportedPersonas = ['satirist'];
+  const supportedPersonas = ['satirist', 'business_storyteller', 'cricket_storyteller', 'english_vocab_builder'];
   if (!supportedPersonas.includes(persona)) {
     return "";
   }
 
-  // For satirist persona, ignore topic and use real news queries
+  // Generate real news queries for all supported personas
   let searchQueries: string[];
   let cacheKey: string;
   
@@ -256,6 +369,18 @@ export async function getDynamicContext(persona: string, topic: string): Promise
     const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     cacheKey = `${persona}_real_news_${dateKey}_${Math.floor(Date.now() / (1000 * 60 * 15))}`; // 15-min cache
     console.log(`[Content Source] 🎯 Fetching real news headlines for satirical commentary using queries: ${searchQueries.join(', ')}`);
+  } else if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
+    searchQueries = generateRealNewsQueries(persona, topic);
+    // Create cache key based on date to ensure fresh news
+    const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    cacheKey = `${persona}_real_news_${dateKey}_${Math.floor(Date.now() / (1000 * 60 * 30))}`; // 30-min cache for stories
+    console.log(`[Content Source] 🎯 Fetching real news for ${persona} using queries: ${searchQueries.join(', ')}`);
+  } else if (persona === 'english_vocab_builder') {
+    searchQueries = generateRealNewsQueries(persona, topic);
+    // Create cache key based on date to ensure fresh educational content
+    const dateKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    cacheKey = `${persona}_education_content_${dateKey}_${Math.floor(Date.now() / (1000 * 60 * 60))}`; // 60-min cache for educational content
+    console.log(`[Content Source] 🎯 Fetching educational content for ${persona} using queries: ${searchQueries.join(', ')}`);
   } else {
     searchQueries = [topic];
     cacheKey = `${persona}_${topic.toLowerCase().replace(/&/g, 'and').replace(/\s+/g, '_')}`;
@@ -272,14 +397,32 @@ export async function getDynamicContext(persona: string, topic: string): Promise
         throw new Error("No valid sources found after loading configuration.");
     }
     
-    // For satirist, use multiple real news queries
+    // Use real news queries for all storytelling personas
     let fetchPromises: Promise<string[]>[];
     
     if (persona === 'satirist') {
       fetchPromises = [
         ...searchQueries.map(query => fetchFromGoogle(query)),
+        fetchFromIndianNewsRSS(), // Get top Indian news headlines
         fetchFromTwitter(sources, 'India news today'), // Get general Indian news from Twitter
-        fetchFromReddit(sources, 'India') // Get Indian discussions
+      ];
+    } else if (persona === 'business_storyteller') {
+      fetchPromises = [
+        ...searchQueries.map(query => fetchFromGoogle(query)),
+        fetchFromIndianNewsRSS(), // Get business news from RSS feeds
+        fetchFromTwitter(sources, 'Indian business startup'), // Get business news from Twitter
+      ];
+    } else if (persona === 'cricket_storyteller') {
+      fetchPromises = [
+        ...searchQueries.map(query => fetchFromGoogle(query)),
+        fetchFromIndianNewsRSS(), // Get general news including sports
+        fetchFromTwitter(sources, 'Indian cricket team'), // Get cricket news from Twitter
+      ];
+    } else if (persona === 'english_vocab_builder') {
+      fetchPromises = [
+        ...searchQueries.map(query => fetchFromGoogle(query)),
+        fetchFromTwitter(sources, 'English learning vocabulary'), // Get educational content from Twitter
+        fetchFromReddit(sources, 'English vocabulary learning') // Get educational discussions from Reddit
       ];
     } else {
       fetchPromises = [
@@ -301,23 +444,49 @@ export async function getDynamicContext(persona: string, topic: string): Promise
         if (persona === 'satirist') {
           console.warn(`[Content Source] ⚠️ No real news headlines found. Using fallback.`);
           return "No specific recent news events were found. Generate satirical commentary on general Indian political and business trends.";
+        } else if (persona === 'business_storyteller') {
+          console.warn(`[Content Source] ⚠️ No business news found. Using fallback.`);
+          return "No specific recent business news found. Generate compelling business stories based on general Indian business trends.";
+        } else if (persona === 'cricket_storyteller') {
+          console.warn(`[Content Source] ⚠️ No cricket news found. Using fallback.`);
+          return "No specific recent cricket news found. Generate compelling cricket stories based on general cricket trends and personalities.";
+        } else if (persona === 'english_vocab_builder') {
+          console.warn(`[Content Source] ⚠️ No educational content found. Using fallback.`);
+          return "No specific recent educational content found. Generate engaging vocabulary lessons based on common English learning needs.";
         } else {
           console.warn(`[Content Source] ⚠️ No dynamic content found for "${topic}". Using fallback.`);
           return "No specific recent news events were found for this topic. Generate a question based on general knowledge.";
         }
     }
 
-    const finalContext = persona === 'satirist' 
-      ? "Recent real news headlines to satirize:\n" + allContent.slice(0, 8).map(c => `- ${c}`).join('\n') + "\n\nGenerate witty satirical commentary on these specific real events."
-      : "Recent developments and discussions include:\n" + allContent.map(c => `- ${c}`).join('\n');
+    let finalContext: string;
+    if (persona === 'satirist') {
+      finalContext = "Recent real news headlines to satirize:\n" + allContent.slice(0, 8).map(c => `- ${c}`).join('\n') + "\n\nGenerate witty satirical commentary on these specific real events.";
+    } else if (persona === 'business_storyteller') {
+      finalContext = "Recent business developments for storytelling:\n" + allContent.slice(0, 6).map(c => `- ${c}`).join('\n') + "\n\nUse these as inspiration for compelling business stories with narrative depth.";
+    } else if (persona === 'cricket_storyteller') {
+      finalContext = "Recent cricket developments for storytelling:\n" + allContent.slice(0, 6).map(c => `- ${c}`).join('\n') + "\n\nUse these as inspiration for compelling cricket stories focusing on human elements.";
+    } else if (persona === 'english_vocab_builder') {
+      finalContext = "Recent educational content and vocabulary trends:\n" + allContent.slice(0, 5).map(c => `- ${c}`).join('\n') + "\n\nUse these as inspiration for engaging vocabulary lessons and word learning content.";
+    } else {
+      finalContext = "Recent developments and discussions include:\n" + allContent.map(c => `- ${c}`).join('\n');
+    }
     
     setCachedContext(cacheKey, finalContext);
     return finalContext;
 
   } catch (error) {
     console.error(`[Content Source] ❌ Top-level failure in getDynamicContext:`, error);
-    return persona === 'satirist' 
-      ? "Could not fetch latest news. Generate satirical commentary on general Indian current events."
-      : "Could not fetch latest news due to a system error. Using general knowledge.";
+    if (persona === 'satirist') {
+      return "Could not fetch latest news. Generate satirical commentary on general Indian current events.";
+    } else if (persona === 'business_storyteller') {
+      return "Could not fetch latest business news. Generate compelling business stories based on general knowledge.";
+    } else if (persona === 'cricket_storyteller') {
+      return "Could not fetch latest cricket news. Generate compelling cricket stories based on general knowledge.";
+    } else if (persona === 'english_vocab_builder') {
+      return "Could not fetch latest educational content. Generate engaging vocabulary lessons based on general English learning principles.";
+    } else {
+      return "Could not fetch latest news due to a system error. Using general knowledge.";
+    }
   }
 }

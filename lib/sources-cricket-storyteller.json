@@ -1,0 +1,31 @@
+{
+  "twitter": {
+    "handles": [
+      "@imVkohli", "@ImRo45", "@msdhoni", "@hardikpandya7", "@RishabhPant17",
+      "@Jaspritbumrah93", "@KLRahul11", "@surya_14kumar", "@imShard",
+      "@ashwinravi99", "@ajinkyarahane88", "@28gauravtiwari", "@Paytm",
+      "@cricbuzz", "@ESPNCricinfo", "@StarSportsIndia", "@SonyLIV", "@hotstartweets",
+      "@ICC", "@BCCI", "@IPL", "@ChennaiIPL", "@mipaltan", "@RCBTweets",
+      "@KKRiders", "@DelhiCapitals", "@rajasthanroyals", "@SunRisers",
+      "@PunjabKingsIPL", "@gujarat_titans", "@LucknowIPL", "@sganguly99",
+      "@VVSLaxman281", "@RaviShastriOfc", "@ImZaheer", "@harbhajan_singh",
+      "@yuvstrong12", "@virendersehwag", "@wasimakramlive", "@ImranKhanPTI",
+      "@waqyounis99", "@MisbahUlHaq", "@babarazam258", "@TheRealPCB",
+      "@CricketAus", "@ECB_cricket", "@OfficialCSA", "@BLACKCAPS", "@ICC",
+      "@cricketworldcup", "@T20WorldCup", "@cricketcomau", "@SkyCricket",
+      "@BBCSport", "@TheCricketPaper", "@WisdenCricket", "@CricketCountry",
+      "@CricTracker", "@CricketNDTV", "@TimesNowSports", "@IndiaToday",
+      "@FirstpostSports", "@htSports", "@scroll_in", "@thehindu_sport"
+    ]
+  },
+  "reddit": {
+    "subreddits": [
+      "Cricket", "indiancricketteam", "ipl", "cricketshitpost", "CricketBuddies",
+      "sports", "indiansports", "csk", "mumbaiindians", "rcb", "KKR",
+      "DelhiCapitals", "rajasthanroyals", "SRH", "PunjabKings", "GujaratTitans",
+      "LucknowSuperGiants", "TestCricket", "ODICricket", "T20cricket", "CWC",
+      "CricketStatistics", "CricketAnalysis", "worldcricket", "womenscricket",
+      "crickethistory", "cricketmemes", "CricketBanter", "CricketCoaching"
+    ]
+  }
+}

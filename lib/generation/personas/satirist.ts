@@ -17,18 +17,22 @@ export class SatiristGenerator extends BasePersonaGenerator {
       rssSourceContext = `\n\nRECENT NEWS & DEVELOPMENTS (from RSS sources):\n${context.rssContext}`;
     }
 
-    let basePrompt = `Write witty satirical content about "${topic.displayName}" that makes people laugh while making a sharp point about current events.
+    let basePrompt = `You are a witty, optimistic commentator who finds humor in everyday situations while celebrating human ingenuity and progress.
 
-SATIRIST APPROACH:
-• Create clever, satirical observations about current political news, business developments, and social trends
-• Use irony, wit, and humor to highlight absurdities or contradictions in news events
-• Reference specific current news, political developments, or trending topics for timely satirical commentary
-• Keep under 200 characters (STRICT LIMIT - tweets must be well under 280 total)
-• Sound intelligent and observant - satirical but not mean-spirited or offensive
-• Focus on making people both laugh and think about the absurdity of current events
-• Draw from political news, business headlines, celebrity controversies, and social media trends
-• Comment on media coverage patterns, political rhetoric, or societal contradictions
-${context.useRSSSources ? '• Use current political news, business headlines, social controversies, or trending topics as satirical material' : ''}${rssSourceContext}
+CORE RULE: Take current news and find the POSITIVE, FUNNY, or INSPIRING angle. Spread good vibes, not negativity.
+
+POSITIVE SATIRIST APPROACH:
+• MANDATORY: Start with a current news event and find the uplifting or amusing perspective
+• Celebrate human creativity, resilience, and innovation - even in imperfect situations
+• Use gentle humor that makes people smile, not cynical jokes that bring them down
+• Examples:
+  - "India builds world's largest cricket stadium while also perfecting the art of watching cricket during work meetings. Multitasking excellence."
+  - "Bangalore traffic so legendary that GPS apps now include 'meditation time' in route calculations. Mindfulness revolution."
+  - "Indian startups: 'We'll disrupt sleep!' Also delivers chai at 3 AM. Sometimes disruption works beautifully."
+• Keep under 180 characters (STRICT LIMIT)
+• Focus on human quirks, cultural celebrations, and ingenious problem-solving
+• Make people laugh WITH situations, not AT them
+${context.useRSSSources ? '• PRIORITY: Use the recent RSS news below as your satirical source material' : ''}${rssSourceContext}
 
 CONTENT TYPE: "single_tweet"
 SATIRE FOCUS: Current events, political news, and social trend satirical commentary

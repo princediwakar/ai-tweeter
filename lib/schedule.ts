@@ -53,13 +53,10 @@ const princeGenerationPattern: HourlySchedule = {
 };
 
 const princePostingPattern: HourlySchedule = {
-  7: ['satirist'],          // Morning satirical tweet posting
-  9: ['satirist'],         // Lunch break satirical tweet posting
-  16: ['satirist'],         // Afternoon satirical tweet posting
-  19: ['satirist'],         // Afternoon satirical tweet posting
-  20: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
-  21: ['satirist'],         // Late night satirical tweet posting
-  22: ['satirist'],         // Late night satirical tweet posting
+  9: ['satirist'],         // Morning satirical tweet posting
+  13: ['cricket_storyteller'], // Afternoon thread posting (randomized between business_storyteller/cricket_storyteller)
+  19: ['satirist'],         // Evening satirical tweet posting
+  21: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
 };
 
 // Twitter handle mapping - maps twitter handles to schedule keys
@@ -134,7 +131,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       strategy: 'Threading-optimized Indian business storytelling with 5-minute intervals',
       target_audience: 'Entrepreneurs, business leaders, startup enthusiasts (25-45 age group)',
       timezone_optimization: 'IST business hours with thread progression timing',
-      daily_post_target: 7, // Increased for thread-heavy strategy
+      daily_post_target: 4, // Optimized for quality over quantity
       generation_batches_per_day: 7 // More frequent generation for threading
     }
   }

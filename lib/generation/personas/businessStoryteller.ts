@@ -28,15 +28,21 @@ export class BusinessStorytellerGenerator extends BasePersonaGenerator {
     // Template-specific guidance
     const templateInstructions = this.getTemplateInstructions(selectedTemplate);
 
-    let basePrompt = `${persona.description}
+    // Determine content type - prefer threads but allow single tweets
+    const shouldCreateThread = Math.random() > 0.3; // 70% threads, 30% single tweets
+    
+    let basePrompt: string;
+    
+    if (shouldCreateThread) {
+      basePrompt = `${persona.description}
 
 STORY TEMPLATE: "${selectedTemplate}" 
 TOPIC FOCUS: "${topic.displayName}"
 ${templateInstructions}
 ${topicContext ? `\nTOPIC CONTEXT: ${topicContext}` : ''}
 
-PERSONA-DRIVEN APPROACH:
-• Create compelling narrative threads (6-7 tweets) combining business + tech insights
+THREAD APPROACH (6-7 tweets):
+• Create compelling narrative threads combining business + tech insights
 • Follow the "${selectedTemplate}" template structure and emotional arc
 • Focus on authentic stories with human elements and strategic insights
 • Include specific details, emotions, and universal lessons
@@ -44,13 +50,32 @@ PERSONA-DRIVEN APPROACH:
 • CRITICAL: Use only real, verified company names or keep companies generic (avoid fake Twitter handles)
 • When mentioning people/companies, use actual names or generic descriptions - NO made-up @handles
 • Connect business/tech lessons with universal human themes
-• For tech stories: blend technical innovation with business strategy and human impact
+• For tech stories: blend technical innovation with business strategy and human impact`;
+    } else {
+      basePrompt = `${persona.description}
+
+SINGLE TWEET BUSINESS INSIGHT
+TOPIC FOCUS: "${topic.displayName}"
+${topicContext ? `\nTOPIC CONTEXT: ${topicContext}` : ''}
+
+SINGLE TWEET APPROACH:
+• Create sharp, insightful business observations in one powerful tweet
+• Focus on counterintuitive business truths or strategic insights
+• Include specific examples from Indian or global business
+• Make it quotable and thought-provoking
+• Sound like an expert with deep business knowledge
+• CRITICAL: Use only real, verified company names or keep companies generic
+• Connect business lessons with universal themes
+• Examples: "The best CEOs don't make decisions. They create systems that make decisions inevitable." or "Flipkart's early success wasn't about being Indian Amazon. It was about solving Indian logistics."`;
+    }
+
+    basePrompt += `
 
 AVAILABLE TOPICS (choose relevant angle):
 ${persona.topics?.map(t => `• ${t.displayName}`).join('\n') || '• Business strategy and leadership'}
 ${context.useRSSSources ? '• May reference current business/tech developments' : ''}${rssSourceContext}
 
-CONTENT TYPE: "thread"
+CONTENT TYPE: "${shouldCreateThread ? 'thread' : 'single_tweet'}"
 STORYTELLING FOCUS: ${persona.description}
 
 [${timeMarker}-${tokenMarker}]`;

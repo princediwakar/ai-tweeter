@@ -75,3 +75,4 @@ The system uses cron-job.org for automated cron-based content generation and pos
 **Required Environment Variables:**
 - `CRON_SECRET`: Authentication for cron endpoints
 - All other environment variables from production deployment
+- neon project id: round-sun-88150229

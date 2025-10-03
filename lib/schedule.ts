@@ -116,7 +116,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       0: princeGenerationPattern, // Sunday
       1: princeGenerationPattern, // Monday
       2: princeGenerationPattern, // Tuesday
-      // 3: princeGenerationPattern, // Wednesday
+      3: princeGenerationPattern, // Wednesday
       4: princeGenerationPattern, // Thursday
       5: princeGenerationPattern, // Friday
       6: princeGenerationPattern, // Saturday
@@ -125,7 +125,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       0: princePostingPattern, // Sunday
       1: princePostingPattern, // Monday
       2: princePostingPattern, // Tuesday
-      // 3: princePostingPattern, // Wednesday
+      3: princePostingPattern, // Wednesday
       4: princePostingPattern, // Thursday
       5: princePostingPattern, // Friday
       6: princePostingPattern, // Saturday

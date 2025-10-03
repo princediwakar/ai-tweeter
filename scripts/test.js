@@ -32,7 +32,7 @@ if (!process.env.CRON_SECRET) {
 // Configuration
 const CONFIG = {
   baseUrl: process.env.NODE_ENV === 'production' 
-    ? 'https://gibbi-tweeter.vercel.app' 
+    ? 'https://aitweeter.vercel.app' 
     : 'http://localhost:3000',
   cronSecret: process.env.CRON_SECRET,
   accounts: {

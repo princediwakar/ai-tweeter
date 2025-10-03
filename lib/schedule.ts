@@ -48,6 +48,7 @@ const gibbiPostingPattern: HourlySchedule = {
  */
 const princeGenerationPattern: HourlySchedule = {
   8: ['satirist'],   // Morning satirical tweet generation
+  12: ['cricket_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   20: ['satirist'],  // Late evening satirical tweet generation
 };
@@ -55,8 +56,8 @@ const princeGenerationPattern: HourlySchedule = {
 const princePostingPattern: HourlySchedule = {
   9: ['satirist'],         // Morning satirical tweet posting
   13: ['cricket_storyteller'], // Afternoon thread posting (randomized between business_storyteller/cricket_storyteller)
-  19: ['satirist'],         // Evening satirical tweet posting
-  21: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
+  18: ['satirist'],         // Evening satirical tweet posting
+  20: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
 };
 
 // Twitter handle mapping - maps twitter handles to schedule keys

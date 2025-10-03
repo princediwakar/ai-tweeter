@@ -175,34 +175,22 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     const persona = getPersonaByKey(selectedPersonaKey);
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
-    // For threading personas, generate thread asynchronously to avoid timeout
+    // For threading personas, generate thread synchronously to ensure completion
     if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey)) {
-      // Start async thread generation to avoid timeout
-      logger.info(`🚀 [Enhanced:${callId}] Starting async thread generation for ${selectedPersonaKey}`, 'async-thread');
+      logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
       
-      generateThread({ account_id: accountId, persona: selectedPersonaKey })
-        .then(threadResult => {
-          if (threadResult) {
-            logger.info(`✅ [Enhanced:${callId}] Async thread generated: ${threadResult.thread_id} - "${threadResult.template_used}"`, 'async-thread');
-          } else {
-            logger.error(`❌ [Enhanced:${callId}] Async thread generation failed for ${selectedPersonaKey}`, 'async-thread');
-          }
-        })
-        .catch(error => {
-          logger.error(`❌ [Enhanced:${callId}] Async thread generation error for ${selectedPersonaKey}: ${error.message}`, 'async-thread', error as Error);
-        });
+      const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });
       
-      // Return immediately with placeholder - thread will be generated in background
-      return { 
-        type: 'thread', 
-        data: { 
-          thread_id: 'generating-async', 
-          total_tweets: 1, 
-          tweets: [], 
-          template_used: 'async_generation', 
-          story_category: 'pending_generation' 
-        } as ThreadGenerationResult
-      };
+      if (threadResult) {
+        logger.info(`✅ [Enhanced:${callId}] Thread generated: ${threadResult.thread_id} - "${threadResult.template_used}" with ${threadResult.total_tweets} tweets`, 'thread-generation');
+        return { 
+          type: 'thread', 
+          data: threadResult
+        };
+      } else {
+        logger.error(`❌ [Enhanced:${callId}] Thread generation failed for ${selectedPersonaKey}`, 'thread-generation');
+        throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
+      }
     }
 
     // For non-threading personas, generate regular tweets

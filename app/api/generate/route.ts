@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     const accountId = searchParams.get('account_id');
     const twitterHandle = searchParams.get('twitter_handle');
     const debugMode = searchParams.get('debug') === 'true';
+    const personaOverride = searchParams.get('persona');
     
     if (debugMode) {
       const insights = getSchedulingInsights();
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
     
     if (accountId) {
-      return await generateForAccountEnhanced(accountId, request, debugMode);
+      return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
     }
     
     if (twitterHandle) {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
           error: `Account not found for Twitter handle: ${twitterHandle}` 
         }, { status: 404 });
       }
-      return await generateForAccountEnhanced(account.id, request, debugMode);
+      return await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
     }
     
     return await generateForAllAccountsEnhanced(request, debugMode);
@@ -86,7 +87,7 @@ type GenerationResultUnion =
 /**
  * Enhanced account-specific generation using intelligent batch processing
  */
-async function generateForAccountEnhanced(accountId: string, request: NextRequest, debugMode = false) {
+async function generateForAccountEnhanced(accountId: string, request: NextRequest, debugMode = false, personaOverride?: string | null) {
   const nowIST = getCurrentTimeInIST();
   const callId = Math.random().toString(36).substring(2, 8);
   
@@ -101,6 +102,13 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
   
   const batchInfo = getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
+  
+  // Override persona if specified in debug mode
+  if (debugMode && personaOverride) {
+    batchInfo.personas = [personaOverride];
+    logger.info(`[Enhanced:${callId}] Debug mode: overriding persona to ${personaOverride}`, 'generate-debug');
+  }
+  
   logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${debugMode})`, 'generate-debug');
   
   if (!batchInfo.should_generate && !debugMode) {
@@ -146,7 +154,12 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   let targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
   
   // For threading personas, only generate one thread per call  
-  if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(batchInfo.personas[0])) {
+  const selectedPersonaKey = batchInfo.personas[0];
+  const persona = getPersonaByKey(selectedPersonaKey);
+  const isThreadingPersona = supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey);
+  const shouldGenerateThreads = isThreadingPersona && persona?.content_types?.includes('thread');
+  
+  if (shouldGenerateThreads) {
     targetBatchSize = 1; // Only one thread per generation call
     logger.info(`[Enhanced:${callId}] Threading persona detected - limiting batch size to 1`, 'generate-batch');
   }
@@ -164,19 +177,17 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const errors: string[] = [];
   let imageIsNeeded = false;
   
-  logger.info(`[Enhanced:${callId}] Generating batch for account ${accountId} (Threading: ${supportsThreading ? 'enabled' : 'disabled'})`, 'generate-batch');
+  logger.info(`[Enhanced:${callId}] Generating batch for account ${accountId} (Threading: ${shouldGenerateThreads ? 'threads' : 'tweets'})`, 'generate-batch');
 
-  const selectedPersonaKey = batchInfo.personas[0];
   const allTopics = getAllTopicsForPersona(selectedPersonaKey);
   const shuffledTopics = shuffleArray(allTopics);
   const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
 
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
-    const persona = getPersonaByKey(selectedPersonaKey);
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
     // For threading personas, generate thread synchronously to ensure completion
-    if (supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey)) {
+    if (shouldGenerateThreads) {
       logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
       
       const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });

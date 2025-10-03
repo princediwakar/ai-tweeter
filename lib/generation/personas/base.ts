@@ -1,3 +1,4 @@
+// lib/generation/personas/base.ts
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import type { PersonaConfig } from '../../personas';
 import type { Account } from '../../types';

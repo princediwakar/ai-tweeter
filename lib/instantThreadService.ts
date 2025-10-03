@@ -17,37 +17,6 @@ export interface ThreadPostResult {
   error?: string;
 }
 
-// Hashtag priority system for smart truncation
-const HASHTAG_PRIORITIES: { [key: string]: number } = {
-  // Core brand/theme hashtags (highest priority)
-  'FarmerFirst': 10,
-  'CrisisLeadership': 10,
-  'BusinessDharma': 10,
-  'IndianBusiness': 9,
-  
-  // Geographic and cultural context
-  'AndhraPradesh': 8,
-  'Chennai': 8,
-  'Mumbai': 8,
-  'Bangalore': 8,
-  'IndianStartups': 8,
-  
-  // Industry and business terms
-  'SupplyChainJugaad': 7,
-  'AgriTech': 7,
-  'StartupStory': 7,
-  'BusinessDecisions': 7,
-  
-  // Generic business categories
-  'IndianAgriBusiness': 6,
-  'Entrepreneurship': 6,
-  'TechCommentary': 6,
-  
-  // Broad appeal hashtags (lowest priority)
-  'StartupLife': 5,
-  'Innovation': 5,
-  'Business': 4
-};
 
 /**
  * Smart hashtag optimization based on character limits and priority
@@ -67,9 +36,9 @@ function optimizeHashtagsForCharacterLimit(content: string, hashtags: string[]):
     const fullTag = `#${tag}`;
     return {
       tag: fullTag,
-      priority: HASHTAG_PRIORITIES[tag] || 3, // Default priority for unknown tags
+      priority: 3, // Default priority for unknown tags
       length: fullTag.length,
-      efficiency: (HASHTAG_PRIORITIES[tag] || 3) / fullTag.length // Priority per character
+      efficiency: (3) / fullTag.length // Priority per character
     };
   });
   

@@ -1,3 +1,4 @@
+// lib/generation/personas/englishVocabBuilder.ts
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import type { PersonaConfig } from '../../personas';

@@ -188,71 +188,51 @@ async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account
 
 */
 
+// lib/imageGenerationService.ts
+
 async function fetchUnsplashImage(query: string, width: number, height: number): Promise<string> {
-
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;
-
   if (!accessKey) {
-
     console.warn('UNSPLASH_ACCESS_KEY not provided, using gradient background');
-
     return '';
-
   }
-
   try {
-
     const url = `https://api.unsplash.com/photos/random?query=${encodeURIComponent(query)}&orientation=landscape&color=white&per_page=1`;
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
-    const response = await fetch(url, { 
-      headers: { 
+
+    // --- FIX: INCREASE TIMEOUT FROM 10000ms to 25000ms ---
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 seconds
+
+    const response = await fetch(url, {
+      headers: {
         'Authorization': `Client-ID ${accessKey}`,
         'Accept': 'application/json'
       },
       signal: controller.signal
     });
-    
+
     clearTimeout(timeoutId);
 
-
     if (!response.ok) {
-
       console.warn(`❌ Unsplash API error: ${response.status} ${response.statusText}`);
-
       return '';
-
     }
 
-
-
     const data = await response.json();
-
     if (data.urls?.raw) {
-
       const optimizedUrl = `${data.urls.raw}&w=${width}&h=${height}&fit=crop&fm=jpg&q=80&sat=-20&bright=10`;
       console.log('✅ Successfully fetched Unsplash background image');
       return optimizedUrl;
-
     }
-    
+
     console.warn('⚠️ Unsplash response missing image URLs');
     return '';
 
-
-
   } catch (error) {
-
     console.warn('❌ Error fetching Unsplash image:', error);
-
     return '';
-
   }
-
 }
-
 
 
 /**
@@ -319,17 +299,17 @@ function getSafeFont(ctx: CanvasRenderingContext2D, preferredFont: string): stri
   const fontOptions = [
     preferredFont,
     'Arial, sans-serif',
-    'Helvetica, sans-serif', 
+    'Helvetica, sans-serif',
     'sans-serif'
   ];
-  
+
   for (const font of fontOptions) {
     if (validateFont(ctx, font)) {
       console.log(`✅ Using font: ${font}`);
       return font;
     }
   }
-  
+
   console.warn('⚠️ All font validation failed, using system default');
   return 'sans-serif';
 }
@@ -430,7 +410,7 @@ export async function generateVocabularyCardImage(
 
     fallback.addColorStop(0, '#F8F9FA'); fallback.addColorStop(1, '#E9ECEF');
 
-    ctx.fillStyle = fallback; 
+    ctx.fillStyle = fallback;
     ctx.fillRect(0, 0, width, height);
     console.log('🎨 Using light fallback background gradient');
 
@@ -464,10 +444,10 @@ export async function generateVocabularyCardImage(
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.lineWidth = 4;
   ctx.strokeText(card.word.toUpperCase(), leftMargin, currentY);
-  
+
   ctx.fillStyle = config.textStyle.wordColor;
   ctx.fillText(card.word.toUpperCase(), leftMargin, currentY);
-  
+
   // Get the actual font size used for spacing
   const wordFontSize = parseInt(ctx.font.match(/(\d+)px/)?.[1] || '60');
   currentY += wordFontSize * 0.5; // Reduce spacing between word and part of speech
@@ -475,12 +455,12 @@ export async function generateVocabularyCardImage(
   // Draw Part of Speech
   if (card.type === 'single_word' && card.partOfSpeech) {
     ctx.font = `italic bold ${config.textStyle.exampleSize}px ${safeFont}`;
-    
+
     // Add subtle outline for part of speech
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 2;
     ctx.strokeText(`(${card.partOfSpeech})`, leftMargin, currentY);
-    
+
     ctx.fillStyle = config.textStyle.meaningColor;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
@@ -493,7 +473,7 @@ export async function generateVocabularyCardImage(
     case 'synonym_list':
       if (card.synonyms && card.synonyms.length > 0) {
         ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${safeFont}`;
-        
+
         const synonymText = card.synonyms.join(' • ');
         const synLines = wrapText(ctx, synonymText, contentMaxWidth);
         for (const line of synLines) {
@@ -501,7 +481,7 @@ export async function generateVocabularyCardImage(
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
           ctx.lineWidth = 2;
           ctx.strokeText(line, leftMargin, currentY);
-          
+
           ctx.fillStyle = config.textStyle.meaningColor;
           ctx.fillText(line, leftMargin, currentY);
           currentY += config.textStyle.meaningSize + 15;
@@ -512,14 +492,14 @@ export async function generateVocabularyCardImage(
 
     default:
       ctx.font = `normal ${config.textStyle.meaningSize}px ${safeFont}`;
-      
+
       const meaningLines = card.meaning.split('\n').flatMap(line => wrapText(ctx, line, contentMaxWidth));
       for (const line of meaningLines) {
         // Add outline for meaning text
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 2;
         ctx.strokeText(line, leftMargin, currentY);
-        
+
         ctx.fillStyle = config.textStyle.meaningColor;
         ctx.fillText(line, leftMargin, currentY);
         currentY += config.textStyle.meaningSize + 10;
@@ -531,14 +511,14 @@ export async function generateVocabularyCardImage(
   // Draw Example
   if (card.example) {
     ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${safeFont}`;
-    
+
     const exLines = wrapText(ctx, `"${card.example}"`, contentMaxWidth);
     for (const line of exLines) {
       // Add outline for example text
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.lineWidth = 2;
       ctx.strokeText(line, leftMargin, currentY);
-      
+
       ctx.fillStyle = config.textStyle.exampleColor;
       ctx.fillText(line, leftMargin, currentY);
       currentY += config.textStyle.exampleSize + 10;

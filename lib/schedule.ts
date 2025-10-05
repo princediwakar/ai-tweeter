@@ -27,7 +27,7 @@ interface AccountSchedules {
  * Focus: Global English learners across time zones
  */
 const gibbiGenerationPattern: HourlySchedule = {
-  6: ['english_vocab_builder'],         // Mid-morning generation
+  0: ['english_vocab_builder'],         // Mid-morning generation
   13: ['english_vocab_builder'],        // Morning generation
   16: ['english_vocab_builder'],        // Evening generation
 };
@@ -47,7 +47,7 @@ const gibbiPostingPattern: HourlySchedule = {
  * 5-minute interval support for thread progression
  */
 const princeGenerationPattern: HourlySchedule = {
-  8: ['satirist'],   // Morning satirical tweet generation
+  0: ['satirist'],   // Morning satirical tweet generation
   12: ['cricket_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   20: ['satirist'],  // Late evening satirical tweet generation

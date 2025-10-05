@@ -27,7 +27,6 @@ interface AccountSchedules {
  * Focus: Global English learners across time zones
  */
 const gibbiGenerationPattern: HourlySchedule = {
-  0: ['english_vocab_builder'],         // Mid-morning generation
   13: ['english_vocab_builder'],        // Morning generation
   16: ['english_vocab_builder'],        // Evening generation
 };

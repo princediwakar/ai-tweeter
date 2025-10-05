@@ -339,7 +339,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     const hashtags = threadData.hashtags.map(tag => {
       // Remove any existing # symbols and ensure single # prefix
       const cleanTag = tag.replace(/^#+/, '').trim();
-      return cleanTag ? `${cleanTag}` : '';
+      return cleanTag ? `#${cleanTag}` : '';
     }).filter(tag => tag.length > 1); // Remove empty tags
 
     // Create and save individual tweets (optimized with batch preparation)

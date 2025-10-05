@@ -160,7 +160,7 @@ function parseAndValidateTweetResponse(
     const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => {
       // Remove any existing # symbols and ensure single # prefix
       const cleanTag = tag.trim().replace(/^#+/, '');
-      return cleanTag ? `#${cleanTag}` : '';
+      return cleanTag ? `${cleanTag}` : '';
     }).filter(tag => tag.length > 1).join(' ') : '';
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
     const totalLength = tweetContent.length + hashtagString.length + ctaString.length;
@@ -181,7 +181,7 @@ function parseAndValidateTweetResponse(
       hashtags: hashtags.map((tag: string) => {
         // Ensure consistent hashtag format in return object
         const cleanTag = tag.trim().replace(/^#+/, '');
-        return cleanTag ? `#${cleanTag}` : '';
+        return cleanTag ? `${cleanTag}` : '';
       }).filter(tag => tag.length > 1),
       persona: persona,
       category: topic.key.split('_')[1] || 'general',

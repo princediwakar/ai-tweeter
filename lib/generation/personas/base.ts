@@ -35,7 +35,7 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   protected addCommonSuffix(prompt: string): string {
     // --- OPTIMIZED CHARACTER LIMIT AND FORMAT INSTRUCTIONS ---
     return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS: 
-- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 240 CHARACTERS.** (This includes any thread indicators or hashtags.)
+- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 220 CHARACTERS.** (This includes any thread indicators or hashtags.)
 - Aim for readability: 160-220 characters per segment is preferred.
 - FORMAT: Return as valid JSON object. For non-vocabulary personas, use the "content" key.
 - HASHTAGS: Include an empty "hashtags" array [] if none are used.

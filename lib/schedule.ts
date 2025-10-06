@@ -1,6 +1,9 @@
 /**
  * Enhanced Multi-Account Tweet Scheduling System
- * Each account has its own independent schedule with specific persona assignments and timing strategies.
+ * * FINAL OPTIMIZATION BASED ON TWITTER ENGAGEMENT RATES (IST & Global) *
+ * * - Satirist (News/Hot Take): Posts mid-morning for commute/work-start scroll.
+ * - Storyteller (Thread): Posts prime-time (8 PM IST) for maximum long-form consumption.
+ * - Gibbi (Education): Retains global spread with multiple peak slots.
  */
 
 interface HourlySchedule {
@@ -23,37 +26,52 @@ interface AccountSchedules {
 }
 
 /**
- * Gibbi English Learning Account Schedules
- * Focus: Global English learners across time zones
+ * Gibbi English Learning Account Schedules (Global Focus)
+ * Frequency: High (5 posts/day)
  */
 const gibbiGenerationPattern: HourlySchedule = {
-  13: ['english_vocab_builder'],        // Morning generation
-  16: ['english_vocab_builder'],        // Evening generation
+  13: ['english_vocab_builder'],        // Mid-day generation
+  17: ['english_vocab_builder'],        // Afternoon generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
-  7: ['english_vocab_builder'],         // Morning motivation
-  9: ['english_vocab_builder'],         // Lunch break learning
-  16: ['english_vocab_builder'],        // Post-work session
-  18: ['english_vocab_builder'],        // Evening study prep
-  20: ['english_vocab_builder'],        // Prime time engagement
-  22: ['english_vocab_builder'],        // Night revision
+  9: ['english_vocab_builder'],         // Morning (Asia/Europe commute)
+  12: ['english_vocab_builder'],        // Lunch break (Global)
+  17: ['english_vocab_builder'],        // Afternoon (US East Coast morning)
+  20: ['english_vocab_builder'],        // Prime time (IST)
+  23: ['english_vocab_builder'],        // Late Night (US West Coast evening)
 };
 
 /**
- * Prince Professional Account Schedules
- * Focus: Threading system optimized for Indian business storytelling
- * 5-minute interval support for thread progression
+ * Prince Professional Account Schedules (IST Focus)
+ * Frequency: Low (2 posts/day max) for high quality/long-form content
  */
-const princeGenerationPattern: HourlySchedule = {
-  12: ['cricket_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
-  16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
-  23: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
+
+// Thread A: Business Storyteller
+const THREAD_A = 'business_storyteller'; 
+// Thread B: Cricket Storyteller
+const THREAD_B = 'cricket_storyteller';
+
+const princeGenerationPattern: DailySchedule = {
+  // Generation: Shifted Satirist generation later for the freshest news
+  0: { 10: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
+  1: { 10: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
+  2: { 10: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
+  3: { 10: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
+  4: { 10: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
+  5: { 10: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
+  6: { 10: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
 };
 
-const princePostingPattern: HourlySchedule = {
-  13: ['cricket_storyteller'], // Afternoon thread posting (randomized between business_storyteller/cricket_storyteller)
-  20: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
+const princePostingPattern: DailySchedule = {
+  // Posting: Optimized for Satire (Morning) and Thread (Prime Time)
+  0: { 10: ['satirist'], 20: [THREAD_A] }, // Sunday
+  1: { 10: ['satirist'], 20: [THREAD_B] }, // Monday
+  2: { 10: ['satirist'], 20: [THREAD_A] }, // Tuesday
+  3: { 10: ['satirist'], 20: [THREAD_B] }, // Wednesday
+  4: { 10: ['satirist'], 20: [THREAD_A] }, // Thursday
+  5: { 10: ['satirist'], 20: [THREAD_B] }, // Friday
+  6: { 10: ['satirist'], 20: [THREAD_A] }, // Saturday
 };
 
 // Twitter handle mapping - maps twitter handles to schedule keys
@@ -79,57 +97,41 @@ function getScheduleKey(twitterHandle: string): string | undefined {
 const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
   gibbi_account: {
     generation: {
-      0: gibbiGenerationPattern, // Sunday
-      1: gibbiGenerationPattern, // Monday
-      2: gibbiGenerationPattern, // Tuesday
-      3: gibbiGenerationPattern, // Wednesday
-      4: gibbiGenerationPattern, // Thursday
-      5: gibbiGenerationPattern, // Friday
-      6: gibbiGenerationPattern, // Saturday
+      0: gibbiGenerationPattern,
+      1: gibbiGenerationPattern,
+      2: gibbiGenerationPattern,
+      3: gibbiGenerationPattern,
+      4: gibbiGenerationPattern,
+      5: gibbiGenerationPattern,
+      6: gibbiGenerationPattern,
     },
     posting: {
-      0: gibbiPostingPattern, // Sunday
-      1: gibbiPostingPattern, // Monday
-      2: gibbiPostingPattern, // Tuesday
-      3: gibbiPostingPattern, // Wednesday
-      4: gibbiPostingPattern, // Thursday
-      5: gibbiPostingPattern, // Friday
-      6: gibbiPostingPattern, // Saturday
+      0: gibbiPostingPattern,
+      1: gibbiPostingPattern,
+      2: gibbiPostingPattern,
+      3: gibbiPostingPattern,
+      4: gibbiPostingPattern,
+      5: gibbiPostingPattern,
+      6: gibbiPostingPattern,
     },
     metadata: {
-      strategy: 'Global English learners with consistent educational content across timezones',
+      strategy: 'Global English learners with frequent educational content (5x daily) during global peak learning hours.',
       target_audience: 'English language learners worldwide (A2-C1 level)',
-      timezone_optimization: 'Multiple timezone coverage for global reach',
-      daily_post_target: 7,
-      generation_batches_per_day: 6
+      timezone_optimization: 'Multiple global peaks (IST Morning, Global Lunch, US Evening)',
+      daily_post_target: 5, // Reduced from 7 for higher quality/less noise
+      generation_batches_per_day: 2 // Two focused generation runs
     }
   },
 
   prince_account: {
-    generation: {
-      0: princeGenerationPattern, // Sunday
-      1: princeGenerationPattern, // Monday
-      2: princeGenerationPattern, // Tuesday
-      3: princeGenerationPattern, // Wednesday
-      4: princeGenerationPattern, // Thursday
-      5: princeGenerationPattern, // Friday
-      6: princeGenerationPattern, // Saturday
-    },
-    posting: {
-      0: princePostingPattern, // Sunday
-      1: princePostingPattern, // Monday
-      2: princePostingPattern, // Tuesday
-      3: princePostingPattern, // Wednesday
-      4: princePostingPattern, // Thursday
-      5: princePostingPattern, // Friday
-      6: princePostingPattern, // Saturday
-    },
+    generation: princeGenerationPattern,
+    posting: princePostingPattern,
     metadata: {
-      strategy: 'Threading-optimized Indian business storytelling with 5-minute intervals',
+      strategy: 'High-impact, low-frequency posting: Satire (Morning) and Alternating Threads (Prime Time). Max 2 content pieces/day.',
       target_audience: 'Entrepreneurs, business leaders, startup enthusiasts (25-45 age group)',
-      timezone_optimization: 'IST business hours with thread progression timing',
-      daily_post_target: 4, // Optimized for quality over quantity
-      generation_batches_per_day: 7 // More frequent generation for threading
+      timezone_optimization: 'IST peak commute (10 AM) and IST prime-time (8 PM) for thread consumption.',
+      daily_post_target: 2, // 1 Satirist + 1 Thread = 2 high-value content slots
+      generation_batches_per_day: 2 // One for Satire, One for Thread
     }
   }
 };
@@ -283,31 +285,33 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   
   // In debug mode, provide default personas if none scheduled
   if (debugMode && personas.length === 0) {
-    // Provide default personas based on account type using the twitter handle
     if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
     } else if (twitterHandle === '@princediwakar25') {
-      personas = ['business_storyteller', 'cricket_storyteller'];
+      // Use the scheduled personas for Sunday as a debug default
+      const debugDay = 0; 
+      personas = getScheduledPersonasForGeneration(twitterHandle, debugDay, 10);
     } else {
-      // Generic default personas for unknown accounts
       personas = ['business_storyteller'];
     }
   }
   
-  // Default batch size based on account type and scheduled personas
-  let batchSize = 2; // Default
+  let batchSize = 2; // Default for threads
   if (metadata) {
-    // Educational accounts (like Gibbi) generate more content per batch
     if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
-      batchSize = 3;
-    }
-    // Professional accounts generate focused content
-    else if (metadata.target_audience.includes('entrepreneurs') || metadata.target_audience.includes('professionals')) {
-      batchSize = 2;
+      batchSize = 3; // Educational content can be batched larger
+    } else if (twitterHandle === '@princediwakar25') {
+      // If the scheduled persona is Satirist, only generate one post
+      if (personas.length === 1 && personas[0] === 'satirist') {
+          batchSize = 1; 
+      } else if (personas.length === 1 && (personas[0] === THREAD_A || personas[0] === THREAD_B)) {
+          batchSize = 1; // Only one thread template per generation run
+      } else {
+          batchSize = 2; // Fallback for multi-persona/topic runs (rare in optimized schedule)
+      }
     }
   }
   
-  // In debug mode, always allow generation if we have personas
   const shouldGenerate = debugMode ? personas.length > 0 : personas.length > 0;
   
   return {
@@ -333,22 +337,14 @@ export function getPostingEligibility(twitterHandle: string, date: Date = new Da
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
   const metadata = getAccountMetadata(twitterHandle);
   
-  // Intelligent posting limits based on account strategy
   let maxPostsThisHour = 1; // Conservative default
   if (metadata) {
-    // Educational accounts can post more frequently during peak learning times
     if (twitterHandle === '@gibbi_ai') {
-      // Peak learning hours (7-9, 12-14, 18-22)
-      if ((hour >= 7 && hour <= 9) || (hour >= 12 && hour <= 14) || (hour >= 18 && hour <= 22)) {
-        maxPostsThisHour = 2;
-      }
-    }
-    // Professional accounts focus on business hours
-    else if (metadata.target_audience.includes('professionals')) {
-      // Business hours (8-18)
-      if (hour >= 8 && hour <= 18) {
-        maxPostsThisHour = 1;
-      }
+      // Educational posts are frequent but short. Max 2 posts to allow catch-up.
+      maxPostsThisHour = personas.length > 0 ? 2 : 1; 
+    } else if (metadata.target_audience.includes('professionals')) {
+      // Only 1 main content piece (single satirist tweet OR a thread start) is allowed per hour slot.
+      maxPostsThisHour = 1; 
     }
   }
   

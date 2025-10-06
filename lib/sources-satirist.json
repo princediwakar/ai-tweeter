@@ -1,29 +1,17 @@
 {
   "twitter": {
     "handles": [
-      "@opindia_com", "@newslaundry", "@thecaravanindia", "@scroll_in",
-      "@thewire_in", "@SwarajyaMag", "@PRSIndia", "@IndiaSpend", "@BDUTT",
-      "@shekhargupta", "@mihirssharma", "@ShashiTharoor", "@pratapbhanu",
-      "@ARanganathan72", "@AdityaRajKaul", "@NoopurTiwari", "@bharatkarnad",
-      "@MitraSourav", "@YourNextLeap", "@livemint", "@EconomicTimes",
-      "@Reuters", "@qzindia", "@pbmehta", "@bibekdebroy", "@anandmahindra",
-      "@hvgoenka", "@udaykotak", "@NileshShah68", "@deepakshenoy",
-      "@latha_venkatesh", "@suchetadalal", "@RohitBhatnagar", "@RachitBansal",
-      "@RajatSharmaLive", "@ndtv", "@aajtak", "@news24tvchannel", "@timesnow",
-      "@cnn_news18", "@indiatvnews", "@republic", "@NewsX", "@ZeeNews",
-      "@DDNewsLive", "@abpnewstv", "@CNNnews18", "@zeebusiness", "@cnbctv18news",
-      "@BloombergQuint", "@BusinessLine", "@FinancialXpress", "@moneycontrolcom",
-      "@business_today", "@thehindu", "@htTweets", "@tribuneindia", "@DailyHunt",
-      "@Outlookindia", "@DeccanHerald", "@IndianExpress", "@timesofindia",
-      "@FirstpostNews", "@ABVPVoice", "@myogiadityanath", "@BJP4India",
-      "@INCIndia", "@AamAadmiParty"
+      "@ThePrintIndia", "@NewIndianXpress", "@thewire_in", "@scroll_in",
+      "@EconomicTimes", "@livemint", "@FinancialXpress", "@BusinessLine",
+      "@PRSIndia", "@IndiaSpend", "@Indiainfrastructure", "@LegalService_IN",
+      "@pbmehta", "@mihirssharma", "@shekhargupta", "@ARanganathan72",
+      "@manas_d_mishra", "@BibekDebroy", "@amitabhk87", "@vijayrupanibjp"
     ]
   },
   "reddit": {
     "subreddits": [
-      "india", "geopolitics", "IndianPolitics", "delhi", "mumbai", "bengaluru",
-      "IndianNews", "IndiaSpeaks", "economy", "worldnews",
-      "PoliticalHumor", "SatiricalIndia", "indiauncensored", "indianmemes"
+      "IndiaSpeaks", "IndianPolitics", "india", "geopolitics",
+      "economy", "developersIndia", "LegalAdviceIndia", "bangalore"
     ]
   }
 }

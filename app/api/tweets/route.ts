@@ -2,12 +2,10 @@
 import { NextResponse } from 'next/server';
 import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets, getAccount } from '@/lib/db';
 import type { Tweet } from '@/lib/types';
-// Removed old viral generation - using only teacher-style enhanced generation
 import { generateTweet, generateBatchTweets } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { TweetGenerationConfig } from '@/lib/types';
 import { logger } from '@/lib/logger';
-// Removed import of getContentTypeForHour - using inline content type generation
 
 export async function GET(request: Request) {
   try {
@@ -52,18 +50,20 @@ export async function POST(request: Request) {
         console.warn('No account_id provided, using environment variable fallback for development');
       }
       
-      // Check if account supports threading and persona is business storyteller
+      // Determine if a thread should be generated for storytelling personas
+      const threadPersonas = ['business_storyteller', 'cricket_storyteller']; // ADDED cricket_storyteller
       let shouldGenerateThread = false;
-      if (accountId && personaKey === 'business_storyteller') {
+      
+      if (accountId && threadPersonas.includes(personaKey)) {
         const account = await getAccount(accountId);
         if (account && canGenerateThreads(account)) {
-          // Generate thread for business storyteller persona
+          // Generate thread for supported storytelling personas
           shouldGenerateThread = true;
         }
       }
 
       if (shouldGenerateThread) {
-        // Generate business thread
+        // Generate thread
         console.log(`🧵 Generating thread for ${personaKey}`);
         
         const threadResult = await generateThread({
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
           }
         });
       } else {
-        // Generate single tweet
+        // Generate single tweet (used for satirist, vocab, and non-threading accounts)
         const currentHour = new Date().getHours();
         const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
         const contentType = contentTypes[currentHour % contentTypes.length];
@@ -138,7 +138,6 @@ export async function POST(request: Request) {
         });
       }
     }
-
 
 
     if (action === 'bulk_generate') {
@@ -199,7 +198,7 @@ export async function POST(request: Request) {
           savedTweets.push(tweet);
         }
 
-        logger.info(`🎉 Viral bulk generation completed! Generated ${savedTweets.length}/${count} tweets`, 'tweets-api');
+        logger.info(`🎉 Bulk generation completed! Generated ${savedTweets.length}/${count} tweets`, 'tweets-api');
         
         // Calculate persona distribution
         const personaStats = savedTweets.reduce((acc, tweet) => {
@@ -222,7 +221,8 @@ export async function POST(request: Request) {
             contentType,
             personaDistribution: personaStats,
             topicDiversity: Object.keys(topicStats).length,
-            engagementElements: generatedTweets.flatMap(t => 'viralHooks' in t ? t.viralHooks || [] : t.engagementHooks || []).length,
+            // Assuming engagementHooks is the standard field now
+            engagementElements: generatedTweets.flatMap(t => t.engagementHooks || []).length,
             gibbiCTAs: generatedTweets.filter(t => t.gibbiCTA).length,
             enhanced: true
           }

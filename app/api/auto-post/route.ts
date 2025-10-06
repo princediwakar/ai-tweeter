@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
           if (account.twitter_handle.includes('gibbi')) {
             scheduledPersonas = ['english_vocab_builder'];
           } else {
-            scheduledPersonas = ['business_storyteller', 'satirist'];
+            scheduledPersonas = ['business_storyteller', 'cricket_storyteller', 'satirist'];
           }
           logger.info(`🔍 [POST] Debug mode: Using default personas for ${account.name}: ${scheduledPersonas.join(', ')}`, 'auto-post');
         }

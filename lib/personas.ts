@@ -1,12 +1,11 @@
-/**
- * English Learning Persona System with Comprehensive Topic Coverage
- * Designed for engaging English language learning content generation
- */
+// lib/personas.ts
+import { getAccount } from './db'; // Assumes db.ts is now available from here
 
 // Represents a topic/subcategory in the persona hierarchy
-interface PersonaTopic {
+export interface PersonaTopic {
   key: string;
   displayName: string;
+  query_map?: string; // New: Key to map to specific queries in contentSources
 }
 
 // Defines the structure for personas with detailed topic breakdown
@@ -24,6 +23,35 @@ export interface PersonaConfig {
   }; // Image generation configuration
 }
 
+const CORE_VOCAB_TOPICS: PersonaTopic[] = [
+  { key: 'eng_vocab_professional', displayName: 'Professional Vocabulary' },
+  { key: 'eng_vocab_academic', displayName: 'Academic Words' },
+  { key: 'eng_vocab_sophisticated', displayName: 'Sophisticated Daily Words' },
+  { key: 'eng_vocab_business', displayName: 'Business Communication' },
+  { key: 'eng_vocab_descriptive', displayName: 'Descriptive Adjectives' },
+  { key: 'eng_vocab_action', displayName: 'Powerful Action Verbs' },
+  { key: 'eng_vocab_emotions', displayName: 'Emotion & Feeling Words' },
+  { key: 'eng_vocab_formal', displayName: 'Formal Writing Words' },
+];
+
+const ADVANCED_VOCAB_TOPICS: PersonaTopic[] = [
+  { key: 'eng_vocab_etymology_roots', displayName: 'Etymology & Word Roots' },
+  { key: 'eng_vocab_literary_advanced', displayName: 'Literary & Nuanced Words' },
+  { key: 'eng_vocab_scientific_discourse', displayName: 'Scientific & Technical Terms' },
+  { key: 'eng_vocab_philosophical', displayName: 'Philosophical & Abstract Concepts' },
+  { key: 'eng_vocab_rare_sophisticated', displayName: 'Rare but Useful Words' },
+];
+
+const EXAM_VOCAB_TOPICS: PersonaTopic[] = [
+  { key: 'eng_vocab_gre_advanced', displayName: 'GRE Advanced Vocabulary' },
+  { key: 'eng_vocab_gmat_precision', displayName: 'GMAT Precision Words' },
+  { key: 'eng_vocab_upsc_governance', displayName: 'UPSC Governance & Policy Terms' },
+  { key: 'eng_vocab_ielts_academic', displayName: 'IELTS Academic Writing' },
+  { key: 'eng_vocab_toefl_scholarly', displayName: 'TOEFL Scholarly Discourse' },
+  { key: 'eng_vocab_debate_rhetoric', displayName: 'Debate & Rhetorical Terms' },
+  { key: 'eng_vocab_policy_administration', displayName: 'Policy & Administration' }
+];
+
 export const VOCABULARY_BUILDER: PersonaConfig = {
   key: 'english_vocab_builder',
   displayName: 'Vocabulary Builder 🏆',
@@ -32,69 +60,31 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
     enabled: true,
     unsplash_query: 'white background'
   },
-  // MODIFIED: Comprehensive vocabulary topics for competitive exam preparation
   topics: [
-    // Core Categories
-    { key: 'eng_vocab_professional', displayName: 'Professional Vocabulary' },
-    { key: 'eng_vocab_academic', displayName: 'Academic Words' },
-    { key: 'eng_vocab_sophisticated', displayName: 'Sophisticated Daily Words' },
-    { key: 'eng_vocab_business', displayName: 'Business Communication' },
-    { key: 'eng_vocab_descriptive', displayName: 'Descriptive Adjectives' },
-    { key: 'eng_vocab_action', displayName: 'Powerful Action Words' },
-    { key: 'eng_vocab_emotions', displayName: 'Emotion & Feeling Words' },
-    { key: 'eng_vocab_formal', displayName: 'Formal Writing Words' },
-    { key: 'eng_vocab_alternatives', displayName: 'Better Word Alternatives' },
-    { key: 'eng_vocab_intellectual', displayName: 'Intellectual Discourse' },
-    
-    // Competitive Exam Categories
-    { key: 'eng_vocab_gre_advanced', displayName: 'GRE Advanced Vocabulary' },
-    { key: 'eng_vocab_gmat_precision', displayName: 'GMAT Precision Words' },
-    { key: 'eng_vocab_upsc_governance', displayName: 'UPSC Governance & Policy Terms' },
-    { key: 'eng_vocab_ielts_academic', displayName: 'IELTS Academic Writing' },
-    { key: 'eng_vocab_toefl_scholarly', displayName: 'TOEFL Scholarly Discourse' },
-    
-    // Specialized Advanced Categories
-    { key: 'eng_vocab_etymology_roots', displayName: 'Etymology & Word Roots' },
-    { key: 'eng_vocab_literary_advanced', displayName: 'Literary & Nuanced Words' },
-    { key: 'eng_vocab_scientific_discourse', displayName: 'Scientific & Technical Terms' },
-    { key: 'eng_vocab_philosophical', displayName: 'Philosophical & Abstract Concepts' },
-    { key: 'eng_vocab_rare_sophisticated', displayName: 'Rare but Useful Words' },
-    
-    // Contextual Categories
-    { key: 'eng_vocab_debate_rhetoric', displayName: 'Debate & Rhetorical Terms' },
-    { key: 'eng_vocab_critical_analysis', displayName: 'Critical Analysis Vocabulary' },
-    { key: 'eng_vocab_research_methodology', displayName: 'Research & Methodology Terms' },
-    { key: 'eng_vocab_policy_administration', displayName: 'Policy & Administration' }
+    ...CORE_VOCAB_TOPICS,
+    ...ADVANCED_VOCAB_TOPICS,
+    ...EXAM_VOCAB_TOPICS
   ]
 };
 
 
-// Satirist persona for Prince's account (single tweets only)
+// Satirist persona: The Bureaucracy Bard (single tweets only)
 export const SATIRIST: PersonaConfig = {
   key: 'satirist',
-  displayName: 'Satirist 😏',
-  description: 'Witty and satirical observations about current events, politics, business, and social trends',
+  displayName: 'Bureaucracy Bard 😠',
+  description: 'Deadpan, raw, and fatalistic satire on Indian bureaucracy, political contradictions, and systemic friction.',
   content_types: ['single_tweet'],
   topics: [
-    // Indian Domestic Politics & Society (Primary Focus)
-    { key: 'political_satire', displayName: 'Indian Political Drama' },
-    { key: 'current_events_humor', displayName: 'Indian Current Events' },
-    { key: 'business_news_irony', displayName: 'Indian Business & Startup Scene' },
-    { key: 'social_trends_comedy', displayName: 'Indian Social Media & Trends' },
-    { key: 'bollywood_politics_satire', displayName: 'Bollywood Meets Politics' },
-    { key: 'indian_bureaucracy_humor', displayName: 'Indian Bureaucracy & Governance' },
-    { key: 'economic_policies_satire', displayName: 'Indian Economic Policies & RBI' },
-    { key: 'sports_politics_india', displayName: 'Indian Sports & Politics' },
-    
-    // India-Centric Geopolitics (Strategic Relations)
-    { key: 'india_us_relations', displayName: 'India-US Strategic Partnership' },
-    { key: 'india_china_tensions', displayName: 'India-China Border & Trade' },
-    { key: 'india_pakistan_dynamics', displayName: 'India-Pakistan Relations' },
-    { key: 'india_russia_ties', displayName: 'India-Russia Strategic Relations' },
-    { key: 'india_israel_partnership', displayName: 'India-Israel Defense & Tech' },
-    { key: 'india_middle_east', displayName: 'India-Middle East Energy & Diaspora' },
-    { key: 'india_global_south', displayName: 'India & Global South Leadership' },
-    { key: 'quad_brics_diplomacy', displayName: 'QUAD vs BRICS Balancing Act' },
+    // Primary Focus: Bureaucracy and Systemic Failure (Query Map keys link directly to contentSources.ts)
+    { key: 'political_rhetoric_vs_reality', displayName: 'Political Rhetoric vs. Reality', query_map: 'POLITICS_RHETORIC' },
+    { key: 'indian_bureaucracy_failure', displayName: 'Bureaucratic Delays & Red Tape', query_map: 'BUREAUCRACY_FAILURE' },
+    { key: 'digital_services_failure', displayName: 'Digital Services & Server Issues', query_map: 'DIGITAL_FAIL' },
+    { key: 'infrastructure_absurdity', displayName: 'Infrastructure Gaps & Delays', query_map: 'INFRASTRUCTURE' },
+    { key: 'economic_policies_friction', displayName: 'Economic Policies & Citizen Friction', query_map: 'ECONOMY_FRICTION' },
+    { key: 'social_trends_cultural_gap', displayName: 'Social Trends & Cultural Contradictions', query_map: 'SOCIAL_IDENTITY' },
+    { key: 'startup_scene_regulation', displayName: 'Startup Scene & Regulatory Hurdles', query_map: 'BUSINESS_RED_TAPE' },
+    { key: 'law_order_absurdity', displayName: 'Law & Order Absurdity', query_map: 'LAW_ORDER' }, // Added to ensure high diversity
+    { key: 'global_south_gallows', displayName: 'Global Affairs Absurdity', query_map: 'GLOBAL_GALLOWS' },
   ]
 };
 
@@ -117,38 +107,16 @@ export const BUSINESS_STORYTELLER: PersonaConfig = {
     'cultural_adaptation'
   ],
   topics: [
+    // Indian Business Stories (Simplified topic list for better thread focus)
     { key: 'founder_stories', displayName: 'Founder Journey Stories' },
-    { key: 'produce_stories', displayName: 'Product Journey Stories' },
-    { key: 'business_decisions', displayName: 'Strategic Business Decisions' },
     { key: 'market_disruption', displayName: 'Market Disruption Stories' },
-    { key: 'crisis_management', displayName: 'Crisis Leadership Stories' },
-    { key: 'cultural_business', displayName: 'Cultural Adaptation in Business' },
-    { key: 'succession_planning', displayName: 'Business Succession Stories' },
-    { key: 'innovation_breakthroughs', displayName: 'Innovation Breakthrough Stories' },
-    
-    // Tech Stories from India
-    { key: 'indian_tech_unicorns', displayName: 'Indian Tech Unicorns & Scaling Stories' },
-    { key: 'indian_tech_pioneers', displayName: 'Indian Tech Pioneers & Early Internet' },
     { key: 'fintech_revolution_india', displayName: 'FinTech Revolution in India' },
-    { key: 'edtech_transformation', displayName: 'EdTech Transformation Stories' },
-    { key: 'ecommerce_battles_india', displayName: 'E-commerce Wars & Market Battles' },
     { key: 'digital_payments_upi', displayName: 'Digital Payments & UPI Revolution' },
-    { key: 'saas_india_global', displayName: 'Indian SaaS Going Global' },
-    { key: 'gaming_content_creators', displayName: 'Gaming & Content Creator Economy' },
-    { key: 'deep_tech_ai_india', displayName: 'Deep Tech & AI Innovation in India' },
-    { key: 'space_tech_startups', displayName: 'Space Tech & NewSpace Startups' },
     
-    // Global Tech Stories
+    // Global Tech Stories (for comparative storytelling)
     { key: 'silicon_valley_legends', displayName: 'Silicon Valley Origin Stories' },
     { key: 'big_tech_evolution', displayName: 'Big Tech Company Evolution' },
-    { key: 'startup_ecosystem_global', displayName: 'Global Startup Ecosystem Stories' },
-    { key: 'tech_disruption_industries', displayName: 'Tech Disrupting Traditional Industries' },
-    { key: 'crypto_blockchain_stories', displayName: 'Crypto & Blockchain Revolution' },
-    { key: 'ai_ml_breakthrough', displayName: 'AI/ML Breakthrough Moments' },
-    { key: 'social_media_impact', displayName: 'Social Media Platform Stories' },
-    { key: 'mobile_revolution', displayName: 'Mobile & App Revolution Stories' },
-    { key: 'cloud_computing_shift', displayName: 'Cloud Computing Transformation' },
-    { key: 'cybersecurity_battles', displayName: 'Cybersecurity & Digital Warfare' }
+    { key: 'deep_tech_ai_india', displayName: 'Deep Tech & AI Innovation' },
   ]
 };
 
@@ -165,10 +133,7 @@ export const CRICKET_STORYTELLER: PersonaConfig = {
     'larger_than_life_personality',
     'rivalry_human_dynamics',
     'career_crossroads_character',
-    'entertainment_cricket_drama',
-    'personal_battle_public_stage',
     'leadership_personality_clash',
-    'legacy_beyond_boundaries'
   ],
   topics: [
     { key: 'character_through_cricket', displayName: 'Character Revealed Through Cricket' },
@@ -176,7 +141,6 @@ export const CRICKET_STORYTELLER: PersonaConfig = {
     { key: 'cricket_personalities', displayName: 'Larger-than-Life Cricket Personalities' },
     { key: 'personal_battles_cricket', displayName: 'Personal Battles on Cricket Stage' },
     { key: 'cricket_life_lessons', displayName: 'Life Lessons Through Cricket' },
-    { key: 'entertainment_cricket', displayName: 'Cricket as Entertainment & Drama' },
     { key: 'rivalry_psychology', displayName: 'Psychology of Cricket Rivalries' },
     { key: 'cultural_impact_cricket', displayName: 'Cultural Impact Beyond Cricket' }
   ]
@@ -210,7 +174,7 @@ export function getAllTopicsForPersona(personaKey: string): PersonaTopic[] {
   return persona ? persona.topics : [];
 }
 
-// Content distribution by weight (equal distribution)
+// Content distribution by weight (equal distribution among defined PERSONAS)
 export function selectPersonaByWeight(): PersonaConfig {
   const randomIndex = Math.floor(Math.random() * PERSONAS.length);
   return PERSONAS[randomIndex];
@@ -219,7 +183,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 // Account-to-persona mapping for strict isolation based on Twitter handles
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller']
+  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller'] 
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
@@ -232,9 +196,7 @@ export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
  * Get allowed personas for a specific account ID (requires account lookup)
  */
 export async function getAllowedPersonasForAccount(accountId: string): Promise<string[]> {
-  // Import here to avoid circular dependency
-  const { getAccount } = await import('./db');
-  
+  // Assuming getAccount is correctly imported from './db' or available in the environment
   try {
     const account = await getAccount(accountId);
     if (!account) {
@@ -273,14 +235,12 @@ export function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: s
     throw new Error(`No personas allowed for handle: ${twitterHandle}`);
   }
   
-  // If specific persona keys requested, filter by allowed personas
   let eligiblePersonas = allowedPersonas;
   if (personaKeys && personaKeys.length > 0) {
     eligiblePersonas = personaKeys.filter(key => allowedPersonas.includes(key));
   }
   
   if (eligiblePersonas.length === 0) {
-    // Fall back to any allowed persona for this handle
     eligiblePersonas = allowedPersonas;
   }
   
@@ -298,8 +258,6 @@ export function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: s
  * Get random persona from account's allowed personas (requires account lookup)
  */
 export async function getRandomPersonaForAccount(accountId: string, personaKeys?: string[]): Promise<PersonaConfig> {
-  // Import here to avoid circular dependency
-  const { getAccount } = await import('./db');
   
   const account = await getAccount(accountId);
   if (!account) {
@@ -311,8 +269,6 @@ export async function getRandomPersonaForAccount(accountId: string, personaKeys?
 
 
 export function getHashtagsForPersona(persona: PersonaConfig, variation = 0): string[] {
-  // Hashtags are now generated by AI contextually - return empty array
-  // This function is kept for backward compatibility but no longer provides hashtags
   return [];
 }
 
@@ -324,13 +280,13 @@ export function getAllPersonas(): PersonaConfig[] {
   return PERSONAS;
 }
 
-// Legacy compatibility export with a more robust emoji fallback
+// Legacy compatibility export with persona ID and emoji
 export const personas = PERSONAS.map(p => {
   const emojiMatch = p.displayName.match(/\p{Emoji}/u);
   return {
       id: p.key,
       name: p.displayName,
-      emoji: emojiMatch ? emojiMatch[0] : '🗣️', // Safer emoji extraction
+      emoji: emojiMatch ? emojiMatch[0] : '🗣️',
       description: p.description,
   };
 });

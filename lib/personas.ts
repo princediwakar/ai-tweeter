@@ -103,7 +103,7 @@ export const BUSINESS_STORYTELLER: PersonaConfig = {
   key: 'business_storyteller',
   displayName: 'Business Storyteller 📈',
   description: 'Compelling Indian business stories with emotional depth and strategic insights',
-  content_types: ['thread', 'single_tweet'],
+  content_types: ['thread'],
   thread_templates: [
     'founder_struggle',
     'business_decision', 

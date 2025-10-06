@@ -1,3 +1,4 @@
+// app/api/tweets/route.ts
 import { NextResponse } from 'next/server';
 import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets, getAccount } from '@/lib/db';
 import type { Tweet } from '@/lib/types';

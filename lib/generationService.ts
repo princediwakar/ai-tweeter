@@ -33,7 +33,7 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   let rssContext = '';
   if (useRSSSources && config.persona) {
     try {
-      if (['satirist', 'business_storyteller', 'cricket_storyteller'].includes(config.persona)) {
+      if (['satirist'].includes(config.persona)) {
         const topicForRSS = config.topic || 'India';
         rssContext = await getDynamicContext(config.persona, topicForRSS);
         console.log(`📰 Fetched RSS context for ${config.persona}: ${rssContext.length > 0 ? 'success' : 'no content'}`);

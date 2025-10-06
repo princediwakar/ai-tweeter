@@ -1,8 +1,10 @@
+// lib/threadGenerationService.ts
 import OpenAI from 'openai';
 import { getPersonaByKey, PersonaConfig } from '@/lib/personas';
 import { getAccount, createThread, saveTweet, generateTweetId } from './db';
 import type { Account, Tweet } from './types';
 import { getThreadTemplate, ThreadTemplate } from './threadTemplates';
+import { logger } from '@/lib/logger'; 
 
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -77,22 +79,21 @@ function splitLongTweet(content: string): string[] {
     tweets.push(remaining);
   }
   
-  console.log(`✂️ Split long tweet into ${tweets.length} parts:`, tweets.map(t => `${t.length} chars`));
+  logger.info(`✂️ Split long tweet into ${tweets.length} parts:`, 'thread-split', tweets.map(t => `${t.length} chars`));
   return tweets;
 }
 
 /**
  * Select appropriate thread template using persona configuration
- * OPTIMIZED: Uses persona.thread_templates instead of separate persona mapping
  */
 function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string): ThreadTemplate {
   if (templateOverride) {
     const template = getThreadTemplate(templateOverride);
     if (template) {
-      console.log(`🎯 Using specified template: ${template.displayName}`);
+      logger.info(`🎯 Using specified template: ${template.displayName}`, 'thread-template-selection');
       return template;
     }
-    console.warn(`⚠️ Template "${templateOverride}" not found, using random selection`);
+    logger.warn(`⚠️ Template "${templateOverride}" not found, using random selection`, 'thread-template-selection');
   }
 
   // For threading personas (business_storyteller, cricket_storyteller), select from available templates
@@ -102,7 +103,7 @@ function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string)
     const template = getThreadTemplate(templateName);
     
     if (template) {
-      console.log(`🎲 Randomly selected template: ${template.displayName}`);
+      logger.info(`🎲 Randomly selected template: ${template.displayName}`, 'thread-template-selection');
       return template;
     }
   }
@@ -113,13 +114,12 @@ function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string)
     throw new Error('No thread templates available');
   }
   
-  console.log(`🔄 Using fallback template: ${fallbackTemplate.displayName}`);
+  logger.info(`🔄 Using fallback template: ${fallbackTemplate.displayName}`, 'thread-template-selection');
   return fallbackTemplate;
 }
 
 /**
  * Generate thread-specific prompt for storytelling (business or cricket)
- * OPTIMIZED: Uses persona config directly instead of duplicating context
  */
 function generateThreadPrompt(template: ThreadTemplate, persona?: PersonaConfig): string {
   const timeMarker = `T${Date.now()}`;
@@ -233,7 +233,7 @@ function parseThreadResponse(content: string, template: ThreadTemplate): { title
       
       // Character validation and overflow handling
       if (tweet.content.length > 280) {
-        console.warn(`Tweet ${i + 1} is too long (${tweet.content.length} chars), splitting into multiple tweets...`);
+        logger.warn(`Tweet ${i + 1} is too long (${tweet.content.length} chars), splitting into multiple tweets...`, 'thread-validation');
         
         // Split at natural break points (sentences, clauses)
         const splitTweets = splitLongTweet(tweet.content);
@@ -265,7 +265,7 @@ function parseThreadResponse(content: string, template: ThreadTemplate): { title
       tweets: processedTweets
     };
   } catch (error) {
-    console.error(`Failed to parse thread response: ${error}`, { content: content.substring(0, 200) + '...' });
+    logger.error(`Failed to parse thread response: ${error}`, 'thread-parsing-error');
     return null;
   }
 }
@@ -275,25 +275,29 @@ function parseThreadResponse(content: string, template: ThreadTemplate): { title
  * Main thread generation function
  */
 export async function generateThread(config: ThreadGenerationConfig): Promise<ThreadGenerationResult | null> {
+  const startTime = performance.now();
+  const callId = Math.random().toString(36).substring(2, 8); 
+
   try {
-    console.log(`🧵 Starting thread generation for account: ${config.account_id}, persona: ${config.persona}`);
+    logger.info(`[Thread:${callId}] Starting thread generation for account: ${config.account_id}, persona: ${config.persona}`, 'thread-start');
     
-    // Get account context
+    // --- Initial DB Read ---
+    const dbReadStart = performance.now();
     const account = await getAccount(config.account_id);
     if (!account) {
       throw new Error(`Account not found: ${config.account_id}`);
     }
     
-    // Get persona configuration
     const persona = getPersonaByKey(config.persona);
     if (!persona) {
       throw new Error(`Persona not found: ${config.persona}`);
     }
     
-    // Validate persona supports threading
     if (!persona.content_types?.includes('thread')) {
       throw new Error(`Persona ${config.persona} does not support threading`);
     }
+    const dbReadDuration = ((performance.now() - dbReadStart) / 1000).toFixed(2);
+    logger.info(`[Thread:${callId}] Initial DB read time: ${dbReadDuration}s`, 'thread-timing');
     
     // Select thread template
     const template = selectThreadTemplate(persona, config.template);
@@ -301,15 +305,20 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     // Generate thread content using AI
     const prompt = generateThreadPrompt(template, persona);
     
-    console.log(`🤖 Sending thread generation request to DeepSeek (prompt length: ${prompt.length} chars)`);
+    logger.info(`[Thread:${callId}] Sending thread generation request to DeepSeek (prompt length: ${prompt.length} chars)`, 'thread-llm-call');
     
+    // --- LLM API Call (max_tokens reduced from 3000 to 1500 for potential latency gain) ---
+    const llmCallStart = performance.now();
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.8, // Higher creativity for storytelling
-      max_tokens: 3000, // Reduced from 4000 for faster generation
-      stream: false, // Ensure non-streaming for faster response
+      temperature: 0.8, 
+      max_tokens: 1500, // OPTIMIZATION: Reduced max_tokens 
+      stream: false, 
     });
+
+    const llmCallDuration = ((performance.now() - llmCallStart) / 1000).toFixed(2);
+    logger.info(`[Thread:${callId}] DeepSeek LLM call duration: ${llmCallDuration}s`, 'thread-timing');
 
     const aiContent = response.choices[0].message.content;
     if (!aiContent) {
@@ -322,7 +331,10 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       throw new Error('Failed to parse or validate thread response');
     }
 
-    console.log(`✅ Generated thread: "${threadData.title}" with ${threadData.tweets.length} tweets`);
+    logger.info(`[Thread:${callId}] Generated thread: "${threadData.title}" with ${threadData.tweets.length} tweets`, 'thread-generation-success');
+
+    // --- DB Write Operations ---
+    const dbWriteStart = performance.now();
 
     // Create thread record in database
     const threadId = await createThread({
@@ -342,14 +354,13 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       return cleanTag ? `#${cleanTag}` : '';
     }).filter(tag => tag.length > 1); // Remove empty tags
 
-    // Create and save individual tweets (optimized with batch preparation)
+    // Create and save individual tweets 
     const tweets: Tweet[] = [];
     const tweetsToSave: Tweet[] = [];
     
     for (const tweetData of threadData.tweets) {
       const tweetId = generateTweetId();
       
-      // Content without thread numbering (handled by posting service)
       const threadedContent = tweetData.content;
       
       const tweet: Tweet = {
@@ -370,12 +381,20 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       tweets.push(tweet);
     }
     
-    // Save all tweets sequentially (could be optimized further with bulk insert)
-    for (const tweet of tweetsToSave) {
-      await saveTweet(tweet);
-    }
+    // OPTIMIZATION: Convert sequential saves to concurrent Promise.all
+    // This targets the 5.94s DB write time for 7 tweets.
+    await Promise.all(tweetsToSave.map(tweet => saveTweet(tweet)));
 
-    console.log(`🎉 Thread generation complete: ${tweets.length} tweets saved for thread ${threadId}`);
+
+    const dbWriteDuration = ((performance.now() - dbWriteStart) / 1000).toFixed(2);
+    logger.info(`[Thread:${callId}] DB write time (create thread + save ${tweetsToSave.length} tweets): ${dbWriteDuration}s`, 'thread-timing');
+    
+    const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+    logger.info(`[Thread:${callId}] Thread generation complete. Total duration: ${totalDuration}s`, 'thread-complete', {
+      total_duration_s: parseFloat(totalDuration),
+      llm_duration_s: parseFloat(llmCallDuration),
+      total_tweets: tweets.length
+    });
 
     return {
       thread_id: threadId,
@@ -386,12 +405,12 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     };
 
   } catch (error) {
-    console.error(`❌ Thread generation failed:`, error);
+    const totalDuration = ((performance.now() - startTime) / 1000).toFixed(2);
+    logger.error(`[Thread:${callId}] ❌ Thread generation failed after ${totalDuration}s:`, 'thread-failure', error as Error);
     return null;
   }
 }
 
-/*
 
 /**
  * Get thread generation eligibility for account

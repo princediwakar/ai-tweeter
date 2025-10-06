@@ -1,5 +1,7 @@
+// app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { generateTweet } from '@/lib/generationService';
+// NOTE: Assuming these imports exist and are correct based on your original file structure
+import { generateTweet } from '@/lib/generationService'; 
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount, getActiveAccounts, getAccount, getAccountByTwitterHandle } from '@/lib/db';
 import { getCurrentTimeInIST } from '@/lib/utils';
@@ -22,6 +24,19 @@ function shuffleArray<T>(array: T[]): T[] {
     }
     return newArr;
 }
+
+// Define specific types for the results of the parallel generation
+interface GeneratedTweetInfo {
+  persona: string;
+  topic: string;
+  contentType: string;
+  length: number;
+}
+
+type GenerationResultUnion = 
+  { type: 'tweet'; data: GeneratedTweetInfo; needsImage: boolean } |
+  { type: 'thread'; data: ThreadGenerationResult };
+
 
 /**
  * Enhanced Multi-Account Content Generation API
@@ -72,27 +87,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Define specific types for the results of the parallel generation
-interface GeneratedTweetInfo {
-  persona: string;
-  topic: string;
-  contentType: string;
-  length: number;
-}
-
-type GenerationResultUnion = 
-  { type: 'tweet'; data: GeneratedTweetInfo; needsImage: boolean } |
-  { type: 'thread'; data: ThreadGenerationResult };
-
 /**
  * Enhanced account-specific generation using intelligent batch processing
+ * ADDED TIMING LOGS
  */
 async function generateForAccountEnhanced(accountId: string, request: NextRequest, debugMode = false, personaOverride?: string | null) {
+  const startTime = performance.now(); // START
   const nowIST = getCurrentTimeInIST();
   const callId = Math.random().toString(36).substring(2, 8);
   
-  logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced');
+  logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced', { timestamp: new Date().toISOString() });
   
+  // --- Initial Setup & Account Check ---
   const account = await getAccount(accountId);
   if (!account) {
     return NextResponse.json({
@@ -103,7 +109,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   
   const batchInfo = getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
   
-  // Override persona if specified in debug mode
+  // ... (Persona Override and Skip Logic remains the same)
   if (debugMode && personaOverride) {
     batchInfo.personas = [personaOverride];
     logger.info(`[Enhanced:${callId}] Debug mode: overriding persona to ${personaOverride}`, 'generate-debug');
@@ -112,6 +118,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${debugMode})`, 'generate-debug');
   
   if (!batchInfo.should_generate && !debugMode) {
+    logger.info(`[Enhanced:${callId}] Generation skipped by schedule. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
       success: true,
       message: `⏳ No generation scheduled for account ${accountId} at ${nowIST.getHours()}:00 IST`,
@@ -126,19 +133,24 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
 
   if (account.status !== 'active') {
+    logger.info(`[Enhanced:${callId}] Generation skipped: account inactive. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
       success: false,
       error: `Account ${accountId} is inactive`
     }, { status: 404 });
   }
 
+  // --- Pipeline Check ---
+  const dbReadStart = performance.now();
   const accountTweets = await getTweetsByAccount(accountId);
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
+  logger.info(`[Enhanced:${callId}] DB read time: ${((performance.now() - dbReadStart) / 1000).toFixed(2)}s. Pending tweets: ${pendingTweets.length}`, 'generate-timing');
   
   const maxPipelineSize = account.twitter_handle.includes('gibbi') ? 8 : 30;
   const supportsThreading = canGenerateThreads(account);
   
   if (pendingTweets.length >= maxPipelineSize) {
+    logger.info(`[Enhanced:${callId}] Generation skipped: pipeline full. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
       success: true,
       message: `✅ Account pipeline is healthy with ${pendingTweets.length} tweets. No generation needed.`,
@@ -165,6 +177,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
   
   if (targetBatchSize <= 0) {
+    logger.info(`[Enhanced:${callId}] Generation skipped: target batch size 0. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
         success: true,
         message: `✅ Account pipeline is healthy. No new tweets needed at this time.`,
@@ -177,23 +190,26 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const errors: string[] = [];
   let imageIsNeeded = false;
   
-  logger.info(`[Enhanced:${callId}] Generating batch for account ${accountId} (Threading: ${shouldGenerateThreads ? 'threads' : 'tweets'})`, 'generate-batch');
+  logger.info(`[Enhanced:${callId}] Generating batch (size: ${targetBatchSize}) for account ${accountId} (Threading: ${shouldGenerateThreads ? 'threads' : 'tweets'})`, 'generate-batch');
 
   const allTopics = getAllTopicsForPersona(selectedPersonaKey);
   const shuffledTopics = shuffleArray(allTopics);
   const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
 
+  // --- AI GENERATION START ---
+  const generationStart = performance.now(); 
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
     // For threading personas, generate thread synchronously to ensure completion
     if (shouldGenerateThreads) {
+      const threadCallStart = performance.now();
       logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
       
       const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });
       
       if (threadResult) {
-        logger.info(`✅ [Enhanced:${callId}] Thread generated: ${threadResult.thread_id} - "${threadResult.template_used}" with ${threadResult.total_tweets} tweets`, 'thread-generation');
+        logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s.`, 'thread-generation-timing');
         return { 
           type: 'thread', 
           data: threadResult
@@ -215,9 +231,13 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       contentType: contentTypes[(nowIST.getHours() + i) % contentTypes.length] as TweetGenerationConfig['contentType']
     };
 
+    const tweetCallStart = performance.now();
     const generatedTweet = await generateTweet(config);
+    logger.info(`✅ [Enhanced:${callId}] Tweet ${i+1}/${targetBatchSize} generated in ${((performance.now() - tweetCallStart) / 1000).toFixed(2)}s.`, 'tweet-generation-timing');
+
     if (!generatedTweet) throw new Error(`Failed to generate tweet for persona ${selectedPersonaKey}`);
     
+    const saveStart = performance.now();
     const tweet: Partial<Tweet> = {
       id: generateTweetId(),
       account_id: accountId,
@@ -233,6 +253,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     };
 
     await saveTweet(tweet as Tweet);
+    logger.info(`[Enhanced:${callId}] Tweet ${i+1}/${targetBatchSize} saved in ${((performance.now() - saveStart) / 1000).toFixed(2)}s.`, 'tweet-db-timing');
     
     return {
       type: 'tweet',
@@ -247,7 +268,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   });
 
   const results = await Promise.allSettled(generationPromises);
-
+  logger.info(`[Enhanced:${callId}] Total AI generation time: ${((performance.now() - generationStart) / 1000).toFixed(2)}s. Batch size: ${targetBatchSize}`, 'generate-timing');
+  
   results.forEach(result => {
     if (result.status === 'fulfilled' && result.value) {
       if (result.value.type === 'tweet') {
@@ -265,9 +287,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   const totalContentUnits = generatedTweets.length + generatedThreads.reduce((sum, thread) => sum + thread.total_tweets, 0);
   
-  // ✅ FIXED: Process images synchronously during generation to ensure reliability
+  // --- IMAGE PROCESSING START ---
   if (imageIsNeeded) {
-    logger.info(`[Enhanced:${callId}] Processing images synchronously for account ${accountId}`, 'image-processing');
+    const imageProcessingStart = performance.now(); // START: Image Processing
+    logger.info(`[Enhanced:${callId}] Starting synchronous image processing for account ${accountId}`, 'image-processing');
     
     try {
       // Import the image processing logic directly
@@ -281,6 +304,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
         
         // Process images in parallel but wait for completion
         const imageProcessingPromises = pendingImageTweets.map(async (tweet) => {
+          const imageCallStart = performance.now();
           try {
             await updateTweetImage(tweet.id, undefined, 'processing');
             
@@ -293,7 +317,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
             
             if (imageUrl) {
               await updateTweetImage(tweet.id, imageUrl, 'completed');
-              logger.info(`[Enhanced:${callId}] Image completed for tweet ${tweet.id}`, 'image-success');
+              logger.info(`[Enhanced:${callId}] Image completed for tweet ${tweet.id} in ${((performance.now() - imageCallStart) / 1000).toFixed(2)}s.`, 'image-success-timing');
               return { success: true, tweetId: tweet.id, imageUrl };
             } else {
               throw new Error('Image generation returned null');
@@ -301,21 +325,27 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             await updateTweetImage(tweet.id, undefined, 'failed');
-            logger.error(`[Enhanced:${callId}] Image failed for tweet ${tweet.id}: ${errorMsg}`, 'image-error', error as Error);
+            logger.error(`[Enhanced:${callId}] Image failed for tweet ${tweet.id} after ${((performance.now() - imageCallStart) / 1000).toFixed(2)}s: ${errorMsg}`, 'image-error', error as Error);
             return { success: false, tweetId: tweet.id, error: errorMsg };
           }
         });
         
         const imageResults = await Promise.allSettled(imageProcessingPromises);
-        const successful = imageResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        const successful = imageResults.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length;
         const failed = imageResults.length - successful;
         
-        logger.info(`[Enhanced:${callId}] Image processing complete: ${successful} successful, ${failed} failed`, 'image-processing');
+        logger.info(`[Enhanced:${callId}] Total image processing time: ${((performance.now() - imageProcessingStart) / 1000).toFixed(2)}s. ${successful} successful, ${failed} failed`, 'image-processing-timing');
       }
     } catch (error) {
       logger.error(`[Enhanced:${callId}] Failed to process images synchronously`, 'image-processing-error', error as Error);
     }
   }
+
+  // --- FINAL TIMING AND RESPONSE ---
+  const endTime = performance.now(); // END
+  const totalDuration = ((endTime - startTime) / 1000).toFixed(2);
+  logger.info(`[Enhanced:${callId}] Batch generation complete. Total request duration: ${totalDuration}s`, 'generate-complete-timing', { duration: parseFloat(totalDuration), target_batch_size: targetBatchSize, generated_units: totalContentUnits });
+
 
   const response = {
     success: true,
@@ -336,10 +366,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     generatedTweets: debugMode ? generatedTweets : generatedTweets.length,
     generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ template: t.template_used, tweets: t.total_tweets })),
     errors: errors.length > 0 ? errors : undefined,
+    duration_s: parseFloat(totalDuration), // Add duration to the response
     timestamp: new Date().toISOString()
   };
 
-  logger.info(`[Enhanced:${callId}] Batch complete response sent`, 'generate-complete');
   return NextResponse.json(response);
 }
 

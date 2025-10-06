@@ -46,16 +46,13 @@ const gibbiPostingPattern: HourlySchedule = {
  * 5-minute interval support for thread progression
  */
 const princeGenerationPattern: HourlySchedule = {
-  0: ['satirist'],   // Morning satirical tweet generation
   12: ['cricket_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
   16: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
-  20: ['satirist'],  // Late evening satirical tweet generation
+  23: ['business_storyteller'],  // Evening thread generation (randomized between business_storyteller/cricket_storyteller)
 };
 
 const princePostingPattern: HourlySchedule = {
-  9: ['satirist'],         // Morning satirical tweet posting
   13: ['cricket_storyteller'], // Afternoon thread posting (randomized between business_storyteller/cricket_storyteller)
-  18: ['satirist'],         // Evening satirical tweet posting
   20: ['business_storyteller'], // Prime time thread posting (randomized between business_storyteller/cricket_storyteller)
 };
 
@@ -169,15 +166,7 @@ export function getPostingSchedule(twitterHandle: string): DailySchedule {
   return schedules.posting;
 }
 
-/**
- * Randomly selects between business_storyteller and cricket_storyteller for Prince's account
- * Returns the selected persona for daily thread generation
- */
-function getRandomThreadPersonaForPrince(): string {
-  const threadPersonas = ['business_storyteller', 'cricket_storyteller'];
-  const randomIndex = Math.floor(Math.random() * threadPersonas.length);
-  return threadPersonas[randomIndex];
-}
+
 
 /**
  * Get personas scheduled for generation at a specific time for an account
@@ -189,17 +178,7 @@ export function getScheduledPersonasForGeneration(
 ): string[] {
   const schedule = getGenerationSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
-  let personas = daySchedule?.[hour] || [];
-  
-  // For Prince's account, randomize between thread personas
-  if (twitterHandle === '@princediwakar25') {
-    personas = personas.map(persona => {
-      if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
-        return getRandomThreadPersonaForPrince();
-      }
-      return persona;
-    });
-  }
+  const personas = daySchedule?.[hour] || [];
   
   return personas;
 }
@@ -214,17 +193,9 @@ export function getScheduledPersonasForPosting(
 ): string[] {
   const schedule = getPostingSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
-  let personas = daySchedule?.[hour] || [];
+  const personas = daySchedule?.[hour] || [];
   
-  // For Prince's account, randomize between thread personas
-  if (twitterHandle === '@princediwakar25') {
-    personas = personas.map(persona => {
-      if (persona === 'business_storyteller' || persona === 'cricket_storyteller') {
-        return getRandomThreadPersonaForPrince();
-      }
-      return persona;
-    });
-  }
+
   
   return personas;
 }
@@ -316,7 +287,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
     } else if (twitterHandle === '@princediwakar25') {
-      personas = ['business_storyteller', 'satirist', 'cricket_storyteller'];
+      personas = ['business_storyteller', 'cricket_storyteller'];
     } else {
       // Generic default personas for unknown accounts
       personas = ['business_storyteller'];

@@ -33,21 +33,13 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   }
 
   protected addCommonSuffix(prompt: string): string {
-    return prompt + `\n\nCRITICAL CHARACTER LIMITS: 
-- EACH TWEET MUST BE UNDER 250 CHARACTERS TOTAL (including hashtags)
-- For single tweets: aim for 180-240 characters
-- For thread tweets: aim for 160-220 characters per tweet
-- Count characters carefully - exceeding limits causes splitting/truncation
-
-FORMAT: Return as valid JSON object. For non-vocabulary personas, use "content" key. For vocabulary persona, use "tweetText" and "cardData" structure.
-
-HASHTAG DECISION: Only include hashtags if they genuinely add value to the tweet. Most tweets should NOT have hashtags.
-- Include hashtags ONLY if they make the tweet more discoverable or add humor/context
-- Prefer NO hashtags over forced, mechanical, or obvious ones
-- If including hashtags, use 1-2 maximum and make them creative/memorable
-- Consider: Does this hashtag make the tweet better? If not, don't include it
-- Examples where hashtags might work: trending topics, cultural moments, wordplay
-- Most satirical/story tweets work better WITHOUT hashtags
-Include the "hashtags" array - it can be empty [] if no meaningful hashtags fit.`;
+    // --- OPTIMIZED CHARACTER LIMIT AND FORMAT INSTRUCTIONS ---
+    return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS: 
+- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 240 CHARACTERS.** (This includes any thread indicators or hashtags.)
+- Aim for readability: 160-220 characters per segment is preferred.
+- FORMAT: Return as valid JSON object. For non-vocabulary personas, use the "content" key.
+- HASHTAGS: Include an empty "hashtags" array [] if none are used.
+- HASHTAG RULE: Use 1-2 maximum. Only include a hashtag if it genuinely adds value (discovery, humor, context). Prefer NO hashtags over mechanical ones.`;
+    // --- END OPTIMIZED INSTRUCTIONS ---
   }
 }

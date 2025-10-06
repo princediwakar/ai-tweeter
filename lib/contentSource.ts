@@ -38,7 +38,7 @@ interface RedditPostData {
 // ─────────────────────────────────────────────
 // 🔧 Constants
 // ─────────────────────────────────────────────
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 mins
+const CACHE_TTL_MS = 5 * 60 * 1000; // Reduced to 5 mins for fast-moving trends
 const contentCache: Map<string, CacheEntry> = new Map();
 
 const USER_AGENTS = [
@@ -257,61 +257,71 @@ const SATIRIST_QUERY_MAPS: Record<string, string[]> = {
     "Political leader statement OR promise controversy today",
     "Election campaign absurdity India",
     "Government claim vs ground report",
-    "Minister social media gaffe OR statement"
+    "Minister social media gaffe OR statement",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   BUREAUCRACY_FAILURE: [
     "Government office queue OR delay absurdity",
     "Indian citizen harassed by babu OR clerk",
     "Red tape failure OR long process India",
-    "Aadhar OR PAN card linkage problem"
+    "Aadhar OR PAN card linkage problem",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   DIGITAL_FAIL: [
     "Digital services server down OR website crash India",
     "UPI payment failure OR online KYC problem",
     "Digital India project audit OR setback",
-    "Online scam OR cyber fraud incident India"
+    "Online scam OR cyber fraud incident India",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   INFRASTRUCTURE: [
     "Road construction delay OR flyover failure India",
     "Public transport problem OR rail delay India",
     "City waterlogging OR urban planning failure",
-    "Metro project timeline extension news"
+    "Metro project timeline extension news",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   ECONOMY_FRICTION: [
     "Inflation OR food price absurdity India",
     "New tax rule confusion OR compliance issue",
     "RBI circular OR banking rule absurdity",
-    "Middle class struggle OR spending report India"
+    "Middle class struggle OR spending report India",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   SOCIAL_IDENTITY: [
     "Caste OR religion controversy social media India",
     "Gender OR women safety incident India",
     "Education exam OR university controversy India",
-    "Academic freedom OR student protest India"
+    "Academic freedom OR student protest India",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   BUSINESS_RED_TAPE: [
     "Startup regulation OR tax news red tape",
     "Business license application delay OR problem",
     "Indian court case intellectual property OR commercial law",
-    "MSME struggle OR bureaucratic hurdle"
+    "MSME struggle OR bureaucratic hurdle",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   LAW_ORDER: [
     "Indian police OR law enforcement action controversy",
     "Judiciary backlog OR court case delay absurdity",
     "Bail hearing OR legal process friction",
-    "Anti-corruption drive failure OR irony"
+    "Anti-corruption drive failure OR irony",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   GLOBAL_GALLOWS: [
     "India foreign policy absurdity OR contradiction",
     "Global leader visit India controversy",
     "International ranking vs Indian reality report",
-    "Geopolitics comment OR gaffe India"
+    "Geopolitics comment OR gaffe India",
+    "Viral bureaucracy fails India" // Added for viral topics
   ],
   DEFAULT: [
     "Indian government policy decision OR controversy today",
     "Indian infrastructure OR digital services failure",
     "Indian social media trend OR absurdity",
-    "Indian election process official statement"
+    "Indian election process official statement",
+    "Viral bureaucracy fails India" // Added for viral topics
   ]
 };
 

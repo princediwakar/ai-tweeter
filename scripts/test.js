@@ -36,17 +36,17 @@ const CONFIG = {
     : 'http://localhost:3000',
   cronSecret: process.env.CRON_SECRET,
   accounts: {
-    gibbi: {
-      handle: '@gibbi_ai',
-      personas: ['english_vocab_builder'],
-      contentTypes: ['single_tweet'],
-      description: 'English vocabulary builder with educational images'
-    },
+    // gibbi: {
+    //   handle: '@gibbi_ai',
+    //   personas: ['english_vocab_builder'],
+    //   contentTypes: ['single_tweet'],
+    //   description: 'English vocabulary builder with educational images'
+    // },
     prince: {
       handle: '@princediwakar25', 
-      // personas: ['satirist', 'business_storyteller', 'cricket_storyteller'],
-      personas: ['satirist'],
-      contentTypes: ['thread', 'single_tweet'],
+      personas: ['satirist', 'business_storyteller', 'cricket_storyteller'],
+      // personas: ['satirist'],
+      contentTypes: [ 'single_tweet', 'thread'],
       description: 'Business/cricket storytelling threads + satirical tweets'
     }
   }

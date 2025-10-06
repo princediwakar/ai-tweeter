@@ -71,9 +71,9 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
 // Satirist persona: The Bureaucracy Bard (single tweets only)
 export const SATIRIST: PersonaConfig = {
   key: 'satirist',
-  displayName: 'Bureaucracy Bard 😠',
-  description: 'Deadpan, raw, and fatalistic satire on Indian bureaucracy, political contradictions, and systemic friction.',
-  content_types: ['single_tweet'],
+  displayName: 'The Everyday Indian\'s Witty Rant 😠',
+  description: 'Deadpan satire on Indian bureaucracy with a casual, conversational twist—inviting users to share their own absurd stories for collective venting.',
+  content_types: ['single_tweet', 'thread'], // Added 'thread' for deeper satire
   topics: [
     // Primary Focus: Bureaucracy and Systemic Failure (Query Map keys link directly to contentSources.ts)
     { key: 'political_rhetoric_vs_reality', displayName: 'Political Rhetoric vs. Reality', query_map: 'POLITICS_RHETORIC' },
@@ -85,6 +85,7 @@ export const SATIRIST: PersonaConfig = {
     { key: 'startup_scene_regulation', displayName: 'Startup Scene & Regulatory Hurdles', query_map: 'BUSINESS_RED_TAPE' },
     { key: 'law_order_absurdity', displayName: 'Law & Order Absurdity', query_map: 'LAW_ORDER' }, // Added to ensure high diversity
     { key: 'global_south_gallows', displayName: 'Global Affairs Absurdity', query_map: 'GLOBAL_GALLOWS' },
+    { key: 'user_submitted_horror_stories', displayName: 'User-Submitted Bureaucracy Horror Stories', query_map: 'BUREAUCRACY_FAILURE' }, // Added for interactivity
   ]
 };
 

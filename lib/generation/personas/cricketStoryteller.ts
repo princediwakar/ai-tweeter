@@ -37,7 +37,7 @@ TOPIC FOCUS: "${topic.displayName}"
 ${templateInstructions}
 ${topicContext ? `\nTOPIC CONTEXT: ${topicContext}` : ''}
 
-THREAD APPROACH (6-9 tweets):
+THREAD APPROACH (8-11 tweets):
 • Create narrative threads that blend iconic cricket moments with human psychology and life lessons
 • Follow the "${selectedTemplate}" template structure with a clear emotional arc
 • Focus on personalities, character revelations, pressure handling, and resilience

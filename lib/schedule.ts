@@ -30,8 +30,8 @@ interface AccountSchedules {
  * Frequency: High (5 posts/day)
  */
 const gibbiGenerationPattern: HourlySchedule = {
-  13: ['english_vocab_builder'],        // Mid-day generation
-  17: ['english_vocab_builder'],        // Afternoon generation
+  8: ['english_vocab_builder'],        // Mid-day generation
+  13: ['english_vocab_builder'],        // Afternoon generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
@@ -54,13 +54,13 @@ const THREAD_B = 'cricket_storyteller';
 
 const princeGenerationPattern: DailySchedule = {
   // Generation: Shifted Satirist generation later for the freshest news
-  0: { 10: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
-  1: { 10: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
-  2: { 10: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
-  3: { 10: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
-  4: { 10: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
-  5: { 10: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
-  6: { 10: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
+  0: { 9: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
+  1: { 9: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
+  2: { 9: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
+  3: { 9: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
+  4: { 9: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
+  5: { 9: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
+  6: { 9: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
 };
 
 const princePostingPattern: DailySchedule = {

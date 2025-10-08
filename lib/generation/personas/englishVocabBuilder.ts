@@ -2,18 +2,18 @@
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import type { PersonaConfig } from '../../personas';
-import { generateDiversityGuidance, generateEnhancedExclusionGuidance } from '../../wordDiversityUtils';
+import { generateDiversityGuidance, generateEnhancedExclusionGuidance } from '../../vocab/wordDiversityUtils';
 import { 
   generateVocabularyDiscoveryPrompt, 
   generateEtymologicalDiscoveryPrompt, 
   generateCompetitiveExamPrompt,
   generateFieldSpecificPrompt 
-} from '../../vocabularyDiscovery';
+} from '../../vocab/vocabularyDiscovery';
 import { 
   getCrossExamVocabulary, 
   getSmartVocabularySuggestion,
   COMPETITIVE_VOCABULARY 
-} from '../../competitiveVocabulary';
+} from '../../vocab/competitiveVocabulary';
 import {
   generateVariabilityPackage,
   createVariabilityConfig,

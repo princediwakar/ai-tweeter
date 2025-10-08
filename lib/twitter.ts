@@ -1,3 +1,4 @@
+// lib/twitter.ts
 // Simple Twitter API implementation using fetch and OAuth 1.0a
 import crypto from 'crypto';
 

@@ -1,9 +1,3 @@
-Of course. You're right, the previous file was a comprehensive `README.md` for a human developer, which is too verbose for an AI's context.
-
-I have distilled its core principles and your recent feedback into a refined `claude.md`. This new file contains a concise set of rules and directives, making it much more effective for guiding AI-assisted development on this project.
-
-Here is the updated `claude.md`:
-
 ---
 # Claude Rules & Project Context
 

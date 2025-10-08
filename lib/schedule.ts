@@ -289,11 +289,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
     } else if (twitterHandle === '@princediwakar25') {
-      // Use the scheduled personas for Sunday as a debug default
-      const debugDay = 0; 
-      personas = getScheduledPersonasForGeneration(twitterHandle, debugDay, 10);
-    } else {
-      personas = ['business_storyteller'];
+      personas = ['business_storyteller', 'cricket_storyteller'];
     }
   }
   

@@ -1,6 +1,5 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-// NOTE: Assuming these imports exist and are correct based on your original file structure
 import { generateTweet } from '@/lib/generationService'; 
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount, getActiveAccounts, getAccount, getAccountByTwitterHandle } from '@/lib/db';

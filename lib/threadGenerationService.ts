@@ -178,6 +178,20 @@ ${specificRequirements}
 • Start with an engaging hook and maintain narrative pacing
 • Each tweet should be standalone engaging while advancing the story
 
+
+THREADING FORMAT - NATURAL & HUMAN:
+• Mix varied thread indicators: "1/7 🧵", "3/", "6/7"  
+• Use conversational transitions: "But here's the twist...", "The real lesson?", "Here's what happened next:"
+• Place indicators naturally at start OR end of tweets, NEVER mid-sentence
+• Keep language simple, conversational, readable - avoid corporate speak
+
+CHARACTER LIMITS - ABSOLUTELY CRITICAL:
+• EACH TWEET MUST BE UNDER 240 CHARACTERS (including thread indicators like "1/7")
+• Thread indicators (1/7, 2/7, etc.) count toward the 240 character limit
+• Aim for 160-220 characters per tweet for better readability
+• If any tweet exceeds 240 characters, IMMEDIATELY break it into multiple shorter tweets
+• Better to have more tweets than overly long ones that get truncated
+
 Generate a complete thread. Return ONLY valid JSON:
 
 {

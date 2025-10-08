@@ -61,7 +61,7 @@ async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
 
   // Combine content and hashtags for the final tweet text.
   const fullContent = tweet.hashtags?.length > 0 
-    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `#${tag}`).join(' ')}` 
+    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}` 
     : tweet.content;
 
   // If an image_url exists and image processing is complete, post with image

@@ -355,7 +355,7 @@ export function useTweetDashboard() {
   // Removed toggleAutoScheduler - assuming always running
 
   const shareOnX = useCallback((tweet: Tweet) => {
-    const tweetText = `${tweet.content}${tweet.hashtags.length > 0 ? ' ' + tweet.hashtags.map(tag => `#${tag}`).join(' ') : ''}`;
+    const tweetText = `${tweet.content}${tweet.hashtags.length > 0 ? ' ' + tweet.hashtags.map(tag => `${tag}`).join(' ') : ''}`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(twitterUrl, '_blank');
   }, []);

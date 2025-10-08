@@ -31,7 +31,8 @@ interface AccountSchedules {
  */
 const gibbiGenerationPattern: HourlySchedule = {
   8: ['english_vocab_builder'],        // Mid-day generation
-  13: ['english_vocab_builder'],        // Afternoon generation
+  11: ['english_vocab_builder'],        // Afternoon generation
+  12: ['english_vocab_builder'],        // Afternoon generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
@@ -299,7 +300,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   let batchSize = 2; // Default for threads
   if (metadata) {
     if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
-      batchSize = 3; // Educational content can be batched larger
+      batchSize = 2; // Educational content can be batched larger
     } else if (twitterHandle === '@princediwakar25') {
       // If the scheduled persona is Satirist, only generate one post
       if (personas.length === 1 && personas[0] === 'satirist') {

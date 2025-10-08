@@ -40,7 +40,7 @@ TOPIC FOCUS: "${topic.displayName}"
 ${templateInstructions}
 ${topicContext ? `\nTOPIC CONTEXT: ${topicContext}` : ''}
 
-THREAD APPROACH (8-11 tweets):
+THREAD APPROACH (6-10 tweets):
 • Create compelling narrative threads combining business + tech insights
 • Follow the "${selectedTemplate}" template structure and emotional arc
 • Focus on authentic stories with human elements and strategic insights

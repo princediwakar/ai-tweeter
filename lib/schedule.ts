@@ -55,24 +55,24 @@ const THREAD_B = 'cricket_storyteller';
 
 const princeGenerationPattern: DailySchedule = {
   // Generation: Shifted Satirist generation later for the freshest news
-  0: { 9: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
-  1: { 9: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
-  2: { 9: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
-  3: { 9: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
-  4: { 9: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
-  5: { 9: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
-  6: { 9: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
+  0: { 8: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
+  1: { 8: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
+  2: { 8: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
+  3: { 8: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
+  4: { 8: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
+  5: { 8: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
+  6: { 8: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
 };
 
 const princePostingPattern: DailySchedule = {
   // Posting: Optimized for Satire (Morning) and Thread (Prime Time)
-  0: { 10: ['satirist'], 20: [THREAD_A] }, // Sunday
-  1: { 10: ['satirist'], 20: [THREAD_B] }, // Monday
-  2: { 10: ['satirist'], 20: [THREAD_A] }, // Tuesday
-  3: { 10: ['satirist'], 20: [THREAD_B] }, // Wednesday
-  4: { 10: ['satirist'], 20: [THREAD_A] }, // Thursday
-  5: { 10: ['satirist'], 20: [THREAD_B] }, // Friday
-  6: { 10: ['satirist'], 20: [THREAD_A] }, // Saturday
+  0: { 9: ['satirist'], 20: [THREAD_A] }, // Sunday
+  1: { 9: ['satirist'], 20: [THREAD_B] }, // Monday
+  2: { 9: ['satirist'], 20: [THREAD_A] }, // Tuesday
+  3: { 9: ['satirist'], 20: [THREAD_B] }, // Wednesday
+  4: { 9: ['satirist'], 20: [THREAD_A] }, // Thursday
+  5: { 9: ['satirist'], 20: [THREAD_B] }, // Friday
+  6: { 9: ['satirist'], 20: [THREAD_A] }, // Saturday
 };
 
 // Twitter handle mapping - maps twitter handles to schedule keys

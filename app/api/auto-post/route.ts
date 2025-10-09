@@ -1,3 +1,4 @@
+// app/api/auto-post/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   getReadyTweetsByAccount, 

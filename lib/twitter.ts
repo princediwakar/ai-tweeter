@@ -1,6 +1,18 @@
 // lib/twitter.ts
 // Simple Twitter API implementation using fetch and OAuth 1.0a
 import crypto from 'crypto';
+export interface TweetV2 {
+  id: string;
+  text: string;
+  created_at?: string;
+  author_id?: string;
+  public_metrics?: {
+    retweet_count: number;
+    reply_count: number;
+    like_count: number;
+    quote_count: number;
+  };
+}
 
 interface TwitterCredentials {
   apiKey: string;
@@ -9,7 +21,123 @@ interface TwitterCredentials {
   accessSecret: string;
 }
 
-// Legacy function removed - now using per-account credentials
+
+// --- NEW: OAuth 2.0 (App-Only) Bearer Token Logic ---
+
+// Cache for the bearer token to avoid requesting it every time
+let appBearerTokenCache: string | null = null;
+
+async function getAppBearerToken(credentials: { apiKey: string, apiSecret: string }): Promise<string> {
+  if (appBearerTokenCache) {
+    return appBearerTokenCache;
+  }
+
+  const endpoint = 'https://api.twitter.com/oauth2/token';
+  
+  // Create Basic Auth header required for this specific request
+  const key = encodeURIComponent(credentials.apiKey);
+  const secret = encodeURIComponent(credentials.apiSecret);
+  const authString = Buffer.from(`${key}:${secret}`).toString('base64');
+  const authHeader = `Basic ${authString}`;
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: 'grant_type=client_credentials',
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to get App-Only Bearer Token:', errorText);
+      throw new Error(`Twitter auth failed: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (result.token_type !== 'bearer') {
+      throw new Error('Twitter did not return a bearer token.');
+    }
+
+    appBearerTokenCache = result.access_token;
+    console.log('[Twitter Auth] Successfully obtained App-Only Bearer Token.');
+    return appBearerTokenCache!;
+  } catch (error) {
+    console.error('Error in getAppBearerToken:', error);
+    throw error;
+  }
+}
+
+// --- MODIFIED: Scouting functions now use OAuth 2.0 ---
+
+/**
+ * Fetches recent tweet counts for a query. (Uses OAuth 2.0)
+ */
+export async function getRecentTweetCounts(query: string, startTime: string, credentials: TwitterCredentials): Promise<{ total_tweet_count: number }> {
+  const endpoint = 'https://api.twitter.com/2/tweets/counts/recent';
+  const queryParams = { query, start_time: startTime };
+  const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
+  
+  try {
+    const bearerToken = await getAppBearerToken(credentials);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${bearerToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Error fetching tweet counts:', JSON.parse(errorText));
+      throw new Error(`Twitter API error on counts: ${response.statusText}`);
+    }
+    const result = await response.json();
+    return result.meta;
+  } catch (error) {
+    console.error('Failed to get recent tweet counts:', error);
+    throw error;
+  }
+}
+
+/**
+ * Searches for recent tweets. (Uses OAuth 2.0)
+ */
+export async function searchRecentTweets(query: string, credentials: TwitterCredentials): Promise<{ data: TweetV2[] }> {
+    const endpoint = 'https://api.twitter.com/2/tweets/search/recent';
+    const queryParams = {
+        query,
+        'tweet.fields': 'created_at,public_metrics,author_id',
+        'max_results': '10',
+    };
+    const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
+
+    try {
+        const bearerToken = await getAppBearerToken(credentials);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${bearerToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error searching tweets:', JSON.parse(errorText));
+            throw new Error(`Twitter API error on search: ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to search recent tweets:', error);
+        throw error;
+    }
+}
+
+
+
+
 
 function generateOAuthSignature(
   method: string,
@@ -358,3 +486,5 @@ export async function validateTwitterCredentials(credentials: TwitterCredentials
     return { valid: false };
   }
 }
+
+

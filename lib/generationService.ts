@@ -8,7 +8,8 @@ import { getDynamicContext } from './contentSource';
 import { generateVariationMarkers, generateContentHash, shouldUseRSSSources } from './generation/utils';
 import { getPersonaGenerator } from './generation/personas';
 import type { TweetGenerationConfig, GenerationContext } from './generation/types';
-
+import { TweetV2 } from './twitter';
+import { EngagementTarget } from './engagement/targets';
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com',
@@ -318,4 +319,64 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
   console.log(`🚫 Avoided ${recentWords.length} recent words from database`);
   return tweets;
+}
+
+
+
+/**
+ * Generates a reply to a tweet based on a specific persona.
+ */
+export async function generateEngagementReply(
+  tweet: TweetV2,
+  target: EngagementTarget,
+  persona: PersonaConfig
+): Promise<string | null> {
+  const prompt = `
+You are an AI assistant tasked with generating a high-quality reply to a tweet.
+Your reply must embody the following persona:
+---
+Persona: ${persona.key}
+Style: ${persona.description}
+---
+
+You are replying to a tweet from ${target.username}, who is ${target.description}.
+
+Original tweet text:
+"${tweet.text}"
+
+Instructions for your reply (max 280 characters):
+1.  Add SPECIFIC value. This could be a data point, a historical parallel, a thoughtful contrarian perspective, or a niche insight.
+2.  Use a peer-to-peer, respectful, and intellectually curious tone. You are a fellow thought leader, not a fan.
+3.  Politely invite further discussion or offer a new angle.
+4.  ABSOLUTELY NO generic praise. Avoid phrases like "Great point!", "Well said!", "Love this!", "I agree!", etc.
+5.  Do not use hashtags unless it is a natural part of the conversation.
+
+Generate only the text for the reply.
+Reply:
+`;
+
+  try {
+    console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
+    const response = await deepseekClient.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.8, // Slightly lower temp for more focused replies
+      max_tokens: 80,   // Max chars is 280, 80 tokens is a safe limit
+    });
+    const replyText = response.choices[0].message.content;
+    
+    if (!replyText) {
+        console.error('[Generator] AI returned an empty reply.');
+        return null;
+    }
+    
+    // Basic cleanup: remove quotes and trim whitespace
+    const cleanedReply = replyText.replace(/"/g, '').trim();
+    
+    console.log(`[Generator] Generated reply: "${cleanedReply}"`);
+    return cleanedReply;
+  } catch (error) {
+    console.error('[Generator] Error generating AI reply:', error);
+    return null;
+  }
 }

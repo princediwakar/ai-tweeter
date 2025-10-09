@@ -1,3 +1,4 @@
+// lib/accountService.ts
 import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
 import type { Account, AccountWithCredentials } from './types';

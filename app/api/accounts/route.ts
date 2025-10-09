@@ -1,3 +1,4 @@
+// app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { accountService } from '@/lib/accountService';
 

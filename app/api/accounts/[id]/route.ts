@@ -1,3 +1,4 @@
+// app/api/accounts/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';

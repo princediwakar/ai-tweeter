@@ -1,0 +1,27 @@
+{
+    "@princediwakar25": {
+      "priority_targets": [
+        {
+          "username": "@anandmahindra",
+          "description": "an influential Indian industrialist and chairman of the Mahindra Group"
+        },
+        {
+          "username": "@hvgoenka",
+          "description": "an Indian industrialist and chairman of RPG Group"
+        },
+        {
+          "username": "@narendramodi",
+          "description": "the Prime Minister of India, a prominent political figure"
+        },
+        {
+          "username": "@cricketaakash",
+          "description": "a well-known cricket commentator and former player"
+        }
+      ],
+      "engagement_persona": "business_thought_leader",
+      "rules": {
+        "max_engagements_per_day": 3,
+        "min_hours_between_same_target": 12
+      }
+    }
+  }

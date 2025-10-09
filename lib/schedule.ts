@@ -16,6 +16,7 @@ type DailySchedule = Record<number, HourlySchedule>;
 interface AccountSchedules {
   generation: DailySchedule;
   posting: DailySchedule;
+  engagement?: DailySchedule; // + Added optional engagement schedule
   metadata: {
     strategy: string;
     target_audience: string;
@@ -75,6 +76,12 @@ const princePostingPattern: DailySchedule = {
   6: { 9: ['satirist'], 20: [THREAD_A] }, // Saturday
 };
 
+
+const princeEngagementPattern: HourlySchedule = {
+  9: ['engagement'],   // Morning window: 9:00, 9:15, 9:30, 9:45
+  20: ['engagement']   // Evening window: 20:00, 20:15, 20:30, 20:45
+};
+
 // Twitter handle mapping - maps twitter handles to schedule keys
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
@@ -127,6 +134,15 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
   prince_account: {
     generation: princeGenerationPattern,
     posting: princePostingPattern,
+    engagement: {
+      0: princeEngagementPattern, // Sunday
+      1: princeEngagementPattern, // Monday
+      2: princeEngagementPattern, // Tuesday
+      3: princeEngagementPattern, // Wednesday
+      4: princeEngagementPattern, // Thursday
+      5: princeEngagementPattern, // Friday
+      6: princeEngagementPattern, // Saturday
+    },
     metadata: {
       strategy: 'High-impact, low-frequency posting: Satire (Morning) and Alternating Threads (Prime Time). Max 2 content pieces/day.',
       target_audience: 'Entrepreneurs, business leaders, startup enthusiasts (25-45 age group)',
@@ -222,6 +238,38 @@ export function isPostingScheduled(twitterHandle: string, date: Date = new Date(
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
   return personas.length > 0;
 }
+
+
+
+// +++ New Engagement Schedule Functions +++
+
+/**
+ * Get engagement schedule for a specific account
+ */
+export function getEngagementSchedule(twitterHandle: string): DailySchedule {
+  const scheduleKey = getScheduleKey(twitterHandle);
+  if (!scheduleKey) {
+    // Return empty schedule if no mapping found
+    return {};
+  }
+  
+  const schedules = ACCOUNT_SCHEDULES[scheduleKey];
+  return schedules?.engagement || {};
+}
+
+/**
+ * Check if engagement is scheduled for an account at current time
+ */
+export function isEngagementScheduled(twitterHandle: string, date: Date = new Date()): boolean {
+  const dayOfWeek = date.getDay();
+  const hour = date.getHours();
+  const schedule = getEngagementSchedule(twitterHandle);
+  const daySchedule = schedule[dayOfWeek];
+  
+  // Check if the 'engagement' task is listed for the current hour
+  return daySchedule?.[hour]?.includes('engagement') || false;
+}
+
 
 /**
  * Get all available twitter handles with schedules

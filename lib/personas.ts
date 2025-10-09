@@ -147,13 +147,30 @@ export const CRICKET_STORYTELLER: PersonaConfig = {
   ]
 };
 
+// +++ Engagement Persona Addition +++
+// This persona is for engagement only and should not be used for content generation.
+export const BUSINESS_THOUGHT_LEADER: PersonaConfig = {
+  key: 'business_thought_leader',
+  displayName: 'Business Thought Leader 🤝',
+  description: 'Peer-to-peer engagement with data-driven insights, historical parallels, and contrarian perspectives. Not for content generation.',
+  topics: [], // No content generation topics
+  content_types: [], // Not for generating new content
+  thread_templates: [],
+  image_generation: {
+    enabled: false
+  },
+};
+
 // Active personas optimized for current multi-account strategy
 export const PERSONAS: PersonaConfig[] = [
   SATIRIST,
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
-  VOCABULARY_BUILDER, 
+  VOCABULARY_BUILDER,
+  BUSINESS_THOUGHT_LEADER, // + Added new persona
 ] as const;
+
+
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
 

@@ -1090,3 +1090,89 @@ export async function updateTweetImage(
     throw error;
   }
 }
+
+
+
+export interface EngagementLog {
+  id: string;
+  account_id: string;
+  target_username: string;
+  target_tweet_id: string;
+  target_tweet_text?: string;
+  reply_tweet_id?: string;
+  reply_text?: string;
+  discovery_method: string;
+  target_tweet_age_minutes?: number;
+  target_tweet_likes?: number;
+  target_tweet_retweets?: number;
+  reply_likes?: number;
+  engaged_at: string;
+}
+
+/**
+ * Logs a new engagement action into the database.
+ */
+export async function logEngagement(engagement: Omit<EngagementLog, 'id' | 'engaged_at'>): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO engagement_log (
+        account_id, target_username, target_tweet_id, target_tweet_text,
+        reply_tweet_id, reply_text, discovery_method, target_tweet_age_minutes,
+        target_tweet_likes, target_tweet_retweets
+      ) VALUES (
+        ${engagement.account_id},
+        ${engagement.target_username},
+        ${engagement.target_tweet_id},
+        ${engagement.target_tweet_text},
+        ${engagement.reply_tweet_id},
+        ${engagement.reply_text},
+        ${engagement.discovery_method},
+        ${engagement.target_tweet_age_minutes},
+        ${engagement.target_tweet_likes},
+        ${engagement.target_tweet_retweets}
+      )
+    `;
+    console.log(`[Neon] Logged engagement for account ${engagement.account_id} with tweet ${engagement.target_tweet_id}`);
+  } catch (error) {
+    console.error('[Neon] Error logging engagement:', error);
+    // Do not throw, as logging failure should not break the main flow
+  }
+}
+
+/**
+ * Checks how many times an account has engaged today (in UTC).
+ */
+export async function getDailyEngagementCount(accountId: string): Promise<number> {
+  try {
+    const result = await sql`
+      SELECT COUNT(*)
+      FROM engagement_log
+      WHERE account_id = ${accountId}
+        AND DATE(engaged_at) = CURRENT_DATE
+    `;
+    return parseInt(result.rows[0].count, 10);
+  } catch (error) {
+    console.error('[Neon] Error getting daily engagement count:', error);
+    return 999; // Return a high number to prevent further action on error
+  }
+}
+
+/**
+ * Finds the last time an account engaged with a specific target.
+ */
+export async function getLastEngagementForTarget(accountId: string, targetUsername: string): Promise<Date | null> {
+  try {
+    const result = await sql`
+      SELECT engaged_at
+      FROM engagement_log
+      WHERE account_id = ${accountId}
+        AND target_username = ${targetUsername}
+      ORDER BY engaged_at DESC
+      LIMIT 1
+    `;
+    return result.rows.length > 0 ? new Date(result.rows[0].engaged_at) : null;
+  } catch (error) {
+    console.error('[Neon] Error getting last engagement for target:', error);
+    return new Date(); // Return current time to prevent further action on error
+  }
+}

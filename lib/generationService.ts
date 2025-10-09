@@ -151,39 +151,24 @@ function parseAndValidateTweetResponse(
       tweetContent = data.content;
     }
 
-    // Handle optional hashtags array
-    let hashtags: string[] = [];
-    if (data.hashtags && Array.isArray(data.hashtags)) {
-      hashtags = data.hashtags.slice(0, 2);
-    }
-    
-    const hashtagString = hashtags.length > 0 ? '\n\n' + hashtags.map((tag: string) => {
-      // FIX: Remove any existing # symbols and ensure a single # prefix is added back.
-      const cleanTag = tag.trim().replace(/^#+/, '');
-      return cleanTag ? `#${cleanTag}` : '';
-    }).filter(tag => tag.length > 1).join(' ') : '';
-    
+    // Hashtags are now included naturally in the content by the AI
+    // Empty hashtags array kept for backward compatibility
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
-    const totalLength = tweetContent.length + hashtagString.length + ctaString.length;
-    
-    if (totalLength > 270) {
-      console.warn(`Generated tweet exceeds 270 characters (${totalLength}), truncating content...`);
-      const availableLength = 270 - hashtagString.length - ctaString.length;
+    const totalLength = tweetContent.length + ctaString.length;
+
+    if (totalLength > 280) {
+      console.warn(`Generated tweet exceeds 280 characters (${totalLength}), truncating content...`);
+      const availableLength = 280 - ctaString.length;
       if (availableLength > 0) {
         tweetContent = tweetContent.substring(0, availableLength - 3) + '...';
       } else {
         tweetContent = tweetContent.substring(0, 200);
-        hashtags = hashtags.slice(0, 2);
       }
     }
 
     const tweet: EnhancedTweet = {
       content: tweetContent,
-      hashtags: hashtags.map((tag: string) => {
-        // FIX: Ensure consistent hashtag format in the returned data object.
-        const cleanTag = tag.trim().replace(/^#+/, '');
-        return cleanTag ? `#${cleanTag}` : '';
-      }).filter(tag => tag.length > 1),
+      hashtags: [],
       persona: persona,
       category: topic.key.split('_')[1] || 'general',
       topic: topic.key,

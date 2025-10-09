@@ -34,12 +34,13 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
 
   protected addCommonSuffix(prompt: string): string {
     // --- OPTIMIZED CHARACTER LIMIT AND FORMAT INSTRUCTIONS ---
-    return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS: 
-- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 220 CHARACTERS.** (This includes any thread indicators or hashtags.)
-- Aim for readability: 160-220 characters per segment is preferred.
+    return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS:
+- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 280 CHARACTERS.** (This includes any hashtags you add inline.)
+- Aim for readability: 200-270 characters per segment is preferred.
 - FORMAT: Return as valid JSON object. For non-vocabulary personas, use the "content" key.
-- HASHTAGS: Include an empty "hashtags" array [] if none are used.
-- HASHTAG RULE: Use 1-2 maximum. Only include a hashtag if it genuinely adds value (discovery, humor, context). Prefer NO hashtags over mechanical ones.`;
+- HASHTAGS IN CONTENT: Include 1-2 hashtags MAXIMUM naturally distributed across the thread where contextually relevant. Place them inline within the tweet content itself (e.g., "The story of India's startup boom #IndianBusiness"). Do NOT add hashtags if they don't fit naturally.
+- HASHTAGS ARRAY: Always include an empty "hashtags" array [] in your JSON response (this field is deprecated but required for compatibility).
+- HASHTAG RULE: Only include hashtags that genuinely add value (discovery, humor, context). Prefer NO hashtags over forced ones.`;
     // --- END OPTIMIZED INSTRUCTIONS ---
   }
 }

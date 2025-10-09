@@ -18,61 +18,6 @@ export interface ThreadPostResult {
   error?: string;
 }
 
-
-/**
- * Smart hashtag optimization based on character limits and priority
- */
-function optimizeHashtagsForCharacterLimit(content: string, hashtags: string[]): string {
-  const TWITTER_LIMIT = 280;
-  const baseLength = content.length + 2; // +2 for \n\n before hashtags
-  const availableChars = TWITTER_LIMIT - baseLength;
-  
-  if (availableChars <= 0) {
-    console.log(`⚠️ Content too long without hashtags (${content.length} chars), skipping hashtags`);
-    return content;
-  }
-  
-  // Create hashtag candidates with priorities and lengths
-  const candidates = hashtags.map(tag => {
-    const fullTag = `#${tag}`;
-    return {
-      tag: fullTag,
-      priority: 3, // Default priority for unknown tags
-      length: fullTag.length,
-      efficiency: (3) / fullTag.length // Priority per character
-    };
-  });
-  
-  // Sort by priority first, then by efficiency (priority/character ratio)
-  candidates.sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority;
-    return b.efficiency - a.efficiency;
-  });
-  
-  // Greedy selection: pack as many high-priority hashtags as possible
-  const selectedTags: string[] = [];
-  let usedChars = 0;
-  
-  for (const candidate of candidates) {
-    const spaceNeeded = candidate.length + (selectedTags.length > 0 ? 1 : 0); // +1 for space between tags
-    
-    if (usedChars + spaceNeeded <= availableChars) {
-      selectedTags.push(candidate.tag);
-      usedChars += spaceNeeded;
-    }
-  }
-  
-  if (selectedTags.length === 0) {
-    console.log(`⚠️ No hashtags fit in available ${availableChars} characters`);
-    return content;
-  }
-  
-  const finalContent = `${content}\n\n${selectedTags.join(' ')}`;
-  console.log(`✅ Optimized hashtags: ${selectedTags.join(' ')} (${selectedTags.length}/${hashtags.length} tags, ${finalContent.length}/280 chars)`);
-  
-  return finalContent;
-}
-
 /**
  * Post complete thread instantly using twitter-api-v2 tweetThread method
  */
@@ -112,16 +57,11 @@ export async function postCompleteThread(
     
     for (let index = 0; index < threadTweets.length; index++) {
       const tweet = threadTweets[index];
-      
-      // AI-generated content already includes natural thread indicators
-      // No system-generated numbering needed
-      let finalContent = tweet.content;
-      
-      // Add hashtags to the last tweet only, with smart character limit handling
-      if (index === threadTweets.length - 1 && tweet.hashtags && tweet.hashtags.length > 0) {
-        finalContent = optimizeHashtagsForCharacterLimit(finalContent, tweet.hashtags);
-      }
-      
+
+      // AI-generated content already includes natural thread indicators and hashtags
+      // No post-processing needed - post exactly as generated
+      const finalContent = tweet.content;
+
       // Pre-validate character limits
       const sequenceNum = index + 1;
       if (finalContent.length > 280) {
@@ -130,7 +70,7 @@ export async function postCompleteThread(
       } else {
         console.log(`✅ Tweet ${sequenceNum} validated: ${finalContent.length}/280 characters`);
       }
-      
+
       threadContent.push(finalContent);
     }
     

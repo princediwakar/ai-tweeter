@@ -40,14 +40,18 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
     * Personas & Topics: `lib/personas.ts`
     * Scheduling: `lib/schedule.ts`
     * AI Prompting: `lib/generationService.ts`
+    * Base Persona Generator: `lib/generation/personas/base.ts`
+    * Thread Posting: `lib/instantThreadService.ts`
     * Image Rendering: `lib/imageGenerationService.ts`
     * Generation API: `app/api/generate/route.ts`
     * Posting API: `app/api/auto-post/route.ts`
 * **API Separation:** The `/api/generate` route creates content and saves it to the DB. The `/api/auto-post` route reads from the DB and posts to Twitter. Do not mix these concerns.
+* **Hashtag Philosophy:** The AI includes 1-2 hashtags naturally distributed across threads where contextually relevant. Hashtags are embedded directly in tweet content during generation - NO post-processing or appending. The `hashtags` field in the database is kept empty for backward compatibility.
+* **Content Generation:** Tweets are generated as complete, ready-to-post content. What is saved to the database is exactly what gets posted to Twitter - no modifications during posting.
 * **Pre-Commit Checks:** Before any `git commit`, you **must** run `npm run build` and `npm run lint`. Both must pass without errors.
 * **Cron Automation:** The project uses cron-job.org for automated content generation and posting. The APIs leverage existing TypeScript schedule logic.
 * **Documentation:** When significant features are added or changed, update the main project `README.md` to reflect the new state.
-- neon projectID: round-sun-88150229
+* **Neon DB Project ID:** round-sun-88150229
 
 ## ⏰ Cron-job.org Automation
 
@@ -69,4 +73,6 @@ The system uses cron-job.org for automated cron-based content generation and pos
 **Required Environment Variables:**
 - `CRON_SECRET`: Authentication for cron endpoints
 - All other environment variables from production deployment
+
+**Neon DB Project ID for neon mcp
 - neon project id: round-sun-88150229

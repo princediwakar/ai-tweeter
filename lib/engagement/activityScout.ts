@@ -21,6 +21,8 @@ function buildTargetGroupQuery(targets: EngagementTarget[]): string {
 async function isTargetGroupActive(query: string, credentials: { apiKey: string, apiSecret: string, accessToken: string, accessSecret: string }): Promise<boolean> {
   try {
     const lookbackDate = new Date(Date.now() - qualityFilters.lookback_minutes * 60 * 1000);
+    console.log(`[Scout] Checking activity from ${lookbackDate.toISOString()} (${qualityFilters.lookback_minutes} mins ago)`);
+    console.log(`[Scout] Query: "${query}"`);
     const counts = await getRecentTweetCounts(query, lookbackDate.toISOString(), credentials);
     const totalTweets = counts.total_tweet_count;
     console.log(`[Scout] Found ${totalTweets} tweet(s) for query: "${query}" in the last ${qualityFilters.lookback_minutes} mins.`);

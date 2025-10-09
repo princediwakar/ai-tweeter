@@ -81,6 +81,7 @@ export async function getRecentTweetCounts(query: string, startTime: string, cre
   const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
 
   try {
+    console.log(`[Twitter API] Fetching counts for: ${url}`);
     const bearerToken = await getAppBearerToken(credentials);
     const response = await fetch(url, {
       method: 'GET',
@@ -105,6 +106,7 @@ export async function getRecentTweetCounts(query: string, startTime: string, cre
       throw new Error(`Twitter API error on counts: ${response.statusText}`);
     }
     const result = await response.json();
+    console.log(`[Twitter API] Response:`, JSON.stringify(result, null, 2));
     return result.meta;
   } catch (error) {
     console.error('Failed to get recent tweet counts:', error);

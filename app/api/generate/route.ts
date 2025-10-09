@@ -1,9 +1,10 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 // NOTE: Assuming these imports exist and are correct based on your original file structure
-import { generateTweet } from '@/lib/generationService'; 
+import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
-import { saveTweet, generateTweetId, getTweetsByAccount, getActiveAccounts, getAccount, getAccountByTwitterHandle } from '@/lib/db';
+import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
+import { accountService } from '@/lib/accountService';
 import { getCurrentTimeInIST } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { 
@@ -64,15 +65,15 @@ export async function GET(request: NextRequest) {
     }
     
     if (twitterHandle) {
-      const account = await getAccountByTwitterHandle(twitterHandle);
+      const account = await accountService.getAccountByTwitterHandle(twitterHandle);
       if (!account) {
-        return NextResponse.json({ 
-          error: `Account not found for Twitter handle: ${twitterHandle}` 
+        return NextResponse.json({
+          error: `Account not found for Twitter handle: ${twitterHandle}`
         }, { status: 404 });
       }
       return await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
     }
-    
+
     return await generateForAllAccountsEnhanced(request, debugMode);
     
   } catch (error) {
@@ -97,9 +98,9 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const callId = Math.random().toString(36).substring(2, 8);
   
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced', { timestamp: new Date().toISOString() });
-  
+
   // --- Initial Setup & Account Check ---
-  const account = await getAccount(accountId);
+  const account = await accountService.getAccount(accountId);
   if (!account) {
     return NextResponse.json({
       success: false,
@@ -378,8 +379,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
  */
 async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = false) {
   const sessionId = Math.random().toString(36).substring(2, 8);
-  const activeAccounts = await getActiveAccounts();
-  
+  const activeAccounts = await accountService.getAllAccounts();
+
   if (activeAccounts.length === 0) { /* ... no change ... */ }
 
   // Fire off all account generations in parallel

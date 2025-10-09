@@ -1,5 +1,5 @@
 // lib/personas.ts
-import { getAccount } from './db'; // Assumes db.ts is now available from here
+import { accountService } from './accountService';
 
 // Represents a topic/subcategory in the persona hierarchy
 export interface PersonaTopic {
@@ -214,9 +214,8 @@ export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
  * Get allowed personas for a specific account ID (requires account lookup)
  */
 export async function getAllowedPersonasForAccount(accountId: string): Promise<string[]> {
-  // Assuming getAccount is correctly imported from './db' or available in the environment
   try {
-    const account = await getAccount(accountId);
+    const account = await accountService.getAccount(accountId);
     if (!account) {
       return [];
     }
@@ -276,12 +275,12 @@ export function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: s
  * Get random persona from account's allowed personas (requires account lookup)
  */
 export async function getRandomPersonaForAccount(accountId: string, personaKeys?: string[]): Promise<PersonaConfig> {
-  
-  const account = await getAccount(accountId);
+
+  const account = await accountService.getAccount(accountId);
   if (!account) {
     throw new Error(`Account not found: ${accountId}`);
   }
-  
+
   return getRandomPersonaForHandle(account.twitter_handle, personaKeys);
 }
 

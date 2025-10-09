@@ -1,7 +1,8 @@
 // lib/threadGenerationService.ts
 import OpenAI from 'openai';
 import { getPersonaByKey, PersonaConfig } from '@/lib/personas';
-import { getAccount, createThread, saveTweet, generateTweetId } from './db';
+import { createThread, saveTweet, generateTweetId } from './db';
+import { accountService } from './accountService';
 import type { Account, Tweet } from './types';
 import { getThreadTemplate, ThreadTemplate } from './threadTemplates';
 import { logger } from '@/lib/logger'; 
@@ -299,7 +300,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     
     // --- Initial DB Read ---
     const dbReadStart = performance.now();
-    const account = await getAccount(config.account_id);
+    const account = await accountService.getAccount(config.account_id);
     if (!account) {
       throw new Error(`Account not found: ${config.account_id}`);
     }

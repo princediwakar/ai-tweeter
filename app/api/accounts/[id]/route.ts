@@ -1,6 +1,5 @@
 // app/api/accounts/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
 
 export async function GET(
@@ -9,8 +8,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const account = await getAccount(id);
-    
+    const account = await accountService.getAccount(id);
+
     if (!account) {
       return NextResponse.json(
         { error: 'Account not found' },
@@ -59,7 +58,7 @@ export async function PATCH(
     } = body;
 
     // Check if account exists
-    const existingAccount = await getAccount(id);
+    const existingAccount = await accountService.getAccount(id);
     if (!existingAccount) {
       return NextResponse.json(
         { error: 'Account not found' },
@@ -102,7 +101,7 @@ export async function DELETE(
   try {
     const { id } = await params;
     // Check if account exists
-    const existingAccount = await getAccount(id);
+    const existingAccount = await accountService.getAccount(id);
     if (!existingAccount) {
       return NextResponse.json(
         { error: 'Account not found' },

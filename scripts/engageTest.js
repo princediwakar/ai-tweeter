@@ -13,7 +13,7 @@
 // Load environment variables
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local') });
 
-const https = require('https'
+const https = require('https');
 const http = require('http');
 
 // Validate required environment variables

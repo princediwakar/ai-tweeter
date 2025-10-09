@@ -1,6 +1,7 @@
 // app/api/tweets/route.ts
 import { NextResponse } from 'next/server';
-import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets, getAccount } from '@/lib/db';
+import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets } from '@/lib/db';
+import { accountService } from '@/lib/accountService';
 import type { Tweet } from '@/lib/types';
 import { generateTweet, generateBatchTweets } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       let shouldGenerateThread = false;
       
       if (accountId && threadPersonas.includes(personaKey)) {
-        const account = await getAccount(accountId);
+        const account = await accountService.getAccount(accountId);
         if (account && canGenerateThreads(account)) {
           // Generate thread for supported storytelling personas
           shouldGenerateThread = true;

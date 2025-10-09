@@ -2,7 +2,7 @@
 import OpenAI from 'openai';
 import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
 import { EnhancedTweet, VocabularyCard } from './types';
-import { getAccount } from './db';
+import { accountService } from './accountService';
 import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
 import { generateVariationMarkers, generateContentHash, shouldUseRSSSources } from './generation/utils';
@@ -20,9 +20,9 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
   let account: Account | null = null;
-  
+
   if (config.account_id && config.account_id !== 'fallback') {
-    account = await getAccount(config.account_id);
+    account = await accountService.getAccount(config.account_id);
     if (account) {
       console.log(`🎯 Account context: ${account.name} (${account.twitter_handle})`);
     }

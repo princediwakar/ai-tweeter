@@ -12,7 +12,7 @@
  *   node scripts/test.js --account gibbi    # Generate for @gibbi_ai only
  *   node scripts/test.js --account prince   # Generate for @princediwakar25 only
  *   node scripts/test.js --type thread      # Generate threads only
- *   node scripts/test.js --type tweet       # Generate single tweets only
+ *   node scripts/test.js --type tweet    # Generate single tweets only
  *   node scripts/test.js --count 5          # Generate 5 pieces of content
  */
 

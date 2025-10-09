@@ -10,6 +10,7 @@ import { getPersonaGenerator } from './generation/personas';
 import type { TweetGenerationConfig, GenerationContext } from './generation/types';
 import { TweetV2 } from './twitter';
 import { EngagementTarget } from './engagement/targets';
+
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com',
@@ -31,19 +32,22 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   const useRSSSources = shouldUseRSSSources(account);
   console.log(`📰 RSS sources ${useRSSSources ? 'enabled' : 'disabled'} for account: ${account?.name || 'unknown'}`);
   
-  let rssContext = '';
-  if (useRSSSources && config.persona) {
+  // --- START: MODIFIED CONTEXT LOGIC ---
+  // Prioritize pre-fetched context passed from a batch job.
+  let rssContext = config.rssContext || '';
+  
+  // Only fetch context if it wasn't already provided (e.g., for a single tweet generation).
+  if (!rssContext && useRSSSources && config.persona) {
     try {
-      if (['satirist'].includes(config.persona)) {
-        const topicForRSS = config.topic || 'India';
-        rssContext = await getDynamicContext(config.persona, topicForRSS);
-        console.log(`📰 Fetched RSS context for ${config.persona}: ${rssContext.length > 0 ? 'success' : 'no content'}`);
-      }
+        // The topic passed here is now ignored by the new satirist logic in getDynamicContext, which is what we want.
+        rssContext = await getDynamicContext(config.persona, config.topic || '');
+        console.log(`📰 (Single Fetch) Fetched RSS context for ${config.persona}: ${rssContext.length > 0 ? 'success' : 'no content'}`);
     } catch (error) {
-      console.warn('⚠️ Failed to fetch RSS context, continuing without it:', error);
+      console.warn('⚠️ Failed to fetch RSS context for single tweet, continuing without it:', error);
     }
   }
-  
+  // --- END: MODIFIED CONTEXT LOGIC ---
+
   let persona: PersonaConfig | undefined;
   
   if (config.persona) {
@@ -152,8 +156,6 @@ function parseAndValidateTweetResponse(
       tweetContent = data.content;
     }
 
-    // Hashtags are now included naturally in the content by the AI
-    // Empty hashtags array kept for backward compatibility
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
     const totalLength = tweetContent.length + ctaString.length;
 
@@ -243,7 +245,6 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
 async function getRecentVocabularyWords(accountId: string, days: number = 30): Promise<string[]> {
   try {
-    // Import here to avoid circular dependency
     const { sql } = await import('@vercel/postgres');
     
     const result = await sql`
@@ -284,29 +285,38 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   const tweets: EnhancedTweet[] = [];
   const generatedWords: string[] = [];
   
-  // Get recent words from database to avoid repetition
   let recentWords: string[] = [];
   if (config.account_id && config.persona === 'english_vocab_builder') {
     recentWords = await getRecentVocabularyWords(config.account_id, 30);
     console.log(`📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`);
   }
 
+  // --- START: MODIFIED BATCH LOGIC ---
+  // Fetch context ONCE for the entire batch to ensure efficiency and provide the same pool of news to each generator.
+  let batchRssContext = '';
+  if (config.persona && shouldUseRSSSources(null)) {
+    try {
+      batchRssContext = await getDynamicContext(config.persona, '');
+    } catch (error) {
+      console.error("❌ Failed to fetch batch of dynamic contexts. Proceeding without them.", error);
+    }
+  }
+
   for (let i = 0; i < count; i++) {
-    // Combine recent database words with current batch words
     const allPreviousWords = [...recentWords, ...generatedWords];
     
-    const batchConfig = {
+    const batchConfig: TweetGenerationConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
-      previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined
+      previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined,
+      rssContext: batchRssContext // Pass the same pre-fetched context to each iteration.
     };
     
     const result = await generateTweet(batchConfig);
     
     if (result) {
       tweets.push(result);
-      // Track the word for vocabulary builder persona to prevent duplicates
       if (result.persona === 'english_vocab_builder' && result.cardData?.word) {
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
@@ -314,14 +324,13 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
       }
     }
   }
+  // --- END: MODIFIED BATCH LOGIC ---
 
   console.log(`📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`);
   console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
   console.log(`🚫 Avoided ${recentWords.length} recent words from database`);
   return tweets;
 }
-
-
 
 /**
  * Generates a reply to a tweet based on a specific persona.
@@ -360,8 +369,8 @@ Reply:
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.8, // Slightly lower temp for more focused replies
-      max_tokens: 80,   // Max chars is 280, 80 tokens is a safe limit
+      temperature: 0.8,
+      max_tokens: 80,
     });
     const replyText = response.choices[0].message.content;
     
@@ -370,7 +379,6 @@ Reply:
         return null;
     }
     
-    // Basic cleanup: remove quotes and trim whitespace
     const cleanedReply = replyText.replace(/"/g, '').trim();
     
     console.log(`[Generator] Generated reply: "${cleanedReply}"`);

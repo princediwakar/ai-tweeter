@@ -60,10 +60,10 @@
 ```typescript
 {
   min_tweet_age_minutes: 1,    
-  max_tweet_age_minutes: 20,   // Top 20 window closed
+  max_tweet_age_minutes: 160,   // Top 20 window closed
   min_tweet_likes: 5,           // Filter spam
   max_tweet_likes: 1000,        // Too competitive
-  lookback_minutes: 15,
+  lookback_minutes: 150,
   max_tweets_per_retrieval: 2,
   exclude_image_only_tweets: true // Avoid tweets where AI lacks context
 }

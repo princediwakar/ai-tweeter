@@ -14,6 +14,7 @@ export interface TweetGenerationConfig {
   batchPosition?: number;
   batchSize?: number;
   previousWords?: string[];
+  rssContext?: string; 
 }
 
 import type { Account } from '../types';

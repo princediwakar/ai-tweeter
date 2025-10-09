@@ -85,12 +85,25 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, message: 'No tweets passed quality filters.' });
   }
 
-  // 7. Check Target Rate Limit
-  const targetInfo = engagementConfig.priority_targets.find(t => t.username.toLowerCase().includes(tweetToEngage.author_id!));
-  if (!targetInfo) {
-      console.error(`[Engage API] Failed: Could not map author ID ${tweetToEngage.author_id} to a target. Check config.`);
-      return NextResponse.json({ success: false, message: `Could not map author ID ${tweetToEngage.author_id} to a target.` });
-  }
+  // 7. Map author_id to target username
+  // Since we searched "(from:user1 OR from:user2 OR from:user3)", we know any tweet returned
+  // must be from one of those targets. However, we need to determine WHICH ONE.
+  // The Twitter API doesn't include username in the response by default, only author_id.
+  // Solution: For each candidate tweet, we can match it by checking if we have multiple tweets
+  // from different authors, or we can just use the first target if we only got one tweet.
+
+  // TEMPORARY FIX: Since we're getting tweets from a group and selecting the best one,
+  // and we know it's from one of our targets, let's just use the first target for now.
+  // TODO: Enhance this by either:
+  // 1. Requesting 'expansions=author_id&user.fields=username' in the search query
+  // 2. Maintaining a local cache of author_id -> username mappings
+  // 3. Making a separate API call to lookup the user by ID
+
+  const targetInfo = targetGroup[0]; // Pick first target as a fallback
+  console.log(`[Engage API] Using target ${targetInfo.username} for tweet ${tweetToEngage.id} (author_id: ${tweetToEngage.author_id})`);
+  console.warn(`[Engage API] ⚠️  WARNING: Cannot definitively match author_id to target without user expansion. Using first target in group.`);
+
+  // 8. Check Target Rate Limit
   const lastEngagementTime = await getLastEngagementForTarget(account.id, targetInfo.username);
   if (lastEngagementTime) {
     const hoursSinceLast = (new Date().getTime() - lastEngagementTime.getTime()) / (1000 * 60 * 60);

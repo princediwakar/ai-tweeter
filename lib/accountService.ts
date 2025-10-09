@@ -94,6 +94,42 @@ class AccountService {
     this.cacheExpiry.set(accountId, Date.now() + this.cacheTimeout);
   }
 
+  private async retryQuery<T>(
+    queryFn: () => Promise<T>,
+    maxRetries = 2,
+    retryDelayMs = 2000
+  ): Promise<T> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await queryFn();
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Check if it's a connection/timeout error that's worth retrying
+        const errorMessage = lastError.message.toLowerCase();
+        const isRetryable =
+          errorMessage.includes('timeout') ||
+          errorMessage.includes('connect') ||
+          errorMessage.includes('econnrefused') ||
+          errorMessage.includes('fetch failed');
+
+        if (!isRetryable || attempt === maxRetries) {
+          throw lastError;
+        }
+
+        console.log(`[AccountService] Query failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${retryDelayMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+
+        // Exponential backoff
+        retryDelayMs *= 1.5;
+      }
+    }
+
+    throw lastError || new Error('Query failed after retries');
+  }
+
   private mapRowToAccount(row: AccountRow): AccountWithCredentials {
     return {
       id: row.id,
@@ -302,25 +338,27 @@ class AccountService {
     const withoutPrefix = twitterHandle.replace('@', '');
 
     try {
-      // Try with @ prefix first (most common storage format)
-      let result = await sql`
-        SELECT * FROM accounts
-        WHERE twitter_handle = ${withPrefix} AND status = 'active'
-      `;
-      
-      // If not found, try without @ prefix
-      if (result.rows.length === 0) {
-        result = await sql`
+      return await this.retryQuery(async () => {
+        // Try with @ prefix first (most common storage format)
+        let result = await sql`
           SELECT * FROM accounts
-          WHERE twitter_handle = ${withoutPrefix} AND status = 'active'
+          WHERE twitter_handle = ${withPrefix} AND status = 'active'
         `;
-      }
-      
-      if (result.rows.length === 0) return null;
-      
-      const account = this.mapRowToAccount(result.rows[0] as AccountRow);
-      this.setCacheEntry(account.id, account);
-      return account;
+
+        // If not found, try without @ prefix
+        if (result.rows.length === 0) {
+          result = await sql`
+            SELECT * FROM accounts
+            WHERE twitter_handle = ${withoutPrefix} AND status = 'active'
+          `;
+        }
+
+        if (result.rows.length === 0) return null;
+
+        const account = this.mapRowToAccount(result.rows[0] as AccountRow);
+        this.setCacheEntry(account.id, account);
+        return account;
+      });
     } catch (error) {
       console.error('Error getting account by twitter handle:', error);
       return null;

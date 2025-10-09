@@ -341,7 +341,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     }
   }
   
-  let batchSize = 2; // Default for threads
+  let batchSize = 1; // Default for threads
   if (metadata) {
     if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
       batchSize = 2; // Educational content can be batched larger
@@ -352,7 +352,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
       } else if (personas.length === 1 && (personas[0] === THREAD_A || personas[0] === THREAD_B)) {
           batchSize = 1; // Only one thread template per generation run
       } else {
-          batchSize = 2; // Fallback for multi-persona/topic runs (rare in optimized schedule)
+          batchSize = 1; // Fallback for multi-persona/topic runs (rare in optimized schedule)
       }
     }
   }

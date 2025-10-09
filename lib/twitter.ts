@@ -79,7 +79,7 @@ export async function getRecentTweetCounts(query: string, startTime: string, cre
   const endpoint = 'https://api.twitter.com/2/tweets/counts/recent';
   const queryParams = { query, start_time: startTime };
   const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
-  
+
   try {
     const bearerToken = await getAppBearerToken(credentials);
     const response = await fetch(url, {
@@ -90,6 +90,16 @@ export async function getRecentTweetCounts(query: string, startTime: string, cre
     });
 
     if (!response.ok) {
+      // Handle rate limiting specially
+      if (response.status === 429) {
+        const resetTime = response.headers.get('x-rate-limit-reset');
+        const resetDate = resetTime ? new Date(parseInt(resetTime) * 1000) : null;
+        const waitMinutes = resetDate ? Math.ceil((resetDate.getTime() - Date.now()) / 60000) : 'unknown';
+
+        console.warn(`⏰ [Twitter API] Rate limit hit on tweet counts. Resets in ~${waitMinutes} minutes.`);
+        throw new Error(`RATE_LIMIT:${waitMinutes}`);
+      }
+
       const errorText = await response.text();
       console.error('Error fetching tweet counts:', JSON.parse(errorText));
       throw new Error(`Twitter API error on counts: ${response.statusText}`);

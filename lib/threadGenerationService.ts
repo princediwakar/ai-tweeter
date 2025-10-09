@@ -167,23 +167,38 @@ STORY BRIEF: ${template.story_prompt}
 
 CREATIVE APPROACH:
 • Find compelling, lesser-known stories or fresh angles on known stories
-• Focus on emotional depth and meaningful insights
 • Use conversational storytelling tone with natural flow
 • Include human elements and specific, memorable details
 • Each thread should be completely unique and original
 
 PERSONA-SPECIFIC REQUIREMENTS:
 ${specificRequirements}
-• Use Twitter handles (@username) when mentioning people/companies
-• Start with an engaging hook and maintain narrative pacing
+• Use real X (formerly Twitter) handles (@username) when mentioning people/companies
 • Each tweet should be standalone engaging while advancing the story
 
 
-THREADING FORMAT - NATURAL & HUMAN:
-• Mix varied thread indicators: "1/7 🧵", "3/", "6/7"  
-• Use conversational transitions: "But here's the twist...", "The real lesson?", "Here's what happened next:"
-• Place indicators naturally at start OR end of tweets, NEVER mid-sentence
-• Keep language simple, conversational, readable - avoid corporate speak
+TWEET SHAREABILITY - CRITICAL FOR VIRALITY:
+• EVERY SINGLE TWEET must be a COMPLETE, shareable statement that delivers standalone value
+• Each tweet should be quotable and screenshot-worthy - people should want to share individual tweets even without the full thread
+• Use power words, specific numbers, dramatic contrasts, and concrete details in EVERY tweet
+• Include emotional elements (inspiration, shock, wisdom, surprise) throughout the thread
+
+FIRST TWEET REQUIREMENTS (THE HOOK):
+• The opening tweet is THE MOST IMPORTANT - it sets the tone and drives clicks
+• Must deliver a complete insight, fact, or story summary upfront
+• Examples of complete, shareable first tweets:
+  - "In 2008, Narayana Murthy took a 100% pay cut to save Infosys from bankruptcy. That decision saved 10,000 jobs and built a $2B company."
+  - "The 7-minute meeting between Dhoni and Kohli in 2014 changed Indian cricket's leadership philosophy forever. Here's what happened in that room."
+  - "Ritesh Agarwal dropped out of college at 17, got rejected by 100 investors, and turned a $25,000 loan into OYO - India's youngest unicorn. The full story:"
+• First tweet delivers the GIST - who, what, outcome. Thread adds the "how" and "why".
+
+MIDDLE & ENDING TWEETS REQUIREMENTS:
+• Each subsequent tweet must advance the story while being independently valuable
+• Make every tweet quotable with specific insights, numbers, or revelations
+• Use cliffhangers, surprises, and "turning points" to maintain engagement
+• Final tweet should include a powerful lesson or takeaway that stands alone
+• Avoid filler tweets - every single tweet must earn its place in the thread
+
 
 CHARACTER LIMITS - ABSOLUTELY CRITICAL:
 • EACH TWEET MUST BE UNDER 240 CHARACTERS (including thread indicators like "1/7")

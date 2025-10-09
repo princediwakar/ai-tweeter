@@ -31,6 +31,11 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
 * **Content Focus:** In-depth storytelling about Indian business and cricket. Also includes a `satirist` persona for single tweets.
 * **Format:** **Narrative threads (6-7 tweets) are the primary output.**
 * **Structure:** Threads must follow a clear narrative arc: Hook, Context, Climax, and Lesson.
+* **First Tweet Shareability:** The first tweet of every thread is optimized for maximum virality and shareability. It must include:
+    - An intriguing hook with specific numbers or dramatic contrasts
+    - Quotable, screenshot-worthy content
+    - Emotional elements (inspiration, shock, curiosity)
+    - Power words that make people want to share immediately
 * **Tone:** Insightful, expert storyteller with deep knowledge of the subject.
 
 ## 💻 Technical & Workflow Constraints
@@ -41,6 +46,7 @@ The primary goal is a **production-grade, multi-account Twitter automation syste
     * Scheduling: `lib/schedule.ts`
     * AI Prompting: `lib/generationService.ts`
     * Base Persona Generator: `lib/generation/personas/base.ts`
+    * Thread Generation: `lib/threadGenerationService.ts` (includes shareability optimization)
     * Thread Posting: `lib/instantThreadService.ts`
     * Image Rendering: `lib/imageGenerationService.ts`
     * Generation API: `app/api/generate/route.ts`

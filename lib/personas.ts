@@ -217,9 +217,6 @@ export async function getRandomPersonaForAccount(accountId: string, personaKeys?
   return getRandomPersonaForHandle(account.twitter_handle, personaKeys);
 }
 
-export function getHashtagsForPersona(persona: PersonaConfig, variation = 0): string[] {
-  return [];
-}
 
 export function getAllPersonas(): PersonaConfig[] {
   return PERSONAS;

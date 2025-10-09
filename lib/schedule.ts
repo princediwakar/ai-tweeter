@@ -33,7 +33,9 @@ interface AccountSchedules {
 const gibbiGenerationPattern: HourlySchedule = {
   8: ['english_vocab_builder'],        // Mid-day generation
   11: ['english_vocab_builder'],        // Afternoon generation
-  12: ['english_vocab_builder'],        // Afternoon generation
+  16: ['english_vocab_builder'],        // Afternoon generation
+  19: ['english_vocab_builder'],        // Afternoon generation
+  21: ['english_vocab_builder'],        // Afternoon generation
 };
 
 const gibbiPostingPattern: HourlySchedule = {
@@ -41,7 +43,7 @@ const gibbiPostingPattern: HourlySchedule = {
   12: ['english_vocab_builder'],        // Lunch break (Global)
   17: ['english_vocab_builder'],        // Afternoon (US East Coast morning)
   20: ['english_vocab_builder'],        // Prime time (IST)
-  23: ['english_vocab_builder'],        // Late Night (US West Coast evening)
+  22: ['english_vocab_builder'],        // Late Night (US West Coast evening)
 };
 
 /**
@@ -79,7 +81,10 @@ const princePostingPattern: DailySchedule = {
 
 const princeEngagementPattern: HourlySchedule = {
   9: ['engagement'],   // Morning window: 9:00, 9:15, 9:30, 9:45
-  20: ['engagement']   // Evening window: 20:00, 20:15, 20:30, 20:45
+  10: ['engagement'],   // Morning window: 10:00, 10:15, 10:30, 10:45
+  11: ['engagement'],   // Morning window 11:00,119:15, 11:30, 11:45
+  20: ['engagement'],   // Evening window: 20:00, 20:15, 20:30, 20:45
+  21: ['engagement']   // Evening window: 21:00, 21:15, 21:30, 21:45
 };
 
 // Twitter handle mapping - maps twitter handles to schedule keys
@@ -344,7 +349,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   let batchSize = 1; // Default for threads
   if (metadata) {
     if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
-      batchSize = 2; // Educational content can be batched larger
+      batchSize = 1; // Educational content can be batched larger
     } else if (twitterHandle === '@princediwakar25') {
       // If the scheduled persona is Satirist, only generate one post
       if (personas.length === 1 && personas[0] === 'satirist') {

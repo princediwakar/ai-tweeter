@@ -1,13 +1,14 @@
 // lib/engagement/config.ts
 
 export const qualityFilters = {
-    min_tweet_age_minutes: 1,    
-    max_tweet_age_minutes: 20,   // The top 20-minute window for engagement
-    min_tweet_likes: 5,          // Filter out spam or low-traction tweets
-    max_tweet_likes: 1000,       // Avoid overly competitive tweets
-    lookback_minutes: 15,        // How far back the Counts API should check
-    max_tweets_per_retrieval: 2, // Limit quota usage per active check
-    exclude_image_only_tweets: true, // Avoid tweets where AI lacks visual context
+    min_tweet_age_minutes: 1,        // Engage quickly but not immediately
+    max_tweet_age_minutes: 20,      
+    min_tweet_likes: 2,              // Lower threshold for very recent tweets
+    max_tweet_likes: 1000,           // Higher threshold for popular influencers
+    min_text_length: 150,            // Require substantive tweets (not just images)
+    lookback_minutes: 20,           
+    max_tweets_per_retrieval: 2,    // Keep it 2 otherwise it might cross the reads limit per month (100)
+    exclude_image_only_tweets: false, // Allow image tweets (we'll check text length instead)
   };
-  
+
   export type QualityFilters = typeof qualityFilters;

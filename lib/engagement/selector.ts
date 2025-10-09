@@ -23,7 +23,14 @@ function isTweetValid(tweet: TweetV2): boolean {
     return false;
   }
 
-  console.log(`[Selector] Approving tweet ${tweet.id}: Age=${ageMinutes.toFixed(1)}min, Likes=${likes}`);
+  // Check text length (minimum substantive content)
+  const textLength = tweet.text?.length ?? 0;
+  if (textLength < qualityFilters.min_text_length) {
+    console.log(`[Selector] Rejecting tweet ${tweet.id}: Text length (${textLength}) is below minimum (${qualityFilters.min_text_length}).`);
+    return false;
+  }
+
+  console.log(`[Selector] Approving tweet ${tweet.id}: Age=${ageMinutes.toFixed(1)}min, Likes=${likes}, TextLength=${textLength}`);
   return true;
 }
 

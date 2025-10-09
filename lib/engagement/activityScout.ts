@@ -6,14 +6,12 @@ import { EngagementTarget } from './targets';
 
 /**
  * Constructs a Twitter search query for a group of targets.
- * Excludes retweets, replies, and optionally tweets with images.
+ * Excludes retweets and replies. Allows images since we filter by text length.
  */
 function buildTargetGroupQuery(targets: EngagementTarget[]): string {
   const fromClauses = targets.map(t => `from:${t.username.replace('@', '')}`).join(' OR ');
-  let query = `(${fromClauses}) -is:retweet -is:reply`;
-  if (qualityFilters.exclude_image_only_tweets) {
-    query += ' -has:images';
-  }
+  const query = `(${fromClauses}) -is:retweet -is:reply`;
+  // Note: We no longer exclude images. Text length filter handles quality.
   return query;
 }
 

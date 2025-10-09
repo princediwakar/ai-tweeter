@@ -101,9 +101,12 @@ const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
 
 /**
  * Map twitter handle to schedule key
+ * Handles both @username and username formats
  */
 function getScheduleKey(twitterHandle: string): string | undefined {
-  return TWITTER_HANDLE_MAPPING[twitterHandle];
+  // Normalize the handle by ensuring it starts with @
+  const normalizedHandle = twitterHandle.startsWith('@') ? twitterHandle : `@${twitterHandle}`;
+  return TWITTER_HANDLE_MAPPING[normalizedHandle];
 }
 
 // Enhanced account-specific schedules with metadata and strategy information
@@ -226,20 +229,26 @@ export function getScheduledPersonasForPosting(
 
 /**
  * Check if generation is scheduled for an account at current time
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function isGenerationScheduled(twitterHandle: string, date: Date = new Date()): boolean {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   const personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
   return personas.length > 0;
 }
 
 /**
  * Check if posting is scheduled for an account at current time
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function isPostingScheduled(twitterHandle: string, date: Date = new Date()): boolean {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
   return personas.length > 0;
 }
@@ -264,13 +273,16 @@ export function getEngagementSchedule(twitterHandle: string): DailySchedule {
 
 /**
  * Check if engagement is scheduled for an account at current time
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function isEngagementScheduled(twitterHandle: string, date: Date = new Date()): boolean {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   const schedule = getEngagementSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
-  
+
   // Check if the 'engagement' task is listed for the current hour
   return daySchedule?.[hour]?.includes('engagement') || false;
 }
@@ -298,6 +310,7 @@ export function getAccountMetadata(twitterHandle: string): AccountSchedules['met
 
 /**
  * Get current scheduled activity for all accounts (for monitoring/debugging)
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function getCurrentScheduledActivity(date: Date = new Date()): {
   twitterHandle: string;
@@ -305,8 +318,10 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
   generation_personas: string[];
   posting_personas: string[];
 }[] {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   
   return getScheduledTwitterHandles().map(twitterHandle => {
     const generationPersonas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
@@ -325,6 +340,7 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
 /**
  * Check if an account should generate content at current time with batch size information
  * Inspired by YouTube system's intelligent batch management
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function getGenerationBatchInfo(twitterHandle: string, date: Date = new Date(), debugMode: boolean = false): {
   should_generate: boolean;
@@ -332,8 +348,10 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   batch_size: number;
   account_strategy: string;
 } {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   let personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
   const metadata = getAccountMetadata(twitterHandle);
   
@@ -375,6 +393,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
 /**
  * Get posting eligibility with intelligent rate limiting
  * Inspired by YouTube system's account-aware posting logic
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
  */
 export function getPostingEligibility(twitterHandle: string, date: Date = new Date()): {
   should_post: boolean;
@@ -382,8 +401,10 @@ export function getPostingEligibility(twitterHandle: string, date: Date = new Da
   max_posts_this_hour: number;
   account_strategy: string;
 } {
-  const dayOfWeek = date.getDay();
-  const hour = date.getHours();
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
   const metadata = getAccountMetadata(twitterHandle);
   

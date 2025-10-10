@@ -6,12 +6,8 @@
       { "username": "@vijayshekhar", "description": "Founder of Paytm", "tier": 1 },
       { "username": "@nikhilkamathcio", "description": "Co-founder of Zerodha, angel investor", "tier": 1 },
       { "username": "@deepigoyal", "description": "Co-founder of Razorpay, investor", "tier": 1 },
-      { "username": "@warikoo", "description": "Entrepreneur and content creator", "tier": 1 },
-      { "username": "@sachin_rt", "description": "Legendary Indian Cricketer", "tier": 1 },
       { "username": "@bhogleharsha", "description": "Renowned Cricket Commentator", "tier": 1 },
       { "username": "@shradhakaushik", "description": "Founder of The Ken, startup insights", "tier": 2 },
-      { "username": "@amitag", "description": "Co-founder of Lumikai, gaming and tech insights", "tier": 2 },
-      { "username": "@abhishekg", "description": "Co-founder of Groww, fintech insights", "tier": 2 },
       { "username": "@balajis", "description": "Former CTO Coinbase, startup and tech strategist", "tier": 2 },
       { "username": "@sahilbloom", "description": "Investor and writer on startups and growth", "tier": 2 },
       { "username": "@naval", "description": "AngelList co-founder, philosophy on startups", "tier": 2 },
@@ -19,7 +15,7 @@
       { "username": "@StartupStoryIND", "description": "Shares stories and breakdowns of Indian startups, 80k followers", "tier": 2 },
       { "username": "@stats_feed", "description": "Shares data-driven insights and statistics, 50k followers", "tier": 2 }
     ],
-    "engagement_persona": "the_signal",
+    "engagement_persona": "the_catalyst",
     "rules": {
       "max_engagements_per_day": 3,
       "min_hours_between_same_target": 4

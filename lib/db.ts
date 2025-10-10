@@ -121,7 +121,18 @@ function getProperty(obj: Record<string, unknown>, snakeCase: string, camelCase:
   return typeof value === 'string' ? value : undefined;
 }
 
-export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?: string }): Promise<void> {
+
+
+/**
+ * Saves or updates a single tweet.
+ * This function has been simplified to run as a standalone query.
+ *
+ * @param tweet The tweet object to save.
+ */
+export async function saveTweet(
+  tweet: Omit<Tweet, 'created_at'> & { createdAt?: string }
+): Promise<void> {
+  // In-memory logic for testing/development
   if (USE_IN_MEMORY) {
     const tweetObj = tweet as Record<string, unknown>;
     const newTweet: Tweet = {
@@ -137,8 +148,10 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
       twitter_url: getProperty(tweetObj, 'twitter_url', 'twitterUrl'),
       error_message: getProperty(tweetObj, 'error_message', 'errorMessage'),
       image_url: getProperty(tweetObj, 'image_url', 'imageUrl'),
+      image_status: (getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status'],
+      card_data: getProperty(tweetObj, 'card_data', 'cardData'),
+      source_url: getProperty(tweetObj, 'source_url', 'sourceUrl'),
       quality_score: tweetObj.quality_score ? JSON.stringify(tweetObj.quality_score) : (tweetObj.qualityScore ? JSON.stringify(tweetObj.qualityScore) : undefined),
-      // Threading support
       content_type: tweet.content_type || 'single_tweet',
       thread_id: tweetObj.thread_id as string | undefined,
       thread_sequence: tweetObj.thread_sequence as number | undefined,
@@ -146,14 +159,11 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
       hook_type: tweetObj.hook_type as 'opener' | 'context' | 'crisis' | 'resolution' | 'lesson' | undefined
     };
 
-    // Find existing tweet and update or add new
     const existingIndex = inMemoryTweets.findIndex(t => t.id === tweet.id);
     if (existingIndex >= 0) {
       inMemoryTweets[existingIndex] = newTweet;
-      console.log(`[Memory] Updated tweet ${tweet.id}`);
     } else {
       inMemoryTweets.push(newTweet);
-      console.log(`[Memory] Saved new tweet ${tweet.id}`);
     }
     return;
   }
@@ -161,13 +171,13 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
   try {
     const tweetObj = tweet as Record<string, unknown>;
     
-    console.log(`[Neon] Executing saveTweet SQL query for tweet ${tweet.id}`);
+    // Using the global 'sql' object for the query.
     await sql`
       INSERT INTO tweets (
         id, account_id, content, hashtags, persona, posted_at, 
         twitter_id, twitter_url, error_message, image_url, status, created_at, quality_score,
         thread_id, thread_sequence, parent_twitter_id, content_type, hook_type,
-        image_status, card_data
+        image_status, card_data, source_url
       ) VALUES (
         ${tweet.id},
         ${tweet.account_id},
@@ -187,8 +197,9 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
         ${(tweetObj.parent_twitter_id as string) || null},
         ${tweet.content_type || 'single_tweet'},
         ${(tweetObj.hook_type as string) || null},
-        ${getProperty(tweetObj, 'image_status', 'imageStatus') || 'none'},
-        ${getProperty(tweetObj, 'card_data', 'cardData')}
+        ${(getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status']},
+        ${getProperty(tweetObj, 'card_data', 'cardData')},
+        ${getProperty(tweetObj, 'source_url', 'sourceUrl')}
       )
       ON CONFLICT (id) 
       DO UPDATE SET
@@ -208,15 +219,19 @@ export async function saveTweet(tweet: Omit<Tweet, 'created_at'> & { createdAt?:
         content_type = EXCLUDED.content_type,
         hook_type = EXCLUDED.hook_type,
         image_status = EXCLUDED.image_status,
-        card_data = EXCLUDED.card_data
+        card_data = EXCLUDED.card_data,
+        source_url = EXCLUDED.source_url
     `;
     
-    console.log(`[Neon] Saved tweet ${tweet.id}`);
   } catch (error) {
-    console.error('[Neon] Error saving tweet:', error);
+    console.error(`[Neon] Error saving tweet ${tweet.id}:`, error);
     throw error;
   }
 }
+
+
+
+
 
 export async function getReadyTweets(): Promise<Tweet[]> {
   try {

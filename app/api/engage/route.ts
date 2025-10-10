@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const minute = now.getMinutes();
   const targets = engagementConfig.priority_targets;
-  const groupSize = 3; 
+  const groupSize = 4; 
   const groupIndex = Math.floor(minute / 15) % Math.ceil(targets.length / groupSize);
   const targetGroup = targets.slice(groupIndex * groupSize, (groupIndex + 1) * groupSize);
 

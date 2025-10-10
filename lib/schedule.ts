@@ -51,33 +51,35 @@ const gibbiPostingPattern: HourlySchedule = {
  * Frequency: Low (2 posts/day max) for high quality/long-form content
  */
 
+// --- ALTERNATIVE: HIGHER-VOLUME SCHEDULE ---
+
 // Thread A: Business Storyteller
 const THREAD_A = 'business_storyteller'; 
 // Thread B: Cricket Storyteller
 const THREAD_B = 'cricket_storyteller';
 
 const princeGenerationPattern: DailySchedule = {
-  // Generation: Shifted Satirist generation later for the freshest news
-  0: { 8: ['satirist'], 16: [THREAD_A] }, // Sunday: Business
-  1: { 8: ['satirist'], 16: [THREAD_B] }, // Monday: Cricket
-  2: { 8: ['satirist'], 16: [THREAD_A] }, // Tuesday: Business (Peak Engagement Day)
-  3: { 8: ['satirist'], 16: [THREAD_B] }, // Wednesday: Cricket (Peak Engagement Day)
-  4: { 8: ['satirist'], 16: [THREAD_A] }, // Thursday: Business
-  5: { 8: ['satirist'], 16: [THREAD_B] }, // Friday: Cricket
-  6: { 8: ['satirist'], 16: [THREAD_A] }, // Saturday: Business (Weekend high activity)
+  // Strategy: Three daily "Reframer" takes for consistent presence, with threads on peak days.
+  // Total per week: 21 Satirist, 3 Threads
+  0: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Sunday
+  1: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Monday
+  2: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], 17: ['satirist'] }, // Tuesday
+  3: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_B], 17: ['satirist'] }, // Wednesday
+  4: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Thursday
+  5: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Friday
+  6: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], 17: ['satirist'] }, // Saturday
 };
 
 const princePostingPattern: DailySchedule = {
-  // Posting: Optimized for Satire (Morning) and Thread (Prime Time)
-  0: { 9: ['satirist'], 20: [THREAD_A] }, // Sunday
-  1: { 9: ['satirist'], 20: [THREAD_B] }, // Monday
-  2: { 9: ['satirist'], 20: [THREAD_A] }, // Tuesday
-  3: { 9: ['satirist'], 20: [THREAD_B] }, // Wednesday
-  4: { 9: ['satirist'], 20: [THREAD_A] }, // Thursday
-  5: { 9: ['satirist'], 20: [THREAD_B] }, // Friday
-  6: { 9: ['satirist'], 20: [THREAD_A] }, // Saturday
+  // Posting: Morning (9 AM), Midday (2 PM), and Evening (6 PM). Threads in prime time (8 PM).
+  0: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Sunday
+  1: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Monday
+  2: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Tuesday
+  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_B] }, // Wednesday
+  4: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Thursday
+  5: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Friday
+  6: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Saturday
 };
-
 
 const princeEngagementPattern: HourlySchedule = {
   9: ['engagement'],   // Morning window: 9:00, 9:15, 9:30, 9:45

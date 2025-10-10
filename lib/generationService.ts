@@ -1,6 +1,7 @@
 // lib/generationService.ts
 import OpenAI from 'openai';
 import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
+// MODIFIED: Added sourceUrl to the EnhancedTweet type import
 import { EnhancedTweet, VocabularyCard } from './types';
 import { accountService } from './accountService';
 import type { Account } from './types';
@@ -16,7 +17,8 @@ const deepseekClient = new OpenAI({
   baseURL: 'https://api.deepseek.com',
 });
 
-async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown }> {
+// ... (generateTweetPrompt function remains unchanged) ...
+async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown; rssContext?: string }> {
   const markers = generateVariationMarkers();
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
@@ -120,18 +122,44 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   return {
     prompt,
     persona,
-    topic
+    topic,
+    rssContext
   };
 }
 
+// MODIFIED: Function signature and logic updated to extract and return sourceUrl
 function parseAndValidateTweetResponse(
-  content: string, 
-  persona: string, 
-  topic: { key: string; displayName: string }
-): { tweet: EnhancedTweet; cardData: VocabularyCard | null } | null {
+  content: string,
+  persona: string,
+  topic: { key: string; displayName: string },
+  rssContext?: string
+): { tweet: EnhancedTweet; cardData: VocabularyCard | null; sourceUrl: string | undefined } | null {
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
     const data = JSON.parse(cleanedContent);
+    let sourceUrl: string | undefined;
+
+    if (rssContext) {
+      if (persona === 'satirist') {
+        if (data.selectedHeadlineNumber) {
+          const headlineNumber = data.selectedHeadlineNumber;
+          const sourcePattern = new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm');
+          const match = rssContext.match(sourcePattern);
+          if (match && match[1]) {
+            sourceUrl = match[1].trim();
+            console.log(`📰 [Satirist] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
+          }
+        }
+      } else if (['business_storyteller', 'cricket_storyteller'].includes(persona)) {
+        // Generic extraction for personas with a "Primary News Item"
+        const sourcePattern = /Source URL \(for context\): (https?:\/\/\S+)/m;
+        const match = rssContext.match(sourcePattern);
+        if (match && match[1]) {
+          sourceUrl = match[1].trim();
+          console.log(`📰 [${persona}] Extracted Primary News Item source: ${sourceUrl}`);
+        }
+      }
+    }
 
     let cardData: VocabularyCard | null = null;
     let tweetContent: string;
@@ -180,7 +208,8 @@ function parseAndValidateTweetResponse(
       contentType: 'explanation'
     };
 
-    return { tweet, cardData };
+    // MODIFIED: Return the extracted sourceUrl
+    return { tweet, cardData, sourceUrl };
     
   } catch (error) {
     console.error(`Failed to parse AI tweet response. Content: "${content}"`, error);
@@ -188,9 +217,10 @@ function parseAndValidateTweetResponse(
   }
 }
 
+
 export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
   try {
-    const { prompt, persona, topic } = await generateTweetPrompt(config);
+    const { prompt, persona, topic, rssContext } = await generateTweetPrompt(config);
 
     const response = await deepseekClient.chat.completions.create({
       model: "deepseek-chat",
@@ -208,12 +238,18 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       throw new Error('Invalid persona or topic configuration');
     }
 
-    const parsedResponse = parseAndValidateTweetResponse(content, persona.key, topic as { key: string; displayName: string });
+    const parsedResponse = parseAndValidateTweetResponse(
+      content,
+      persona.key,
+      topic as { key: string; displayName: string },
+      rssContext
+    );
     if (!parsedResponse) {
       throw new Error('Failed to parse or validate AI response.');
     }
 
-    const { tweet: tweetData, cardData } = parsedResponse;
+    // MODIFIED: Destructure sourceUrl from the parsed response
+    const { tweet: tweetData, cardData, sourceUrl } = parsedResponse;
 
     const imageUrl: string | undefined = undefined;
     let imageStatus: 'none' | 'pending' = 'none';
@@ -230,11 +266,13 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     
     console.log(`✅ Generated enhanced tweet for ${persona.displayName} on ${(topic as { key: string; displayName: string }).displayName} Hash: ${contentHash}`);
     
+    // MODIFIED: Add sourceUrl to the final returned object
     return {
       ...tweetData,
       imageUrl,
       imageStatus,
-      cardData: cardData || undefined
+      cardData: cardData || undefined,
+      sourceUrl, // Add the extracted source URL
     };
 
   } catch (error) {
@@ -333,7 +371,7 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 }
 
 
-/* Generates a high-impact reply to a tweet using the "THE_SIGNAL" philosophy.
+/* Generates a high-impact reply to a tweet using the "THE_CATALYST" philosophy.
 * This function is optimized for insight and brevity over all else.
 */
 export async function generateEngagementReply(
@@ -341,24 +379,44 @@ export async function generateEngagementReply(
  target: EngagementTarget,
  persona: PersonaConfig
 ): Promise<string | null> {
- const prompt = `
-   Your Mission: Be The Signal. Find the hidden truth and distill it into a short, powerful reply.
-
-   Your Persona:
-   - Name: ${persona.displayName}
-   - Style: ${persona.description}
-
-   Context:
-   - You are replying to: @${target.username}
-   - Their original tweet says: "${tweet.text}"
-
-   The Rules:
-   1.  **Go Deeper:** Ignore the surface noise. Uncover the real story, the cultural shift, or the hidden motive.
-   2.  **Be Ruthlessly Concise:** Use the fewest words possible. Every word must serve the insight. Aim for under 180 characters.
-   3.  **No Generic Reactions:** Destroy clichés and simple agreement. Provide a unique, definitive take that reframes the conversation.
-
-   Generate ONLY the raw text for the reply.
-   `;
+  const prompt = `
+  Your Mission: Be The Catalyst. Your goal is to generate a reply that maximizes reach by sparking the most meaningful conversation. Don't just be insightful; be resonant.
+  
+  Your Persona:
+  - Name: ${persona.displayName}
+  - Style: ${persona.description}
+  
+  Context:
+  - You are replying to: @${target.username}
+  - Their original tweet says: "${tweet.text}"
+  
+  ---
+  
+  **Core Logic: A 3-Step Process**
+  
+  1.  **Analyze the Tweet's INTENT:** First, silently determine the primary nature of the original tweet. Is it:
+      * **Informational/News:** Reporting a fact, statistic, or event.
+      * **Opinion/Debate:** Presenting a viewpoint to be discussed.
+      * **Humor/Meme:** Intended to be funny or relatable.
+      * **Personal/Story:** Sharing a personal experience or feeling.
+      * **Question:** Directly asking for input from the audience.
+  
+  2.  **Select the ENGAGEMENT MODE:** Based on the intent, choose one of these strategic modes for your reply.
+      * **For Informational/News -> The Analyst Mode:** Find the "signal within the noise." Provide the deeper implication, the overlooked context, or the next logical question. (This is the classic "THE_SIGNAL" approach).
+      * **For Opinion/Debate -> The Reframer Mode:** Don't just agree or disagree. Reframe the core idea with a surprising analogy, a thoughtful counterpoint, or by revealing the underlying principle that everyone is missing.
+      * **For Humor/Meme -> The Riff Mode:** Add to the joke. Don't just say "lol". Build on the premise with a witty observation or a clever twist, like a good improv partner ("Yes, and...").
+      * **For Personal/Story -> The Validator Mode:** Validate the person's experience and distill it into a universal human truth. Make them feel seen, then connect their feeling to a broader insight. Avoid generic sympathy.
+      * **For Question -> The Sage Mode:** Provide an answer that isn't the most obvious one, but the most insightful one. Answer the question behind the question.
+  
+  3.  **Execute with THE CATALYST PRINCIPLES:**
+      * **Principle 1: Add Definitive Value.** Your reply must contribute something new: insight, humor, or empathy. Never be a generic "This!" or "So true."
+      * **Principle 2: Economize Every Word.** Be ruthlessly concise, but don't sacrifice clarity or wit. Aim for high impact-per-character. Under 200 characters is ideal.
+      * **Principle 3: Resonate with Emotion.** Match the emotional frequency of the original tweet, whether it's serious, funny, or vulnerable. A tonal mismatch kills reach.
+  
+  **Final Instruction:**
+  Generate ONLY the raw text for the reply based on your analysis. Do not explain your choice of mode.
+  
+  `;
 
  try {
    console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
@@ -366,7 +424,7 @@ export async function generateEngagementReply(
      model: "deepseek-chat",
      messages: [{ role: "user", content: prompt }],
      temperature: 0.85,
-     max_tokens: 100,
+     max_tokens: 120,
    });
    const replyText = response.choices[0].message.content;
 
@@ -377,9 +435,6 @@ export async function generateEngagementReply(
 
    const cleanedReply = replyText.replace(/"/g, '').trim();
 
-   // --- 3. OPTIMIZED VALIDATION LOGIC ---
-   // Removed the 100-character minimum to allow for powerful, short statements.
-   // Set a max of 180 chars to enforce brevity.
    if (cleanedReply.length > 280) {
      console.error(`[Generator] ❌ Generated reply exceeds 280 chars (${cleanedReply.length}). Rejecting this reply.`);
      console.error(`[Generator] Reply text: "${cleanedReply}"`);

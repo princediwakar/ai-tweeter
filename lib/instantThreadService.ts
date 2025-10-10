@@ -1,4 +1,4 @@
-// 
+// lib/instantThreadService.ts
 import { TwitterApi } from 'twitter-api-v2';
 import { Tweet } from './types';
 import { saveTweet, getThreadTweet, Thread, updateThreadAfterPosting } from './db';

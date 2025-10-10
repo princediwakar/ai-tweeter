@@ -71,6 +71,7 @@ export interface Tweet {
   image_url?: string; // Cloudinary URL for image-based tweets
   image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
   card_data?: string; // JSON-encoded VocabularyCard data for async image generation
+  source_url?: string;
 }
 
 export interface EnhancedTweet {
@@ -86,6 +87,7 @@ export interface EnhancedTweet {
   imageUrl?: string; // Cloudinary URL for image-based tweets
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
   cardData?: VocabularyCard; // Vocabulary card data for async image generation
+  sourceUrl?: string;
 }
 
 export interface VocabularyCard {

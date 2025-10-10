@@ -26,12 +26,13 @@ function shuffleArray<T>(array: T[]): T[] {
     return newArr;
 }
 
-// Define specific types for the results of the parallel generation
+// MODIFIED: Added sourceUrl to the info type
 interface GeneratedTweetInfo {
   persona: string;
   topic: string;
   contentType: string;
   length: number;
+  sourceUrl?: string;
 }
 
 type GenerationResultUnion = 
@@ -42,6 +43,7 @@ type GenerationResultUnion =
 /**
  * Enhanced Multi-Account Content Generation API
  */
+// ... (GET function remains unchanged) ...
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -202,24 +204,33 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
-    // For threading personas, generate thread synchronously to ensure completion
-    if (shouldGenerateThreads) {
-      const threadCallStart = performance.now();
-      logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
-      
-      const threadResult = await generateThread({ account_id: accountId, persona: selectedPersonaKey });
-      
-      if (threadResult) {
-        logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s.`, 'thread-generation-timing');
-        return { 
-          type: 'thread', 
-          data: threadResult
-        };
-      } else {
-        logger.error(`❌ [Enhanced:${callId}] Thread generation failed for ${selectedPersonaKey}`, 'thread-generation');
-        throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
-      }
-    }
+
+if (shouldGenerateThreads) {
+  const threadCallStart = performance.now();
+  logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
+  
+  // ADD THIS BLOCK TO FETCH THE CONTEXT
+  const { getDynamicContext } = await import('@/lib/contentSource');
+  const rssContext = await getDynamicContext(selectedPersonaKey, '');
+
+  // MODIFY THE CALL TO generateThread TO PASS THE CONTEXT
+  const threadResult = await generateThread({ 
+      account_id: accountId, 
+      persona: selectedPersonaKey,
+      rssContext: rssContext // Pass the fetched context
+  });
+  
+  if (threadResult) {
+    logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s. Source: ${threadResult.sourceUrl || 'N/A'}`, 'thread-generation-timing');
+    return { 
+      type: 'thread', 
+      data: threadResult
+    };
+  } else {
+    logger.error(`❌ [Enhanced:${callId}] Thread generation failed for ${selectedPersonaKey}`, 'thread-generation');
+    throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
+  }
+}
 
     // For non-threading personas, generate regular tweets
     const topic = shuffledTopics[i % shuffledTopics.length];
@@ -239,6 +250,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     if (!generatedTweet) throw new Error(`Failed to generate tweet for persona ${selectedPersonaKey}`);
     
     const saveStart = performance.now();
+    // MODIFIED: Added source_url to the object saved in the database
     const tweet: Partial<Tweet> = {
       id: generateTweetId(),
       account_id: accountId,
@@ -250,24 +262,28 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       content_type: 'single_tweet',
       image_url: generatedTweet.imageUrl,
       image_status: generatedTweet.imageStatus || 'none',
-      card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined
+      card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
+      source_url: generatedTweet.sourceUrl, // Save the URL to the DB
     };
 
     await saveTweet(tweet as Tweet);
     logger.info(`[Enhanced:${callId}] Tweet ${i+1}/${targetBatchSize} saved in ${((performance.now() - saveStart) / 1000).toFixed(2)}s.`, 'tweet-db-timing');
     
+    // MODIFIED: Added sourceUrl to the API response object
     return {
       type: 'tweet',
       data: {
         persona: selectedPersonaKey,
         topic: topic.displayName,
         contentType: config.contentType || 'unknown',
-        length: generatedTweet.content.length
+        length: generatedTweet.content.length,
+        sourceUrl: generatedTweet.sourceUrl, // Include URL in the response
       },
       needsImage: tweet.image_status === 'pending'
     };
   });
 
+  // ... (Rest of the file remains unchanged) ...
   const results = await Promise.allSettled(generationPromises);
   logger.info(`[Enhanced:${callId}] Total AI generation time: ${((performance.now() - generationStart) / 1000).toFixed(2)}s. Batch size: ${targetBatchSize}`, 'generate-timing');
   

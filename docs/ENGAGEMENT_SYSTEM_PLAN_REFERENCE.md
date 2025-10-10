@@ -49,7 +49,7 @@
     "engagement_persona": "business_thought_leader",
     "rules": {
       "max_engagements_per_day": 3,
-      "min_hours_between_same_target": 12
+      "min_hours_between_same_target": 4
     }
   }
 }

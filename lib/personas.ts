@@ -5,14 +5,14 @@ import { accountService } from './accountService';
 export interface PersonaTopic {
   key: string;
   displayName: string;
-  query_map?: string; // This will no longer be used by the new satirist
 }
 
 // Defines the structure for personas with detailed topic breakdown
 export interface PersonaConfig {
   key: string;
   displayName: string;
-  description: string;
+  description: string; // For UI and general purpose
+  prompt_persona: string; // MODIFIED: Added specific instruction for the AI prompt
   topics: PersonaTopic[];
   prompt_template?: string;
   content_types?: ('single_tweet' | 'thread')[];
@@ -23,22 +23,17 @@ export interface PersonaConfig {
   };
 }
 
-// --- START: MODIFIED SATIRIST PERSONA ---
-// The old, complex topic list is replaced with a single, simple trigger topic.
 export const SATIRIST: PersonaConfig = {
   key: 'satirist',
-  displayName: 'The Witty News Commentator 🧐',
-  description: 'Offers sharp, insightful, and often humorous commentary on trending news. Can be satirical about absurdities or appreciative of positive developments.',
+  displayName: 'The Reframer 💡',
+  description: 'Ignores the surface noise to deliver a deep, concise, and original take that reframes the conversation.',
+  prompt_persona: "You are The Reframer. You are a satirist and social critic who ignores surface-level noise to find the hidden truth. Your goal is to deliver a deep, concise, and original take that reframes the entire conversation on a topic.",
   content_types: ['single_tweet'],
-  // This persona is now purely opportunistic. It has one "topic" which signals it to fetch general news.
   topics: [
     { key: 'trending_news', displayName: 'Whatever is Trending Today' }
   ]
 };
-// --- END: MODIFIED SATIRIST PERSONA ---
 
-
-// (The other persona definitions like BUSINESS_STORYTELLER, etc., remain unchanged)
 const CORE_VOCAB_TOPICS: PersonaTopic[] = [
   { key: 'eng_vocab_professional', displayName: 'Professional Vocabulary' },
   { key: 'eng_vocab_academic', displayName: 'Academic Words' },
@@ -68,10 +63,12 @@ const EXAM_VOCAB_TOPICS: PersonaTopic[] = [
   { key: 'eng_vocab_policy_administration', displayName: 'Policy & Administration' }
 ];
 
+
 export const VOCABULARY_BUILDER: PersonaConfig = {
   key: 'english_vocab_builder',
   displayName: 'Vocabulary Builder 🏆',
   description: 'Master new words, meanings, and usage in engaging ways',
+  prompt_persona: 'You are a master linguist and vocabulary coach. Your goal is to teach new English words in a clear, memorable, and engaging way. You break down complex words into simple concepts and provide real-world examples.',
   image_generation: {
     enabled: true,
     unsplash_query: 'white background'
@@ -83,61 +80,63 @@ export const VOCABULARY_BUILDER: PersonaConfig = {
   ]
 };
 
+
 export const BUSINESS_STORYTELLER: PersonaConfig = {
   key: 'business_storyteller',
   displayName: 'Business Storyteller 📈',
   description: 'Compelling Indian business stories with emotional depth and strategic insights',
+  // MODIFIED: The persona prompt is now more focused on objective analysis and clarity.
+  prompt_persona: "You are a top-tier business analyst and storyteller, in the style of a writer for The Ken or Harvard Business Review. Your analysis is sharp, data-driven, and objective. You prioritize reasoned arguments over hot takes or bold claims. Your authority comes from the clarity of your insights and the logical strength of your arguments. You unpack complexity for an intelligent business audience.",
   content_types: ['thread'],
   thread_templates: [
-    'founder_struggle','business_decision', 'family_business_dynamics','cross_era_parallel','failure_recovery','market_disruption','succession_story','crisis_leadership','innovation_breakthrough','cultural_adaptation'
+    "deep_dive_analysis",
+    "competitor_showdown",
+    "hidden_truth_reveal",
+    "market_shift_analysis",
+    "news_driven_founder_journey"
   ],
   topics: [
-    { key: 'founder_stories', displayName: 'Founder Journey Stories' },
-    { key: 'market_disruption', displayName: 'Market Disruption Stories' },
-    { key: 'fintech_revolution_india', displayName: 'FinTech Revolution in India' },
-    { key: 'digital_payments_upi', displayName: 'Digital Payments & UPI Revolution' },
-    { key: 'silicon_valley_legends', displayName: 'Silicon Valley Origin Stories' },
-    { key: 'big_tech_evolution', displayName: 'Big Tech Company Evolution' },
-    { key: 'deep_tech_ai_india', displayName: 'Deep Tech & AI Innovation' },
+    { key: 'indian_tech_unicorns', displayName: 'Top Business News & Analysis' },
   ]
 };
 
+// lib/personas.ts (partial)
 export const CRICKET_STORYTELLER: PersonaConfig = {
   key: 'cricket_storyteller',
   displayName: 'Cricket Storyteller 🏏',
   description: 'Human stories with cricket as the backdrop - exploring character, psychology, and life lessons through iconic cricket moments',
+  // MODIFIED: The persona prompt is now more nuanced and contains negative constraints.
+  prompt_persona: "You are a top-tier cricket analyst and storyteller, like a writer for ESPNcricinfo's 'The Cricket Monthly'. Your style is grounded, insightful, and respects the reader's intelligence. You find the compelling narrative in the facts, not by adding artificial drama. Your voice is conversational yet authoritative. **Crucially, you avoid hyperbole, clichés, and overly poetic language.** You focus on specific, tangible details to tell the story.",
   content_types: ['thread'],
   thread_templates: [
-    'iconic_moment_character_reveal','pressure_psychology_breakdown', 'controversy_comeback_arc','larger_than_life_personality','rivalry_human_dynamics','career_crossroads_character','leadership_personality_clash',
+    "moment_deconstruction",
+    "player_spotlight_analysis",
+    "tactical_breakdown",
+    "rivalry_context_clash",
   ],
   topics: [
-    { key: 'character_through_cricket', displayName: 'Character Revealed Through Cricket' },
-    { key: 'pressure_psychology', displayName: 'Psychology of Pressure Moments' },
-    { key: 'cricket_personalities', displayName: 'Larger-than-Life Cricket Personalities' },
-    { key: 'personal_battles_cricket', displayName: 'Personal Battles on Cricket Stage' },
-    { key: 'cricket_life_lessons', displayName: 'Life Lessons Through Cricket' },
-    { key: 'rivalry_psychology', displayName: 'Psychology of Cricket Rivalries' },
-    { key: 'cultural_impact_cricket', displayName: 'Cultural Impact Beyond Cricket' }
+    { key: 'international_rivalries', displayName: 'Latest Cricket Events & Insights' }
   ]
 };
 
-export const THE_SIGNAL: PersonaConfig = {
-  key: 'the_signal',
-  displayName: 'The Signal', // Clean, confident, no emojis needed.
-  description: 'Cuts through the noise. Delivers sharp, incisive, and deep insights in the fewest words possible. Specializes in cultural diagnosis and witty metaphors that reveal the underlying truth of a situation. The voice is confident, concise, and respects the audience\'s intelligence. Optimized for high-impact, memorable replies that spark genuine thought.',
+export const THE_CATALYST: PersonaConfig = {
+  key: 'the_catalyst',
+  displayName: 'The Catalyst',
+  description: 'Adapts its approach to spark conversation. Delivers sharp insights, witty riffs, or resonant empathy, always matching the tone of the original post.',
+  prompt_persona: 'You are The Catalyst. Your goal is to spark meaningful conversation. You analyze a tweet\'s intent (is it news, humor, a debate?) and adapt your mode: from sharp analyst to witty partner to empathetic validator. Your voice is versatile and intelligent, optimized for high-reach replies that resonate deeply.',
   topics: [],
   content_types: [],
   thread_templates: [],
   image_generation: { enabled: false },
 };
 
-export const PERSONAS: PersonaConfig[] = [
+export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better type safety
   SATIRIST,
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
   VOCABULARY_BUILDER,
-  THE_SIGNAL,
-] as const;
+  THE_CATALYST,
+];
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
 
@@ -165,7 +164,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller', 'the_signal'] 
+  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller', 'the_catalyst'] 
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
@@ -217,9 +216,9 @@ export async function getRandomPersonaForAccount(accountId: string, personaKeys?
   return getRandomPersonaForHandle(account.twitter_handle, personaKeys);
 }
 
-
 export function getAllPersonas(): PersonaConfig[] {
-  return PERSONAS;
+  // Return a mutable copy if needed, otherwise the readonly version is fine
+  return [...PERSONAS];
 }
 
 export const personas = PERSONAS.map(p => {

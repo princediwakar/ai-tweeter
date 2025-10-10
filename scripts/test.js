@@ -94,7 +94,7 @@ USAGE:
 
 OPTIONS:
   --account <gibbi|prince>    Generate for specific account only
-  --type <thread|tweet>       Generate specific content type only
+  --type <thread|single_tweet>       Generate specific content type only
   --count <number>            Number of content pieces to generate (default: 1)
   --help, -h                  Show this help message
 
@@ -166,44 +166,52 @@ function makeRequest(url, options = {}) {
 
 function selectRandomGeneration(options) {
   let availableAccounts = Object.keys(CONFIG.accounts);
-  let selectedAccount = options.account;
-  
-  // Filter accounts based on options
-  if (options.account) {
-    if (!availableAccounts.includes(options.account)) {
-      throw new Error(`Invalid account: ${options.account}. Available: ${availableAccounts.join(', ')}`);
-    }
-    availableAccounts = [options.account];
-  }
 
-  // If no specific account, choose random
-  if (!selectedAccount) {
-    selectedAccount = randomChoice(availableAccounts);
-  }
-
-  const accountConfig = CONFIG.accounts[selectedAccount];
-  let availableTypes = [...accountConfig.contentTypes];
-
-  // Filter content types based on options
+  // --- 1. Filter accounts based on the requested content type ---
+  // If a type is specified, only keep accounts that can generate that type.
   if (options.type) {
-    if (!availableTypes.includes(options.type)) {
-      console.log(`⚠️ Account ${selectedAccount} doesn't support ${options.type}. Available: ${availableTypes.join(', ')}`);
-      // For gibbi account, if thread requested, fallback to tweet
-      if (selectedAccount === 'gibbi' && options.type === 'thread') {
-        availableTypes = ['single_tweet'];
-        console.log(`🔄 Falling back to single_tweet for @gibbi_ai`);
-      } else if (selectedAccount === 'prince' && options.type === 'tweet') {
-        // Prince can do both, so randomly choose
-        availableTypes = ['single_tweet'];
-      } else {
-        availableTypes = accountConfig.contentTypes;
-      }
-    } else {
-      availableTypes = [options.type];
+    // Basic validation for the type argument itself
+    if (!['single_tweet', 'thread'].includes(options.type)) {
+      throw new Error(`Invalid content type: "${options.type}". Use 'single_tweet' or 'thread'.`);
+    }
+    
+    availableAccounts = availableAccounts.filter(accName =>
+      CONFIG.accounts[accName].contentTypes.includes(options.type)
+    );
+
+    // If no accounts support the requested type, it's an impossible request.
+    if (availableAccounts.length === 0) {
+      throw new Error(`No accounts support the content type "${options.type}".`);
     }
   }
 
-  const contentType = randomChoice(availableTypes);
+  // --- 2. Filter accounts based on the requested account name ---
+  // If an account is specified, it must be within our already-filtered list.
+  if (options.account) {
+    // Basic validation for the account argument
+    if (!CONFIG.accounts[options.account]) {
+        throw new Error(`Invalid account: "${options.account}". Use 'gibbi' or 'prince'.`);
+    }
+
+    // Check if the requested account is compatible with the requested type (if any).
+    if (availableAccounts.includes(options.account)) {
+      availableAccounts = [options.account]; // The list now contains only the specified account.
+    } else {
+      // This case is hit if, for example, the user runs:
+      // node scripts/test.js --account gibbi --type thread
+      throw new Error(`Conflict: Account "${options.account}" does not support the content type "${options.type}".`);
+    }
+  }
+  
+  // --- 3. Select an account from the valid, filtered pool ---
+  const selectedAccount = randomChoice(availableAccounts);
+  const accountConfig = CONFIG.accounts[selectedAccount];
+
+  // --- 4. Determine the final content type ---
+  // If a type was specified in options, we MUST use it. Otherwise, choose randomly.
+  const contentType = options.type || randomChoice(accountConfig.contentTypes);
+
+  // --- 5. Select the persona (this logic was good, so we keep it) ---
   let persona = randomChoice(accountConfig.personas);
 
   // For Prince's single tweets, prefer satirist persona

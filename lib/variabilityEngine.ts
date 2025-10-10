@@ -142,7 +142,7 @@ function generateEntropy(): number {
 /**
  * Creates a dynamic seed based on context and randomness
  */
-export function generateDynamicSeed(context?: string): string {
+export function generateDynamicSeed(): string {
   const entropy = generateEntropy();
   const seedTypes = Object.keys(SEED_PHRASES);
   const selectedType = seedTypes[Math.floor(entropy * seedTypes.length)];
@@ -269,7 +269,7 @@ export function generateVariabilityPackage(config: VariabilityConfig, context?: 
   };
   
   if (config.useSeeds) {
-    output.seedPhrase = generateDynamicSeed(context?.topicKey);
+    output.seedPhrase = generateDynamicSeed();
   }
   
   if (config.useTokens) {

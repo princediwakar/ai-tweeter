@@ -117,12 +117,14 @@ export async function getRecentTweetCounts(query: string, startTime: string, cre
 /**
  * Searches for recent tweets. (Uses OAuth 2.0)
  */
-export async function searchRecentTweets(query: string, credentials: TwitterCredentials): Promise<{ data: TweetV2[] }> {
+export async function searchRecentTweets(query: string, credentials: TwitterCredentials, maxResults: number = 10): Promise<{ data: TweetV2[] }> {
     const endpoint = 'https://api.twitter.com/2/tweets/search/recent';
+    // Twitter API requires max_results to be between 10 and 100
+    const validatedMaxResults = Math.max(10, Math.min(100, maxResults));
     const queryParams = {
         query,
         'tweet.fields': 'created_at,public_metrics,author_id',
-        'max_results': '10',
+        'max_results': String(validatedMaxResults),
     };
     const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
 
@@ -211,16 +213,16 @@ export async function postReplyTweet(content: string, replyToTweetId: string, cr
   try {
     const url = 'https://api.twitter.com/2/tweets';
     const method = 'POST';
-    
+
     const authHeader = createOAuthHeader(method, url, {}, credentials);
-    
+
     const response = await fetch(url, {
       method,
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         text: content,
         reply: {
           in_reply_to_tweet_id: replyToTweetId
@@ -231,12 +233,21 @@ export async function postReplyTweet(content: string, replyToTweetId: string, cr
     if (!response.ok) {
       const errorText = await response.text();
       let errorObj;
-      
+
       try {
         errorObj = JSON.parse(errorText);
       } catch {
         errorObj = { title: 'Unknown error', detail: errorText };
       }
+
+      // Log the full error for debugging
+      console.error('[postReplyTweet] Twitter API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorObj: errorObj,
+        fullErrorText: errorText,
+        replyToTweetId: replyToTweetId
+      });
 
       // Handle specific Twitter API errors
       if (response.status === 403) {

@@ -5,6 +5,7 @@ import path from 'path';
 export interface EngagementTarget {
   username: string;
   description: string;
+  tier: number;
 }
 
 export interface EngagementConfig {

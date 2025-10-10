@@ -121,10 +121,10 @@ export const CRICKET_STORYTELLER: PersonaConfig = {
   ]
 };
 
-export const BUSINESS_THOUGHT_LEADER: PersonaConfig = {
-  key: 'business_thought_leader',
-  displayName: 'Business Thought Leader 🤝',
-  description: 'Peer-to-peer engagement with data-driven insights, historical parallels, and contrarian perspectives. Not for content generation.',
+export const THE_SIGNAL: PersonaConfig = {
+  key: 'the_signal',
+  displayName: 'The Signal', // Clean, confident, no emojis needed.
+  description: 'Cuts through the noise. Delivers sharp, incisive, and deep insights in the fewest words possible. Specializes in cultural diagnosis and witty metaphors that reveal the underlying truth of a situation. The voice is confident, concise, and respects the audience\'s intelligence. Optimized for high-impact, memorable replies that spark genuine thought.',
   topics: [],
   content_types: [],
   thread_templates: [],
@@ -136,7 +136,7 @@ export const PERSONAS: PersonaConfig[] = [
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
   VOCABULARY_BUILDER,
-  BUSINESS_THOUGHT_LEADER,
+  THE_SIGNAL,
 ] as const;
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
@@ -165,7 +165,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller'] 
+  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller', 'the_signal'] 
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {

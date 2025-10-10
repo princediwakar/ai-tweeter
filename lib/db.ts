@@ -777,18 +777,18 @@ export interface EngagementLog {
   target_tweet_retweets?: number;
   reply_likes?: number;
   engaged_at: string;
+  tier: number; 
+
 }
 
-/**
- * Logs a new engagement action into the database.
- */
+// The rewritten logEngagement service
 export async function logEngagement(engagement: Omit<EngagementLog, 'id' | 'engaged_at'>): Promise<void> {
   try {
     await sql`
       INSERT INTO engagement_log (
         account_id, target_username, target_tweet_id, target_tweet_text,
         reply_tweet_id, reply_text, discovery_method, target_tweet_age_minutes,
-        target_tweet_likes, target_tweet_retweets
+        target_tweet_likes, target_tweet_retweets, tier
       ) VALUES (
         ${engagement.account_id},
         ${engagement.target_username},
@@ -799,15 +799,17 @@ export async function logEngagement(engagement: Omit<EngagementLog, 'id' | 'enga
         ${engagement.discovery_method},
         ${engagement.target_tweet_age_minutes},
         ${engagement.target_tweet_likes},
-        ${engagement.target_tweet_retweets}
+        ${engagement.target_tweet_retweets},
+        ${engagement.tier} -- Add the tier here
       )
     `;
-    console.log(`[Neon] Logged engagement for account ${engagement.account_id} with tweet ${engagement.target_tweet_id}`);
-  } catch (error) {
+    console.log(`[Neon] Logged engagement for account ${engagement.account_id} with tweet ${engagement.target_tweet_id} (Tier ${engagement.tier})`);
+  } catch (error){
     console.error('[Neon] Error logging engagement:', error);
     // Do not throw, as logging failure should not break the main flow
   }
 }
+
 
 /**
  * Checks how many times an account has engaged today (in UTC).

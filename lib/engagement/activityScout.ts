@@ -38,9 +38,11 @@ async function isTargetGroupActive(query: string, credentials: { apiKey: string,
  */
 async function fetchActiveTweets(query: string, credentials: { apiKey: string, apiSecret: string, accessToken: string, accessSecret: string }): Promise<TweetV2[]> {
   try {
-    const searchResult = await searchRecentTweets(query, credentials);
-    console.log(`[Scout] Fetched ${searchResult.data.length} tweet(s) from active targets.`);
-    return searchResult.data || [];
+    const searchResult = await searchRecentTweets(query, credentials, qualityFilters.max_tweets_per_retrieval);
+    // Limit results to configured amount (API returns min 10 but we may want fewer)
+    const limitedResults = searchResult.data.slice(0, qualityFilters.max_tweets_per_retrieval);
+    console.log(`[Scout] Fetched ${limitedResults.length} tweet(s) from active targets.`);
+    return limitedResults || [];
   } catch (error) {
     console.error('[Scout] Error fetching active tweets:', error);
     return [];

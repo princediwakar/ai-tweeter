@@ -332,59 +332,64 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   return tweets;
 }
 
-/**
- * Generates a reply to a tweet based on a specific persona.
- */
+
+/* Generates a high-impact reply to a tweet using the "THE_SIGNAL" philosophy.
+* This function is optimized for insight and brevity over all else.
+*/
 export async function generateEngagementReply(
-  tweet: TweetV2,
-  target: EngagementTarget,
-  persona: PersonaConfig
+ tweet: TweetV2,
+ target: EngagementTarget,
+ persona: PersonaConfig
 ): Promise<string | null> {
-  const prompt = `
-You are an AI assistant tasked with generating a high-quality reply to a tweet.
-Your reply must embody the following persona:
----
-Persona: ${persona.key}
-Style: ${persona.description}
----
+ const prompt = `
+   Your Mission: Be The Signal. Find the hidden truth and distill it into a short, powerful reply.
 
-You are replying to a tweet from ${target.username}, who is ${target.description}.
+   Your Persona:
+   - Name: ${persona.displayName}
+   - Style: ${persona.description}
 
-Original tweet text:
-"${tweet.text}"
+   Context:
+   - You are replying to: @${target.username}
+   - Their original tweet says: "${tweet.text}"
 
-Instructions for your reply (max 280 characters):
-1.  Add SPECIFIC value. This could be a data point, a historical parallel, a thoughtful contrarian perspective, or a niche insight.
-2.  Use a peer-to-peer, respectful, and intellectually curious tone. You are a fellow thought leader, not a fan.
-3.  Politely invite further discussion or offer a new angle.
-4.  ABSOLUTELY NO generic praise. Avoid phrases like "Great point!", "Well said!", "Love this!", "I agree!", etc.
-5.  Do not use hashtags unless it is a natural part of the conversation.
+   The Rules:
+   1.  **Go Deeper:** Ignore the surface noise. Uncover the real story, the cultural shift, or the hidden motive.
+   2.  **Be Ruthlessly Concise:** Use the fewest words possible. Every word must serve the insight. Aim for under 180 characters.
+   3.  **No Generic Reactions:** Destroy clichés and simple agreement. Provide a unique, definitive take that reframes the conversation.
 
-Generate only the text for the reply.
-Reply:
-`;
+   Generate ONLY the raw text for the reply.
+   `;
 
-  try {
-    console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
-    const response = await deepseekClient.chat.completions.create({
-      model: "deepseek-chat",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.8,
-      max_tokens: 80,
-    });
-    const replyText = response.choices[0].message.content;
-    
-    if (!replyText) {
-        console.error('[Generator] AI returned an empty reply.');
-        return null;
-    }
-    
-    const cleanedReply = replyText.replace(/"/g, '').trim();
-    
-    console.log(`[Generator] Generated reply: "${cleanedReply}"`);
-    return cleanedReply;
-  } catch (error) {
-    console.error('[Generator] Error generating AI reply:', error);
-    return null;
-  }
+ try {
+   console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
+   const response = await deepseekClient.chat.completions.create({
+     model: "deepseek-chat",
+     messages: [{ role: "user", content: prompt }],
+     temperature: 0.85,
+     max_tokens: 100,
+   });
+   const replyText = response.choices[0].message.content;
+
+   if (!replyText) {
+       console.error('[Generator] AI returned an empty reply.');
+       return null;
+   }
+
+   const cleanedReply = replyText.replace(/"/g, '').trim();
+
+   // --- 3. OPTIMIZED VALIDATION LOGIC ---
+   // Removed the 100-character minimum to allow for powerful, short statements.
+   // Set a max of 180 chars to enforce brevity.
+   if (cleanedReply.length > 280) {
+     console.error(`[Generator] ❌ Generated reply exceeds 280 chars (${cleanedReply.length}). Rejecting this reply.`);
+     console.error(`[Generator] Reply text: "${cleanedReply}"`);
+     return null;
+   }
+
+   console.log(`[Generator] ✅ Generated reply (${cleanedReply.length} chars): "${cleanedReply}"`);
+   return cleanedReply;
+ } catch (error) {
+   console.error('[Generator] Error generating AI reply:', error);
+   return null;
+ }
 }

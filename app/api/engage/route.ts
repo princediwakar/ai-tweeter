@@ -147,6 +147,7 @@ export async function GET(request: NextRequest) {
     discovery_method: 'counts_api',
     target_tweet_likes: tweetToEngage.public_metrics?.like_count,
     target_tweet_retweets: tweetToEngage.public_metrics?.retweet_count,
+    tier: targetInfo.tier
   });
 
   return NextResponse.json({

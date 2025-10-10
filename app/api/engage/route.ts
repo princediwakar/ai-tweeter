@@ -74,8 +74,13 @@ export async function GET(request: NextRequest) {
   const candidateTweets = await scoutAndFetch(account, targetGroup);
 
   if (candidateTweets.length === 0) {
-    console.log('[Engage API] Result: No recent activity found from target group.');
-    return NextResponse.json({ success: false, message: 'No recent activity from target group.' });
+    const checkedAccounts = targetGroup.map(t => t.username).join(', ');
+    console.log(`[Engage API] Result: No recent activity found. Checked accounts: ${checkedAccounts}`);
+    return NextResponse.json({
+      success: false,
+      message: 'No recent activity from target group.',
+      checked_accounts: targetGroup.map(t => t.username)
+    });
   }
   
   // 6. Select Best Tweet

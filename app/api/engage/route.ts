@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isEngagementScheduled } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import { getEngagementConfigForAccount } from '@/lib/engagement/targets';
-import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement } from '@/lib/db';
+import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithTweet } from '@/lib/db';
 import { postReplyTweet } from '@/lib/twitter';
 import { scoutAndFetch } from '@/lib/engagement/activityScout';
 import { selectBestTweet } from '@/lib/engagement/selector';
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const minute = now.getMinutes();
   const targets = engagementConfig.priority_targets;
-  const groupSize = 4; 
+  const groupSize = 3;  // Reduced from 4 to 3 for more frequent checks per target
   const groupIndex = Math.floor(minute / 15) % Math.ceil(targets.length / groupSize);
   const targetGroup = targets.slice(groupIndex * groupSize, (groupIndex + 1) * groupSize);
 
@@ -82,15 +82,31 @@ export async function GET(request: NextRequest) {
       checked_accounts: targetGroup.map(t => t.username)
     });
   }
-  
-  // 6. Select Best Tweet
-  const tweetToEngage = selectBestTweet(candidateTweets);
+
+  // 6. Filter out already-engaged tweets
+  const unenagagedTweets = [];
+  for (const tweet of candidateTweets) {
+    const alreadyEngaged = await hasEngagedWithTweet(account.id, tweet.id);
+    if (!alreadyEngaged) {
+      unenagagedTweets.push(tweet);
+    } else {
+      console.log(`[Engage API] Skipping tweet ${tweet.id} - already engaged`);
+    }
+  }
+
+  if (unenagagedTweets.length === 0) {
+    console.log('[Engage API] Result: All fetched tweets have already been engaged with.');
+    return NextResponse.json({ success: false, message: 'All tweets have already been engaged with.' });
+  }
+
+  // 7. Select Best Tweet
+  const tweetToEngage = selectBestTweet(unenagagedTweets);
   if (!tweetToEngage) {
     console.log('[Engage API] Result: Found tweets, but none passed the quality filters.');
     return NextResponse.json({ success: false, message: 'No tweets passed quality filters.' });
   }
 
-  // 7. Map author_id to target username
+  // 8. Map author_id to target username
   // Since we searched "(from:user1 OR from:user2 OR from:user3)", we know any tweet returned
   // must be from one of those targets. However, we need to determine WHICH ONE.
   // The Twitter API doesn't include username in the response by default, only author_id.
@@ -108,7 +124,7 @@ export async function GET(request: NextRequest) {
   console.log(`[Engage API] Using target ${targetInfo.username} for tweet ${tweetToEngage.id} (author_id: ${tweetToEngage.author_id})`);
   console.warn(`[Engage API] ⚠️  WARNING: Cannot definitively match author_id to target without user expansion. Using first target in group.`);
 
-  // 8. Check Target Rate Limit
+  // 9. Check Target Rate Limit
   const lastEngagementTime = await getLastEngagementForTarget(account.id, targetInfo.username);
   if (lastEngagementTime) {
     const hoursSinceLast = (new Date().getTime() - lastEngagementTime.getTime()) / (1000 * 60 * 60);
@@ -118,7 +134,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 8. Generate Reply
+  // 10. Generate Reply
   const persona = getPersonaByKey(engagementConfig.engagement_persona);
   if (!persona) {
     console.error(`[Engage API] Failed: Persona '${engagementConfig.engagement_persona}' not found.`);
@@ -130,7 +146,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to generate a high-quality reply.' }, { status: 500 });
   }
 
-  // 9. Post Reply
+  // 11. Post Reply
   const credentials = {
     apiKey: account.twitter_api_key,
     apiSecret: account.twitter_api_secret,
@@ -141,7 +157,7 @@ export async function GET(request: NextRequest) {
   const replyTweetId = replyResult.data.id;
   console.log(`[Engage API] ✅ Successfully posted reply: ${replyTweetId}`);
 
-  // 10. Log to Database
+  // 12. Log to Database
   await logEngagement({
     account_id: account.id,
     target_username: targetInfo.username,

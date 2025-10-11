@@ -863,3 +863,22 @@ export async function getLastEngagementForTarget(accountId: string, targetUserna
     return new Date(); // Return current time to prevent further action on error
   }
 }
+
+/**
+ * Checks if a specific tweet has already been engaged with by this account.
+ */
+export async function hasEngagedWithTweet(accountId: string, tweetId: string): Promise<boolean> {
+  try {
+    const result = await sql`
+      SELECT 1
+      FROM engagement_log
+      WHERE account_id = ${accountId}
+        AND target_tweet_id = ${tweetId}
+      LIMIT 1
+    `;
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('[Neon] Error checking if tweet was already engaged:', error);
+    return true; // Return true on error to prevent duplicate engagement attempts
+  }
+}

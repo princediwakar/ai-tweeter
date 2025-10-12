@@ -63,16 +63,52 @@ YOUR MISSION:
 ${template.story_prompt}
 ${deepDiveBriefing}
 
-THREAD EXECUTION:
-•   **Hook:** Start with a sharp, counter-intuitive, or data-backed observation from the 'Primary News Item'.
-•   **Build a Case:** Don't just state conclusions. Use data, examples, and logic from the briefing to build a compelling argument step-by-step throughout the thread.
-•   **Draw Logical Connections:** Illustrate how the primary news connects to broader market trends, competitor strategy, or economic indicators. Use phrases like "This is significant because..." or "The ripple effect of this is..."
-•   **Authoritative Tone:** Your authority should stem from the quality of your analysis. Be clear and direct. Frame your points as logical deductions, not just strong opinions.
-•   **Second-Order Thinking:** Instead of a "hidden truth," provide a second-order insight. What is the likely *consequence* or *next implication* of this news that most people are overlooking?
-•   **Engagement:** End the final tweet with a specific, forward-looking question that invites strategic thinking. (e.g., "Which non-obvious competitor stands to gain the most from this shift?").
-•   **Formatting:** Use emojis thoughtfully to signify concepts (e.g., 📈 for growth, 💡 for insight, 🧩 for strategy, 💰 for funding). Use 1-2 relevant hashtags per tweet from this list: ${topicHashtags}.
-•   **CRITICAL:** Refer to real companies, figures, and data points mentioned in the briefing. NO made-up names or @handles.
-•   **AVOID:** Steer clear of business buzzwords and clichés like 'synergy,' 'disruption,' 'game-changer,' or 'the new normal.' Be precise with your language.
+THREAD STRUCTURE: 4-6 tweets for better completion rates
+
+TWEET 1 - THE VIRAL HOOK (Context-Driven):
+Read the news and choose the hook style that FITS:
+
+→ **If there's a striking number/financial data:** Lead with it.
+   Example: "₹47,000 Cr vanished in 18 months. Here's the real reason:"
+
+→ **If it's a strategic move that seems contradictory:** Highlight the contradiction.
+   Example: "PhonePe is celebrating UPI dominance while quietly building the opposite:"
+
+→ **If there's a hidden winner/loser:** Name them upfront.
+   Example: "While founders fought over quick commerce, one silent player won:"
+
+→ **If you can make a bold prediction:** Lead with the stakes.
+   Example: "Zomato's restaurant-tech play will be worth more than food delivery by 2026:"
+
+→ **If there's a specific moment/turning point:** Pinpoint it.
+   Example: "The exact moment Byju's strategy broke. March 2022. Here's what happened:"
+
+→ **If conventional wisdom is wrong:** Challenge it directly.
+   Example: "Everyone thinks X is winning. The data shows they're already behind:"
+
+→ **If it raises a counterintuitive question:** Lead with the question.
+   Example: "Why is Tata betting ₹90,000 Cr on losing money for 5 years?"
+
+CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to read tweet 2.
+
+TWEETS 2-5 - THE NARRATIVE BUILD:
+•   **Use Real Evidence:** Cite specific numbers, quotes, or moves from the briefing
+•   **One idea per tweet:** Don't cram. Build tension across tweets
+•   **Show second-order effects:** "This means X will have to Y" not "This is interesting"
+•   **Connect competitors:** "While A does X, B is quietly doing Y"
+•   **Conversational but sharp:** Like explaining to a smart friend, not writing a report
+
+FINAL TWEET - THE ENGAGEMENT CTA:
+Choose based on the thread's nature:
+→ Bold prediction thread? "Save this. We'll revisit in 6 months."
+→ Strategic analysis? "What's your contrarian take? Quote tweet this 👇"
+→ Winner/loser reveal? "Who else saw this coming? Drop your prediction below."
+
+FORMATTING:
+•   Use emojis sparingly (2-3 across entire thread, not every tweet)
+•   1-2 hashtags from: ${topicHashtags}
+•   NO business jargon: "synergy," "disruption," "game-changer," "paradigm shift"
+•   Name real companies/people from the briefing (NO made-up names)
 
 CONTENT TYPE: "thread"
 STORYTELLING FOCUS: Clear, logical analysis that explains the 'why' and 'what's next' behind the news.

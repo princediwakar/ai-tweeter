@@ -216,7 +216,7 @@ function selectRandomGeneration(options) {
 
   // For Prince's single tweets, prefer satirist persona
   if (selectedAccount === 'prince' && contentType === 'single_tweet') {
-    persona = Math.random() < 0.8 ? 'satirist' : randomChoice(accountConfig.personas);
+    persona = 'satirist';
   }
 
   // For Prince's threads, prefer business/cricket storytellers

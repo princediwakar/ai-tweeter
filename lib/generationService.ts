@@ -17,7 +17,6 @@ const deepseekClient = new OpenAI({
   baseURL: 'https://api.deepseek.com',
 });
 
-// ... (generateTweetPrompt function remains unchanged) ...
 async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown; rssContext?: string }> {
   const markers = generateVariationMarkers();
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
@@ -205,7 +204,8 @@ function parseAndValidateTweetResponse(
       topic: topic.key,
       engagementHooks: data.teachingElements || [],
       gibbiCTA: data.gibbiCTA || undefined,
-      contentType: 'explanation'
+      contentType: 'explanation',
+      selectedHeadlineNumber: data.selectedHeadlineNumber || undefined
     };
 
     // MODIFIED: Return the extracted sourceUrl
@@ -253,7 +253,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
     const imageUrl: string | undefined = undefined;
     let imageStatus: 'none' | 'pending' = 'none';
-    
+
     console.log(`🔍 Checking image generation for persona ${persona.displayName}: enabled=${persona.image_generation?.enabled}`);
     if (persona.image_generation?.enabled && cardData) {
       console.log(`🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`);
@@ -263,9 +263,9 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     }
 
     const contentHash = generateContentHash(tweetData);
-    
+
     console.log(`✅ Generated enhanced tweet for ${persona.displayName} on ${(topic as { key: string; displayName: string }).displayName} Hash: ${contentHash}`);
-    
+
     // MODIFIED: Add sourceUrl to the final returned object
     return {
       ...tweetData,
@@ -322,7 +322,8 @@ async function getRecentVocabularyWords(accountId: string, days: number = 30): P
 export async function generateBatchTweets(count: number, config: TweetGenerationConfig = {}): Promise<EnhancedTweet[]> {
   const tweets: EnhancedTweet[] = [];
   const generatedWords: string[] = [];
-  
+  const usedHeadlines: number[] = [];
+
   let recentWords: string[] = [];
   if (config.account_id && config.persona === 'english_vocab_builder') {
     recentWords = await getRecentVocabularyWords(config.account_id, 30);
@@ -342,23 +343,29 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 
   for (let i = 0; i < count; i++) {
     const allPreviousWords = [...recentWords, ...generatedWords];
-    
+
     const batchConfig: TweetGenerationConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
       previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined,
+      previousHeadlines: usedHeadlines.length > 0 ? usedHeadlines : undefined,
       rssContext: batchRssContext // Pass the same pre-fetched context to each iteration.
     };
-    
+
     const result = await generateTweet(batchConfig);
-    
+
     if (result) {
       tweets.push(result);
       if (result.persona === 'english_vocab_builder' && result.cardData?.word) {
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
         console.log(`🆕 New word generated: ${newWord}`);
+      }
+      // Track used headlines for satirist persona
+      if (result.persona === 'satirist' && result.selectedHeadlineNumber) {
+        usedHeadlines.push(result.selectedHeadlineNumber);
+        console.log(`📰 Satirist used headline #${result.selectedHeadlineNumber}`);
       }
     }
   }
@@ -367,6 +374,9 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   console.log(`📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`);
   console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
   console.log(`🚫 Avoided ${recentWords.length} recent words from database`);
+  if (usedHeadlines.length > 0) {
+    console.log(`📰 Used headlines: #${usedHeadlines.join(', #')}`);
+  }
   return tweets;
 }
 
@@ -380,42 +390,39 @@ export async function generateEngagementReply(
  persona: PersonaConfig
 ): Promise<string | null> {
   const prompt = `
-  Your Mission: Be The Catalyst. Your goal is to generate a reply that maximizes reach by sparking the most meaningful conversation. Don't just be insightful; be resonant.
-  
-  Your Persona:
-  - Name: ${persona.displayName}
-  - Style: ${persona.description}
-  
-  Context:
-  - You are replying to: @${target.username}
-  - Their original tweet says: "${tweet.text}"
-  
+  ${persona.prompt_persona}
+
+  Reply Context:
+  - You are replying to: @${target.username} (Tier ${target.tier} influencer: ${target.description})
+  - Their original tweet: "${tweet.text}"
+
   ---
-  
+
   **Core Logic: A 3-Step Process**
-  
+
   1.  **Analyze the Tweet's INTENT:** First, silently determine the primary nature of the original tweet. Is it:
       * **Informational/News:** Reporting a fact, statistic, or event.
       * **Opinion/Debate:** Presenting a viewpoint to be discussed.
       * **Humor/Meme:** Intended to be funny or relatable.
       * **Personal/Story:** Sharing a personal experience or feeling.
       * **Question:** Directly asking for input from the audience.
-  
+
   2.  **Select the ENGAGEMENT MODE:** Based on the intent, choose one of these strategic modes for your reply.
-      * **For Informational/News -> The Analyst Mode:** Find the "signal within the noise." Provide the deeper implication, the overlooked context, or the next logical question. (This is the classic "THE_SIGNAL" approach).
+      * **For Informational/News -> The Analyst Mode:** Find the "signal within the noise." Provide the deeper implication, the overlooked context, or the next logical question.
       * **For Opinion/Debate -> The Reframer Mode:** Don't just agree or disagree. Reframe the core idea with a surprising analogy, a thoughtful counterpoint, or by revealing the underlying principle that everyone is missing.
       * **For Humor/Meme -> The Riff Mode:** Add to the joke. Don't just say "lol". Build on the premise with a witty observation or a clever twist, like a good improv partner ("Yes, and...").
       * **For Personal/Story -> The Validator Mode:** Validate the person's experience and distill it into a universal human truth. Make them feel seen, then connect their feeling to a broader insight. Avoid generic sympathy.
       * **For Question -> The Sage Mode:** Provide an answer that isn't the most obvious one, but the most insightful one. Answer the question behind the question.
-  
+
   3.  **Execute with THE CATALYST PRINCIPLES:**
       * **Principle 1: Add Definitive Value.** Your reply must contribute something new: insight, humor, or empathy. Never be a generic "This!" or "So true."
       * **Principle 2: Economize Every Word.** Be ruthlessly concise, but don't sacrifice clarity or wit. Aim for high impact-per-character. Under 200 characters is ideal.
       * **Principle 3: Resonate with Emotion.** Match the emotional frequency of the original tweet, whether it's serious, funny, or vulnerable. A tonal mismatch kills reach.
-  
+      * **Principle 4: Use Background Context Strategically.** Only reference your IIT/startup background when it adds unique credibility (technical decisions, pattern recognition, founder challenges). Never force it.
+
   **Final Instruction:**
   Generate ONLY the raw text for the reply based on your analysis. Do not explain your choice of mode.
-  
+
   `;
 
  try {

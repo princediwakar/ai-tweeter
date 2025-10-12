@@ -1,3 +1,4 @@
+// lib/generation/types.ts
 export interface VariationMarkers {
   time_marker: string;
   token_marker: string;
@@ -14,7 +15,8 @@ export interface TweetGenerationConfig {
   batchPosition?: number;
   batchSize?: number;
   previousWords?: string[];
-  rssContext?: string; 
+  previousHeadlines?: number[]; // Track used headline numbers for satirist
+  rssContext?: string;
 }
 
 import type { Account } from '../types';

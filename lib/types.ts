@@ -88,6 +88,7 @@ export interface EnhancedTweet {
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
   cardData?: VocabularyCard; // Vocabulary card data for async image generation
   sourceUrl?: string;
+  selectedHeadlineNumber?: number; // Track which headline was used (satirist persona)
 }
 
 export interface VocabularyCard {

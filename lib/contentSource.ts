@@ -1,29 +1,20 @@
 // lib/contentSources.ts
 import { parseStringPromise } from 'xml2js';
-import fs from 'fs/promises';
-import path from 'path';
+// import fs from 'fs/promises';
+// import path from 'path';
 // Assuming the PersonaTopic interface is available via an import path like this:
 import type { PersonaTopic } from './personas';
+import { enrichArticles } from './generation/articleEnricher';
 
 // Use native fetch
 const fetchFn = globalThis.fetch;
 
-// ─────────────────────────────────────────────
-// 🔑 Types & Interfaces
-// ─────────────────────────────────────────────
+
 interface CacheEntry {
   context: string;
   timestamp: number;
 }
 
-interface Sources {
-  twitter: {
-    handles: string[];
-  };
-  reddit: {
-    subreddits: string[];
-  };
-}
 
 interface RssItem {
   title?: string[];
@@ -37,10 +28,6 @@ interface HeadlineWithSource {
   description: string | undefined; // Required property that can be undefined
 }
 
-interface RedditPostData {
-  title: string;
-  created_utc: number;
-}
 
 // ─────────────────────────────────────────────
 // 🔧 Constants & Helpers
@@ -88,33 +75,6 @@ function setCachedContext(key: string, context: string): void {
   console.log(`[Content Source] 💾 Cached new context for: "${key}"`);
 }
 
-// ─────────────────────────────────────────────
-// 📁 Source Loading (Kept for potential future use, but not actively used)
-// ─────────────────────────────────────────────
-async function loadSources(persona: string): Promise<Sources> {
-  const personaToFile: Record<string, string> = {
-    satirist: 'sources-satirist.json',
-    business_storyteller: 'sources-business-storyteller.json',
-    cricket_storyteller: 'sources-cricket-storyteller.json',
-    english_vocab_builder: 'sources-english-vocab-builder.json',
-  };
-  const sourceFile = personaToFile[persona];
-
-  if (!sourceFile) {
-    console.warn(`[Content Source] No source file for persona: ${persona}, using default sources`);
-    return { twitter: { handles: [] }, reddit: { subreddits: [] } };
-  }
-
-  try {
-    const sourcePath = path.join(process.cwd(), 'config', sourceFile);
-    const data = await fs.readFile(sourcePath, 'utf8');
-    console.log(`[Content Source] 📁 Loaded sources from ${sourceFile} for persona "${persona}"`);
-    return JSON.parse(data);
-  } catch (error) {
-    console.error(`[Content Source] ❌ CRITICAL: Could not load source file ${sourceFile}.`, error);
-    return { twitter: { handles: [] }, reddit: { subreddits: [] } };
-  }
-}
 
 // ─────────────────────────────────────────────
 // 📡 Fetching Logic
@@ -151,7 +111,7 @@ async function fetchFromGoogle(query: string): Promise<HeadlineWithSource[]> {
 
 async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
   const userAgent = getRandomUserAgent();
-  const rssFeeds = [ 'https://www.thehindubusinessline.com/feeder/default.rss', 'https://www.thehindu.com/business/Economy/feeder/default.rss', 'https://theentrepreneurindia.com/feed/', 'https://entrepreneuredge.in/news/startup-news/feed/' ];
+  const rssFeeds = ['https://inc42.com/feed', 'https://www.thehindubusinessline.com/feeder/default.rss', 'https://techcrunch.com/category/artificial-intelligence/feed/', ];
   const results: HeadlineWithSource[] = [];
 
   for (const feed of rssFeeds) {
@@ -161,7 +121,7 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
 
       const xml = await response.text();
       const parsed = await parseStringPromise(xml);
-      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 3) ?? [];
+      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 5) ?? [];
 
       items.forEach((item) => {
         const title = item.title?.[0];
@@ -206,80 +166,6 @@ async function fetchFromCricketNewsRSS(): Promise<HeadlineWithSource[]> {
   }
   return results.sort(() => 0.5 - Math.random()).slice(0, 10);
 }
-
-// async function fetchFromTwitter(sources: Sources, topic: string): Promise<string[]> {
-//   const selectedHandles = selectRandomSources(sources.twitter.handles, 3);
-//   const userAgent = getRandomUserAgent();
-//   const results: string[] = [];
-  
-//   const querySuffix = (topic.toLowerCase().includes('news') || topic.toLowerCase().includes('policy')) 
-//     ? '+when:1d' 
-//     : `"${topic}"+when:1d`;
-
-//   for (const handle of selectedHandles) {
-//     const cleanHandle = handle.replace('@', '');
-//     const query = `site:x.com/${cleanHandle}${querySuffix}`;
-//     const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-IN&gl=IN&ceid=IN:en`;
-
-//     try {
-//       const response = await fetchFn(url, {
-//         headers: { 'User-Agent': userAgent },
-//         signal: AbortSignal.timeout(4000),
-//       });
-//       if (!response.ok) continue;
-
-//       const xml = await response.text();
-//       const parsed = await parseStringPromise(xml);
-//       const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 2) ?? [];
-      
-//       items.forEach(item => {
-//         const title = item.title?.[0];
-//         if (title) results.push(`[Twitter Post from ${handle}] ${title}`);
-//       });
-//     } catch {
-//       console.warn(`[Content Source] ⚠️ Failed to fetch from Twitter handle: ${handle}`);
-//     }
-//   }
-//   return results;
-// }
-
-
-// async function fetchFromReddit(sources: Sources): Promise<string[]> {
-//     const selectedSubreddits = selectRandomSources(sources.reddit.subreddits, 1);
-//     const userAgent = getRandomUserAgent();
-//     const results: string[] = [];
-
-//     for (const subreddit of selectedSubreddits) {
-//         const url = `https://www.reddit.com/r/${subreddit}/hot.json?limit=5`;
-//         try {
-//             const response = await fetchFn(url, {
-//                 headers: { 'User-Agent': userAgent },
-//                 signal: AbortSignal.timeout(4000),
-//             });
-//             if (!response.ok) continue;
-
-//             const data = await response.json();
-//             const posts = data?.data?.children ?? [];
-
-//             posts.forEach((post: { data: RedditPostData }) => {
-//                 const title: string = post.data.title;
-                
-//                 if (post.data.created_utc > (Date.now() / 1000) - (24 * 3600)) {
-//                    results.push(`[Reddit Discussion on r/${subreddit}] ${title}`);
-//                 }
-//             });
-//         } catch {
-//             console.warn(`[Content Source] ⚠️ Failed to fetch from Reddit: r/${subreddit}`);
-//         }
-//     }
-//     return results.slice(0, 2);
-// }
-
-
-
-// ─────────────────────────────────────────────
-// 📰 Real News Query Generation
-// ─────────────────────────────────────────────
 
 
 function getTopicString(topic: PersonaTopic | string | undefined): string | undefined {
@@ -422,23 +308,90 @@ Use this briefing to deconstruct the story behind the scoreboard. The Primary Ev
 
   // --- START: LOGIC FOR satirist ---
   if (persona === 'satirist') {
-    console.log('[Content Source] 🧐 Satirist selected. Fetching ONLY from Indian News RSS...');
-    const allContent = await fetchFromIndianNewsRSS();
-    if (allContent.length === 0) {
-      return 'No trending news found. Generate a general witty observation about the current state of affairs in India.';
-    }
-    const uniqueHeadlines = Array.from(new Map(allContent.map((item) => [item.headline, item])).values());
-    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines with sources. Shuffling list to ensure variety.`);
-    uniqueHeadlines.sort(() => 0.5 - Math.random());
-    const selectedHeadlines = uniqueHeadlines.slice(0, 15);
-    const numberedHeadlines = selectedHeadlines.map((item, idx) => `${idx + 1}. ${item.headline}`).join('\n');
-    const sourceMap = selectedHeadlines.map((item, idx) => `[SOURCE_${idx + 1}]: ${item.url}`).join('\n');
-    const finalContext = `Trending news headlines for commentary:
-${numberedHeadlines}
-Select ONE headline and provide witty commentary.
+    console.log('[Content Source] 🧐 Satirist selected. Activating Deep Dive with full article fetching...');
+    // NOTE: Caching disabled for satirist to ensure maximum variety in headline selection
+    // Each generation gets freshly shuffled headlines for better content diversity
+
+    try {
+      const primaryHeadlines = await fetchFromIndianNewsRSS();
+      if (primaryHeadlines.length === 0) {
+        return 'No trending news found. Generate a general witty observation about the current state of affairs in India.';
+      }
+
+      // Get unique headlines and shuffle for variety
+      const uniqueHeadlines = Array.from(new Map(primaryHeadlines.map((item) => [item.headline, item])).values());
+      console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines. Shuffling for variety...`);
+      uniqueHeadlines.sort(() => 0.5 - Math.random());
+
+      // Take top 10 headlines for enrichment
+      const selectedHeadlines = uniqueHeadlines.slice(0, 10);
+
+      // NEW: Fetch full article content with entity extraction
+      console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} headlines...`);
+      const enrichedArticles = await enrichArticles(selectedHeadlines, 3); // Process 3 at a time
+
+      // Shuffle articles again before formatting for maximum variety
+      enrichedArticles.sort(() => 0.5 - Math.random());
+
+      // Format the enriched context with article data
+      const formattedHeadlines = enrichedArticles.map((article, idx) => {
+        let formatted = `${idx + 1}. ${article.headline}`;
+
+        if (article.description) {
+          formatted += `\n   Summary: ${article.description}`;
+        }
+
+        if (article.fullText) {
+          // Include first 300 chars of article for richer context
+          const preview = article.fullText.substring(0, 300).trim() + '...';
+          formatted += `\n   Article Excerpt: ${preview}`;
+        }
+
+        if (article.twitterHandles.length > 0) {
+          formatted += `\n   Twitter Handles: ${article.twitterHandles.map(h => '@' + h).join(', ')}`;
+        }
+
+        if (article.websites.length > 0) {
+          formatted += `\n   Related Websites: ${article.websites.join(', ')}`;
+        }
+
+        if (article.entities.length > 0) {
+          formatted += `\n   Key Entities: ${article.entities.slice(0, 5).join(', ')}`;
+        }
+
+        return formatted;
+      }).join('\n\n');
+
+      const sourceMap = enrichedArticles.map((article, idx) => `[SOURCE_${idx + 1}]: ${article.url}`).join('\n');
+
+      // NEW: Build handle mapping for accurate tagging
+      const handleMap = enrichedArticles.map((article, idx) => {
+        if (article.twitterHandles.length > 0) {
+          return `[HANDLES_${idx + 1}]: ${article.twitterHandles.join(',')}`;
+        }
+        return null;
+      }).filter(Boolean).join('\n');
+
+      const finalContext = `ENRICHED NEWS BRIEFING FOR SATIRICAL ANALYSIS
+-------------------------------------------
+
+${formattedHeadlines}
+
+Select ONE headline and provide witty, data-driven commentary.
+When you reference companies/people mentioned in the article, use their Twitter handles if provided above.
+
 --- SOURCE METADATA (for logging only) ---
-${sourceMap}`;
-    return finalContext;
+${sourceMap}
+
+--- VERIFIED TWITTER HANDLES (extracted from articles) ---
+${handleMap || 'None found'}`;
+
+      // No caching for satirist - fresh shuffled headlines each time for variety
+      return finalContext;
+    } catch (error) {
+      console.error(`[Content Source] ❌ Satirist Deep Dive failure:`, error);
+      return 'Could not fetch latest news due to a system error. Generate a general witty observation.';
+    }
   }
 
   // --- START: GENERAL LOGIC FOR ALL OTHER PERSONAS ---

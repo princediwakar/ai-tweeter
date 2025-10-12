@@ -23,7 +23,9 @@
   - `personas/englishVocabBuilder.ts` - Educational vocab content
   - `personas/businessStoryteller.ts` - Indian business narratives
   - `personas/cricketStoryteller.ts` - Cricket human stories
-  - `personas/satirist.ts` - Bureaucracy satire
+  - `personas/satirist.ts` - Data-driven satirical analysis
+  - `articleEnricher.ts` - Two-step article enrichment: fetches full content + extracts Twitter handles, entities, websites
+* `lib/contentSource.ts` - RSS feed aggregation & article enrichment orchestration
 * `lib/generationService.ts` - Main AI orchestration
 * `lib/threadGenerationService.ts` - Thread creation with shareability hooks
 * `lib/imageGenerationService.ts` - Cloudinary image rendering
@@ -36,9 +38,32 @@
 
 **Database Schema (Neon):**
 * `accounts` - Multi-account credentials, personas, branding
-* `tweets` - Content with threading support (thread_id, sequence, parent)
+* `tweets` - Content with threading support (thread_id, sequence, parent, source_url)
 * `threads` - Thread metadata (status, progress tracking)
 * **Full schema:** `docs/DATABASE_SCHEMA.md` | **Project ID:** `round-sun-88150229`
+
+### 📰 Article Enrichment Pipeline (Satirist Persona)
+
+The satirist persona uses a sophisticated two-step enrichment process:
+
+**Step 1: Primary Extraction** (`lib/contentSource.ts`)
+- Fetches 10 headlines from Indian business/tech RSS feeds (Inc42, Hindu Business Line, TechCrunch AI)
+- Passes headlines to `articleEnricher.ts` for deep analysis
+
+**Step 2: Secondary Enrichment** (`lib/generation/articleEnricher.ts`)
+- Fetches full article content using Readability.js
+- Extracts Twitter handles from article HTML (links + @mentions)
+- Identifies company websites mentioned in article text
+- Visits discovered company homepages to find official social handles
+- Extracts entity names (companies, people) using capitalization patterns
+- Returns enriched data: `{ headline, fullText, twitterHandles, websites, entities, sourceUrl }`
+
+**Integration Flow:**
+1. `contentSource.ts` → calls `enrichArticles()` with 10 headlines
+2. `articleEnricher.ts` → processes 3 articles concurrently, returns enriched data
+3. Formatted context passed to satirist prompt with handles, excerpts, entities
+4. AI generates tweet using extracted data (prioritizes @handles for tagging)
+5. `source_url` tracked in database for attribution
 
 ## Key Constraints
 

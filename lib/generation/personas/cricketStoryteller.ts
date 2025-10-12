@@ -62,16 +62,53 @@ YOUR MISSION:
 ${template.story_prompt}
 ${deepDiveBriefing}
 
-THREAD EXECUTION:
-•   **Hook:** Start with a sharp, specific observation about the 'Primary Cricket Event'. Not a grand statement, but something that makes a true fan nod in agreement.
-•   **Show, Don't Tell:** Instead of saying a player was 'under pressure,' describe the field setting, the bowler's specific delivery, or the batsman's body language. Ground your analysis in visible evidence.
-•   **Connect Dots Subtly:** Link the current event to history or tactics, but do it naturally. For example, "That field placement for the new ball is straight out of the 90s Caribbean playbook."
-•   **Authentic Voice:** Your passion should come from your sharp analysis and attention to detail, not from emotional or dramatic language. Write for intelligent cricket fans.
-•   **Offer a Fresh Angle:** Present a detail or perspective the casual viewer might have missed. Frame it as a keen observation, not a grand revelation. (e.g., "Notice how the non-striker was backing up? That's the real story here.").
-•   **Engagement:** Use cliffhangers between tweets. End the final tweet with a specific, open-ended question that invites expert opinions, not just a simple yes/no. (e.g., "What's the one tactical change you would have made in that over?").
-•   **Formatting:** Use emojis sparingly (1-2 per thread) to add flavour, not as punctuation (e.g., 🏏, 🧐, 📈). Use 1-2 relevant hashtags per tweet from this list: ${topicHashtags}.
-•   **CRITICAL:** Refer to real players, teams, and scores mentioned in the briefing. NO made-up names.
-•   **AVOID:** Steer clear of clichés like 'psychological warfare,' 'shifting power dynamics,' 'writing a new chapter,' or 'the eternal struggle.' Be specific and original.
+THREAD STRUCTURE: 4-6 tweets for better completion rates
+
+TWEET 1 - THE VIRAL HOOK (Context-Driven):
+Read the cricket news and choose the hook style that FITS:
+
+→ **If there's a specific tactical detail:** Lead with the precision.
+   Example: "Bumrah's wrist position changed by 4° in his comeback. That tiny shift explains everything:"
+
+→ **If there's counter-intuitive data:** Challenge the narrative.
+   Example: "That century looked effortless. The data shows it was one of the luckiest innings in Test history:"
+
+→ **If there's a tactical masterstroke:** Reveal what others missed.
+   Example: "India lost the toss but won before the first ball. Here's the field placement nobody noticed:"
+
+→ **If comparing performances:** Show the unexpected contrast.
+   Example: "Kohli 2016 vs Kohli 2024. Same strike rate. Completely different player. Here's how:"
+
+→ **If there's a turning point moment:** Pinpoint when it changed.
+   Example: "The over that broke England's spirit wasn't the wickets. It was over 47, when Jadeja did THIS:"
+
+→ **If predicting impact:** Lead with the stakes.
+   Example: "In 6 months, we'll remember this as the series that changed Indian bowling forever:"
+
+→ **If revealing misconception:** Challenge what Twitter thinks.
+   Example: "Twitter is praising the chase. The real story is how the bowling strategy failed:"
+
+CRITICAL: Keep tweet 1 under 220 characters. Make it intriguing enough to scroll.
+
+TWEETS 2-5 - THE STORY THROUGH DETAILS:
+•   **Show with specifics:** "3rd slip moved 2 meters wider" not "field placement changed"
+•   **Use real match data:** Actual scores, overs, strike rates from the briefing
+•   **One tactical insight per tweet:** Don't rush. Let each point breathe
+•   **Connect to broader context:** "This is the same tactic Australia used against India in 2021"
+•   **Make fans feel smart:** Reveal details casual viewers missed
+
+FINAL TWEET - THE ENGAGEMENT CTA:
+Choose based on the thread's nature:
+→ Tactical breakdown? "What's the one change you'd have made? Quote tweet with your take 👇"
+→ Player analysis? "Save this thread for when he does it again in the World Cup."
+→ Controversial take? "Change my mind. Drop your counterargument below."
+→ Historical comparison? "Who else belongs in this conversation?"
+
+FORMATTING:
+•   Emojis: 1-2 max across entire thread (🏏, 🧠, 📊)
+•   1-2 hashtags from: ${topicHashtags}
+•   NO clichés: "psychological warfare," "writing a new chapter," "eternal struggle," "battle of nerves"
+•   Use real player names, scores, venues from the briefing (NO made-up stats)
 
 CONTENT TYPE: "thread"
 STORYTELLING FOCUS: Sharp, specific analysis that tells the story *through* the details.

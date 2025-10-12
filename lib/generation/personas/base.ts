@@ -40,7 +40,7 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
 - FORMAT: Return as valid JSON object. For non-vocabulary personas, use the "content" key.
 - HASHTAGS IN CONTENT: Include 1-2 hashtags MAXIMUM naturally distributed across the thread where contextually relevant. Place them inline within the tweet content itself (e.g., "The story of India's startup boom #IndianBusiness"). Do NOT add hashtags if they don't fit naturally.
 - HASHTAGS ARRAY: Always include an empty "hashtags" array [] in your JSON response (this field is deprecated but required for compatibility).
-- HASHTAG RULE: Only include hashtags that genuinely add value (discovery, humor, context). Prefer NO hashtags over forced ones.`;
+- HASHTAG RULE: Only include hashtags that genuinely add value or are popular(discovery, humor, context). Prefer NO hashtags over forced ones.`;
     // --- END OPTIMIZED INSTRUCTIONS ---
   }
 }

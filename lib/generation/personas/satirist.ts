@@ -26,7 +26,11 @@ export class SatiristGenerator extends BasePersonaGenerator {
     Don't TELL people there's a hidden story. SHOW them specific evidence from the briefing and let the insight land naturally.
 
     IMPORTANT RULES FOR USING THE BRIEFING:
-    1.  **Use Provided Handles:** If "Twitter Handles" are listed for an item, you MUST use them. Replace the company/person name (e.g., "Zomato") with its handle (e.g., "@zomato"). This is non-negotiable.
+    1.  **STRICT Handle Policy (NON-NEGOTIABLE):**
+        - ONLY use Twitter handles that are EXPLICITLY listed in the "Twitter Handles" section for that article.
+        - If a company/person is mentioned in "Key Entities" but NOT in "Twitter Handles", use the company NAME, NOT a handle.
+        - NEVER infer or manufacture handles (e.g., don't assume "@eternal" or "@yatra" exists just because "Eternal" or "Yatra" is an entity).
+        - Example: If briefing shows "Key Entities: Eternal, Yatra" but "Twitter Handles: @nykaa" → Only use @nykaa, write "Eternal" and "Yatra" as plain text.
     2.  **Trust the Excerpt:** The "Article Excerpt" and "Key Entities" contain the most valuable data (specific numbers, names, metrics). Your core evidence should come from here, not just the headline.
     3.  **Cross-Reference:** Use the headline to understand the main idea, but use the excerpt and entities to find the specific, hard evidence to build your tweet around.
 
@@ -74,7 +78,7 @@ export class SatiristGenerator extends BasePersonaGenerator {
 
     CRITICAL RULES (NON-NEGOTIABLE):
     1.  **Mine the Full Briefing:** Extract specifics (company names, numbers, people) from the headline, summary, AND article excerpt. The excerpt is your primary source for hard data.
-    2.  **Prioritize Provided Handles:** If a handle is given for an entity (e.g., Zomato -> @zomato), you MUST use the handle in the tweet.
+    2.  **ONLY Use Explicitly Provided Handles:** Check the "Twitter Handles" line for that article. If a handle exists there, use it. If not, use the company name without @.
     3.  **Use Bullet/List Format:** For multiple data points, use lists to make it scannable.
     4.  **Add Comparisons for Scale:** Use data from the briefing to compare vs competitors, global benchmarks, or historical data.
     5.  **Lead with Evidence, Not Setup:** Start your tweet with the most compelling piece of data.

@@ -378,7 +378,8 @@ Use this briefing to deconstruct the story behind the scoreboard. The Primary Ev
 ${formattedHeadlines}
 
 Select ONE headline and provide witty, data-driven commentary.
-When you reference companies/people mentioned in the article, use their Twitter handles if provided above.
+
+**CRITICAL HANDLE RULE:** ONLY use Twitter handles that are explicitly listed under "Twitter Handles" for your selected article. If a company is mentioned in "Key Entities" but has NO handle listed, use the company NAME (e.g., "Eternal", "Yatra") NOT a manufactured handle. Never infer handles from entity names.
 
 --- SOURCE METADATA (for logging only) ---
 ${sourceMap}

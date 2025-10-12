@@ -13,6 +13,13 @@ export interface Account {
   cloudinary_cloud_name_encrypted?: string;
   cloudinary_api_key_encrypted?: string;
   cloudinary_api_secret_encrypted?: string;
+  // LinkedIn OAuth credentials
+  linkedin_access_token_encrypted?: string;
+  linkedin_refresh_token_encrypted?: string;
+  linkedin_user_id?: string;
+  linkedin_org_id?: string;
+  linkedin_enabled?: boolean;
+  linkedin_token_expires_at?: Date;
   personas: string[];
   branding: {
     theme: string;
@@ -34,6 +41,9 @@ export interface AccountWithCredentials extends Account {
   cloudinary_cloud_name?: string;
   cloudinary_api_key?: string;
   cloudinary_api_secret?: string;
+  // Decrypted LinkedIn credentials
+  linkedin_access_token?: string;
+  linkedin_refresh_token?: string;
 }
 
 export interface Persona {
@@ -72,6 +82,8 @@ export interface Tweet {
   image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
   card_data?: string; // JSON-encoded VocabularyCard data for async image generation
   source_url?: string;
+  // LinkedIn cross-posting support
+  linkedin_id?: string;
 }
 
 export interface EnhancedTweet {

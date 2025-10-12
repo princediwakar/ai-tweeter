@@ -15,6 +15,12 @@ interface AccountRow {
   cloudinary_cloud_name_encrypted?: string;
   cloudinary_api_key_encrypted?: string;
   cloudinary_api_secret_encrypted?: string;
+  linkedin_access_token_encrypted?: string;
+  linkedin_refresh_token_encrypted?: string;
+  linkedin_user_id?: string;
+  linkedin_org_id?: string;
+  linkedin_enabled?: boolean;
+  linkedin_token_expires_at?: Date;
   personas: string[];
   branding: Account['branding'];
   created_at: Date;
@@ -143,6 +149,12 @@ class AccountService {
       cloudinary_cloud_name_encrypted: row.cloudinary_cloud_name_encrypted,
       cloudinary_api_key_encrypted: row.cloudinary_api_key_encrypted,
       cloudinary_api_secret_encrypted: row.cloudinary_api_secret_encrypted,
+      linkedin_access_token_encrypted: row.linkedin_access_token_encrypted,
+      linkedin_refresh_token_encrypted: row.linkedin_refresh_token_encrypted,
+      linkedin_user_id: row.linkedin_user_id,
+      linkedin_org_id: row.linkedin_org_id,
+      linkedin_enabled: row.linkedin_enabled,
+      linkedin_token_expires_at: row.linkedin_token_expires_at,
       // Decrypted credentials for internal use
       twitter_api_key: this.decrypt(row.twitter_api_key_encrypted),
       twitter_api_secret: this.decrypt(row.twitter_api_secret_encrypted),
@@ -151,6 +163,8 @@ class AccountService {
       cloudinary_cloud_name: row.cloudinary_cloud_name_encrypted ? this.decrypt(row.cloudinary_cloud_name_encrypted) : undefined,
       cloudinary_api_key: row.cloudinary_api_key_encrypted ? this.decrypt(row.cloudinary_api_key_encrypted) : undefined,
       cloudinary_api_secret: row.cloudinary_api_secret_encrypted ? this.decrypt(row.cloudinary_api_secret_encrypted) : undefined,
+      linkedin_access_token: row.linkedin_access_token_encrypted ? this.decrypt(row.linkedin_access_token_encrypted) : undefined,
+      linkedin_refresh_token: row.linkedin_refresh_token_encrypted ? this.decrypt(row.linkedin_refresh_token_encrypted) : undefined,
       personas: row.personas,
       branding: row.branding,
       created_at: row.created_at,
@@ -264,6 +278,24 @@ class AccountService {
           case 'cloudinary_api_secret':
             setClause.push(`cloudinary_api_secret_encrypted = $${paramIndex++}`);
             values.push(this.encrypt(value as string));
+            break;
+          case 'linkedin_access_token':
+            setClause.push(`linkedin_access_token_encrypted = $${paramIndex++}`);
+            values.push(this.encrypt(value as string));
+            break;
+          case 'linkedin_refresh_token':
+            setClause.push(`linkedin_refresh_token_encrypted = $${paramIndex++}`);
+            values.push(this.encrypt(value as string));
+            break;
+          case 'linkedin_user_id':
+          case 'linkedin_org_id':
+          case 'linkedin_enabled':
+            setClause.push(`${key} = $${paramIndex++}`);
+            values.push(value);
+            break;
+          case 'linkedin_token_expires_at':
+            setClause.push(`linkedin_token_expires_at = $${paramIndex++}`);
+            values.push(value);
             break;
           case 'personas':
             setClause.push(`personas = $${paramIndex++}`);

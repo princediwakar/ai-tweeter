@@ -17,6 +17,7 @@ interface AccountSchedules {
   generation: DailySchedule;
   posting: DailySchedule;
   engagement?: DailySchedule; // + Added optional engagement schedule
+  linkedin_posting?: DailySchedule; // + LinkedIn cross-posting schedule
   metadata: {
     strategy: string;
     target_audience: string;
@@ -89,6 +90,23 @@ const princeEngagementPattern: HourlySchedule = {
   21: ['engagement']   // Evening window: 21:00, 21:15, 21:30, 21:45
 };
 
+/**
+ * Prince LinkedIn Posting Schedule
+ * Strategy: Post satirist content to LinkedIn at optimal professional times
+ * Best times: Tue-Thu, 8-10 AM or 12-2 PM IST (highest LinkedIn engagement)
+ */
+const princeLinkedInPostingPattern: DailySchedule = {
+  // LinkedIn posts only on peak professional days (Tue-Thu)
+  // Offset slightly from Twitter to avoid racing conditions
+  0: {}, // Sunday - no LinkedIn posts
+  1: {}, // Monday - no LinkedIn posts
+  2: { 9: ['satirist'], 13: ['satirist'] }, // Tuesday - morning & afternoon
+  3: { 9: ['satirist'], 13: ['satirist'] }, // Wednesday - morning & afternoon
+  4: { 9: ['satirist'], 13: ['satirist'] }, // Thursday - morning & afternoon
+  5: {}, // Friday - no LinkedIn posts
+  6: {}, // Saturday - no LinkedIn posts
+};
+
 // Twitter handle mapping - maps twitter handles to schedule keys
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
@@ -153,6 +171,7 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       5: princeEngagementPattern, // Friday
       6: princeEngagementPattern, // Saturday
     },
+    linkedin_posting: princeLinkedInPostingPattern,
     metadata: {
       strategy: 'High-impact, low-frequency posting: Satire (Morning) and Alternating Threads (Prime Time). Max 2 content pieces/day.',
       target_audience: 'Entrepreneurs, business leaders, startup enthusiasts (25-45 age group)',
@@ -268,9 +287,50 @@ export function getEngagementSchedule(twitterHandle: string): DailySchedule {
     // Return empty schedule if no mapping found
     return {};
   }
-  
+
   const schedules = ACCOUNT_SCHEDULES[scheduleKey];
   return schedules?.engagement || {};
+}
+
+/**
+ * Get LinkedIn posting schedule for a specific account
+ */
+export function getLinkedInPostingSchedule(twitterHandle: string): DailySchedule {
+  const scheduleKey = getScheduleKey(twitterHandle);
+  if (!scheduleKey) {
+    return {};
+  }
+
+  const schedules = ACCOUNT_SCHEDULES[scheduleKey];
+  return schedules?.linkedin_posting || {};
+}
+
+/**
+ * Get personas scheduled for LinkedIn posting at a specific time for an account
+ */
+export function getScheduledPersonasForLinkedInPosting(
+  twitterHandle: string,
+  dayOfWeek: number,
+  hour: number
+): string[] {
+  const schedule = getLinkedInPostingSchedule(twitterHandle);
+  const daySchedule = schedule[dayOfWeek];
+  const personas = daySchedule?.[hour] || [];
+
+  return personas;
+}
+
+/**
+ * Check if LinkedIn posting is scheduled for an account at current time
+ * IMPORTANT: Schedules are defined in IST, so we convert UTC to IST for comparison
+ */
+export function isLinkedInPostingScheduled(twitterHandle: string, date: Date = new Date()): boolean {
+  // Convert to IST (UTC+5:30)
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+  const dayOfWeek = istDate.getDay();
+  const hour = istDate.getHours();
+  const personas = getScheduledPersonasForLinkedInPosting(twitterHandle, dayOfWeek, hour);
+  return personas.length > 0;
 }
 
 /**

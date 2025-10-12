@@ -14,6 +14,5 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "outputDirectory": ".next",
-  "crons": [
-  ]
+  "crons": []
 }

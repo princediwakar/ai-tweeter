@@ -98,7 +98,7 @@ export interface EnhancedTweet {
   imageBuffer?: Buffer; // Image data for image-based tweets (deprecated)
   imageUrl?: string; // Cloudinary URL for image-based tweets
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  cardData?: VocabularyCard; // Vocabulary card data for async image generation
+  cardData?: CardData; // Card data for async image generation (vocab or satirist)
   sourceUrl?: string;
   selectedHeadlineNumber?: number; // Track which headline was used (satirist persona)
 }
@@ -112,6 +112,13 @@ export interface VocabularyCard {
   synonyms?: string[];
   type?: 'single_word' | 'confused_pair' | 'synonym_list' | 'idiom' | 'phrasal_verb';
 }
+
+export interface SatiristCard {
+  type: 'satirist_insight';
+  imageContent: string;
+}
+
+export type CardData = VocabularyCard | SatiristCard;
 
 export interface TweetJob {
   id: string;

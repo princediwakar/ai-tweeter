@@ -18,13 +18,6 @@ interface AccountSchedules {
   posting: DailySchedule;
   engagement?: DailySchedule; // + Added optional engagement schedule
   linkedin_posting?: DailySchedule; // + LinkedIn cross-posting schedule
-  metadata: {
-    strategy: string;
-    target_audience: string;
-    timezone_optimization: string;
-    daily_post_target: number;
-    generation_batches_per_day: number;
-  };
 }
 
 /**
@@ -64,11 +57,11 @@ const princeGenerationPattern: DailySchedule = {
   // Total per week: 21 Satirist, 3 Threads
   0: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Sunday
   1: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Monday
-  2: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], 17: ['satirist'] }, // Tuesday
-  3: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_B], 17: ['satirist'] }, // Wednesday
-  4: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Thursday
-  5: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Friday
-  6: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], 17: ['satirist'] }, // Saturday
+  2: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A] }, // Tuesday
+  3: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist']    }, // Wednesday
+  4: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Thursday
+  5: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Friday
+  6: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], }, // Saturday
 };
 
 const princePostingPattern: DailySchedule = {
@@ -93,17 +86,19 @@ const princeEngagementPattern: HourlySchedule = {
 /**
  * Prince LinkedIn Posting Schedule
  * Strategy: Post satirist content to LinkedIn at optimal professional times
- * Best times: Tue-Thu, 8-10 AM or 12-2 PM IST (highest LinkedIn engagement)
+ * LinkedIn frequency: Mon-Fri with 2-3 posts/day matching Twitter satirist cadence
+ * Best times: 8-10 AM, 12-2 PM, and 5-6 PM IST (professional engagement windows)
+ * Total: ~12-15 posts/week (increased from 6 for better algorithm favor)
  */
 const princeLinkedInPostingPattern: DailySchedule = {
-  // LinkedIn posts only on peak professional days (Tue-Thu)
-  // Offset slightly from Twitter to avoid racing conditions
+  // LinkedIn posts Mon-Fri to maintain consistent professional presence
+  // Offset slightly from Twitter posting times to avoid racing conditions
   0: {}, // Sunday - no LinkedIn posts
-  1: {}, // Monday - no LinkedIn posts
-  2: { 9: ['satirist'], 13: ['satirist'] }, // Tuesday - morning & afternoon
-  3: { 9: ['satirist'], 13: ['satirist'] }, // Wednesday - morning & afternoon
-  4: { 9: ['satirist'], 13: ['satirist'] }, // Thursday - morning & afternoon
-  5: {}, // Friday - no LinkedIn posts
+  1: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Monday - morning, afternoon, evening
+  2: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Tuesday - morning, afternoon, evening
+  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Wednesday - morning, afternoon, evening
+  4: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Thursday - morning, afternoon, evening
+  5: { 9: ['satirist'], 14: ['satirist'] }, // Friday - morning & afternoon only (lighter day)
   6: {}, // Saturday - no LinkedIn posts
 };
 
@@ -150,13 +145,6 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       5: gibbiPostingPattern,
       6: gibbiPostingPattern,
     },
-    metadata: {
-      strategy: 'Global English learners with frequent educational content (5x daily) during global peak learning hours.',
-      target_audience: 'English language learners worldwide (A2-C1 level)',
-      timezone_optimization: 'Multiple global peaks (IST Morning, Global Lunch, US Evening)',
-      daily_post_target: 5, // Reduced from 7 for higher quality/less noise
-      generation_batches_per_day: 2 // Two focused generation runs
-    }
   },
 
   prince_account: {
@@ -172,13 +160,6 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       6: princeEngagementPattern, // Saturday
     },
     linkedin_posting: princeLinkedInPostingPattern,
-    metadata: {
-      strategy: 'High-impact, low-frequency posting: Satire (Morning) and Alternating Threads (Prime Time). Max 2 content pieces/day.',
-      target_audience: 'Entrepreneurs, business leaders, startup enthusiasts (25-45 age group)',
-      timezone_optimization: 'IST peak commute (10 AM) and IST prime-time (8 PM) for thread consumption.',
-      daily_post_target: 2, // 1 Satirist + 1 Thread = 2 high-value content slots
-      generation_batches_per_day: 2 // One for Satire, One for Thread
-    }
   }
 };
 
@@ -357,18 +338,7 @@ export function getScheduledTwitterHandles(): string[] {
   return Object.values(SCHEDULE_KEY_TO_HANDLE);
 }
 
-/**
- * Get account metadata for scheduling strategy insights
- */
-export function getAccountMetadata(twitterHandle: string): AccountSchedules['metadata'] | null {
-  const scheduleKey = getScheduleKey(twitterHandle);
-  if (!scheduleKey) {
-    return null;
-  }
-  
-  const schedules = ACCOUNT_SCHEDULES[scheduleKey];
-  return schedules ? schedules.metadata : null;
-}
+
 
 /**
  * Get current scheduled activity for all accounts (for monitoring/debugging)
@@ -376,7 +346,6 @@ export function getAccountMetadata(twitterHandle: string): AccountSchedules['met
  */
 export function getCurrentScheduledActivity(date: Date = new Date()): {
   twitterHandle: string;
-  metadata: AccountSchedules['metadata'];
   generation_personas: string[];
   posting_personas: string[];
 }[] {
@@ -388,11 +357,9 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
   return getScheduledTwitterHandles().map(twitterHandle => {
     const generationPersonas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
     const postingPersonas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
-    const metadata = getAccountMetadata(twitterHandle)!;
     
     return {
       twitterHandle,
-      metadata,
       generation_personas: generationPersonas,
       posting_personas: postingPersonas
     };
@@ -408,14 +375,12 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   should_generate: boolean;
   personas: string[];
   batch_size: number;
-  account_strategy: string;
 } {
   // Convert to IST (UTC+5:30)
   const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
   const dayOfWeek = istDate.getDay();
   const hour = istDate.getHours();
   let personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
-  const metadata = getAccountMetadata(twitterHandle);
   
   // In debug mode, provide default personas if none scheduled
   if (debugMode && personas.length === 0) {
@@ -427,8 +392,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   }
   
   let batchSize = 1; // Default for threads
-  if (metadata) {
-    if (twitterHandle === '@gibbi_ai' || metadata.target_audience.includes('learners')) {
+    if (twitterHandle === '@gibbi_ai' ) {
       batchSize = 1; // Educational content can be batched larger
     } else if (twitterHandle === '@princediwakar25') {
       // If the scheduled persona is Satirist, only generate one post
@@ -440,7 +404,6 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
           batchSize = 1; // Fallback for multi-persona/topic runs (rare in optimized schedule)
       }
     }
-  }
   
   const shouldGenerate = debugMode ? personas.length > 0 : personas.length > 0;
   
@@ -448,7 +411,6 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     should_generate: shouldGenerate,
     personas,
     batch_size: batchSize,
-    account_strategy: metadata?.strategy || 'Unknown strategy'
   };
 }
 
@@ -461,71 +423,31 @@ export function getPostingEligibility(twitterHandle: string, date: Date = new Da
   should_post: boolean;
   personas: string[];
   max_posts_this_hour: number;
-  account_strategy: string;
 } {
   // Convert to IST (UTC+5:30)
   const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
   const dayOfWeek = istDate.getDay();
   const hour = istDate.getHours();
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
-  const metadata = getAccountMetadata(twitterHandle);
   
   let maxPostsThisHour = 1; // Conservative default
-  if (metadata) {
     if (twitterHandle === '@gibbi_ai') {
       // Educational posts are frequent but short. Max 2 posts to allow catch-up.
       maxPostsThisHour = personas.length > 0 ? 2 : 1; 
-    } else if (metadata.target_audience.includes('professionals')) {
+    } else if (twitterHandle === '@princediwakar25') {
       // Only 1 main content piece (single satirist tweet OR a thread start) is allowed per hour slot.
       maxPostsThisHour = 1; 
     }
-  }
+  
   
   return {
     should_post: personas.length > 0,
     personas,
     max_posts_this_hour: maxPostsThisHour,
-    account_strategy: metadata?.strategy || 'Unknown strategy'
   };
 }
 
-/**
- * Advanced scheduling insights for monitoring and optimization
- */
-export function getSchedulingInsights(): {
-  total_accounts: number;
-  accounts_with_metadata: number;
-  daily_targets: Record<string, number>;
-  generation_strategies: Record<string, string>;
-  current_activity_summary: string;
-} {
-  const twitterHandles = getScheduledTwitterHandles();
-  const now = new Date();
-  const currentActivity = getCurrentScheduledActivity(now);
-  
-  const dailyTargets: Record<string, number> = {};
-  const generationStrategies: Record<string, string> = {};
-  
-  twitterHandles.forEach(twitterHandle => {
-    const metadata = getAccountMetadata(twitterHandle);
-    if (metadata) {
-      dailyTargets[twitterHandle] = metadata.daily_post_target;
-      generationStrategies[twitterHandle] = metadata.strategy;
-    }
-  });
-  
-  const activeAccounts = currentActivity.filter(
-    a => a.generation_personas.length > 0 || a.posting_personas.length > 0
-  );
-  
-  return {
-    total_accounts: twitterHandles.length,
-    accounts_with_metadata: Object.keys(dailyTargets).length,
-    daily_targets: dailyTargets,
-    generation_strategies: generationStrategies,
-    current_activity_summary: `${activeAccounts.length} accounts active at ${now.getHours()}:00`
-  };
-}
+
 
 // Export types
 export type { HourlySchedule, DailySchedule, AccountSchedules };

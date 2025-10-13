@@ -1,11 +1,13 @@
 // lib/generation/articleEnricher.ts
-// Fetches full article content and extracts entities, handles, and websites.
-// Implements a two-step process:
-// 1. Primary Extraction: Gathers data directly from the news article page.
-// 2. Secondary Enrichment: Visits websites found in the article to discover official social media handles.
 
-import { JSDOM } from 'jsdom';
+import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+
+// Create a virtual console to suppress CSS parsing warnings
+const virtualConsole = new VirtualConsole();
+virtualConsole.on('error', () => {
+  // Suppress errors silently
+});
 
 export interface EnrichedArticle {
   headline: string;
@@ -53,15 +55,33 @@ function extractTwitterHandles(html: string): string[] {
  */
 function extractWebsites(text: string): string[] {
   const websites = new Set<string>();
-  const domainPattern = /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)/g;
+
+  // Common valid TLDs - whitelist approach to avoid matching sentence fragments
+  const validTLDs = /\.(com|org|net|io|ai|co|in|uk|us|tech|app|dev|xyz|info|biz|me|gg|fm|tv|live|online|site|website|store|blog|news|media|digital|cloud|ventures|capital|fund)(?:\b|\/)/i;
+
+  // More restrictive pattern that requires proper URL context or common domain patterns
+  const domainPattern = /(?:https?:\/\/|www\.)([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)/gi;
   let match;
+
   while ((match = domainPattern.exec(text)) !== null) {
     const domain = match[1].toLowerCase();
-    // Filter out common social media domains which are not company websites
-    if (!['twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'linkedin.com'].some(social => domain.includes(social))) {
-      websites.add(domain);
-    }
+
+    // Validate the domain has a recognized TLD
+    if (!validTLDs.test(domain)) continue;
+
+    // Filter out social media domains and obvious false positives
+    const excludePatterns = [
+      'twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'linkedin.com',
+      'youtube.com', 'google.com', 'github.com'
+    ];
+
+    if (excludePatterns.some(pattern => domain.includes(pattern))) continue;
+
+    // Extract just the main domain (remove any path components)
+    const cleanDomain = domain.split('/')[0];
+    websites.add(cleanDomain);
   }
+
   return Array.from(websites).slice(0, 5); // Limit to 5 to avoid excessive fetching
 }
 
@@ -89,7 +109,9 @@ function extractEntities(text: string): string[] {
  * This is a key part of the secondary enrichment process.
  * @param domain The domain name (e.g., "google.com")
  * @returns A promise that resolves to an array of Twitter handles found on the homepage.
+ * NOTE: Currently disabled as Twitter handle extraction is turned off
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function fetchHandlesFromHomepage(domain: string): Promise<string[]> {
   try {
     const url = `https://${domain}`;
@@ -131,44 +153,34 @@ export async function enrichArticle(
     }
 
     const html = await response.text();
-    const initialHandles = extractTwitterHandles(html);
-    console.log(`📰 Found ${initialHandles.length} handles directly in article HTML (likely publisher's).`);
+    // Twitter handle extraction disabled - keeping functions for potential future use
+    // const initialHandles = extractTwitterHandles(html);
 
-    const dom = new JSDOM(html, { url });
+    const dom = new JSDOM(html, { url, virtualConsole });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
     if (!article || !article.textContent) {
       console.warn(`📰 Could not extract readable text from article: ${url}`);
-      return { ...baseResult, twitterHandles: initialHandles };
+      return baseResult;
     }
 
     const fullText = article.textContent;
     const websites = extractWebsites(fullText);
     const entities = extractEntities(fullText);
-    const allHandles = new Set<string>(initialHandles);
 
-    // --- Step 2: Secondary Enrichment (from discovered websites) ---
-    if (websites.length > 0) {
-      console.log(`📰 Found ${websites.length} websites in text. Checking homepages for more handles...`);
-      const homepageHandlePromises = websites.map(site => fetchHandlesFromHomepage(site));
-      const homepageHandleResults = await Promise.all(homepageHandlePromises);
+    // Twitter handle extraction disabled
+    // Secondary enrichment step (website homepage scanning) also disabled
 
-      homepageHandleResults.forEach(handles => {
-        handles.forEach(handle => allHandles.add(handle));
-      });
-    }
+    console.log(`📰 Article enriched: ${websites.length} websites, ${entities.length} entities.`);
 
-    const finalTwitterHandles = Array.from(allHandles);
-    console.log(`📰 Article enriched: ${finalTwitterHandles.length} total handles, ${websites.length} websites, ${entities.length} entities.`);
-
-    // --- Step 3: Final Consolidation ---
+    // --- Step 2: Final Consolidation ---
     return {
       headline,
       url,
       description,
       fullText: fullText.substring(0, 2000), // Limit text length for storage/performance
-      twitterHandles: finalTwitterHandles,
+      twitterHandles: [], // Disabled
       websites,
       entities,
     };

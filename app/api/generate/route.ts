@@ -9,7 +9,6 @@ import { getCurrentTimeInIST } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { 
   getGenerationBatchInfo,
-  getSchedulingInsights
 } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
 import { getPersonaByKey, getAllTopicsForPersona } from '@/lib/personas';
@@ -57,10 +56,6 @@ export async function GET(request: NextRequest) {
     const debugMode = searchParams.get('debug') === 'true';
     const personaOverride = searchParams.get('persona');
     
-    if (debugMode) {
-      const insights = getSchedulingInsights();
-      logger.info('Scheduling insights requested', 'generate-debug', insights);
-    }
     
     if (accountId) {
       return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
@@ -324,14 +319,14 @@ if (shouldGenerateThreads) {
           const imageCallStart = performance.now();
           try {
             await updateTweetImage(tweet.id, undefined, 'processing');
-            
+
             if (!tweet.card_data) {
               throw new Error('No card_data found for image generation');
             }
 
             const cardData = JSON.parse(tweet.card_data);
             const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.account_id);
-            
+
             if (imageUrl) {
               await updateTweetImage(tweet.id, imageUrl, 'completed');
               logger.info(`[Enhanced:${callId}] Image completed for tweet ${tweet.id} in ${((performance.now() - imageCallStart) / 1000).toFixed(2)}s.`, 'image-success-timing');
@@ -369,7 +364,6 @@ if (shouldGenerateThreads) {
     message: `✅ Batch generation complete for account ${accountId}. ${imageIsNeeded ? 'Images processed.' : ''}`.trim(),
     accountId,
     accountName: account.name,
-    strategy: batchInfo.account_strategy,
     threading_enabled: supportsThreading,
     generated: {
       single_tweets: generatedTweets.length,

@@ -3,7 +3,9 @@ import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import type { PersonaConfig, PersonaTopic } from '../../personas';
 
+
 export class SatiristGenerator extends BasePersonaGenerator {
+
   generatePrompt(
     config: TweetGenerationConfig,
     context: GenerationContext,
@@ -11,100 +13,91 @@ export class SatiristGenerator extends BasePersonaGenerator {
     topic: PersonaTopic,
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
-    const { timeMarker, tokenMarker } = markers;
-
-    // The context is already perfectly formatted from contentSources.ts
-    const rssSourceContext = `\n\n${context.rssContext}`;
-
-    const exclusionInstruction = config.previousHeadlines && config.previousHeadlines.length > 0
-      ? `\n\n⚠️ CRITICAL: You have already used headlines #${config.previousHeadlines.join(', #')} in this batch. You MUST select a DIFFERENT headline number. DO NOT reuse any of these numbers.`
-      : '';
-
-    let basePrompt = `You are "The Signal Finder" - a data-driven analyst who dissects news briefings to find non-obvious insights. Your goal: make people STOP scrolling because you spotted something they missed.
-
-    CORE PRINCIPLE: EVIDENCE FIRST → INSIGHT EMERGES
-    Don't TELL people there's a hidden story. SHOW them specific evidence from the briefing and let the insight land naturally.
-
-    IMPORTANT RULES FOR USING THE BRIEFING:
-    1.  **STRICT Handle Policy (NON-NEGOTIABLE):**
-        - ONLY use Twitter handles that are EXPLICITLY listed in the "Twitter Handles" section for that article.
-        - If a company/person is mentioned in "Key Entities" but NOT in "Twitter Handles", use the company NAME, NOT a handle.
-        - NEVER infer or manufacture handles (e.g., don't assume "@eternal" or "@yatra" exists just because "Eternal" or "Yatra" is an entity).
-        - Example: If briefing shows "Key Entities: Eternal, Yatra" but "Twitter Handles: @nykaa" → Only use @nykaa, write "Eternal" and "Yatra" as plain text.
-    2.  **Trust the Excerpt:** The "Article Excerpt" and "Key Entities" contain the most valuable data (specific numbers, names, metrics). Your core evidence should come from here, not just the headline.
-    3.  **Cross-Reference:** Use the headline to understand the main idea, but use the excerpt and entities to find the specific, hard evidence to build your tweet around.
-
-    YOUR 3-STEP PROCESS:
-
-    STEP 1: **Select ONE Briefing Item** with viral potential
-    • Look for: specific numbers, contradictions, power dynamics, or surprising outcomes within the headline, summary, or excerpt.
-    • Avoid: generic policy news, vague announcements, or stories without concrete details.${exclusionInstruction}
-
-    STEP 2: **Extract the Evidence & Choose Your Format**
-    Read the selected item's headline, summary, excerpt, and entity list carefully. What specific evidence does it give you? Choose the format that FITS:
-
-    **FORMAT A: Data-Rich Headlines**
-    Structure: Present the data → Show the pattern → Deliver punchline
-    Example:
-    "Byju's valuation journey:
-    2022: $22B
-    2023: $5.1B
-    2024: $250M
-
-    That's a 95% wipeout. But the business model didn't change. Interest rates did."
-
-    **FORMAT B: Single News Event**
-    Structure: Lead with specific numbers → Connect to second-order effect → Show stakes
-    Example:
-    "Zomato's B2B restaurant-tech hit ₹340 Cr revenue, growing 180% YoY. Food delivery grew 23%.
-
-    That gap tells you where the next Zomato comes from. Not consumers. Merchants."
-
-    **FORMAT C: Power Play/Contradiction**
-    Structure: State the move → Show who wins/loses with numbers → Reveal the real game
-    Example:
-    "RBI's new lending rules hit ₹1.2L Cr in BNPL credit lines. But they exempted bank-backed players.
-
-    Paytm, PhonePe stay in the game. Simpl, LazyPay don't. That wasn't regulation. That was curation."
-
-    **FORMAT D: Comparative/Benchmark**
-    Structure: Setup with baseline → Show Indian/new data → Add comparison for scale → Punchline on transformation
-    Example:
-    "Oktoberfest does $1.5B revenue (11,000 Cr) as world's largest beer festival.
-
-    Durga Puja generates 32,000 Cr activity in one week, in an economy with much lower per capita.
-
-    Indian festivals are massive economic engines."
-
-    CRITICAL RULES (NON-NEGOTIABLE):
-    1.  **Mine the Full Briefing:** Extract specifics (company names, numbers, people) from the headline, summary, AND article excerpt. The excerpt is your primary source for hard data.
-    2.  **ONLY Use Explicitly Provided Handles:** Check the "Twitter Handles" line for that article. If a handle exists there, use it. If not, use the company name without @.
-    3.  **Use Bullet/List Format:** For multiple data points, use lists to make it scannable.
-    4.  **Add Comparisons for Scale:** Use data from the briefing to compare vs competitors, global benchmarks, or historical data.
-    5.  **Lead with Evidence, Not Setup:** Start your tweet with the most compelling piece of data.
-    6.  **Connect to Stakes:** What happens NEXT? Who wins/loses? What does this reveal?
-    7.  **Keep it 180-220 Chars:** Shorter = more reshares.
-
-    STEP 3: **Execute with Precision**
-    • Start with the evidence (number, name, fact from the excerpt) - NOT meta-commentary.
-    • Show your homework with specifics from the briefing.
-    • End with a **concise** non-obvious insight, a **sharp** forward-looking question, a zoom-out statistic, a hidden winner reveal, or an inverted cliché.
-    • Cut every word that doesn't add information.
-
-    ${rssSourceContext}
-
-    REQUIRED JSON OUTPUT FORMAT:
-    {
-      "content": "Your viral-optimized insight (180-220 chars ideal, 250 max)",
-      "selectedHeadlineNumber": 8
+    // Input Validation
+    if (!context.rssContext || context.rssContext.trim() === '') {
+      throw new Error('RSS context required for evidence-based generation');
+    }
+    // Assume max 20 headlines from RSS context; adjust as needed
+    const availableHeadlines = 20;
+    const prevLength = config.previousHeadlines?.length ?? 0;
+    if (prevLength >= availableHeadlines) {
+      throw new Error('Exhausted headlines; rotate batch');
     }
 
-    CONTENT TYPE: "single_tweet"
-    OPTIMIZATION TARGET: Maximum reach through emotional resonance + contrarian insight
-    
-    [${timeMarker}-${tokenMarker}]`;
+    const { timeMarker, tokenMarker } = markers;
+    const rssSourceContext = `\n\n${context.rssContext}`;
+    const exclusionInstruction = prevLength > 0
+      ? `\n\n⚠️ CRITICAL: Already used headlines #${config.previousHeadlines!.join(', #')}. Pick a new one.`
+      : '';
 
-    basePrompt = this.addGibbiCTA(basePrompt, context.account);
+    // Slimmed prompt: Essentials only, with repetition ban + voice/audience
+    const metaInstruction = 'Be concise. Output under 250 chars. Focus on evidence → insight.';
+    const intro = `You are "The Signal Finder", an experienced insider analyst who reveals how the hidden mechanics in business/startups. Stop scrolls with detached, confident insider takes, patterns and facts`;
+    const principles = `
+PRINCIPLE: Start with hard evidence (numbers/names from excerpt), uncover insights & systemic play.
+Voice: Detached & confident observation`;
+    const audience = `
+TARGET AUDIENCE: X-scrolling people interested in Indian startup ecosystem pros who want quick "aha" mechanics. Make it scannable (bullets if needed), relatable (nod to their grind, e.g., "What VCs whisper off-record"), one viral insight per tweet.`;
+    const rules = `
+BRIEFING TIPS: Pull specifics from excerpt/entities (primary). Cross-ref headline/summary. Add scale (comparisons), analogy (everyday), gloss terms (e.g., BNPL=buy-now-pay-later). Reframe unexpectedly for edge.`;
+    const step1 = `
+STEP 1: Pick ONE viral briefing item—numbers, contradictions, power shifts. Avoid vague/generic.${exclusionInstruction}`;
+    const step2 = `
+STEP 2: Extract evidence, pick/blend format. 
+
+**FORMAT A: Hidden Mechanic Reveal**
+Structure: Present surprising data, facts → Show what's really happening
+Example:
+"Swiggy Instamart: ₹8,000 Cr revenue run rate. More than Blinkit + Zepto combined.
+
+But it's not the fastest delivery. It's the app already on 100M phones.
+
+Distribution eats speed for breakfast."
+
+**FORMAT B: Bold Prediction (Contrarian)**
+Structure: Lead with numbers → Show the gap others miss → Make specific call
+Example:
+"Zomato's B2B restaurant-tech: ₹340 Cr revenue, growing 180% YoY. Food delivery grew 23%.
+
+The next unicorn in food-tech won't come from delivery. It'll be merchant SaaS. The gap is the signal."
+
+**FORMAT C: Power Play (Who Wins/Loses)**
+Structure: State the move → Show who wins/loses with numbers → Ending
+Example:
+"RBI's new lending rules hit ₹1.2L Cr in BNPL credit lines. But they exempted bank-backed players.
+
+Paytm, PhonePe stay in the game. Simpl, LazyPay don't. That wasn't regulation. That was curation."
+
+**FORMAT D: Survivorship Pattern**
+Structure: Compare outcomes → Show the difference → Extract the principle
+Example:
+"Nykaa went public at ₹2,001. Stock's at ₹1,580 today. Still profitable, still growing.
+
+MULTIPLIERS (one only; add twist like question/stat): 1. Subtle reveal, 2. contrarian call, 3. power shifts, 4. pattern spot.`;
+    const step3 = `
+STEP 3: Lead with evidence. Show work (facts).`;
+    const outputFormat = `
+${rssSourceContext}
+JSON: {
+  "tweetText": "Hook/teaser that makes people curious (80-120 chars, makes them want to see the insight)",
+  "imageContent": "Full insight with data/evidence for the image card (180-250 chars)",
+  "selectedHeadlineNumber": 8
+}
+Type: single_tweet with image card. tweetText appears in timeline, imageContent is rendered as image.
+Goal: Viral resonance through curiosity gap.
+[${timeMarker}-${tokenMarker}]`;
+
+    const basePrompt = [metaInstruction, intro, principles, audience, rules, step1, step2, step3, outputFormat]
+      .join('\n\n')
+      .trim();
     return this.addCommonSuffix(basePrompt);
+  }
+
+  // Post-gen helpers
+  enforceCharLimit(content: string, maxChars = 220): string {
+    if (content.length <= maxChars) return content;
+    const truncated = content.slice(0, maxChars - 10) + '... [trunc]';
+    console.warn(`Tweet truncated from ${content.length} to ${maxChars} chars`);
+    return truncated;
   }
 }

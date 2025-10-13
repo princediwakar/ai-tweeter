@@ -5,7 +5,7 @@ import path from 'path';
 
 import { v2 as cloudinary } from 'cloudinary';
 
-import { VocabularyCard, ImageConfig, AccountWithCredentials } from './types';
+import { VocabularyCard, ImageConfig, AccountWithCredentials, CardData } from './types';
 
 import { accountService } from './accountService';
 
@@ -19,6 +19,9 @@ registerFont(path.join(fontsPath, 'Poppins-Regular.ttf'), { family: 'Poppins', w
 registerFont(path.join(fontsPath, 'Poppins-Bold.ttf'), { family: 'Poppins', weight: 'bold' });
 
 
+
+  
+  
 
 /**
 
@@ -111,6 +114,8 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 };
 
 
+  
+  
 
 /**
 
@@ -295,23 +300,10 @@ function validateFont(ctx: CanvasRenderingContext2D, fontFamily: string): boolea
 /**
 * Get a safe font family with fallback validation
 */
-function getSafeFont(ctx: CanvasRenderingContext2D, preferredFont: string): string {
-  const fontOptions = [
-    preferredFont,
-    'Arial, sans-serif',
-    'Helvetica, sans-serif',
-    'sans-serif'
-  ];
-
-  for (const font of fontOptions) {
-    if (validateFont(ctx, font)) {
-      console.log(`✅ Using font: ${font}`);
-      return font;
-    }
-  }
-
-  console.warn('⚠️ All font validation failed, using system default');
-  return 'sans-serif';
+function getSafeFont(preferred: string): string {
+  // For this environment, we assume 'Poppins' is available.
+  // In a real Node-Canvas setup, you would use registerFont.
+  return preferred || 'sans-serif';
 }
 
 /**
@@ -380,7 +372,7 @@ export async function generateVocabularyCardImage(
   const ctx = canvas.getContext('2d');
 
   // Validate and get safe font family
-  const safeFont = getSafeFont(ctx, config.textStyle.fontFamily);
+  const safeFont = getSafeFont(config.textStyle.fontFamily);
 
 
 
@@ -549,15 +541,446 @@ export async function generateVocabularyCardImage(
 
 
 
+
+
+
 /**
 
-* Generate image for persona and upload to Cloudinary using account-specific credentials
+ * Renders a single line of text that may contain highlighted words.
 
-*/
+ * It iterates through words, applying different styles as needed.
+
+ */
+
+function renderMixedLine(
+
+      ctx: CanvasRenderingContext2D,
+  
+      lineWords: string[],
+  
+      x: number,
+  
+      y: number,
+  
+      font: string,
+  
+      fontSize: number
+  
+  ): number {
+  
+      let currentX = x;
+  
+      for (let i = 0; i < lineWords.length; i++) {
+  
+          if (i > 0) {
+  
+              ctx.font = `600 ${fontSize}px ${font}`;
+  
+              currentX += ctx.measureText(' ').width;
+  
+          }
+  
+          const word = lineWords[i];
+  
+          const text = word.replace(/【|】/g, '');
+  
+          const isHighlighted = word.startsWith('【') && word.endsWith('】');
+  
+  
+  
+          // Use 'bold' for highlighted words, assuming a bold weight is registered for the font.
+  
+          ctx.font = `${isHighlighted ? 'bold' : '600'} ${fontSize}px ${font}`;
+  
+          ctx.fillStyle = isHighlighted ? '#FF4500' : '#001F3F'; // Orange for highlight, dark blue for regular
+  
+          ctx.fillText(text, currentX, y);
+  
+          currentX += ctx.measureText(text).width;
+  
+      }
+  
+      return currentX;
+  
+  }
+  
+  
+  
+  /**
+  
+   * Word-wraps a single string (which can be one or more sentences) into an
+  
+   * array of lines that are guaranteed to not exceed the maximum width.
+  
+   */
+  
+  function wordWrap(
+  
+      ctx: CanvasRenderingContext2D,
+  
+      text: string,
+  
+      maxWidth: number,
+  
+      fontSize: number,
+  
+      font: string
+  
+  ): string[] {
+  
+      const words = text.split(' ');
+  
+      const lines: string[] = [];
+  
+      let currentLine = '';
+  
+  
+  
+      ctx.font = `600 ${fontSize}px ${font}`;
+  
+  
+  
+      for (let i = 0; i < words.length; i++) {
+  
+          const word = words[i];
+  
+          const testLine = currentLine === '' ? word : `${currentLine} ${word}`;
+  
+          // Measure the plain text version for accurate width calculation
+  
+          const testWidth = ctx.measureText(testLine.replace(/【|】/g, '')).width;
+  
+  
+  
+          if (testWidth > maxWidth && currentLine !== '') {
+  
+              lines.push(currentLine);
+  
+              currentLine = word;
+  
+          } else {
+  
+              currentLine = testLine;
+  
+          }
+  
+      }
+  
+      lines.push(currentLine);
+  
+      return lines;
+  
+  }
+  
+  
+  
+  /**
+  
+   * Calculates the total vertical space needed for all text content at a given
+  
+   * font size. It intelligently groups short sentences and word-wraps long ones.
+  
+   */
+  
+  function calculateTotalTextHeight(
+  
+      ctx: CanvasRenderingContext2D,
+  
+      sentences: string[],
+  
+      contentMaxWidth: number,
+  
+      safeFont: string,
+  
+      fontSize: number
+  
+  ): number {
+  
+      if (sentences.length === 0) return 0;
+  
+  
+  
+      const lineHeight = fontSize * 1.4;
+  
+      ctx.font = `600 ${fontSize}px ${safeFont}`;
+  
+  
+  
+      // Step 1: Group sentences into logical lines that fit horizontally.
+  
+      const logicalLines: string[] = [];
+  
+      let lineBuffer = '';
+  
+      for (const sentence of sentences) {
+  
+          const testLine = lineBuffer === '' ? sentence : `${lineBuffer} ${sentence}`;
+  
+          if (ctx.measureText(testLine).width > contentMaxWidth && lineBuffer !== '') {
+  
+              logicalLines.push(lineBuffer);
+  
+              lineBuffer = sentence;
+  
+          } else {
+  
+              lineBuffer = testLine;
+  
+          }
+  
+      }
+  
+      if (lineBuffer !== '') logicalLines.push(lineBuffer);
+  
+  
+  
+      // Step 2: Calculate the total number of physical (rendered) lines.
+  
+      let totalPhysicalLines = 0;
+  
+      for (const line of logicalLines) {
+  
+          const wrappedLines = wordWrap(ctx, line, contentMaxWidth, fontSize, safeFont);
+  
+          totalPhysicalLines += wrappedLines.length;
+  
+      }
+  
+  
+  
+      // Step 3: Calculate total height including gaps between logical lines.
+  
+      let totalHeight = totalPhysicalLines * lineHeight;
+  
+      if (logicalLines.length > 1) {
+  
+          // Add a full line height for each gap between groups of sentences.
+  
+          totalHeight += (logicalLines.length - 1) * lineHeight;
+  
+      }
+  
+  
+  
+      return totalHeight;
+  
+  }
+  
+  
+  
+  /**
+  
+   * The main function to generate the image. It orchestrates the entire process
+  
+   * from cleaning text to rendering the final image buffer.
+  
+   */
+  
+  export async function generateSatiristImage(
+  
+      imageContent: string,
+  
+  ): Promise<Buffer> {
+  
+      const width = 1200;
+  
+      const height = 675;
+  
+      const canvas = createCanvas(width, height);
+  
+      const ctx = canvas.getContext('2d');
+  
+  
+  
+      const safeFont = getSafeFont('Poppins');
+  
+  
+  
+      // It's crucial to draw the background first.
+  
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+  
+      gradient.addColorStop(0, '#F0F8FF'); // A light, clean blue
+  
+      gradient.addColorStop(1, '#FFFFFF');
+  
+      ctx.fillStyle = gradient;
+  
+      ctx.fillRect(0, 0, width, height);
+  
+  
+  
+      // Draw the side accent bar.
+  
+      ctx.fillStyle = '#1A1A1A';
+  
+      ctx.fillRect(0, 0, 20, height);
+  
+  
+  
+      const leftMargin = 100;
+  
+      const rightMargin = 100;
+  
+      const topMargin = 80;
+  
+      const bottomMargin = 80;
+  
+      const contentMaxWidth = width - leftMargin - rightMargin;
+  
+      const availableH = height - topMargin - bottomMargin;
+  
+  
+  
+      // 1. Pre-process content: remove hashtags and split into sentences.
+  
+      const processedContent = imageContent.replace(/#\w+/g, '').trim();
+  
+      const sentences = processedContent.split(/(?<=[.?;])\s+/)
+  
+          .map(s => s.trim())
+  
+          .filter(s => s.length > 0);
+  
+  
+  
+      // 2. Dynamically find the largest font size that fits.
+  
+      let fontSize = 48; // A safe starting point
+  
+      let textHeight = 0;
+  
+      while (fontSize > 18) {
+  
+          textHeight = calculateTotalTextHeight(ctx, sentences, contentMaxWidth, safeFont, fontSize);
+  
+          if (textHeight <= availableH) break;
+  
+          fontSize -= 1;
+  
+      }
+  
+      const lineHeight = fontSize * 1.4;
+  
+  
+  
+      // 3. Group sentences into logical lines for rendering.
+  
+      const logicalLines: string[] = [];
+  
+      let lineBuffer = '';
+  
+      for (const sentence of sentences) {
+  
+// A multi-part regex built from all encountered permutations. Case-insensitive.
+const numberDetectionRegex = new RegExp([
+  // Rule 1: Consolidated Main Pattern
+  // Handles optional currency ($/₹/Rs), numbers, and all known units/suffixes.
+  // Catches: $300B, ₹14,000 Cr, ₹2,00,000 Cr, 5L, 14x, 100+, 270 cities, 1lakh etc.
+  '((?:Rs\\.?\\s*|[$₹])?\\b\\d[\\d,.]*\\s*(?:Cr(?:/[a-zA-Z]+)?|crore|Lakh|L|M|B|K|x|\\+|cities|year|units(?:/year)?)\\b)',
+
+  // Rule 2: Percentage Pattern
+  // Handles all variations of percentages.
+  // Catches: (26.78%), -1.36% MoM, 55% avg
+  '(\\(?[+-]?[\\d,.]+%(\\s*(?:avg|YoY|MoM))?\\)?)',
+
+  // Rule 3: Specific Patterns
+  // Catches unique formats that don't fit the general rules.
+  '(FY\\d+)',      // Catches: FY24
+  '(\\d+-\\w+)'     // Catches: 10-min
+].join('|'), 'gi'); // 'g' for global, 'i' for case-insensitive
+
+
+// The new replacement logic is much simpler and more reliable.
+const highlightedSentence = sentence.replace(numberDetectionRegex, (match) => `【${match}】`);
+
+
+
+          const plainSentence = sentence;
+  
+  
+  
+          const testLineText = lineBuffer === '' ? plainSentence : `${lineBuffer.replace(/【|】/g, '')} ${plainSentence}`;
+  
+          ctx.font = `600 ${fontSize}px ${safeFont}`;
+  
+          const testWidth = ctx.measureText(testLineText).width;
+  
+  
+  
+          if (testWidth > contentMaxWidth && lineBuffer !== '') {
+  
+              logicalLines.push(lineBuffer);
+  
+              lineBuffer = highlightedSentence;
+  
+          } else {
+  
+              lineBuffer = lineBuffer === '' ? highlightedSentence : `${lineBuffer} ${highlightedSentence}`;
+  
+          }
+  
+      }
+  
+      if (lineBuffer !== '') logicalLines.push(lineBuffer);
+  
+  
+  
+      // 4. Render the final layout.
+  
+      // Calculate the starting Y to vertically center the entire text block.
+  
+      let currentY = topMargin + (availableH - textHeight) / 2 + (fontSize * 0.8);
+  
+  
+  
+      ctx.textAlign = 'left';
+  
+      for (let i = 0; i < logicalLines.length; i++) {
+  
+          const logicalLine = logicalLines[i];
+  
+          const physicalLines = wordWrap(ctx, logicalLine, contentMaxWidth, fontSize, safeFont);
+  
+  
+  
+          for (const line of physicalLines) {
+  
+              const words = line.split(' ');
+  
+              renderMixedLine(ctx, words, leftMargin, currentY, safeFont, fontSize);
+  
+              currentY += lineHeight;
+  
+          }
+  
+  
+  
+          // Add the gap, but not after the very last logical line.
+  
+          if (i < logicalLines.length - 1) {
+  
+              currentY += lineHeight;
+  
+          }
+  
+      }
+  
+  
+  
+      return canvas.toBuffer('image/jpeg', { quality: 0.95 });
+  
+  }
+  
+  
+
+// * Generate image for persona and upload to Cloudinary using account-specific credentials
+
+
 
 export async function generatePersonaImage(
 
-  vocabularyCard: VocabularyCard | null,
+  cardData: CardData | null,
 
   personaKey: string,
 
@@ -567,17 +990,6 @@ export async function generatePersonaImage(
 
 ): Promise<string | null> {
 
-  if (personaKey !== 'english_vocab_builder') return null;
-
-  if (!vocabularyCard) {
-
-    console.warn("⚠️ Cannot generate image: vocabulary card data is missing.");
-
-    return null;
-
-  }
-
-
   if (!accountId) {
 
     console.error("⚠️ Cannot generate image: account ID is required for Cloudinary configuration.");
@@ -585,7 +997,6 @@ export async function generatePersonaImage(
     return null;
 
   }
-
 
   try {
 
@@ -597,10 +1008,27 @@ export async function generatePersonaImage(
 
     }
 
+    let imageBuffer: Buffer;
+    let publicId: string;
 
-    const imageBuffer = await generateVocabularyCardImage(vocabularyCard, config);
-
-    const publicId = `vocab_${vocabularyCard.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
+    if (personaKey === 'english_vocab_builder') {
+      if (!cardData || cardData.type === 'satirist_insight') {
+        console.warn("⚠️ Cannot generate image: vocabulary card data is missing.");
+        return null;
+      }
+      imageBuffer = await generateVocabularyCardImage(cardData, config);
+      publicId = `vocab_${cardData.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
+    } else if (personaKey === 'satirist') {
+      if (!cardData || cardData.type !== 'satirist_insight') {
+        console.warn("⚠️ Cannot generate satirist image: imageContent is missing from card data.");
+        return null;
+      }
+      const imageContent = cardData.imageContent;
+      imageBuffer = await generateSatiristImage(imageContent);
+      publicId = `satirist_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    } else {
+      return null; // Persona doesn't support images
+    }
 
     const cloudinaryUrl = await uploadToCloudinary(imageBuffer, publicId, account);
 
@@ -608,7 +1036,7 @@ export async function generatePersonaImage(
 
   } catch (error) {
 
-    console.error('❌ Failed to generate and upload vocabulary image:', error);
+    console.error('❌ Failed to generate and upload image:', error);
 
     return null;
 

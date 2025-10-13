@@ -2,7 +2,7 @@
 import OpenAI from 'openai';
 import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
 // MODIFIED: Added sourceUrl to the EnhancedTweet type import
-import { EnhancedTweet, VocabularyCard } from './types';
+import { EnhancedTweet, CardData, SatiristCard } from './types';
 import { accountService } from './accountService';
 import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
@@ -132,7 +132,7 @@ function parseAndValidateTweetResponse(
   persona: string,
   topic: { key: string; displayName: string },
   rssContext?: string
-): { tweet: EnhancedTweet; cardData: VocabularyCard | null; sourceUrl: string | undefined } | null {
+): { tweet: EnhancedTweet; cardData: CardData | null; sourceUrl: string | undefined } | null {
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
     const data = JSON.parse(cleanedContent);
@@ -160,7 +160,7 @@ function parseAndValidateTweetResponse(
       }
     }
 
-    let cardData: VocabularyCard | null = null;
+    let cardData: CardData | null = null;
     let tweetContent: string;
 
     if (persona === 'english_vocab_builder') {
@@ -176,6 +176,16 @@ function parseAndValidateTweetResponse(
         synonyms: data.cardData.synonyms,
         type: data.cardData.type,
       };
+    } else if (persona === 'satirist') {
+      if (!data.tweetText || !data.imageContent) {
+        throw new Error('AI response for satirist missing required fields: tweetText or imageContent.');
+      }
+      tweetContent = data.tweetText;
+      // Store imageContent in cardData for satirist (similar to vocab_builder pattern)
+      cardData = {
+        type: 'satirist_insight',
+        imageContent: data.imageContent,
+      } satisfies SatiristCard;
     } else {
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('AI response missing required "content" field.');
@@ -220,6 +230,7 @@ function parseAndValidateTweetResponse(
 
 export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
   try {
+
     const { prompt, persona, topic, rssContext } = await generateTweetPrompt(config);
 
     const response = await deepseekClient.chat.completions.create({
@@ -255,11 +266,26 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     let imageStatus: 'none' | 'pending' = 'none';
 
     console.log(`🔍 Checking image generation for persona ${persona.displayName}: enabled=${persona.image_generation?.enabled}`);
+
     if (persona.image_generation?.enabled && cardData) {
-      console.log(`🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`);
-      imageStatus = 'pending';
+      if (persona.key === 'satirist') {
+        // 30% probability for satirist images
+        const shouldGenerateImage = Math.random() < 0.3;
+        if (shouldGenerateImage) {
+          console.log(`🖼️ [30% roll success] Queueing white background image for satirist tweet`);
+          imageStatus = 'pending';
+        } else {
+          console.log(`📝 [70% roll] Satirist tweet will be text-only`);
+        }
+      } else {
+        // Other personas (like english_vocab_builder)
+        console.log(`🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`);
+        imageStatus = 'pending';
+      }
+    } else if (persona.image_generation?.enabled && !cardData) {
+      console.log(`🔍 Image generation enabled but no card data for persona ${persona.displayName}`);
     } else {
-      console.log(`🔍 Image generation disabled or no card data for persona ${persona.displayName}`);
+      console.log(`🔍 Image generation disabled for persona ${persona.displayName}`);
     }
 
     const contentHash = generateContentHash(tweetData);
@@ -357,7 +383,7 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 
     if (result) {
       tweets.push(result);
-      if (result.persona === 'english_vocab_builder' && result.cardData?.word) {
+      if (result.persona === 'english_vocab_builder' && result.cardData && result.cardData.type !== 'satirist_insight' && result.cardData.word) {
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
         console.log(`🆕 New word generated: ${newWord}`);

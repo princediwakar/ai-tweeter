@@ -40,8 +40,8 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   // Only fetch context if it wasn't already provided (e.g., for a single tweet generation).
   if (!rssContext && useRSSSources && config.persona) {
     try {
-        // The topic passed here is now ignored by the new satirist logic in getDynamicContext, which is what we want.
-        rssContext = await getDynamicContext(config.persona, config.topic || '');
+        // Pass accountId for satirist source filtering
+        rssContext = await getDynamicContext(config.persona, config.topic || '', config.account_id);
         console.log(`📰 (Single Fetch) Fetched RSS context for ${config.persona}: ${rssContext.length > 0 ? 'success' : 'no content'}`);
     } catch (error) {
       console.warn('⚠️ Failed to fetch RSS context for single tweet, continuing without it:', error);
@@ -91,10 +91,17 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     throw new Error('Invalid persona specified');
   }
 
-  const topic = config.topic 
+  // For satirist persona, decide image vs text-only format BEFORE prompt generation
+  if (persona.key === 'satirist' && !config.satiristFormat) {
+    const shouldGenerateImage = Math.random() < 0.3;
+    config.satiristFormat = shouldGenerateImage ? 'image' : 'text-only';
+    console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (30% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+  }
+
+  const topic = config.topic
     ? persona.topics.find(t => t.key === config.topic)
     : getRandomTopicForPersona(persona.key);
-    
+
   if (!topic) {
     throw new Error('No valid topic found for persona');
   }
@@ -177,15 +184,18 @@ function parseAndValidateTweetResponse(
         type: data.cardData.type,
       };
     } else if (persona === 'satirist') {
-      if (!data.tweetText || !data.imageContent) {
-        throw new Error('AI response for satirist missing required fields: tweetText or imageContent.');
+      if (!data.tweetText) {
+        throw new Error('AI response for satirist missing required field: tweetText.');
       }
       tweetContent = data.tweetText;
-      // Store imageContent in cardData for satirist (similar to vocab_builder pattern)
-      cardData = {
-        type: 'satirist_insight',
-        imageContent: data.imageContent,
-      } satisfies SatiristCard;
+      // Store imageContent in cardData ONLY if present (image format)
+      if (data.imageContent) {
+        cardData = {
+          type: 'satirist_insight',
+          imageContent: data.imageContent,
+        } satisfies SatiristCard;
+      }
+      // For text-only format, cardData remains null
     } else {
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('AI response missing required "content" field.');
@@ -237,6 +247,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       model: "deepseek-chat",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.9,
+      max_tokens: 500, // Limit to 500 tokens for focused, crisp responses
       response_format: { type: "json_object" },
     });
 
@@ -268,22 +279,11 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     console.log(`🔍 Checking image generation for persona ${persona.displayName}: enabled=${persona.image_generation?.enabled}`);
 
     if (persona.image_generation?.enabled && cardData) {
-      if (persona.key === 'satirist') {
-        // 30% probability for satirist images
-        const shouldGenerateImage = Math.random() < 0.3;
-        if (shouldGenerateImage) {
-          console.log(`🖼️ [30% roll success] Queueing white background image for satirist tweet`);
-          imageStatus = 'pending';
-        } else {
-          console.log(`📝 [70% roll] Satirist tweet will be text-only`);
-        }
-      } else {
-        // Other personas (like english_vocab_builder)
-        console.log(`🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`);
-        imageStatus = 'pending';
-      }
+      // If cardData exists, it means we decided to generate an image (format decision already made for satirist)
+      console.log(`🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`);
+      imageStatus = 'pending';
     } else if (persona.image_generation?.enabled && !cardData) {
-      console.log(`🔍 Image generation enabled but no card data for persona ${persona.displayName}`);
+      console.log(`🔍 Image generation enabled but no card data for persona ${persona.displayName} (text-only format selected)`);
     } else {
       console.log(`🔍 Image generation disabled for persona ${persona.displayName}`);
     }
@@ -361,7 +361,8 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   let batchRssContext = '';
   if (config.persona && shouldUseRSSSources(null)) {
     try {
-      batchRssContext = await getDynamicContext(config.persona, '');
+      // Pass accountId for satirist source filtering
+      batchRssContext = await getDynamicContext(config.persona, '', config.account_id);
     } catch (error) {
       console.error("❌ Failed to fetch batch of dynamic contexts. Proceeding without them.", error);
     }

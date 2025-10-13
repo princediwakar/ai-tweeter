@@ -17,8 +17,8 @@ export class SatiristGenerator extends BasePersonaGenerator {
     if (!context.rssContext || context.rssContext.trim() === '') {
       throw new Error('RSS context required for evidence-based generation');
     }
-    // Assume max 20 headlines from RSS context; adjust as needed
-    const availableHeadlines = 20;
+    // We provide 8 enriched headlines per batch
+    const availableHeadlines = 8;
     const prevLength = config.previousHeadlines?.length ?? 0;
     if (prevLength >= availableHeadlines) {
       throw new Error('Exhausted headlines; rotate batch');
@@ -29,6 +29,10 @@ export class SatiristGenerator extends BasePersonaGenerator {
     const exclusionInstruction = prevLength > 0
       ? `\n\n⚠️ CRITICAL: Already used headlines #${config.previousHeadlines!.join(', #')}. Pick a new one.`
       : '';
+
+    // Determine format: image or text-only
+    const format = config.satiristFormat || 'text-only';
+    const isImageFormat = format === 'image';
 
     // Slimmed prompt: Essentials only, with repetition ban + voice/audience
     const metaInstruction = 'Be concise. Output under 250 chars. Focus on evidence → insight.';
@@ -43,7 +47,7 @@ BRIEFING TIPS: Pull specifics from excerpt/entities (primary). Cross-ref headlin
     const step1 = `
 STEP 1: Pick ONE viral briefing item—numbers, contradictions, power shifts. Avoid vague/generic.${exclusionInstruction}`;
     const step2 = `
-STEP 2: Extract evidence, pick/blend format. 
+STEP 2: Extract evidence, pick/blend format.
 
 **FORMAT A: Hidden Mechanic Reveal**
 Structure: Present surprising data, facts → Show what's really happening
@@ -76,15 +80,27 @@ Example:
 MULTIPLIERS (one only; add twist like question/stat): 1. Subtle reveal, 2. contrarian call, 3. power shifts, 4. pattern spot.`;
     const step3 = `
 STEP 3: Lead with evidence. Show work (facts).`;
-    const outputFormat = `
+
+    // Different output format based on image vs text-only
+    const outputFormat = isImageFormat ? `
 ${rssSourceContext}
 JSON: {
   "tweetText": "Hook/teaser that makes people curious (80-120 chars, makes them want to see the insight)",
   "imageContent": "Full insight with data/evidence for the image card (180-250 chars)",
-  "selectedHeadlineNumber": 8
+  "selectedHeadlineNumber": 3
 }
-Type: single_tweet with image card. tweetText appears in timeline, imageContent is rendered as image.
+Type: single_tweet WITH IMAGE CARD. tweetText appears in timeline, imageContent is rendered as image.
 Goal: Viral resonance through curiosity gap.
+Example: Pick headline #1-8 (you receive 8 enriched articles with full text).
+[${timeMarker}-${tokenMarker}]` : `
+${rssSourceContext}
+JSON: {
+  "tweetText": "Complete insight with data/evidence (200-250 chars, includes the full analysis)",
+  "selectedHeadlineNumber": 3
+}
+Type: TEXT-ONLY tweet. tweetText contains the complete insight (no image).
+Goal: Complete, standalone insight that delivers full value in the tweet itself.
+Example: Pick headline #1-8 (you receive 8 enriched articles with full text).
 [${timeMarker}-${tokenMarker}]`;
 
     const basePrompt = [metaInstruction, intro, principles, audience, rules, step1, step2, step3, outputFormat]

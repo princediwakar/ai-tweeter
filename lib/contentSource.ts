@@ -5,6 +5,7 @@ import { parseStringPromise } from 'xml2js';
 // Assuming the PersonaTopic interface is available via an import path like this:
 import type { PersonaTopic } from './personas';
 import { enrichArticles } from './generation/articleEnricher';
+import { getRecentSatiristSources } from './db';
 
 // Use native fetch
 const fetchFn = globalThis.fetch;
@@ -133,9 +134,11 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
       const parsed = await parseStringPromise(xml);
       const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
 
-      // Take 2 headlines from each feed to ensure diversity
+      // Take 6 headlines from each feed for variety
+      const headlinesPerFeed = 6;
+
       const headlines: HeadlineWithSource[] = [];
-      for (let i = 0; i < Math.min(2, items.length); i++) {
+      for (let i = 0; i < Math.min(headlinesPerFeed, items.length); i++) {
         const item = items[i];
         const title = item.title?.[0];
         const link = item.link?.[0];
@@ -161,10 +164,10 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
     }
   });
 
-  console.log(`[Content Source] 📰 Fetched ${allHeadlines.length} headlines from ${rssFeeds.length} RSS feeds (2 per feed)`);
+  console.log(`[Content Source] 📰 Fetched ${allHeadlines.length} headlines from ${rssFeeds.length} RSS feeds`);
 
-  // Shuffle for variety and return all headlines (up to 10)
-  return allHeadlines.sort(() => 0.5 - Math.random()).slice(0, 10);
+  // Return up to 20 headlines (filtering will happen in satirist context)
+  return allHeadlines.slice(0, 20);
 }
 
 async function fetchFromCricketNewsRSS(): Promise<HeadlineWithSource[]> {
@@ -344,10 +347,9 @@ Use this briefing to deconstruct the story behind the scoreboard. The Primary Ev
   }
 }
 
-async function getSatiristContext(): Promise<string> {
+async function getSatiristContext(accountId?: string): Promise<string> {
   console.log('[Content Source] 🧐 Satirist selected. Activating Deep Dive with full article fetching...');
   // NOTE: Caching disabled for satirist to ensure maximum variety in headline selection
-  // Each generation gets freshly shuffled headlines for better content diversity
 
   try {
     const primaryHeadlines = await fetchFromIndianNewsRSS();
@@ -355,51 +357,73 @@ async function getSatiristContext(): Promise<string> {
       return 'No trending news found. Generate a general witty observation about the current state of affairs in India.';
     }
 
-    // Get unique headlines and shuffle for variety
+    // Get unique headlines
     const uniqueHeadlines = Array.from(new Map(primaryHeadlines.map((item) => [item.headline, item])).values());
-    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines. Shuffling for variety...`);
-    uniqueHeadlines.sort(() => 0.5 - Math.random());
+    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for satirist`);
 
-    // Take top 5 headlines for enrichment
-    const selectedHeadlines = uniqueHeadlines.slice(0, 5);
+    // Get recently used source URLs to avoid repetition
+    let usedSources: string[] = [];
+    if (accountId) {
+      usedSources = await getRecentSatiristSources(accountId, 2);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources`);
+    }
+
+    // Filter out already-used sources
+    const filteredHeadlines = uniqueHeadlines.filter(h => !usedSources.includes(h.url));
+    console.log(`[Content Source] ${filteredHeadlines.length} new headlines after filtering`);
+
+    if (filteredHeadlines.length === 0) {
+      console.warn('[Content Source] All headlines have been used recently. Using all headlines.');
+      // Fallback to all headlines if everything has been used
+      const selectedHeadlines = uniqueHeadlines.slice(0, 8);
+      const enrichedArticles = await enrichArticles(selectedHeadlines, 3);
+      return formatSatiristContext(enrichedArticles);
+    }
+
+    // Take first 8 unique headlines for enrichment (no shuffling needed)
+    const selectedHeadlines = filteredHeadlines.slice(0, 8);
 
     // Fetch full article content with entity extraction
     console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} headlines...`);
     const enrichedArticles = await enrichArticles(selectedHeadlines, 3); // Process 3 at a time
 
-    // Shuffle articles again before formatting for maximum variety
-    enrichedArticles.sort(() => 0.5 - Math.random());
+    return formatSatiristContext(enrichedArticles);
+  } catch (error) {
+    return handleContextError('satirist', error, 'Could not fetch latest news due to a system error. Generate a general witty observation.');
+  }
+}
 
-    // Format the enriched context with article data
-    const formattedHeadlines = enrichedArticles.map((article, idx) => {
-      let formatted = `${idx + 1}. ${article.headline}`;
+/**
+ * Helper function to format enriched articles into satirist context
+ */
+function formatSatiristContext(enrichedArticles: Awaited<ReturnType<typeof enrichArticles>>): string {
+  const formattedHeadlines = enrichedArticles.map((article, idx) => {
+    let formatted = `${idx + 1}. ${article.headline}`;
 
-      if (article.description) {
-        formatted += `\n   Summary: ${article.description}`;
-      }
+    if (article.description) {
+      formatted += `\n   Summary: ${article.description}`;
+    }
 
-      if (article.fullText) {
-        // Include first 500 chars of article for richer context
-        const preview = article.fullText.trim() + '...';
-        formatted += `\n   Article Excerpt: ${preview}`;
-      }
+    if (article.fullText) {
+      // Include first 500 chars of article for richer context
+      const preview = article.fullText.trim() + '...';
+      formatted += `\n   Article Excerpt: ${preview}`;
+    }
 
-      // Twitter handle formatting removed - no tagging
+    if (article.websites.length > 0) {
+      formatted += `\n   Related Websites: ${article.websites.join(', ')}`;
+    }
 
-      if (article.websites.length > 0) {
-        formatted += `\n   Related Websites: ${article.websites.join(', ')}`;
-      }
+    if (article.entities.length > 0) {
+      formatted += `\n   Key Entities: ${article.entities.slice(0, 5).join(', ')}`;
+    }
 
-      if (article.entities.length > 0) {
-        formatted += `\n   Key Entities: ${article.entities.slice(0, 5).join(', ')}`;
-      }
+    return formatted;
+  }).join('\n\n');
 
-      return formatted;
-    }).join('\n\n');
+  const sourceMap = enrichedArticles.map((article, idx) => `[SOURCE_${idx + 1}]: ${article.url}`).join('\n');
 
-    const sourceMap = enrichedArticles.map((article, idx) => `[SOURCE_${idx + 1}]: ${article.url}`).join('\n');
-
-    const finalContext = `ENRICHED NEWS BRIEFING FOR SATIRICAL ANALYSIS
+  return `ENRICHED NEWS BRIEFING FOR SATIRICAL ANALYSIS
 -------------------------------------------
 
 ${formattedHeadlines}
@@ -408,12 +432,6 @@ Select ONE headline and provide witty, data-driven commentary.
 
 --- SOURCE METADATA (for logging only) ---
 ${sourceMap}`;
-
-    // No caching for satirist - fresh shuffled headlines each time for variety
-    return finalContext;
-  } catch (error) {
-    return handleContextError('satirist', error, 'Could not fetch latest news due to a system error. Generate a general witty observation.');
-  }
 }
 
 async function getEnglishVocabBuilderContext(topic: PersonaTopic | string): Promise<string> {
@@ -463,11 +481,15 @@ async function getEnglishVocabBuilderContext(topic: PersonaTopic | string): Prom
 const personaHandlers: Record<string, PersonaContextHandler> = {
   'business_storyteller': getBusinessStorytellerContext,
   'cricket_storyteller': getCricketStorytellerContext,
-  'satirist': getSatiristContext,
   'english_vocab_builder': getEnglishVocabBuilderContext,
 };
 
-export async function getDynamicContext(persona: string, topic: PersonaTopic | string): Promise<string> {
+export async function getDynamicContext(persona: string, topic: PersonaTopic | string, accountId?: string): Promise<string> {
+  // Special handling for satirist to pass accountId for source filtering
+  if (persona === 'satirist') {
+    return getSatiristContext(accountId);
+  }
+
   const handler = personaHandlers[persona];
 
   if (!handler) {

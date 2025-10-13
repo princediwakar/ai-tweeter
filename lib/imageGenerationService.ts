@@ -131,7 +131,10 @@ async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account
 
   }
 
-
+  // Determine folder based on account
+  const folderName = account.twitter_handle.includes('gibbi')
+    ? 'gibbi-vocabulary'
+    : `${account.twitter_handle.replace('@', '')}-content`;
 
   try {
 
@@ -145,7 +148,7 @@ async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account
 
           public_id: publicId,
 
-          folder: 'gibbi-vocabulary',
+          folder: folderName,
 
           format: 'jpg',
 
@@ -281,21 +284,6 @@ function wrapText(context: CanvasRenderingContext2D, text: string, maxWidth: num
 }
 
 
-
-/**
-* Validates that a font is properly loaded by testing text measurement
-*/
-function validateFont(ctx: CanvasRenderingContext2D, fontFamily: string): boolean {
-  try {
-    ctx.font = `20px ${fontFamily}`;
-    const testWidth = ctx.measureText('Test').width;
-    // If font is not loaded, Canvas might return 0 or very small width
-    return testWidth > 10;
-  } catch (error) {
-    console.warn(`Font validation failed for ${fontFamily}:`, error);
-    return false;
-  }
-}
 
 /**
 * Get a safe font family with fallback validation

@@ -37,7 +37,7 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
     return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS:
 - STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 280 CHARACTERS.** (This includes any hashtags you add inline.)
 - Aim for readability: 200-270 characters per segment is preferred.
-- FORMAT: Return as valid JSON object. For non-vocabulary personas, use the "content" key.
+- FORMAT: Return as valid JSON object. Use the exact field names specified in your instructions above (e.g., "tweetText", "content", etc.). If no specific format was given, use {"content": "your tweet text", "hashtags": []}.
 - HASHTAGS IN CONTENT: Include 1-2 hashtags MAXIMUM naturally distributed across the thread where contextually relevant. Place them inline within the tweet content itself (e.g., "The story of India's startup boom #IndianBusiness"). Do NOT add hashtags if they don't fit naturally.
 - HASHTAGS ARRAY: Always include an empty "hashtags" array [] in your JSON response (this field is deprecated but required for compatibility).
 - HASHTAG RULE: Only include hashtags that genuinely add value or are popular(discovery, humor, context). Prefer NO hashtags over forced ones.`;

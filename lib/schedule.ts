@@ -57,11 +57,11 @@ const princeGenerationPattern: DailySchedule = {
   // Total per week: 21 Satirist, 3 Threads
   0: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Sunday
   1: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Monday
-  2: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A] }, // Tuesday
+  2: { 8: ['satirist'], 13: ['satirist'], 19: [THREAD_A] }, // Tuesday
   3: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist']    }, // Wednesday
   4: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Thursday
   5: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Friday
-  6: { 8: ['satirist'], 13: ['satirist'], 16: [THREAD_A], }, // Saturday
+  6: { 8: ['satirist'], 13: ['satirist'], 19: [THREAD_A], }, // Saturday
 };
 
 const princePostingPattern: DailySchedule = {
@@ -69,7 +69,7 @@ const princePostingPattern: DailySchedule = {
   0: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Sunday
   1: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Monday
   2: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Tuesday
-  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_B] }, // Wednesday
+  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Wednesday
   4: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Thursday
   5: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Friday
   6: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Saturday

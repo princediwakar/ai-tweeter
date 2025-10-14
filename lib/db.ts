@@ -17,8 +17,6 @@ export interface Thread {
   current_tweet: number;
   parent_tweet_id?: string; // Twitter ID of first tweet in thread
   status: 'ready' | 'posting' | 'completed' | 'failed';
-  next_post_time?: string;
-  engagement_score: number;
   story_category: string;
   created_at: string;
 }
@@ -48,7 +46,6 @@ export async function getAllTweets(): Promise<Tweet[]> {
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      qualityScore: row.quality_score,
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
       twitter_id: row.twitter_id,
@@ -58,13 +55,11 @@ export async function getAllTweets(): Promise<Tweet[]> {
       image_status: row.image_status,
       card_data: row.card_data,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
   } catch (error) {
     console.error('[Neon] Error getting tweets:', error);
@@ -92,7 +87,6 @@ export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      qualityScore: row.quality_score,
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
       twitter_id: row.twitter_id,
@@ -100,13 +94,11 @@ export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
       error_message: row.error_message,
       image_url: row.image_url,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
   } catch (error) {
     console.error('[Neon] Error getting tweets by account:', error);
@@ -150,12 +142,10 @@ export async function saveTweet(
       image_status: (getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status'],
       card_data: getProperty(tweetObj, 'card_data', 'cardData'),
       source_url: getProperty(tweetObj, 'source_url', 'sourceUrl'),
-      quality_score: tweetObj.quality_score ? JSON.stringify(tweetObj.quality_score) : (tweetObj.qualityScore ? JSON.stringify(tweetObj.qualityScore) : undefined),
       content_type: tweet.content_type || 'single_tweet',
       thread_id: tweetObj.thread_id as string | undefined,
       thread_sequence: tweetObj.thread_sequence as number | undefined,
       parent_twitter_id: tweetObj.parent_twitter_id as string | undefined,
-      hook_type: tweetObj.hook_type as 'opener' | 'context' | 'crisis' | 'resolution' | 'lesson' | undefined
     };
 
     const existingIndex = inMemoryTweets.findIndex(t => t.id === tweet.id);
@@ -174,8 +164,8 @@ export async function saveTweet(
     await sql`
       INSERT INTO tweets (
         id, account_id, content, hashtags, persona, posted_at, 
-        twitter_id, twitter_url, error_message, image_url, status, created_at, quality_score,
-        thread_id, thread_sequence, parent_twitter_id, content_type, hook_type,
+        twitter_id, twitter_url, error_message, image_url, status, created_at, 
+        thread_id, thread_sequence, parent_twitter_id, content_type, 
         image_status, card_data, source_url
       ) VALUES (
         ${tweet.id},
@@ -190,12 +180,10 @@ export async function saveTweet(
         ${getProperty(tweetObj, 'image_url', 'imageUrl')},
         ${tweet.status},
         ${tweet.createdAt || getProperty(tweetObj, 'created_at', 'createdAt') || new Date().toISOString()},
-        ${tweetObj.quality_score ? JSON.stringify(tweetObj.quality_score) : (tweetObj.qualityScore ? JSON.stringify(tweetObj.qualityScore) : null)},
         ${(tweetObj.thread_id as string) || null},
         ${(tweetObj.thread_sequence as number) || null},
         ${(tweetObj.parent_twitter_id as string) || null},
         ${tweet.content_type || 'single_tweet'},
-        ${(tweetObj.hook_type as string) || null},
         ${(getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status']},
         ${getProperty(tweetObj, 'card_data', 'cardData')},
         ${getProperty(tweetObj, 'source_url', 'sourceUrl')}
@@ -211,12 +199,10 @@ export async function saveTweet(
         twitter_url = EXCLUDED.twitter_url,
         error_message = EXCLUDED.error_message,
         status = EXCLUDED.status,
-        quality_score = EXCLUDED.quality_score,
         thread_id = EXCLUDED.thread_id,
         thread_sequence = EXCLUDED.thread_sequence,
         parent_twitter_id = EXCLUDED.parent_twitter_id,
         content_type = EXCLUDED.content_type,
-        hook_type = EXCLUDED.hook_type,
         image_status = EXCLUDED.image_status,
         card_data = EXCLUDED.card_data,
         source_url = EXCLUDED.source_url
@@ -252,7 +238,6 @@ export async function getReadyTweets(): Promise<Tweet[]> {
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      qualityScore: row.quality_score,
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
       twitter_id: row.twitter_id,
@@ -260,13 +245,11 @@ export async function getReadyTweets(): Promise<Tweet[]> {
       error_message: row.error_message,
       image_url: row.image_url,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
   } catch (error) {
     console.error('[Neon] Error getting ready tweets:', error);
@@ -294,7 +277,6 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      qualityScore: row.quality_score,
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
       twitter_id: row.twitter_id,
@@ -304,13 +286,11 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       image_status: row.image_status,
       card_data: row.card_data,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
   } catch (error) {
     console.error('[Neon] Error getting ready tweets by account:', error);
@@ -386,7 +366,6 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      qualityScore: row.quality_score,
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
       twitter_id: row.twitter_id,
@@ -396,13 +375,11 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
       image_status: row.image_status,
       card_data: row.card_data,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
     
     const totalPages = Math.ceil(total / params.limit);
@@ -460,15 +437,15 @@ export function generateTweetId(): string {
 }
 
 // Thread management functions
-export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'current_tweet' | 'engagement_score'>): Promise<string> {
+export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'current_tweet' >): Promise<string> {
   try {
     const threadId = crypto.randomUUID();
     
     await sql`
       INSERT INTO threads (
         id, account_id, title, persona, total_tweets,
-        current_tweet, parent_tweet_id, status, next_post_time,
-        engagement_score, story_category, created_at
+        current_tweet, parent_tweet_id, status,
+         story_category, created_at
       ) VALUES (
         ${threadId},
         ${thread.account_id},
@@ -478,7 +455,6 @@ export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'c
         1,
         ${thread.parent_tweet_id || null},
         ${thread.status},
-        ${thread.next_post_time || null},
         0,
         ${thread.story_category},
         ${new Date().toISOString()}
@@ -499,9 +475,6 @@ export async function getActiveThreadForPosting(accountId: string): Promise<Thre
       SELECT * FROM threads
       WHERE account_id = ${accountId}
         AND status = 'posting'
-        AND next_post_time IS NOT NULL
-        AND next_post_time <= NOW()
-      ORDER BY next_post_time ASC
       LIMIT 1
     `;
     
@@ -517,8 +490,6 @@ export async function getActiveThreadForPosting(accountId: string): Promise<Thre
       current_tweet: row.current_tweet,
       parent_tweet_id: row.parent_tweet_id,
       status: row.status,
-      next_post_time: row.next_post_time,
-      engagement_score: row.engagement_score,
       story_category: row.story_category,
       created_at: row.created_at
     };
@@ -547,8 +518,6 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
       current_tweet: row.current_tweet,
       parent_tweet_id: row.parent_tweet_id,
       status: row.status,
-      next_post_time: row.next_post_time,
-      engagement_score: row.engagement_score,
       story_category: row.story_category,
       created_at: row.created_at
     }));
@@ -563,14 +532,13 @@ export async function updateThreadAfterPosting(threadId: string, twitterId: stri
     if (isComplete) {
       await sql`
         UPDATE threads 
-        SET status = 'completed', next_post_time = NULL
+        SET status = 'completed', 
         WHERE id = ${threadId}
       `;
     } else {
       await sql`
         UPDATE threads 
         SET current_tweet = current_tweet + 1,
-            next_post_time = NOW() + INTERVAL '5 minutes',
             parent_tweet_id = COALESCE(parent_tweet_id, ${twitterId})
         WHERE id = ${threadId}
       `;
@@ -586,7 +554,7 @@ export async function startThreadPosting(threadId: string): Promise<void> {
   try {
     await sql`
       UPDATE threads 
-      SET status = 'posting', next_post_time = NOW()
+      SET status = 'posting', 
       WHERE id = ${threadId} AND status = 'ready'
     `;
     console.log(`[Neon] Started thread posting for ${threadId}`);
@@ -619,12 +587,10 @@ export async function getThreadTweet(threadId: string, sequence: number): Promis
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     };
   } catch (error) {
     console.error('[Neon] Error getting thread tweet:', error);
@@ -658,12 +624,10 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     };
   } catch (error) {
     console.error('[Neon] Error getting last posted tweet in thread:', error);
@@ -707,7 +671,6 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
-      quality_score: row.quality_score,
       image_url: row.image_url,
       image_status: row.image_status,
       card_data: row.card_data,
@@ -715,7 +678,6 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
       thread_sequence: row.thread_sequence,
       parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
-      hook_type: row.hook_type
     }));
   } catch (error) {
     console.error('[Neon] Error getting tweets with pending images:', error);

@@ -67,7 +67,6 @@ Stores individual tweets and thread components.
 | `thread_id` | UUID | NULLABLE, FOREIGN KEY → threads(id) | Thread this tweet belongs to |
 | `thread_sequence` | INTEGER | NULLABLE | Position in thread (1-indexed) |
 | `parent_twitter_id` | VARCHAR | NULLABLE | Twitter ID of parent tweet for replies |
-| `hook_type` | VARCHAR | NULLABLE | Thread hook: 'opener', 'context', 'crisis', 'resolution', 'lesson' |
 | `image_url` | VARCHAR | NULLABLE | Cloudinary URL for image tweets |
 | `image_status` | VARCHAR | DEFAULT 'none' | 'none', 'pending', 'processing', 'completed', 'failed' |
 | `card_data` | TEXT | NULLABLE | JSON-encoded VocabularyCard for async image generation |
@@ -100,19 +99,17 @@ Stores thread metadata and posting progress.
 | `current_tweet` | INTEGER | NOT NULL, DEFAULT 1 | Next tweet to post (1-indexed) |
 | `parent_tweet_id` | VARCHAR | NULLABLE | Twitter ID of first tweet in thread |
 | `status` | VARCHAR | NOT NULL | 'ready', 'posting', 'completed', 'failed' |
-| `next_post_time` | TIMESTAMP | NULLABLE | Scheduled time for next tweet |
-| `engagement_score` | INTEGER | NOT NULL, DEFAULT 0 | Engagement tracking |
 | `created_at` | TIMESTAMP | NOT NULL, DEFAULT NOW() | Thread creation timestamp |
 
 **Indexes:**
 - `PRIMARY KEY (id)`
 - `INDEX (account_id)`
-- `INDEX (status, next_post_time)` (for scheduled posting queries)
+- `INDEX (status)` (for scheduled posting queries)
 
 **Threading Workflow:**
 1. Thread created with `status='ready'`
-2. `startThreadPosting()` sets `status='posting'`, `next_post_time=NOW()`
-3. Each posted tweet updates `current_tweet++`, `next_post_time += 5 minutes`
+2. `startThreadPosting()` sets `status='posting'`,
+3. Each posted tweet updates `current_tweet++`, 
 4. When `current_tweet > total_tweets`, set `status='completed'`
 
 ---
@@ -160,8 +157,6 @@ ORDER BY created_at ASC;
 SELECT * FROM threads
 WHERE account_id = $1
   AND status = 'posting'
-  AND next_post_time <= NOW()
-ORDER BY next_post_time ASC
 LIMIT 1;
 ```
 

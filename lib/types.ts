@@ -64,7 +64,6 @@ export interface Tweet {
     overall: number;
     grade: 'A' | 'B' | 'C' | 'D' | 'F';
   };
-  quality_score?: unknown;
   status: 'ready' | 'posted' | 'failed' | 'draft' | 'scheduled';
   posted_at?: string;
   twitter_id?: string;
@@ -76,7 +75,6 @@ export interface Tweet {
   thread_sequence?: number;
   parent_twitter_id?: string | null;
   content_type: 'single_tweet' | 'thread';
-  hook_type?: 'opener' | 'context' | 'crisis' | 'resolution' | 'lesson';
   // Image support
   image_url?: string; // Cloudinary URL for image-based tweets
   image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';

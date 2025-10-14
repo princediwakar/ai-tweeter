@@ -53,7 +53,7 @@ const THREAD_A = 'business_storyteller';
 const THREAD_B = 'cricket_storyteller';
 const princeGenerationPattern: DailySchedule = {
   // Strategy: Focused on Tue-Thu peaks; removed weekends. Total: 12 satirist, 3 pattern_spotter, 1 thread/week
-  0: {}, // Sunday - removed for focus
+  0: {12: [THREAD_B]}, // Sunday - cricket thread
   1: { 8: ['satirist'], 12: ['satirist'] }, // Monday - lighter mornings
   2: { 8: ['satirist'], 12: ['satirist'], 18: [THREAD_A] }, // Tuesday - full day + evening thread
   3: { 8: ['satirist'], 12: ['satirist'], 11: ['pattern_spotter'] }, // Wednesday - morning heavy
@@ -64,7 +64,7 @@ const princeGenerationPattern: DailySchedule = {
 
 const princePostingPattern: DailySchedule = {
   // Posting: 9-10 AM mornings, 1 PM afternoons (Tue-Thu emphasis). Thread Tue 7 PM prime.
-  0: {12: [THREAD_B]}, // Sunday - no posts
+  0: {12: [THREAD_B]}, // Sunday - cricket thread
   1: { 9: ['satirist'], 13: ['satirist'] }, // Monday
   2: { 9: ['satirist'], 13: ['satirist'], 19: [THREAD_A] }, // Tuesday
   3: { 10: ['satirist'], 12: ['satirist'], 13: ['pattern_spotter'] }, // Wednesday

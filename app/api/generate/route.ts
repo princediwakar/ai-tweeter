@@ -11,24 +11,13 @@ import {
   getGenerationBatchInfo,
 } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
-import { getPersonaByKey, getAllTopicsForPersona } from '@/lib/personas';
+import { getPersonaByKey } from '@/lib/personas';
 
-/**
- * A utility function to shuffle an array (Fisher-Yates algorithm).
- */
-function shuffleArray<T>(array: T[]): T[] {
-    const newArr = [...array];
-    for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
-    }
-    return newArr;
-}
+
 
 // MODIFIED: Added sourceUrl to the info type
 interface GeneratedTweetInfo {
   persona: string;
-  topic: string;
   contentType: string;
   length: number;
   sourceUrl?: string;
@@ -190,8 +179,6 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   
   logger.info(`[Enhanced:${callId}] Generating batch (size: ${targetBatchSize}) for account ${accountId} (Threading: ${shouldGenerateThreads ? 'threads' : 'tweets'})`, 'generate-batch');
 
-  const allTopics = getAllTopicsForPersona(selectedPersonaKey);
-  const shuffledTopics = shuffleArray(allTopics);
   const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
 
   // --- AI GENERATION START ---
@@ -227,14 +214,10 @@ if (shouldGenerateThreads) {
   }
 }
 
-    // For non-threading personas, generate regular tweets
-    const topic = shuffledTopics[i % shuffledTopics.length];
-    if (!topic) throw new Error(`No unique topics left for persona ${selectedPersonaKey}`);
-
+ 
     const config: TweetGenerationConfig = {
       account_id: accountId,
       persona: selectedPersonaKey,
-      topic: topic.key,
       contentType: contentTypes[(nowIST.getHours() + i) % contentTypes.length] as TweetGenerationConfig['contentType']
     };
 
@@ -269,7 +252,6 @@ if (shouldGenerateThreads) {
       type: 'tweet',
       data: {
         persona: selectedPersonaKey,
-        topic: topic.displayName,
         contentType: config.contentType || 'unknown',
         length: generatedTweet.content.length,
         sourceUrl: generatedTweet.sourceUrl, // Include URL in the response
@@ -278,7 +260,6 @@ if (shouldGenerateThreads) {
     };
   });
 
-  // ... (Rest of the file remains unchanged) ...
   const results = await Promise.allSettled(generationPromises);
   logger.info(`[Enhanced:${callId}] Total AI generation time: ${((performance.now() - generationStart) / 1000).toFixed(2)}s. Batch size: ${targetBatchSize}`, 'generate-timing');
   

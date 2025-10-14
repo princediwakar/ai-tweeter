@@ -128,7 +128,7 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
       const parsed = await parseStringPromise(xml);
       const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
 
-      // Take 4 headlines from each feed for variety
+      // Take 2 headlines from each feed for variety
       const headlinesPerFeed = 2;
 
       const headlines: HeadlineWithSource[] = [];
@@ -436,10 +436,6 @@ function formatSatiristContext(enrichedArticles: Awaited<ReturnType<typeof enric
       formatted += `\n   Article Excerpt: ${preview}`;
     }
 
-    if (article.websites.length > 0) {
-      formatted += `\n   Related Websites: ${article.websites.join(', ')}`;
-    }
-
     if (article.entities.length > 0) {
       formatted += `\n   Key Entities: ${article.entities.slice(0, 5).join(', ')}`;
     }
@@ -460,8 +456,10 @@ Select ONE headline and provide witty, data-driven commentary.
 ${sourceMap}`;
 }
 
+
+
 async function getPatternSpotterContext(accountId?: string): Promise<string> {
-  console.log('[Content Source] 🔍 Pattern Spotter selected. Fetching headlines with deduplication...');
+  console.log('[Content Source] 🔍 Pattern Spotter selected. Fetching a large headline set for AI analysis...');
 
   try {
     const primaryHeadlines = await fetchFromIndianNewsRSS();
@@ -477,32 +475,24 @@ async function getPatternSpotterContext(accountId?: string): Promise<string> {
     let usedSources: string[] = [];
     if (accountId) {
       usedSources = await getRecentPatternSpotterSources(accountId, GENERATION_CONFIG.deduplication.satiristSourceDays);
-      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last ${GENERATION_CONFIG.deduplication.satiristSourceDays} days)`);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources.`);
     }
 
-    // Filter out already-used sources
     const filteredHeadlines = uniqueHeadlines.filter(h => !usedSources.includes(h.url));
     console.log(`[Content Source] ${filteredHeadlines.length} new headlines after filtering`);
 
-    if (filteredHeadlines.length === 0) {
-      console.warn('[Content Source] All headlines have been used recently. Using all headlines.');
-      // Fallback to all headlines if everything has been used
-      const selectedHeadlines = uniqueHeadlines.slice(0, GENERATION_CONFIG.patternSpotter.headlinesToFetch);
-      return formatPatternSpotterContext(selectedHeadlines);
-    }
+    // If all are filtered, fall back to the original unique list
+    const headlinesToAnalyze = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
 
-    // Take first N unique headlines
-    const selectedHeadlines = filteredHeadlines.slice(0, GENERATION_CONFIG.patternSpotter.headlinesToFetch);
+    // Provide a LARGER set of headlines for the AI to analyze and cluster itself
+    const selectedHeadlines = headlinesToAnalyze.slice(0, GENERATION_CONFIG.patternSpotter.headlinesToFetch);
 
-    return formatPatternSpotterContext(selectedHeadlines);
+    return formatPatternSpotterContext(selectedHeadlines); // This helper will now format the larger list
   } catch (error) {
     return handleContextError('pattern_spotter', error, 'Could not fetch latest news due to a system error. Unable to perform pattern analysis.');
   }
 }
 
-/**
- * Helper function to format headlines into pattern_spotter context
- */
 function formatPatternSpotterContext(headlines: HeadlineWithSource[]): string {
   const formattedHeadlines = headlines
     .map((h, idx) => `${idx + 1}. ${h.headline}${h.description ? `\n   ${h.description}` : ''}`)
@@ -510,16 +500,18 @@ function formatPatternSpotterContext(headlines: HeadlineWithSource[]): string {
 
   const sourceMap = headlines.map((h, idx) => `[SOURCE_${idx + 1}]: ${h.url}`).join('\n');
 
-  return `HEADLINES FOR PATTERN ANALYSIS
+  // The context is now framed as a raw briefing for analysis
+  return `RAW NEWS BRIEFING FOR PATTERN ANALYSIS
 -------------------------------------------
+Here is a raw feed of ${headlines.length} recent headlines. Your first task is to find a meaningful cluster within them before identifying the pattern.
 
 ${formattedHeadlines}
-
-Analyze these headlines and identify ONE compelling pattern or insight.
 
 --- SOURCE METADATA (for logging only) ---
 ${sourceMap}`;
 }
+
+
 
 async function getEnglishVocabBuilderContext(topic: PersonaTopic | string): Promise<string> {
   const isPersonaTopic = typeof topic === 'object' && topic !== null && 'key' in topic;

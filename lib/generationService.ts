@@ -1,6 +1,6 @@
 // lib/generationService.ts
 import OpenAI from 'openai';
-import { getRandomTopicForPersona, getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
+import { getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
 // MODIFIED: Added sourceUrl to the EnhancedTweet type import
 import { EnhancedTweet, CardData, SatiristCard } from './types';
 import { accountService } from './accountService';
@@ -18,7 +18,7 @@ const deepseekClient = new OpenAI({
   baseURL: 'https://api.deepseek.com',
 });
 
-async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; topic: unknown; rssContext?: string }> {
+async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ prompt: string; persona: PersonaConfig; rssContext?: string }> {
   const markers = generateVariationMarkers();
   const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
@@ -99,13 +99,6 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(GENERATION_CONFIG.imageGeneration.satiristImagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
 
-  const topic = config.topic
-    ? persona.topics.find(t => t.key === config.topic)
-    : getRandomTopicForPersona(persona.key);
-
-  if (!topic) {
-    throw new Error('No valid topic found for persona');
-  }
 
   const personaGenerator = getPersonaGenerator(persona.key);
   if (!personaGenerator) {
@@ -121,15 +114,12 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   const prompt = personaGenerator.generatePrompt(
     config,
     context,
-    persona,
-    topic,
     { timeMarker, tokenMarker }
   );
 
   return {
     prompt,
     persona,
-    topic,
     rssContext
   };
 }
@@ -138,7 +128,6 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
 function parseAndValidateTweetResponse(
   content: string,
   persona: string,
-  topic: { key: string; displayName: string },
   rssContext?: string
 ): { tweet: EnhancedTweet; cardData: CardData | null; sourceUrl: string | undefined } | null {
   try {
@@ -248,8 +237,6 @@ function parseAndValidateTweetResponse(
       content: tweetContent,
       hashtags: [],
       persona: persona,
-      category: topic.key.split('_')[1] || 'general',
-      topic: topic.key,
       engagementHooks: data.teachingElements || [],
       gibbiCTA: data.gibbiCTA || undefined,
       contentType: 'explanation',
@@ -277,7 +264,7 @@ function parseAndValidateTweetResponse(
 export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
   try {
 
-    const { prompt, persona, topic, rssContext } = await generateTweetPrompt(config);
+    const { prompt, persona, rssContext } = await generateTweetPrompt(config);
 
     const response = await deepseekClient.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
@@ -292,14 +279,11 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       throw new Error('AI returned no content.');
     }
 
-    if (!persona || !topic) {
-      throw new Error('Invalid persona or topic configuration');
-    }
+
 
     const parsedResponse = parseAndValidateTweetResponse(
       content,
       persona.key,
-      topic as { key: string; displayName: string },
       rssContext
     );
     if (!parsedResponse) {
@@ -326,7 +310,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
     const contentHash = generateContentHash(tweetData);
 
-    console.log(`✅ Generated enhanced tweet for ${persona.displayName} on ${(topic as { key: string; displayName: string }).displayName} Hash: ${contentHash}`);
+    console.log(`✅ Generated enhanced tweet for ${persona.displayName} on contnt Hash: ${contentHash}`);
 
     // MODIFIED: Add sourceUrl to the final returned object
     return {
@@ -462,8 +446,29 @@ export async function generateEngagementReply(
  target: EngagementTarget,
  persona: PersonaConfig
 ): Promise<string | null> {
-  const prompt = `
-  ${persona.prompt_persona}
+  const prompt = `You are The Catalyst. Your goal is to spark meaningful conversation. You analyze a tweet's intent (is it news, humor, a debate?) and adapt your mode: from sharp analyst to witty partner to empathetic validator. Your voice is versatile and intelligent, optimized for high-reach replies that resonate deeply.
+
+BACKGROUND CONTEXT (use strategically, not always):
+You're from IIT BHU Varanasi with experience in the Indian startup ecosystem. This gives you credibility when discussing:
+- Technical/product decisions by IIT founders or tech leaders
+- Pattern recognition across Indian startups and scaling challenges
+- Engineering-first approaches vs off-the-shelf solutions
+- India's tech transformation (digital payments, startup ecosystem growth)
+
+WHEN TO USE THIS CONTEXT:
+✅ Founder discussing technical architecture, scaling, or hiring
+✅ Debates about India vs global tech/business models
+✅ Pattern recognition across IIT/startup ecosystem
+✅ Technical validation where engineering background adds weight
+
+WHEN NOT TO USE:
+❌ Generic business advice or news commentary
+❌ Personal/lifestyle topics unrelated to tech/startups
+❌ When it feels like forced credential-dropping
+❌ Topics where lived experience doesn't add unique insight
+
+When you use context, be specific ("IIT founder playbook", "we saw this pattern at BHU") not generic ("as an engineer...").,
+
 
   Reply Context:
   - You are replying to: @${target.username} (Tier ${target.tier} influencer: ${target.description})

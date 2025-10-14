@@ -4,7 +4,6 @@ import { getPersonaByKey, PersonaConfig } from '@/lib/personas';
 import { createThread, saveTweet, generateTweetId } from './db';
 import { accountService } from './accountService';
 import type { Account, Tweet } from './types';
-import { getThreadTemplate, ThreadTemplate } from './threadTemplates';
 import { logger } from '@/lib/logger'; 
 
 const deepseekClient = new OpenAI({
@@ -16,8 +15,6 @@ const deepseekClient = new OpenAI({
 export interface ThreadGenerationConfig {
   account_id: string;
   persona: string;
-  template?: string; // Specific template name
-  topic?: string; // Optional topic override
   rssContext?: string; // The news briefing
 }
 
@@ -26,7 +23,6 @@ export interface ThreadGenerationResult {
   thread_id: string;
   total_tweets: number;
   tweets: Tweet[];
-  template_used: string;
   story_category: string;
   sourceUrl?: string;
 }
@@ -88,46 +84,12 @@ function splitLongTweet(content: string): string[] {
   return tweets;
 }
 
-/**
- * Select appropriate thread template using persona configuration
- */
-function selectThreadTemplate(persona: PersonaConfig, templateOverride?: string): ThreadTemplate {
-  if (templateOverride) {
-    const template = getThreadTemplate(templateOverride);
-    if (template) {
-      logger.info(`🎯 Using specified template: ${template.displayName}`, 'thread-template-selection');
-      return template;
-    }
-    logger.warn(`⚠️ Template "${templateOverride}" not found, using random selection`, 'thread-template-selection');
-  }
-
-  // For threading personas (business_storyteller, cricket_storyteller), select from available templates
-  if ((persona.key === 'business_storyteller' || persona.key === 'cricket_storyteller') && persona.thread_templates) {
-    const randomIndex = Math.floor(Math.random() * persona.thread_templates.length);
-    const templateName = persona.thread_templates[randomIndex];
-    const template = getThreadTemplate(templateName);
-    
-    if (template) {
-      logger.info(`🎲 Randomly selected template: ${template.displayName}`, 'thread-template-selection');
-      return template;
-    }
-  }
-
-  // Fallback to founder struggle template
-  const fallbackTemplate = getThreadTemplate('founder_struggle');
-  if (!fallbackTemplate) {
-    throw new Error('No thread templates available');
-  }
-  
-  logger.info(`🔄 Using fallback template: ${fallbackTemplate.displayName}`, 'thread-template-selection');
-  return fallbackTemplate;
-}
 
 /**
  * Generate thread-specific prompt for storytelling (business or cricket)
  */
 // MODIFIED: Function signature updated to accept rssContext
-function generateThreadPrompt(template: ThreadTemplate, persona?: PersonaConfig, rssContext?: string): string {
+function generateThreadPrompt(persona?: PersonaConfig, rssContext?: string): string {
   const timeMarker = `T${Date.now()}`;
   const tokenMarker = `TK${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
   const diversityMarker = `D${Math.random().toString(36).substring(2, 4).toUpperCase()}`;
@@ -135,13 +97,7 @@ function generateThreadPrompt(template: ThreadTemplate, persona?: PersonaConfig,
   // Get persona-specific context from persona config instead of hardcoding
   const storyContext = persona?.description || 'Expert storyteller creating compelling narratives';
   
-  // Use persona topics for variation instead of hardcoded arrays
-  const availableTopics = persona?.topics || [];
-  const randomTopic = availableTopics.length > 0 
-    ? availableTopics[Math.floor(Math.random() * availableTopics.length)]
-    : { displayName: 'General storytelling' };
-  
-  const selectedVariation = `Focus on ${randomTopic.displayName.toLowerCase()}`;
+
 
   // MODIFIED: Add the news briefing to the prompt if it exists
   const deepDiveBriefing = rssContext
@@ -174,10 +130,6 @@ ${rssContext}
 
   return `${storyContext}
 
-UNIQUENESS INSTRUCTION: ${selectedVariation}
-
-THREAD TEMPLATE: "${template.displayName}"
-STORY BRIEF: ${template.story_prompt}
 ${deepDiveBriefing}
 CREATIVE APPROACH:
 • If an Intelligence Briefing is provided, your story MUST be based on the "Primary News Item" within it. Use the other details for context.
@@ -226,7 +178,7 @@ Generate a complete thread. Return ONLY valid JSON:
 
 {
   "title": "Thread title",
-  "story_category": "${template.name}",
+  "story_category": "Story Category",
   "hashtags": ${JSON.stringify(personaHashtags)},
   "tweets": [
     {"sequence": 1, "content": "Tweet 1 content"},
@@ -244,7 +196,6 @@ Generate a complete thread. Return ONLY valid JSON:
 // MODIFIED: Function signature updated to parse rssContext and return a sourceUrl
 function parseThreadResponse(
   content: string,
-  template: ThreadTemplate,
   rssContext?: string
 ): {
   title: string;
@@ -313,7 +264,7 @@ function parseThreadResponse(
     
     return {
       title: data.title,
-      story_category: data.story_category || template.name,
+      story_category: data.story_category,
       hashtags: data.hashtags,
       tweets: processedTweets,
       sourceUrl, //MODIFIED: Include extracted URL in the return object
@@ -353,11 +304,9 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     const dbReadDuration = ((performance.now() - dbReadStart) / 1000).toFixed(2);
     logger.info(`[Thread:${callId}] Initial DB read time: ${dbReadDuration}s`, 'thread-timing');
     
-    // Select thread template
-    const template = selectThreadTemplate(persona, config.template);
     
     // MODIFIED: Pass rssContext to the prompt generator
-    const prompt = generateThreadPrompt(template, persona, config.rssContext);
+    const prompt = generateThreadPrompt(persona, config.rssContext);
     
     logger.info(`[Thread:${callId}] Sending thread generation request to DeepSeek (prompt length: ${prompt.length} chars)`, 'thread-llm-call');
     
@@ -380,7 +329,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     }
 
     // MODIFIED: Pass rssContext to the response parser
-    const threadData = parseThreadResponse(aiContent, template, config.rssContext);
+    const threadData = parseThreadResponse(aiContent, config.rssContext);
     if (!threadData) {
       throw new Error('Failed to parse or validate thread response');
     }
@@ -395,7 +344,6 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       account_id: config.account_id,
       title: threadData.title,
       persona: config.persona,
-      story_template: template.name,
       total_tweets: threadData.tweets.length,
       status: 'ready',
       story_category: threadData.story_category
@@ -457,7 +405,6 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       thread_id: threadId,
       total_tweets: tweets.length,
       tweets: tweets,
-      template_used: template.name,
       story_category: threadData.story_category,
       sourceUrl: threadData.sourceUrl,
     };

@@ -13,7 +13,6 @@ export interface Thread {
   account_id: string;
   title: string;
   persona: string;
-  story_template: string;
   total_tweets: number;
   current_tweet: number;
   parent_tweet_id?: string; // Twitter ID of first tweet in thread
@@ -467,7 +466,7 @@ export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'c
     
     await sql`
       INSERT INTO threads (
-        id, account_id, title, persona, story_template, total_tweets,
+        id, account_id, title, persona, total_tweets,
         current_tweet, parent_tweet_id, status, next_post_time,
         engagement_score, story_category, created_at
       ) VALUES (
@@ -475,7 +474,6 @@ export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'c
         ${thread.account_id},
         ${thread.title},
         ${thread.persona},
-        ${thread.story_template},
         ${thread.total_tweets},
         1,
         ${thread.parent_tweet_id || null},
@@ -515,7 +513,6 @@ export async function getActiveThreadForPosting(accountId: string): Promise<Thre
       account_id: row.account_id,
       title: row.title,
       persona: row.persona,
-      story_template: row.story_template,
       total_tweets: row.total_tweets,
       current_tweet: row.current_tweet,
       parent_tweet_id: row.parent_tweet_id,
@@ -546,7 +543,6 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
       account_id: row.account_id,
       title: row.title,
       persona: row.persona,
-      story_template: row.story_template,
       total_tweets: row.total_tweets,
       current_tweet: row.current_tweet,
       parent_tweet_id: row.parent_tweet_id,

@@ -15,8 +15,6 @@ export interface EnrichedArticle {
   url: string;
   description?: string;
   fullText?: string; // Article body text
-  twitterHandles: string[]; // Extracted @handles from article AND entity websites
-  websites: string[]; // Company websites mentioned
   entities: string[]; // Company/person names mentioned
 }
 
@@ -49,42 +47,7 @@ function extractTwitterHandles(html: string): string[] {
   return Array.from(handles);
 }
 
-/**
- * Extracts website domain names mentioned in a block of text.
- * @param text The text content of the article.
- * @returns An array of unique domain names.
- */
-function extractWebsites(text: string): string[] {
-  const websites = new Set<string>();
 
-  // Common valid TLDs - whitelist approach to avoid matching sentence fragments
-  const validTLDs = /\.(com|org|net|io|ai|co|in|uk|us|tech|app|dev|xyz|info|biz|me|gg|fm|tv|live|online|site|website|store|blog|news|media|digital|cloud|ventures|capital|fund)(?:\b|\/)/i;
-
-  // More restrictive pattern that requires proper URL context or common domain patterns
-  const domainPattern = /(?:https?:\/\/|www\.)([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)/gi;
-  let match;
-
-  while ((match = domainPattern.exec(text)) !== null) {
-    const domain = match[1].toLowerCase();
-
-    // Validate the domain has a recognized TLD
-    if (!validTLDs.test(domain)) continue;
-
-    // Filter out social media domains and obvious false positives
-    const excludePatterns = [
-      'twitter.com', 'x.com', 'facebook.com', 'instagram.com', 'linkedin.com',
-      'youtube.com', 'google.com', 'github.com'
-    ];
-
-    if (excludePatterns.some(pattern => domain.includes(pattern))) continue;
-
-    // Extract just the main domain (remove any path components)
-    const cleanDomain = domain.split('/')[0];
-    websites.add(cleanDomain);
-  }
-
-  return Array.from(websites).slice(0, GENERATION_CONFIG.enrichment.maxWebsites);
-}
 
 /**
  * Extracts entity names (companies, people) from text using capitalization patterns.
@@ -138,7 +101,7 @@ export async function enrichArticle(
   url: string,
   description?: string
 ): Promise<EnrichedArticle> {
-  const baseResult: EnrichedArticle = { headline, url, description, twitterHandles: [], websites: [], entities: [] };
+  const baseResult: EnrichedArticle = { headline, url, description,  entities: [] };
 
   try {
     // --- Step 1: Primary Enrichment (from the article page) ---
@@ -167,13 +130,10 @@ export async function enrichArticle(
     }
 
     const fullText = article.textContent;
-    const websites = extractWebsites(fullText);
     const entities = extractEntities(fullText);
 
-    // Twitter handle extraction disabled
-    // Secondary enrichment step (website homepage scanning) also disabled
 
-    console.log(`📰 Article enriched: ${websites.length} websites, ${entities.length} entities.`);
+    console.log(`📰 Article enriched:${entities.length} entities.`);
 
     // --- Step 2: Final Consolidation ---
     return {
@@ -181,8 +141,6 @@ export async function enrichArticle(
       url,
       description,
       fullText: fullText.substring(0, GENERATION_CONFIG.enrichment.fullTextLimit),
-      twitterHandles: [], // Disabled
-      websites,
       entities,
     };
 

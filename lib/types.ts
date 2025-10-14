@@ -90,8 +90,6 @@ export interface EnhancedTweet {
   content: string;
   hashtags: string[];
   persona: string;
-  category: string;
-  topic: string;
   engagementHooks: string[];
   gibbiCTA?: string;
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
@@ -161,7 +159,6 @@ export interface TweetGenerationConfig {
 export interface ThreadGenerationResult {
   thread_id: string;
   total_tweets: number;
-  template_used: string;
   story_category: string;
 }
 

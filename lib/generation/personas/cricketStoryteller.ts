@@ -1,22 +1,21 @@
 // lib/generation/personas/cricketStoryteller.ts
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
-import type { PersonaConfig } from '../../personas';
 import { getThreadTemplate } from '../../threadTemplates';
 
 export class CricketStorytellerGenerator extends BasePersonaGenerator {
   generatePrompt(
     config: TweetGenerationConfig,
     context: GenerationContext,
-    persona: PersonaConfig,
-    topic: { key: string; displayName: string },
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
 
-    const availableTemplateNames =
-      persona.thread_templates && persona.thread_templates.length > 0
-        ? persona.thread_templates
-        : ['player_spotlight_analysis'];
+    const availableTemplateNames = [
+      "moment_deconstruction",
+      "player_spotlight_analysis",
+      "tactical_breakdown",
+      "rivalry_context_clash",
+    ]
 
     const selectedTemplateName =
       availableTemplateNames[Math.floor(Math.random() * availableTemplateNames.length)];
@@ -26,18 +25,15 @@ export class CricketStorytellerGenerator extends BasePersonaGenerator {
     if (!selectedTemplate) {
       const fallbackTemplate = getThreadTemplate('player_spotlight_analysis')!;
       console.warn(`Template "${selectedTemplateName}" not found. Falling back to "${fallbackTemplate.name}".`);
-      return this.generatePromptForTemplate(fallbackTemplate, config, context, persona, topic, markers);
+      return this.generatePromptForTemplate(fallbackTemplate, context, markers);
     }
     
-    return this.generatePromptForTemplate(selectedTemplate, config, context, persona, topic, markers);
+    return this.generatePromptForTemplate(selectedTemplate, context, markers);
   }
 
   private generatePromptForTemplate(
     template: { name: string; displayName: string; story_prompt: string },
-    config: TweetGenerationConfig,
     context: GenerationContext,
-    persona: PersonaConfig,
-    topic: { key: string; displayName: string },
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
     const { timeMarker, tokenMarker } = markers;
@@ -46,16 +42,15 @@ export class CricketStorytellerGenerator extends BasePersonaGenerator {
     if (context.rssContext) {
       deepDiveBriefing = `\n\nCRICKET DEEP DIVE BRIEFING:\n${context.rssContext}`;
     }
-    const personaDescription = persona.prompt_persona;
+    const personaDescription = `You are a top-tier cricket analyst and storyteller, like a writer for ESPNcricinfo's 'The Cricket Monthly'. Your style is grounded, insightful, and respects the reader's intelligence. You find the compelling narrative in the facts, not by adding artificial drama. Your voice is conversational yet authoritative. **Crucially, you avoid hyperbole, clichés, and overly poetic language.** You focus on specific, tangible details to tell the story.`
 
 
     // MODIFIED: The entire THREAD EXECUTION block has been rewritten for a more authentic tone.
-    let basePrompt = `${personaDescription}
+    const basePrompt = `${personaDescription}
 
 Your task is to create a compelling, insightful Twitter thread (6-8 tweets) based on the provided intelligence briefing.
 
 STORY TEMPLATE: "${template.displayName}"
-PRIMARY TOPIC: "${topic.displayName}"
 
 YOUR MISSION:
 ${template.story_prompt}
@@ -114,7 +109,6 @@ STORYTELLING FOCUS: Sharp, specific analysis that tells the story *through* the 
 
 [${timeMarker}-${tokenMarker}]`;
 
-    basePrompt = this.addGibbiCTA(basePrompt, context.account);
     return this.addCommonSuffix(basePrompt);
   }
 }

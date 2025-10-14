@@ -36,9 +36,6 @@ export const GENERATION_CONFIG = {
     /** Maximum character length for extracted article text */
     fullTextLimit: 3000,
 
-    /** Maximum number of websites to extract per article */
-    maxWebsites: 5,
-
     /** Maximum number of entities (companies/people) to extract */
     maxEntities: 10,
 
@@ -132,7 +129,7 @@ export const GENERATION_CONFIG = {
   // ============================================
   patternSpotter: {
     /** Number of headlines (with title + description) to fetch for pattern analysis */
-    headlinesToFetch: 15,
+    headlinesToFetch: 25,
 
     /** Character limit for pattern observation tweet */
     tweetTextCharLimit: 250,

@@ -1,6 +1,5 @@
 // lib/generation/personas/base.ts
 import type { TweetGenerationConfig, GenerationContext } from '../types';
-import type { PersonaConfig } from '../../personas';
 import type { Account } from '../../types';
 import { GENERATION_CONFIG } from '../config';
 
@@ -8,8 +7,6 @@ export interface PersonaGenerator {
   generatePrompt(
     config: TweetGenerationConfig,
     context: GenerationContext,
-    persona: PersonaConfig,
-    topic: { key: string; displayName: string },
     markers: { timeMarker: string; tokenMarker: string }
   ): string;
 }
@@ -18,8 +15,6 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   abstract generatePrompt(
     config: TweetGenerationConfig,
     context: GenerationContext,
-    persona: PersonaConfig,
-    topic: { key: string; displayName: string },
     markers: { timeMarker: string; tokenMarker: string }
   ): string;
 
@@ -36,7 +31,7 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
   protected addCommonSuffix(prompt: string): string {
     // --- OPTIMIZED CHARACTER LIMIT AND FORMAT INSTRUCTIONS ---
     return prompt + `\n\nCRITICAL OUTPUT CONSTRAINTS:
-- STRICT CHARACTER LIMIT: **EACH TWEET/THREAD-SEGMENT MUST BE UNDER 280 CHARACTERS.**
+🚨 CRITICAL RULE: Your final output MUST be under ${GENERATION_CONFIG.satirist.tweetTextCharLimit} characters. NO EXCEPTIONS. If you exceed this limit, the tweet will be TRUNCATED and RUINED. Count characters BEFORE responding. Better to be concise than cut off.
 - Aim for readability: 180-260 characters per segment is preferred.
 - FORMAT: Return as valid JSON object. Use the exact field names specified in your instructions above (e.g., "tweetText", "content", etc.). If no specific format was given, use {"content": "your tweet text", "hashtags": []}.
 - HASHTAGS: DO NOT include any hashtags in the tweet text. Always include an empty "hashtags": [] array in your JSON response for compatibility.

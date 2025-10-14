@@ -70,7 +70,6 @@ export async function POST(request: Request) {
         const threadResult = await generateThread({
           account_id: accountId,
           persona: personaKey,
-          topic: topic
         });
         
         if (!threadResult) {
@@ -130,7 +129,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ 
           tweet,
           meta: {
-            topic: generatedTweet.topic,
             hooks: generatedTweet.engagementHooks || [],
             gibbiCTA: generatedTweet.gibbiCTA,
             contentType,
@@ -207,21 +205,12 @@ export async function POST(request: Request) {
           return acc;
         }, {} as Record<string, number>);
         
-        // Calculate topic diversity
-        const topicStats = generatedTweets.reduce((acc, tweet) => {
-          const topicName = tweet.topic;
-          if (topicName) {
-            acc[topicName] = (acc[topicName] || 0) + 1;
-          }
-          return acc;
-        }, {} as Record<string, number>);
-        
+    
         return NextResponse.json({ 
           tweets: savedTweets,
           meta: {
             contentType,
             personaDistribution: personaStats,
-            topicDiversity: Object.keys(topicStats).length,
             // Assuming engagementHooks is the standard field now
             engagementElements: generatedTweets.flatMap(t => t.engagementHooks || []).length,
             gibbiCTAs: generatedTweets.filter(t => t.gibbiCTA).length,

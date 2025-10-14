@@ -95,7 +95,6 @@ Stores thread metadata and posting progress.
 | `account_id` | UUID | NOT NULL, FOREIGN KEY → accounts(id) | Account that owns this thread |
 | `title` | VARCHAR | NOT NULL | Thread title/summary |
 | `persona` | VARCHAR | NOT NULL | Persona used (e.g., 'business_storyteller') |
-| `story_template` | VARCHAR | NOT NULL | Template used for generation |
 | `story_category` | VARCHAR | NOT NULL | Category (e.g., 'indian_business', 'cricket') |
 | `total_tweets` | INTEGER | NOT NULL | Total number of tweets in thread |
 | `current_tweet` | INTEGER | NOT NULL, DEFAULT 1 | Next tweet to post (1-indexed) |

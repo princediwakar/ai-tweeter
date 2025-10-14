@@ -15,6 +15,7 @@ import {
 
 export class EnglishVocabBuilderGenerator extends BasePersonaGenerator {
 
+  // ... All private helper methods (getAlphabeticalVariety, etc.) remain unchanged ...
   private getAlphabeticalVariety(batchPosition: number, batchSize: number): string {
     // Expanded alphabet distribution for better variety
     const alphabetGroups = [
@@ -168,7 +169,6 @@ generatePrompt(
 ): string {
   const { timeMarker, tokenMarker } = markers;
   
-  // --- [NO CHANGE TO THIS SECTION] ---
   const alphabetGuidance = config.batchPosition && config.batchSize 
     ? this.getAlphabeticalVariety(config.batchPosition, config.batchSize)
     : 'Choose any appropriate word.';
@@ -204,7 +204,9 @@ generatePrompt(
     ? `CRITICAL: Do not use any of the following words or their direct synonyms: ${config.previousWords.join(', ')}.`
     : 'Ensure this is the first word you are generating in this session.';
 
-  // --- [PROMPT REFACTOR] ---
+  const format = config.vocabFormat || 'image';
+  const isImageFormat = format === 'image';
+
   let basePrompt = `You are an English vocabulary teacher and linguistic curator creating engaging content for social media. Your mission is to help people discover exceptional words to sound more articulate and intelligent.
 
 ADDITIONAL GUIDANCE: ${randomGuidance}
@@ -214,46 +216,68 @@ ADVANCED VOCABULARY DISCOVERY:
 ${vocabularyDiscovery || 'Discover sophisticated vocabulary that demonstrates intellectual maturity and precision.'}
 
 --- MANDATORY VARIETY & UNIQUENESS PROTOCOL ---
-1.  **PREVIOUSLY USED WORDS:** ${previousWordsExclusion}
-2.  **ALPHABETICAL CONSTRAINT:** ${alphabetGuidance}
-3.  **SEMANTIC CATEGORY CONSTRAINT:** ${semanticGuidance}
-4.  **COMPLEXITY LEVEL CONSTRAINT:** ${complexityGuidance}
-5.  **UNIQUENESS OF WORD:** Every generation must feature a completely different word from a distinct semantic domain. No repetitions or near-synonyms. Vary word origins, parts of speech, and usage contexts.
+1.  PREVIOUSLY USED WORDS: ${previousWordsExclusion}
+2.  ALPHABETICAL CONSTRAINT: ${alphabetGuidance}
+3.  SEMANTIC CATEGORY CONSTRAINT: ${semanticGuidance}
+4.  COMPLEXITY LEVEL CONSTRAINT: ${complexityGuidance}
+5.  UNIQUENESS OF WORD: Every generation must feature a completely different word from a distinct semantic domain. No repetitions or near-synonyms. Vary word origins, parts of speech, and usage contexts.
 // --- [MAJOR IMPROVEMENT] More specific hook variety instructions ---
-6.  **UNIQUENESS OF HOOK:** The "tweetText" hook must be completely different in both *content* and *structure* in every generation. Actively cycle through different hook archetypes. CRITICAL: Avoid repeating formulas. Specifically, do not overuse the "Ever feel...?" question format or the phrase "There's a perfect word for that."
+6.  UNIQUENESS OF HOOK: The "tweetText" hook must be completely different in both *content* and *structure* in every generation. Actively cycle through different hook archetypes. CRITICAL: Avoid repeating formulas. Specifically, do not overuse the "Ever feel...?" question format or the phrase "There's a perfect word for that."
 
 --- END OF PROTOCOL ---
 
 WORD SELECTION CRITERIA:
-- Choose words at B2-C2 level.
+- Choose words at A1-C1 level.
 - Select sophisticated vocabulary suitable for competitive exams (GRE, GMAT, IELTS, TOEFL).
 - Avoid basic, overused words (e.g., "important," "good," "nice," "crucial," "strategic").
 - PRIORITY: Choose words from academic texts, quality publications, or formal discourse.
 
 CONTENT REQUIREMENTS:
-Generate a vocabulary lesson with the exact JSON structure below:
+Generate a vocabulary lesson with the exact JSON structure below.
+`;
 
+    if (isImageFormat) {
+      basePrompt += `
 {
-"tweetText": "Generate a unique, engaging hook (max 180 characters) by choosing a DIFFERENT HOOK ARCHETYPE each time. Do not be repetitive.
-  - **Archetype 1 (The Replacement):** 'Instead of saying [common word], use this more precise term...'
-  - **Archetype 2 (The Scenario):** Describe a very specific, relatable situation or feeling. (e.g., 'That feeling of knowing something is wrong without being able to explain why? There's a word for it.')
-  - **Archetype 3 (The Direct Benefit):** 'This one word will instantly make your writing sound more persuasive/academic/eloquent.'
-  - **Archetype 4 (The Intrigue):** Ask a provocative question about language or a concept. (e.g., 'What's the difference between X and Y? This word holds the key.')
-  - **Archetype 5 (The Etymology Tease):** 'The origin of this word is fascinating. It comes from the Latin for...'
-  - **Archetype 6 (The Intellectual Challenge):** 'I bet you don't know the proper term for [complex idea]. It's...'
-  CRITICAL: You must vary which archetype you use for each generation.",
-"cardData": {
-  "type": "single_word",
-  "word": "A practical vocabulary word that people can use immediately",
-  "partOfSpeech": "The grammatical category (noun, verb, adjective, adverb, etc.)",
-  "meaning": "A concise, clear definition (max 1 short sentence or 15 words).",
-  "example": "A brief, natural example sentence (max 15 words).",
-  "synonyms": []
-},
-"hashtags": ["4", "relevant", "educational", "hashtags"],
+  "tweetText": "Generate a unique, engaging, and VERY SHORT hook (MAX 150 characters). It must be self-explanatory and include the vocabulary word. The goal is to create a curiosity gap that makes people look at the image, not to give the full lesson. Use a DIFFERENT HOOK ARCHETYPE each time.
+    - Archetype 1 (The Replacement): 'Instead of saying 'very detailed,' try using the word 'granular' for more precision.'
+    - Archetype 2 (The Scenario): 'That feeling of vague anxiety you can't explain? There's a perfect word for it: 'ennui'.'
+    - Archetype 3 (The Direct Benefit): 'Want to sound more articulate? Using a word like 'ephemeral' will elevate your language.'
+    - Archetype 4 (The Intrigue): 'What's the difference between jealousy and envy? The word 'covet' holds the key.'
+    - Archetype 5 (The Etymology Tease): 'The fascinating origin of the word 'gregarious' comes from the Latin for 'flock'.'
+    - Archetype 6 (The Intellectual Challenge): 'Most people misuse the word 'literally'. The correct term for that is often 'figuratively'.'
+    CRITICAL: You must vary the archetype for each generation. The tweet must make sense without the image.",
+  "cardData": {
+    "type": "single_word",
+    "word": "A practical vocabulary word that people can use immediately",
+    "partOfSpeech": "The grammatical category (noun, verb, adjective, adverb, etc.)",
+    "meaning": "A concise, clear definition (max 1 short sentence or 15 words).",
+    "example": "A brief, natural example sentence (max 15 words).",
+    "synonyms": []
+  },
+  "hashtags": [],
+  "gibbiCTA": "A CTA string or null"
+}
+`;
+} else { // Text-only format
+  basePrompt += `
+{
+"tweetText": "Compose a complete, self-contained, and CONCISE tweet (STRICT MAX 270 characters). The entire lesson must be in this single string. CRITICAL: Vary the structure each time by choosing a different, brief format archetype below.
+- **Archetype A (Direct):** 'Erudite (adj): Showing great knowledge or learning. Example: \\"Her erudite presentation impressed the professors.\\"'
+- **Archetype B (Scenario):** 'Know someone who has read every book? They're likely erudite (adj)—showing great knowledge. Example: \\"He was an erudite scholar of ancient history.\\"'
+- **Archetype C (Replacement):** 'Instead of 'very smart', try 'erudite' (adj). It means showing great knowledge from study. Example: \\"The author's erudite writing style made the topic accessible.\\"'
+- **Archetype D (Question):** 'What do you call someone with deep, scholarly knowledge? Erudite (adj). Example: \\"The erudite historian answered every question with ease.\\"'
+CRITICAL: Shorter is better. Do not be verbose.",
+"cardData": null,
+"hashtags": ["An array", "of 4 relevant", "educational", "hashtags"],
 "gibbiCTA": "A CTA string or null"
 }
 
+NOTE: For this text-only format, 'cardData' MUST be null. The entire vocabulary lesson goes into 'tweetText'. Do not use any markdown like '**'.
+`;
+}
+
+    basePrompt += `
 WRITING STYLE:
 - Use a conversational, friendly, and accessible tone.
 - Ensure the example sentence feels natural and realistic.

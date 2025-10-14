@@ -18,6 +18,7 @@ export interface TweetGenerationConfig {
   previousHeadlines?: number[]; // Track used headline numbers for satirist
   rssContext?: string;
   satiristFormat?: 'image' | 'text-only'; // Determine satirist output format before generation
+  vocabFormat?: 'image' | 'text-only'; // Determine satirist output format before generation
 }
 
 import type { Account } from '../types';

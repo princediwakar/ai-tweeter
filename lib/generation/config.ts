@@ -68,7 +68,8 @@ export const GENERATION_CONFIG = {
   // ============================================
   imageGeneration: {
     /** Percentage of satirist tweets that should have images (0.0 - 1.0) */
-    satiristImagePercentage: 0.1, // 100% - all satirist tweets get images
+    satiristImagePercentage: 0.1, // 
+    vocabImagePercentage: 0.3, // 
   },
 
   // ============================================

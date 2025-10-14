@@ -99,6 +99,14 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(GENERATION_CONFIG.imageGeneration.satiristImagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
 
+  // For english_vocab_builder persona, decide image vs text-only format
+  if (persona.key === 'english_vocab_builder' && !config.vocabFormat) {
+    const imagePercentage = GENERATION_CONFIG.imageGeneration.vocabImagePercentage || 0.8; // Default to 80% if not configured
+    const shouldGenerateImage = Math.random() < imagePercentage;
+    config.vocabFormat = shouldGenerateImage ? 'image' : 'text-only';
+    console.log(`🎲 [Vocab Builder] Format decided: ${config.vocabFormat} (${Math.round(imagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+  }
+
 
   const personaGenerator = getPersonaGenerator(persona.key);
   if (!personaGenerator) {
@@ -167,18 +175,29 @@ function parseAndValidateTweetResponse(
     let tweetContent: string;
 
     if (persona === 'english_vocab_builder') {
-      if (!data.tweetText || !data.cardData || !data.cardData.word || !data.cardData.meaning) {
-        throw new Error('AI response for vocab_builder missing required fields: tweetText or cardData.');
+      if (!data.tweetText) { // tweetText is always required
+        throw new Error('AI response for vocab_builder missing required field: tweetText.');
       }
       tweetContent = data.tweetText;
-      cardData = {
-        word: data.cardData.word,
-        meaning: data.cardData.meaning,
-        partOfSpeech: data.cardData.partOfSpeech,
-        example: data.cardData.example,
-        synonyms: data.cardData.synonyms,
-        type: data.cardData.type,
-      };
+
+      // If cardData exists and is valid, it's an image tweet.
+      if (data.cardData && data.cardData.word && data.cardData.meaning) {
+        cardData = {
+          word: data.cardData.word,
+          meaning: data.cardData.meaning,
+          partOfSpeech: data.cardData.partOfSpeech,
+          example: data.cardData.example,
+          synonyms: data.cardData.synonyms,
+          type: data.cardData.type,
+        };
+      } else {
+        // Otherwise, it's a text-only tweet, so cardData remains null.
+        // This handles cases where cardData is explicitly null or malformed.
+        if (data.cardData) {
+             console.warn(`[vocab_builder] Received malformed cardData for a text-only tweet. Discarding.`, data.cardData);
+        }
+        cardData = null;
+      }
     } else if (persona === 'satirist') {
       if (!data.tweetText) {
         throw new Error('AI response for satirist missing required field: tweetText.');

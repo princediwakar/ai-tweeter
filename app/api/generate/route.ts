@@ -356,7 +356,7 @@ if (shouldGenerateThreads) {
     maxPipeline: maxPipelineSize,
     batchInfo: debugMode ? batchInfo : undefined,
     generatedTweets: debugMode ? generatedTweets : generatedTweets.length,
-    generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ template: t.template_used, tweets: t.total_tweets })),
+    generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ tweets: t.total_tweets })),
     errors: errors.length > 0 ? errors : undefined,
     duration_s: parseFloat(totalDuration), // Add duration to the response
     timestamp: new Date().toISOString()

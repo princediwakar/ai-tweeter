@@ -80,7 +80,6 @@ export async function POST(request: Request) {
           thread: {
             id: threadResult.thread_id,
             total_tweets: threadResult.total_tweets,
-            template_used: threadResult.template_used,
             story_category: threadResult.story_category
           },
           tweets: threadResult.tweets,

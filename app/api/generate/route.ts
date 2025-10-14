@@ -190,22 +190,22 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 if (shouldGenerateThreads) {
   const threadCallStart = performance.now();
   logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
-  
-  // ADD THIS BLOCK TO FETCH THE CONTEXT
-  const { getDynamicContext } = await import('@/lib/contentSource');
-  const rssContext = await getDynamicContext(selectedPersonaKey, '');
 
-  // MODIFY THE CALL TO generateThread TO PASS THE CONTEXT
-  const threadResult = await generateThread({ 
-      account_id: accountId, 
+  // Fetch context with accountId for source deduplication
+  const { getDynamicContext } = await import('@/lib/contentSource');
+  const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId);
+
+  // Generate thread with the fetched context
+  const threadResult = await generateThread({
+      account_id: accountId,
       persona: selectedPersonaKey,
       rssContext: rssContext // Pass the fetched context
   });
-  
+
   if (threadResult) {
     logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s. Source: ${threadResult.sourceUrl || 'N/A'}`, 'thread-generation-timing');
-    return { 
-      type: 'thread', 
+    return {
+      type: 'thread',
       data: threadResult
     };
   } else {

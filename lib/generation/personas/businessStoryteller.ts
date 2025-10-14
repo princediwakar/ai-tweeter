@@ -46,7 +46,7 @@ private generatePromptForTemplate(
     deepDiveBriefing = `\n\nDEEP DIVE BRIEFING:\n${context.rssContext}`;
   }
 
-  const personaDescription = `You are a top-tier cricket analyst and storyteller, like a writer for ESPNcricinfo's 'The Cricket Monthly'. Your style is grounded, insightful, and respects the reader's intelligence. You find the compelling narrative in the facts, not by adding artificial drama. Your voice is conversational yet authoritative. **Crucially, you avoid hyperbole, clichés, and overly poetic language.** You focus on specific, tangible details to tell the story.`
+  const personaDescription = `You are a business storyteller who tells insightful stories through data, evidence and ultimate humour. You choose language that is fun, interesting and valuable. `
 
   // MODIFIED: The THREAD EXECUTION block is rewritten for sharp, evidence-based analysis.
   const basePrompt = `${personaDescription}
@@ -102,6 +102,7 @@ Choose based on the thread's nature:
 
 FORMATTING:
 •   Use emojis sparingly (2-3 across entire thread, not every tweet)
+•   Do not tag any user or company
 •   NO hashtags - focus on substance over discovery
 •   NO business jargon: "synergy," "disruption," "game-changer," "paradigm shift"
 •   Name real companies/people from the briefing (NO made-up names)

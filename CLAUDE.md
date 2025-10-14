@@ -24,7 +24,7 @@
   - `personas/businessStoryteller.ts` - Indian business narratives
   - `personas/cricketStoryteller.ts` - Cricket human stories
   - `personas/satirist.ts` - Data-driven satirical analysis
-  - `articleEnricher.ts` - Two-step article enrichment: fetches full content + extracts Twitter handles, entities, websites
+  - `articleEnricher.ts` - Two-step article enrichment: fetches full content + extracts entities
 * `lib/contentSource.ts` - RSS feed aggregation & article enrichment orchestration
 * `lib/generationService.ts` - Main AI orchestration
 * `lib/threadGenerationService.ts` - Thread creation with shareability hooks
@@ -52,8 +52,6 @@ The satirist persona uses a sophisticated two-step enrichment process:
 
 **Step 2: Secondary Enrichment** (`lib/generation/articleEnricher.ts`)
 - Fetches full article content using Readability.js
-- Extracts Twitter handles from article HTML (links + @mentions)
-- Identifies company websites mentioned in article text
 - Visits discovered company homepages to find official social handles
 - Extracts entity names (companies, people) using capitalization patterns
 - Returns enriched data: `{ headline, fullText, twitterHandles, websites, entities, sourceUrl }`

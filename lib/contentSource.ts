@@ -5,7 +5,7 @@ import { parseStringPromise } from 'xml2js';
 // Assuming the PersonaTopic interface is available via an import path like this:
 import type { PersonaTopic } from './personas';
 import { enrichArticles } from './generation/articleEnricher';
-import { getRecentSatiristSources, getRecentPatternSpotterSources } from './db';
+import { getRecentSatiristSources, getRecentPatternSpotterSources, getRecentBusinessStorytellerSources, getRecentCricketStorytellerSources } from './db';
 import { GENERATION_CONFIG } from './generation/config';
 
 // Use native fetch
@@ -281,11 +281,9 @@ async function handleContextError(persona: string, error: unknown, fallbackMessa
 // ─────────────────────────────────────────────
 type PersonaContextHandler = (topic: PersonaTopic | string) => Promise<string>;
 
-async function getBusinessStorytellerContext(): Promise<string> {
+async function getBusinessStorytellerContext(accountId?: string): Promise<string> {
   console.log('[Content Source] 🧠 Activating Indian-First Deep Dive mode for Business Storyteller...');
-  const cacheKey = `business_storyteller_deep_dive_${getTodayDateKey()}`;
-  const cached = getCachedContext(cacheKey);
-  if (cached) return cached;
+  // NOTE: Caching disabled for business_storyteller to ensure maximum variety in story selection
 
   try {
     const primaryHeadlines = await fetchFromIndianNewsRSS();
@@ -293,7 +291,25 @@ async function getBusinessStorytellerContext(): Promise<string> {
       return "No recent top stories found from dedicated Indian business sources. Generate a compelling story on a timeless Indian business theme, like the rise of D2C brands or the challenges in family business succession.";
     }
 
-    const mainStory = primaryHeadlines[0];
+    // Get unique headlines
+    const uniqueHeadlines = Array.from(new Map(primaryHeadlines.map((item) => [item.headline, item])).values());
+    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for business_storyteller`);
+
+    // Get recently used source URLs to avoid repetition
+    let usedSources: string[] = [];
+    if (accountId) {
+      usedSources = await getRecentBusinessStorytellerSources(accountId, GENERATION_CONFIG.deduplication.satiristSourceDays);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last ${GENERATION_CONFIG.deduplication.satiristSourceDays} days)`);
+    }
+
+    // Filter out already-used sources
+    const filteredHeadlines = uniqueHeadlines.filter(h => !usedSources.includes(h.url));
+    console.log(`[Content Source] ${filteredHeadlines.length} new headlines after filtering`);
+
+    // If all headlines have been used, fall back to using all headlines
+    const headlinesToUse = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
+
+    const mainStory = headlinesToUse[0];
     const mainEntity = (mainStory.headline.match(/\b[A-Z][a-zA-Z]+\b/g) || ['Indian Startups'])[0];
 
     const enrichmentPromises = [
@@ -320,18 +336,15 @@ ${enrichmentContext.length > 0 ? enrichmentContext.slice(0, 4).map(c => `- ${c}`
 **Your Mission:**
 Use this briefing to construct a deep, insightful story. The Primary News Item is the core truth. Use the supporting intelligence to connect the dots, analyze competition, and reveal hidden challenges. Your analysis must be sharp and confident.
 `;
-    setCachedContext(cacheKey, finalContext);
     return finalContext;
   } catch (error) {
     return handleContextError('business_storyteller', error, "Could not fetch latest news due to a system error. Using general knowledge.");
   }
 }
 
-async function getCricketStorytellerContext(): Promise<string> {
+async function getCricketStorytellerContext(accountId?: string): Promise<string> {
   console.log('[Content Source] 🏏 Activating Cricket Deep Dive mode...');
-  const cacheKey = `cricket_storyteller_deep_dive_${getTodayDateKey()}`;
-  const cached = getCachedContext(cacheKey);
-  if (cached) return cached;
+  // NOTE: Caching disabled for cricket_storyteller to ensure maximum variety in story selection
 
   try {
     const primaryHeadlines = await fetchFromCricketNewsRSS();
@@ -339,7 +352,25 @@ async function getCricketStorytellerContext(): Promise<string> {
       return "No recent top stories found from dedicated cricket sources. Generate a compelling story on a timeless cricket theme, like the pressure of a debut or a classic rivalry.";
     }
 
-    const mainStory = primaryHeadlines[0];
+    // Get unique headlines
+    const uniqueHeadlines = Array.from(new Map(primaryHeadlines.map((item) => [item.headline, item])).values());
+    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for cricket_storyteller`);
+
+    // Get recently used source URLs to avoid repetition
+    let usedSources: string[] = [];
+    if (accountId) {
+      usedSources = await getRecentCricketStorytellerSources(accountId, GENERATION_CONFIG.deduplication.satiristSourceDays);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last ${GENERATION_CONFIG.deduplication.satiristSourceDays} days)`);
+    }
+
+    // Filter out already-used sources
+    const filteredHeadlines = uniqueHeadlines.filter(h => !usedSources.includes(h.url));
+    console.log(`[Content Source] ${filteredHeadlines.length} new headlines after filtering`);
+
+    // If all headlines have been used, fall back to using all headlines
+    const headlinesToUse = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
+
+    const mainStory = headlinesToUse[0];
     const keyPlayer = (mainStory.headline.match(/\b[A-Z][a-z]{3,}\b/g) || ['a key player'])[0];
 
     const enrichmentPromises = [
@@ -366,7 +397,6 @@ ${enrichmentContext.length > 0 ? enrichmentContext.slice(0, 4).map(c => `- ${c}`
 **Your Mission:**
 Use this briefing to deconstruct the story behind the scoreboard. The Primary Event is your focus. Use the supporting context to analyze the key player's performance, the tactical turning points, and the psychological drama of the match.
 `;
-    setCachedContext(cacheKey, finalContext);
     return finalContext;
   } catch (error) {
     return handleContextError('cricket_storyteller', error, "Could not fetch latest cricket news due to a system error. Using general knowledge.");
@@ -557,29 +587,28 @@ async function getEnglishVocabBuilderContext(topic: PersonaTopic | string): Prom
 // ─────────────────────────────────────────────
 // 🚀 Main API with Strategy Map
 // ─────────────────────────────────────────────
-const personaHandlers: Record<string, PersonaContextHandler> = {
-  'business_storyteller': getBusinessStorytellerContext,
-  'cricket_storyteller': getCricketStorytellerContext,
-  'english_vocab_builder': getEnglishVocabBuilderContext,
-};
-
 export async function getDynamicContext(persona: string, topic: PersonaTopic | string, accountId?: string): Promise<string> {
-  // Special handling for satirist to pass accountId for source filtering
+  // Special handling for personas that need accountId for source deduplication
   if (persona === 'satirist') {
     return getSatiristContext(accountId);
   }
 
-  // Pattern spotter gets headlines with deduplication
   if (persona === 'pattern_spotter') {
     return getPatternSpotterContext(accountId);
   }
 
-  const handler = personaHandlers[persona];
-
-  if (!handler) {
-    console.log(`[Content Source] ⚠️ No handler found for persona: ${persona}`);
-    return "";
+  if (persona === 'business_storyteller') {
+    return getBusinessStorytellerContext(accountId);
   }
 
-  return handler(topic);
+  if (persona === 'cricket_storyteller') {
+    return getCricketStorytellerContext(accountId);
+  }
+
+  if (persona === 'english_vocab_builder') {
+    return getEnglishVocabBuilderContext(topic);
+  }
+
+  console.log(`[Content Source] ⚠️ No handler found for persona: ${persona}`);
+  return "";
 }

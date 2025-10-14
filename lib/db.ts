@@ -445,7 +445,7 @@ export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'c
       INSERT INTO threads (
         id, account_id, title, persona, total_tweets,
         current_tweet, parent_tweet_id, status,
-         story_category, created_at
+        story_category, created_at
       ) VALUES (
         ${threadId},
         ${thread.account_id},
@@ -455,7 +455,6 @@ export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'c
         1,
         ${thread.parent_tweet_id || null},
         ${thread.status},
-        0,
         ${thread.story_category},
         ${new Date().toISOString()}
       )
@@ -531,8 +530,8 @@ export async function updateThreadAfterPosting(threadId: string, twitterId: stri
   try {
     if (isComplete) {
       await sql`
-        UPDATE threads 
-        SET status = 'completed', 
+        UPDATE threads
+        SET status = 'completed'
         WHERE id = ${threadId}
       `;
     } else {
@@ -553,8 +552,8 @@ export async function updateThreadAfterPosting(threadId: string, twitterId: stri
 export async function startThreadPosting(threadId: string): Promise<void> {
   try {
     await sql`
-      UPDATE threads 
-      SET status = 'posting', 
+      UPDATE threads
+      SET status = 'posting'
       WHERE id = ${threadId} AND status = 'ready'
     `;
     console.log(`[Neon] Started thread posting for ${threadId}`);
@@ -901,6 +900,70 @@ export async function getRecentPatternSpotterSources(accountId: string, days: nu
     return sources;
   } catch (error) {
     console.error('[Neon] Error getting recent pattern_spotter sources:', error);
+    return []; // Return empty array on error to allow generation to proceed
+  }
+}
+
+/**
+ * Gets recently used source URLs for business_storyteller persona to avoid repetition.
+ * Returns an array of source URLs used in the last N days.
+ */
+export async function getRecentBusinessStorytellerSources(accountId: string, days: number = 30): Promise<string[]> {
+  try {
+    // Use a calculated date instead of INTERVAL with interpolation
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const result = await sql`
+      SELECT DISTINCT source_url
+      FROM tweets
+      WHERE account_id = ${accountId}
+        AND persona = 'business_storyteller'
+        AND source_url IS NOT NULL
+        AND created_at > ${cutoffDate.toISOString()}
+      ORDER BY source_url
+    `;
+
+    const sources = result.rows
+      .map(row => row.source_url)
+      .filter((url): url is string => typeof url === 'string');
+
+    console.log(`[Neon] Found ${sources.length} recently used business_storyteller sources for account ${accountId} (last ${days} days)`);
+    return sources;
+  } catch (error) {
+    console.error('[Neon] Error getting recent business_storyteller sources:', error);
+    return []; // Return empty array on error to allow generation to proceed
+  }
+}
+
+/**
+ * Gets recently used source URLs for cricket_storyteller persona to avoid repetition.
+ * Returns an array of source URLs used in the last N days.
+ */
+export async function getRecentCricketStorytellerSources(accountId: string, days: number = 30): Promise<string[]> {
+  try {
+    // Use a calculated date instead of INTERVAL with interpolation
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const result = await sql`
+      SELECT DISTINCT source_url
+      FROM tweets
+      WHERE account_id = ${accountId}
+        AND persona = 'cricket_storyteller'
+        AND source_url IS NOT NULL
+        AND created_at > ${cutoffDate.toISOString()}
+      ORDER BY source_url
+    `;
+
+    const sources = result.rows
+      .map(row => row.source_url)
+      .filter((url): url is string => typeof url === 'string');
+
+    console.log(`[Neon] Found ${sources.length} recently used cricket_storyteller sources for account ${accountId} (last ${days} days)`);
+    return sources;
+  } catch (error) {
+    console.error('[Neon] Error getting recent cricket_storyteller sources:', error);
     return []; // Return empty array on error to allow generation to proceed
   }
 }

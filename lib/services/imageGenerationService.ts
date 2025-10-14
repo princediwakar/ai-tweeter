@@ -1,4 +1,4 @@
-// src/services/imageGenerationService.ts
+// lib/services/imageGenerationService.ts
 
 import { createCanvas, loadImage, CanvasRenderingContext2D, registerFont } from 'canvas';
 import path from 'path';
@@ -19,7 +19,7 @@ registerFont(path.join(fontsPath, 'Poppins-Bold.ttf'), { family: 'Poppins', weig
 
 export const TWITTER_IMAGE_CONFIG: ImageConfig = {
   enabled: true,
-  unsplashQuery: 'minimalist white clean bright light background texture',
+  unsplashQuery: 'white background',
   dimensions: {
     width: 1200,
     height: 675,
@@ -39,7 +39,7 @@ export const TWITTER_IMAGE_CONFIG: ImageConfig = {
 
 // * Generate image for persona and upload to Cloudinary using account-specific credentials
 export async function generatePersonaImage(
-  cardData: CardData | null,
+  cardData: CardData | string | null, // Accept string as well
   personaKey: string,
   accountId?: string,
   config?: ImageConfig
@@ -55,22 +55,44 @@ export async function generatePersonaImage(
       throw new Error(`Account not found: ${accountId}`);
     }
 
+    // --- START: Added Parsing Logic ---
+    let parsedCardData: CardData | null = null;
+    if (typeof cardData === 'string') {
+      try {
+        parsedCardData = JSON.parse(cardData);
+      } catch (e) {
+        console.error('❌ Failed to parse cardData JSON string in generatePersonaImage:', cardData, e);
+        return null; // Exit if JSON is invalid
+      }
+    } else {
+      parsedCardData = cardData;
+    }
+
+    if (!parsedCardData) {
+      console.warn("⚠️ Cannot generate image: card data is null or invalid.");
+      return null;
+    }
+    // --- END: Added Parsing Logic ---
+
     let imageBuffer: Buffer;
     let publicId: string;
 
+    // Use 'parsedCardData' from here on
     if (personaKey === 'english_vocab_builder') {
-      if (!cardData || cardData.type === 'satirist_insight') {
-        console.warn("⚠️ Cannot generate image: vocabulary card data is missing.");
+      // The type guard 'satirist_insight' is for TypeScript, ensuring 'word' exists.
+      if (parsedCardData.type === 'satirist_insight' || !parsedCardData.word) {
+        console.warn("⚠️ Cannot generate image: vocabulary card data is missing or invalid.");
         return null;
       }
-      imageBuffer = await generateVocabularyCardImage(cardData, config);
-      publicId = `vocab_${cardData.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
+      imageBuffer = await generateVocabularyCardImage(parsedCardData, config);
+      // This line is now safe because parsedCardData is a guaranteed object with a 'word' property
+      publicId = `vocab_${parsedCardData.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
     } else if (personaKey === 'satirist') {
-      if (!cardData || cardData.type !== 'satirist_insight') {
+      if (parsedCardData.type !== 'satirist_insight') {
         console.warn("⚠️ Cannot generate satirist image: imageContent is missing from card data.");
         return null;
       }
-      const imageContent = cardData.imageContent;
+      const imageContent = parsedCardData.imageContent;
       imageBuffer = await generateSatiristImage(imageContent);
       publicId = `satirist_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     } else {

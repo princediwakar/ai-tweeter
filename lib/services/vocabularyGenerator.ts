@@ -11,9 +11,33 @@ import { TWITTER_IMAGE_CONFIG } from './imageGenerationService';
  * Generate a beautiful, aesthetic vocabulary image with a content-aware layout.
  */
 export async function generateVocabularyCardImage(
-  card: VocabularyCard,
+  // The input 'card' might be a string, so we adjust the type to reflect that possibility.
+  card: VocabularyCard | string,
   config: ImageConfig = TWITTER_IMAGE_CONFIG
 ): Promise<Buffer> {
+  let parsedCard: VocabularyCard;
+
+  // --- START: Added Robust Parsing ---
+  // Handle cases where the input is a JSON string instead of a pre-parsed object.
+  if (typeof card === 'string') {
+    try {
+      parsedCard = JSON.parse(card);
+    } catch (error) {
+      console.error('Failed to parse VocabularyCard from JSON string:', card, error);
+      throw new Error('Invalid input: Could not parse vocabulary card data.');
+    }
+  } else {
+    parsedCard = card;
+  }
+  // --- END: Added Robust Parsing ---
+
+
+  // --- Validation (now using parsedCard) ---
+  if (!parsedCard || !parsedCard.word) {
+    console.error('Error: Invalid VocabularyCard object. Missing "word" property.', parsedCard);
+    throw new Error('Invalid VocabularyCard object: The "word" property is required.');
+  }
+
   const { width, height } = config.dimensions;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
@@ -42,66 +66,59 @@ export async function generateVocabularyCardImage(
   // --- 2. Clean layout for white backgrounds (plaque removed) ---
 
   // --- 3. Text Content ---
+  // NOTE: All instances of 'card' are replaced with 'parsedCard' below this line.
   ctx.textAlign = 'left';
-  const leftMargin = width * 0.1; // 10% margin from left
-  const rightMargin = width * 0.1; // 10% margin from right
-  const contentMaxWidth = width - leftMargin - rightMargin; // Text width between margins
+  const leftMargin = width * 0.1;
+  const rightMargin = width * 0.1;
+  const contentMaxWidth = width - leftMargin - rightMargin;
 
-  let currentY = height * 0.35; // Start at 15% from top
+  let currentY = height * 0.35;
 
   // Draw Main Word First
-  const titleMaxWidth = width * 0.9; // Use 90% of canvas width for the title
+  const titleMaxWidth = width * 0.9;
 
   ctx.font = fitTextOnCanvas(
     ctx,
-    card.word.toUpperCase(),
+    parsedCard.word.toUpperCase(),
     safeFont,
     titleMaxWidth,
-    config.textStyle.wordSize // Start with the ideal max size
+    config.textStyle.wordSize
   );
 
-  // Add text outline for better visibility on any background
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
   ctx.lineWidth = 4;
-  ctx.strokeText(card.word.toUpperCase(), leftMargin, currentY);
-
+  ctx.strokeText(parsedCard.word.toUpperCase(), leftMargin, currentY);
   ctx.fillStyle = config.textStyle.wordColor;
-  ctx.fillText(card.word.toUpperCase(), leftMargin, currentY);
+  ctx.fillText(parsedCard.word.toUpperCase(), leftMargin, currentY);
 
-  // Get the actual font size used for spacing
   const wordFontSize = parseInt(ctx.font.match(/(\d+)px/)?.[1] || '60');
-  currentY += wordFontSize * 0.5; // Reduce spacing between word and part of speech
+  currentY += wordFontSize * 0.5;
 
   // Draw Part of Speech
-  if (card.type === 'single_word' && card.partOfSpeech) {
+  if (parsedCard.type === 'single_word' && parsedCard.partOfSpeech) {
     ctx.font = `italic bold ${config.textStyle.exampleSize}px ${safeFont}`;
-
-    // Add subtle outline for part of speech
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.lineWidth = 2;
-    ctx.strokeText(`(${card.partOfSpeech})`, leftMargin, currentY);
-
+    ctx.strokeText(`(${parsedCard.partOfSpeech})`, leftMargin, currentY);
     ctx.fillStyle = config.textStyle.meaningColor;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
-    ctx.fillText(`(${card.partOfSpeech})`, leftMargin, currentY);
-    currentY += config.textStyle.exampleSize + 30; // Increase spacing before definition
+    ctx.fillText(`(${parsedCard.partOfSpeech})`, leftMargin, currentY);
+    currentY += config.textStyle.exampleSize + 30;
   }
 
   // Draw Main Content
-  switch (card.type) {
+  const meaning = parsedCard.meaning || '';
+  switch (parsedCard.type) {
     case 'synonym_list':
-      if (card.synonyms && card.synonyms.length > 0) {
+      if (parsedCard.synonyms && parsedCard.synonyms.length > 0) {
         ctx.font = `normal ${config.textStyle.meaningSize + 4}px ${safeFont}`;
-
-        const synonymText = card.synonyms.join(' • ');
+        const synonymText = parsedCard.synonyms.join(' • ');
         const synLines = wordWrap(ctx, synonymText, contentMaxWidth);
         for (const line of synLines) {
-          // Add outline for synonyms
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
           ctx.lineWidth = 2;
           ctx.strokeText(line, leftMargin, currentY);
-
           ctx.fillStyle = config.textStyle.meaningColor;
           ctx.fillText(line, leftMargin, currentY);
           currentY += config.textStyle.meaningSize + 15;
@@ -112,14 +129,11 @@ export async function generateVocabularyCardImage(
 
     default:
       ctx.font = `normal ${config.textStyle.meaningSize}px ${safeFont}`;
-
-      const meaningLines = card.meaning.split('\n').flatMap(line => wordWrap(ctx, line, contentMaxWidth));
+      const meaningLines = meaning.split('\n').flatMap(line => wordWrap(ctx, line, contentMaxWidth));
       for (const line of meaningLines) {
-        // Add outline for meaning text
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 2;
         ctx.strokeText(line, leftMargin, currentY);
-
         ctx.fillStyle = config.textStyle.meaningColor;
         ctx.fillText(line, leftMargin, currentY);
         currentY += config.textStyle.meaningSize + 10;
@@ -129,16 +143,13 @@ export async function generateVocabularyCardImage(
   }
 
   // Draw Example
-  if (card.example) {
+  if (parsedCard.example) {
     ctx.font = `italic ${config.textStyle.exampleSize + 2}px ${safeFont}`;
-
-    const exLines = wordWrap(ctx, `"${card.example}"`, contentMaxWidth);
+    const exLines = wordWrap(ctx, `"${parsedCard.example}"`, contentMaxWidth);
     for (const line of exLines) {
-      // Add outline for example text
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.lineWidth = 2;
       ctx.strokeText(line, leftMargin, currentY);
-
       ctx.fillStyle = config.textStyle.exampleColor;
       ctx.fillText(line, leftMargin, currentY);
       currentY += config.textStyle.exampleSize + 10;

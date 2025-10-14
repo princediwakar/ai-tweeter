@@ -235,7 +235,7 @@ Generate a vocabulary lesson with the exact JSON structure below:
 
 {
 "tweetText": "Generate a unique, engaging hook (max 180 characters) by choosing a DIFFERENT HOOK ARCHETYPE each time. Do not be repetitive.
-  - **Archetype 1 (The Replacement):** 'Stop saying [common word]. Use this more precise term instead...'
+  - **Archetype 1 (The Replacement):** 'Instead of saying [common word], use this more precise term...'
   - **Archetype 2 (The Scenario):** Describe a very specific, relatable situation or feeling. (e.g., 'That feeling of knowing something is wrong without being able to explain why? There's a word for it.')
   - **Archetype 3 (The Direct Benefit):** 'This one word will instantly make your writing sound more persuasive/academic/eloquent.'
   - **Archetype 4 (The Intrigue):** Ask a provocative question about language or a concept. (e.g., 'What's the difference between X and Y? This word holds the key.')
@@ -246,8 +246,8 @@ Generate a vocabulary lesson with the exact JSON structure below:
   "type": "single_word",
   "word": "A practical vocabulary word that people can use immediately",
   "partOfSpeech": "The grammatical category (noun, verb, adjective, adverb, etc.)",
-  "meaning": "A clear, conversational definition without jargon (max 2 sentences)",
-  "example": "A relatable example sentence that shows the word in natural context",
+  "meaning": "A concise, clear definition (max 1 short sentence or 15 words).",
+  "example": "A brief, natural example sentence (max 15 words).",
   "synonyms": []
 },
 "hashtags": ["4", "relevant", "educational", "hashtags"],

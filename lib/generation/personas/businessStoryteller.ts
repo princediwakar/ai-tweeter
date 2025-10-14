@@ -1,7 +1,5 @@
-// lib/generation/personas/businessStoryteller.ts
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
-import { getThreadTemplate } from '../../threadTemplates';
 
 export class BusinessStorytellerGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -9,109 +7,80 @@ export class BusinessStorytellerGenerator extends BasePersonaGenerator {
     context: GenerationContext,
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
+    const { timeMarker, tokenMarker } = markers;
 
-    const availableTemplateNames = [
-      "deep_dive_analysis",
-      "competitor_showdown",
-      "hidden_truth_reveal",
-      "market_shift_analysis",
-      "news_driven_founder_journey"
-    ]
+    const allTemplates = [
+      { name: "deep_dive_analysis", displayName: "Deep Dive Analysis", story_prompt: "Explain the hidden complexities and second-order effects of the main news item. Go beyond the surface-level facts." },
+      { name: "competitor_showdown", displayName: "Competitor Showdown", story_prompt: "Frame the story as a strategic battle between the key entity and its main competitor. Analyze their moves and predict the winner." },
+      { name: "hidden_truth_reveal", displayName: "Hidden Truth Reveal", story_prompt: "Present the story as a revelation, exposing a common myth or a fact that everyone is missing about this situation." },
+      { name: "market_shift_analysis", displayName: "Market Shift Analysis", story_prompt: "Use the news item as evidence of a larger, underlying shift in the market or industry. Explain what this trend means for the future." },
+      { name: "news_driven_founder_journey", displayName: "Founder Journey", story_prompt: "Tell the story of the company through the lens of its founder's decisions and challenges, using the news as a key plot point." }
+    ];
 
-    const selectedTemplateName =
-      availableTemplateNames[Math.floor(Math.random() * availableTemplateNames.length)];
+    const templatesForPrompt = allTemplates.map(t => `→ "${t.displayName}": ${t.story_prompt}`).join('\n');
 
-    const selectedTemplate = getThreadTemplate(selectedTemplateName);
+    const deepDiveBriefing = context.rssContext ? `\n\nDEEP DIVE BRIEFING:\n${context.rssContext}` : '';
 
-    if (!selectedTemplate) {
-      const fallbackTemplate = getThreadTemplate('deep_dive_analysis')!;
-      console.warn(`Template "${selectedTemplateName}" not found. Falling back to "${fallbackTemplate.name}".`);
-      return this.generatePromptForTemplate(fallbackTemplate, config, context, markers);
-    }
-    
-    return this.generatePromptForTemplate(selectedTemplate, config, context, markers);
-  }
+    // MODIFIED: Persona description now emphasizes data and evidence.
+    const personaDescription = `You are an expert business storyteller, known for insightful, data-driven, and evidence-based analysis of the Indian startup and business ecosystem. Your stories are grounded in facts, not just emotion.`;
 
+    const basePrompt = `${personaDescription}
 
-private generatePromptForTemplate(
-  template: { name: string; displayName: string; story_prompt: string },
-  config: TweetGenerationConfig,
-  context: GenerationContext,
-  markers: { timeMarker: string; tokenMarker: string }
-): string {
-  const { timeMarker, tokenMarker } = markers;
-  
-  let deepDiveBriefing = '';
-  if (context.rssContext) {
-    deepDiveBriefing = `\n\nDEEP DIVE BRIEFING:\n${context.rssContext}`;
-  }
+Your task is to create a compelling, insightful Twitter thread based on the provided intelligence briefing.
 
-  const personaDescription = `You are a business storyteller who tells insightful stories through data, evidence and ultimate humour. You choose language that is fun, interesting and valuable. `
+**PRIMARY DIRECTIVE: The MOST IMPORTANT rule is that the thread MUST contain between 6 and 8 tweets. Generating fewer than 6 tweets is a failure. This is a non-negotiable rule.**
 
-  // MODIFIED: The THREAD EXECUTION block is rewritten for sharp, evidence-based analysis.
-  const basePrompt = `${personaDescription}
+STEP 1: ANALYZE THE BRIEFING.
+First, carefully read the DEEP DIVE BRIEFING provided below.
 
-Your task is to create a compelling, insightful Twitter thread (6-8 tweets) based on the provided intelligence briefing.
+STEP 2: CHOOSE THE BEST STORY ANGLE.
+Based on your analysis, select the single most appropriate story template from this list to frame your narrative:
+${templatesForPrompt}
 
-STORY TEMPLATE: "${template.displayName}"
-
-YOUR MISSION:
-${template.story_prompt}
+STEP 3: EXECUTE THE THREAD.
+Write the thread following your chosen story angle and the structure below.
 ${deepDiveBriefing}
 
-THREAD STRUCTURE: 4-6 tweets for better completion rates
+TWEET 1 - THE VIRAL HOOK (Data-Driven):
+Choose a hook style that FITS the news, leading with a concrete fact:
+→ If there's a striking number: "₹47,000 Cr vanished in 18 months. Here's the data:"
+→ If a move seems contradictory: "PhonePe has 48% of UPI, but a secret project is targeting a market 10x bigger. Here's the evidence:"
+→ If there's a hidden winner: "While founders fought over quick commerce, one silent player won. The numbers prove it:"
+→ If you can make a bold prediction: "Zomato's new play will be worth more than food delivery by 2026. Here's the math:"
+CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to see the proof.
 
-TWEET 1 - THE VIRAL HOOK (Context-Driven):
-Read the news and choose the hook style that FITS:
+THE NARRATIVE BUILD (TWEETS 2 THROUGH 7 - THE EVIDENCE):
+• **Use Real Evidence:** Your story MUST be built on facts. Cite specific numbers, financial data, quotes, or strategic moves directly from the briefing.
+• **Show, Don't Tell:** Instead of saying "it was a huge success," say "it led to a 300% increase in revenue to ₹150 Cr."
+• One clear data point per tweet: Build a logical, evidence-based case across the thread.
+• You MUST write enough narrative tweets to meet the 6-8 total tweet requirement.
 
-→ **If there's a striking number/financial data:** Lead with it.
-   Example: "₹47,000 Cr vanished in 18 months. Here's the real reason:"
+THE FINAL TWEET (TWEET 6, 7, or 8):
+→ For analysis: "What key data point am I missing? Quote tweet with your take 👇"
+→ For predictions: "Save this thread. We'll revisit these numbers in 6 months."
 
-→ **If it's a strategic move that seems contradictory:** Highlight the contradiction.
-   Example: "PhonePe is celebrating UPI dominance while quietly building the opposite:"
+STEP 4: FINAL CHECK.
+Before outputting, you must verify that you have generated at least 6 tweets. If not, you must add more to meet the requirement.
 
-→ **If there's a hidden winner/loser:** Name them upfront.
-   Example: "While founders fought over quick commerce, one silent player won:"
+OUTPUT FORMAT:
+You MUST output ONLY Newline Delimited JSON (NDJSON). Each line must be a separate, valid JSON object.
 
-→ **If you can make a bold prediction:** Lead with the stakes.
-   Example: "Zomato's restaurant-tech play will be worth more than food delivery by 2026:"
+**EXAMPLE OF THE EXACT REQUIRED OUTPUT FORMAT (This example is a masterclass in data-driven storytelling. Follow its structure):**
+{"type": "metadata", "title": "Deccan Brew's Secret Number", "story_category": "Unit Economics", "hashtags": ["d2c", "uniteconomics", "indianstartup"]}
+{"type": "tweet", "sequence": 1, "content": "Deccan Brew just raised ₹200 Cr at a valuation everyone called crazy. But the VCs didn't invest in coffee. They invested in this one number: 6.7."}
+{"type": "tweet", "sequence": 2, "content": "That's their LTV/CAC ratio. For every rupee they spend acquiring a customer, they make ₹6.7 back. The industry average is a mere 3.1."}
+{"type": "tweet", "sequence": 3, "content": "How? Their data shows a repeat purchase rate of 82% within 90 days. Customers aren't just buying once; they're subscribing to a habit."}
+{"type": "tweet", "sequence": 4, "content": "While competitors burn cash on ads (avg. CAC of ₹850), Deccan's is just ₹310, driven by a 70% organic acquisition funnel."}
+{"type": "tweet", "sequence": 5, "content": "This efficiency led to a 400% revenue growth to ₹50 Cr last year *while being contribution margin positive*. A rare feat in D2C."}
+{"type": "tweet", "sequence": 6, "content": "So the ₹200 Cr isn't for survival. It's for scaling a proven, profitable model to take on the legacy giants head-on."}
+{"type": "tweet", "sequence": 7, "content": "The real story isn't about coffee. It's about how data-driven discipline can build a defensible moat in a crowded market."}
+{"type": "end", "total_tweets": 7}
 
-→ **If there's a specific moment/turning point:** Pinpoint it.
-   Example: "The exact moment Byju's strategy broke. March 2022. Here's what happened:"
-
-→ **If conventional wisdom is wrong:** Challenge it directly.
-   Example: "Everyone thinks X is winning. The data shows they're already behind:"
-
-→ **If it raises a counterintuitive question:** Lead with the question.
-   Example: "Why is Tata betting ₹90,000 Cr on losing money for 5 years?"
-
-CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to read tweet 2.
-
-TWEETS 2-5 - THE NARRATIVE BUILD:
-•   **Use Real Evidence:** Cite specific numbers, quotes, or moves from the briefing
-•   **One idea per tweet:** Don't cram. Build tension across tweets
-•   **Show second-order effects:** "This means X will have to Y" not "This is interesting"
-•   **Connect competitors:** "While A does X, B is quietly doing Y"
-•   **Conversational but sharp:** Like explaining to a smart friend, not writing a report
-
-FINAL TWEET - THE ENGAGEMENT CTA:
-Choose based on the thread's nature:
-→ Bold prediction thread? "Save this. We'll revisit in 6 months."
-→ Strategic analysis? "What's your contrarian take? Quote tweet this 👇"
-→ Winner/loser reveal? "Who else saw this coming? Drop your prediction below."
-
-FORMATTING:
-•   Use emojis sparingly (2-3 across entire thread, not every tweet)
-•   Do not tag any user or company
-•   NO hashtags - focus on substance over discovery
-•   NO business jargon: "synergy," "disruption," "game-changer," "paradigm shift"
-•   Name real companies/people from the briefing (NO made-up names)
-
-CONTENT TYPE: "thread"
-STORYTELLING FOCUS: Clear, logical analysis that explains the 'why' and 'what's next' behind the news.
+**Your output MUST follow this NDJSON structure precisely. The "hashtags" value MUST be a valid JSON array of double-quoted strings.**
 
 [${timeMarker}-${tokenMarker}]`;
 
-  return this.addCommonSuffix(basePrompt);
+    return this.addCommonSuffix(basePrompt);
+  }
 }
-}
+

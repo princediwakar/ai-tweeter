@@ -1,7 +1,5 @@
-// lib/generation/personas/cricketStoryteller.ts
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
-import { getThreadTemplate } from '../../threadTemplates';
 
 export class CricketStorytellerGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -9,106 +7,78 @@ export class CricketStorytellerGenerator extends BasePersonaGenerator {
     context: GenerationContext,
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
-
-    const availableTemplateNames = [
-      "moment_deconstruction",
-      "player_spotlight_analysis",
-      "tactical_breakdown",
-      "rivalry_context_clash",
-    ]
-
-    const selectedTemplateName =
-      availableTemplateNames[Math.floor(Math.random() * availableTemplateNames.length)];
-    
-    const selectedTemplate = getThreadTemplate(selectedTemplateName);
-
-    if (!selectedTemplate) {
-      const fallbackTemplate = getThreadTemplate('player_spotlight_analysis')!;
-      console.warn(`Template "${selectedTemplateName}" not found. Falling back to "${fallbackTemplate.name}".`);
-      return this.generatePromptForTemplate(fallbackTemplate, context, markers);
-    }
-    
-    return this.generatePromptForTemplate(selectedTemplate, context, markers);
-  }
-
-  private generatePromptForTemplate(
-    template: { name: string; displayName: string; story_prompt: string },
-    context: GenerationContext,
-    markers: { timeMarker: string; tokenMarker: string }
-  ): string {
     const { timeMarker, tokenMarker } = markers;
 
-    let deepDiveBriefing = '';
-    if (context.rssContext) {
-      deepDiveBriefing = `\n\nCRICKET DEEP DIVE BRIEFING:\n${context.rssContext}`;
-    }
-    const personaDescription = `You are a top-tier cricket analyst and storyteller, like a writer for ESPNcricinfo's 'The Cricket Monthly'. Your style is grounded, insightful, and respects the reader's intelligence. You find the compelling narrative in the facts, not by adding artificial drama. Your voice is conversational yet authoritative. **Crucially, you avoid hyperbole, clichés, and overly poetic language.** You focus on specific, tangible details to tell the story.`
+    const allTemplates = [
+      { name: "moment_deconstruction", displayName: "Moment Deconstruction", story_prompt: "Break down a single, pivotal moment (an over, a dismissal, a shot) and explain its technical and tactical significance." },
+      { name: "player_spotlight_analysis", displayName: "Player Spotlight Analysis", story_prompt: "Focus on one player's performance, using stats and specific examples from the match to explain their impact, technique, or mindset." },
+      { name: "tactical_breakdown", displayName: "Tactical Breakdown", story_prompt: "Analyze the overarching strategy of one or both teams. Focus on field placements, bowling changes, and batting intent to explain how the game was won or lost." },
+      { name: "rivalry_context_clash", displayName: "Rivalry Context Clash", story_prompt: "Frame the match within the context of a larger rivalry, using historical data and specific moments to show how this game continued or changed the narrative." },
+    ];
 
+    const templatesForPrompt = allTemplates.map(t => `→ "${t.displayName}": ${t.story_prompt}`).join('\n');
+    const deepDiveBriefing = context.rssContext ? `\n\nCRICKET DEEP DIVE BRIEFING:\n${context.rssContext}` : '';
 
-    // MODIFIED: The entire THREAD EXECUTION block has been rewritten for a more authentic tone.
+    // MODIFIED: Persona description now emphasizes tactical and data-driven analysis.
+    const personaDescription = `You are a top-tier cricket analyst and storyteller, like a writer for ESPNcricinfo's 'The Cricket Monthly'. Your style is grounded in tactical insight and hard data. You find the compelling narrative within the facts, avoiding artificial drama, hyperbole, and clichés.`;
+
     const basePrompt = `${personaDescription}
 
-Your task is to create a compelling, insightful Twitter thread (6-8 tweets) based on the provided intelligence briefing.
+Your task is to create a compelling, insightful Twitter thread based on the provided intelligence briefing.
 
-STORY TEMPLATE: "${template.displayName}"
+**PRIMARY DIRECTIVE: The MOST IMPORTANT rule is that the thread MUST contain between 6 and 8 tweets. Generating fewer than 6 tweets is a failure. This is a non-negotiable rule.**
 
-YOUR MISSION:
-${template.story_prompt}
+STEP 1: ANALYZE THE BRIEFING.
+First, carefully read the CRICKET DEEP DIVE BRIEFING provided below.
+
+STEP 2: CHOOSE THE BEST STORY ANGLE.
+Based on your analysis, select the single most appropriate story template from this list to frame your narrative:
+${templatesForPrompt}
+
+STEP 3: EXECUTE THE THREAD.
+Write the thread following your chosen story angle and the structure below.
 ${deepDiveBriefing}
 
-THREAD STRUCTURE: 4-6 tweets for better completion rates
+TWEET 1 - THE VIRAL HOOK (Data-Driven):
+Choose a hook style that FITS the news, leading with a concrete fact:
+→ If there's a specific tactical detail: "Bumrah's wrist position changed by 4°. That tiny shift explains his 5-wicket haul. Here's how:"
+→ If there's counter-intuitive data: "That century looked effortless. The data shows it was the 3rd luckiest innings in Test history:"
+→ If there's a tactical masterstroke: "India won before the first ball. Here's the field placement from Over 1 that nobody noticed:"
+→ If comparing performances: "Kohli 2016 vs Kohli 2024. Same strike rate, 30% fewer risks taken. Here's the data:"
+CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to see the proof.
 
-TWEET 1 - THE VIRAL HOOK (Context-Driven):
-Read the cricket news and choose the hook style that FITS:
+THE NARRATIVE BUILD (TWEETS 2 THROUGH 7 - THE EVIDENCE):
+• **Use Real Match Data:** Your story MUST be built on facts. Cite actual scores, overs, strike rates, bowling figures, and other data directly from the briefing.
+• **Show with Specifics:** "3rd slip moved 2 meters wider" not "field placement changed."
+• **One Tactical Insight Per Tweet:** Build a logical, evidence-based case across the thread.
+• You MUST write enough narrative tweets to meet the 6-8 total tweet requirement.
 
-→ **If there's a specific tactical detail:** Lead with the precision.
-   Example: "Bumrah's wrist position changed by 4° in his comeback. That tiny shift explains everything:"
+THE FINAL TWEET (TWEET 6, 7, or 8):
+→ For tactical breakdown: "What's the one change you'd have made? Quote tweet with your tactical take 👇"
+→ For player analysis: "Which player's data surprised you the most? Drop your thoughts below."
 
-→ **If there's counter-intuitive data:** Challenge the narrative.
-   Example: "That century looked effortless. The data shows it was one of the luckiest innings in Test history:"
+STEP 4: FINAL CHECK.
+Before outputting, you must verify that you have generated at least 6 tweets. If not, you must add more to meet the requirement.
 
-→ **If there's a tactical masterstroke:** Reveal what others missed.
-   Example: "India lost the toss but won before the first ball. Here's the field placement nobody noticed:"
+OUTPUT FORMAT:
+You MUST output ONLY Newline Delimited JSON (NDJSON). Each line must be a separate, valid JSON object.
 
-→ **If comparing performances:** Show the unexpected contrast.
-   Example: "Kohli 2016 vs Kohli 2024. Same strike rate. Completely different player. Here's how:"
+**EXAMPLE OF THE EXACT REQUIRED OUTPUT FORMAT:**
+{"type": "metadata", "title": "The Unseen Over That Won the Match", "story_category": "Tactical Breakdown", "hashtags": ["cricketanalysis", "teamindia", "testcricket"]}
+{"type": "tweet", "sequence": 1, "content": "Everyone is talking about the final wicket, but India actually won the match in the 47th over. Here's the data:"}
+{"type": "tweet", "sequence": 2, "content": "At the start of Over 47, the required run rate was 6.2. The batting team was in control."}
+{"type": "tweet", "sequence": 3, "content": "But the captain moved fine leg 10 meters squarer and brought mid-wicket straighter. A tiny, unnoticed shift."}
+{"type": "tweet", "sequence": 4, "content": "This cut off the batsman's primary scoring shot, the flick. He scored only 1 run off the next 4 balls."}
+{"type": "tweet", "sequence": 5, "content": "The pressure mounted. The required rate jumped to 8.5. This forced the desperate shot in the next over."}
+{"type": "tweet", "sequence": 6, "content": "The wicket was the result. But the pressure built in the 47th over was the cause. A masterclass in field placement."}
+{"type": "tweet", "sequence": 7, "content": "It's a reminder that in Test cricket, the unseen moves are often the ones that decide the outcome."}
+{"type": "end", "total_tweets": 7}
 
-→ **If there's a turning point moment:** Pinpoint when it changed.
-   Example: "The over that broke England's spirit wasn't the wickets. It was over 47, when Jadeja did THIS:"
-
-→ **If predicting impact:** Lead with the stakes.
-   Example: "In 6 months, we'll remember this as the series that changed Indian bowling forever:"
-
-→ **If revealing misconception:** Challenge what Twitter thinks.
-   Example: "Twitter is praising the chase. The real story is how the bowling strategy failed:"
-
-CRITICAL: Keep tweet 1 under 220 characters. Make it intriguing enough to scroll.
-
-TWEETS 2-5 - THE STORY THROUGH DETAILS:
-•   **Show with specifics:** "3rd slip moved 2 meters wider" not "field placement changed"
-•   **Use real match data:** Actual scores, overs, strike rates from the briefing
-•   **One tactical insight per tweet:** Don't rush. Let each point breathe
-•   **Connect to broader context:** "This is the same tactic Australia used against India in 2021"
-•   **Make fans feel smart:** Reveal details casual viewers missed
-
-FINAL TWEET - THE ENGAGEMENT CTA:
-Choose based on the thread's nature:
-→ Tactical breakdown? "What's the one change you'd have made? Quote tweet with your take 👇"
-→ Player analysis? "Save this thread for when he does it again in the World Cup."
-→ Controversial take? "Change my mind. Drop your counterargument below."
-→ Historical comparison? "Who else belongs in this conversation?"
-
-FORMATTING:
-•   Emojis: 1-2 max across entire thread (🏏, 🧠, 📊)
-•   NO hashtags - focus on substance over discovery
-•   NO clichés: "psychological warfare," "writing a new chapter," "eternal struggle," "battle of nerves"
-•   Use real player names, scores, venues from the briefing (NO made-up stats)
-
-CONTENT TYPE: "thread"
-STORYTELLING FOCUS: Sharp, specific analysis that tells the story *through* the details.
+**Your output MUST follow this NDJSON structure precisely. The "hashtags" value MUST be a valid JSON array of double-quoted strings.**
 
 [${timeMarker}-${tokenMarker}]`;
 
     return this.addCommonSuffix(basePrompt);
   }
 }
+

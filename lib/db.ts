@@ -16,7 +16,7 @@ export interface Thread {
   total_tweets: number;
   current_tweet: number;
   parent_tweet_id?: string; // Twitter ID of first tweet in thread
-  status: 'ready' | 'posting' | 'completed' | 'failed';
+  status: 'generating' | 'ready' | 'posting' | 'completed' | 'failed';
   story_category: string;
   created_at: string;
 }
@@ -106,65 +106,68 @@ export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
   }
 }
 
-// Helper function to get property value with fallback for camelCase/snake_case
-function getProperty(obj: Record<string, unknown>, snakeCase: string, camelCase: string): string | undefined {
-  const value = obj[snakeCase] ?? obj[camelCase];
-  return typeof value === 'string' ? value : undefined;
+
+
+// --- Helper Functions ---
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// --- Main Functions ---
+
+export async function createThread(data: Omit<Thread, 'id' | 'current_tweet' | 'created_at'>): Promise<string> {
+  const threadId = crypto.randomUUID();
+  
+  await sql`
+    INSERT INTO threads (
+      id, account_id, title, persona, total_tweets,
+      current_tweet, parent_tweet_id, status, story_category, created_at
+    ) VALUES (
+      ${threadId}, ${data.account_id}, ${data.title}, ${data.persona}, ${data.total_tweets},
+      0, null, ${data.status}, ${data.story_category}, NOW()
+    )
+  `;
+
+  console.info(`[Neon] Created thread ${threadId}`, 'db-create-thread');
+  return threadId;
+}
+
+/**
+ * OPTIMIZATION: A wrapper for createThread that implements a retry mechanism
+ * to handle transient database errors, like "Control plane request failed".
+ */
+export async function createThreadWithRetry(
+  data: Omit<Thread, 'id' | 'current_tweet' | 'created_at'>,
+  retries = 3,
+  delay = 1000
+): Promise<string> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await createThread(data);
+    } catch (error) {
+      if (i === retries - 1) {
+        console.error(`[Neon] Failed to create thread after ${retries} attempts.`, 'db-create-thread-failure', error);
+        throw error; // Rethrow the final error
+      }
+      console.warn(`[Neon] Attempt ${i + 1} to create thread failed. Retrying in ${delay}ms...`, 'db-retry', error);
+      await sleep(delay);
+    }
+  }
+  // This line should theoretically be unreachable
+  throw new Error('Failed to create thread after all retries.');
 }
 
 
-
 /**
- * Saves or updates a single tweet.
- * This function has been simplified to run as a standalone query.
- *
- * @param tweet The tweet object to save.
+ * Saves or updates a tweet in the database.
+ * Uses ON CONFLICT to perform an "upsert" operation, making it safe to call for both new and existing tweets.
  */
-export async function saveTweet(
-  tweet: Omit<Tweet, 'created_at'> & { createdAt?: string }
-): Promise<void> {
-  // In-memory logic for testing/development
-  if (USE_IN_MEMORY) {
-    const tweetObj = tweet as Record<string, unknown>;
-    const newTweet: Tweet = {
-      id: tweet.id,
-      account_id: tweet.account_id,
-      content: tweet.content,
-      hashtags: tweet.hashtags,
-      persona: tweet.persona,
-      status: tweet.status,
-      created_at: tweet.createdAt || getProperty(tweetObj, 'created_at', 'createdAt') || new Date().toISOString(),
-      posted_at: getProperty(tweetObj, 'posted_at', 'postedAt'),
-      twitter_id: getProperty(tweetObj, 'twitter_id', 'twitterId'),
-      twitter_url: getProperty(tweetObj, 'twitter_url', 'twitterUrl'),
-      error_message: getProperty(tweetObj, 'error_message', 'errorMessage'),
-      image_url: getProperty(tweetObj, 'image_url', 'imageUrl'),
-      image_status: (getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status'],
-      card_data: getProperty(tweetObj, 'card_data', 'cardData'),
-      source_url: getProperty(tweetObj, 'source_url', 'sourceUrl'),
-      content_type: tweet.content_type || 'single_tweet',
-      thread_id: tweetObj.thread_id as string | undefined,
-      thread_sequence: tweetObj.thread_sequence as number | undefined,
-      parent_twitter_id: tweetObj.parent_twitter_id as string | undefined,
-    };
-
-    const existingIndex = inMemoryTweets.findIndex(t => t.id === tweet.id);
-    if (existingIndex >= 0) {
-      inMemoryTweets[existingIndex] = newTweet;
-    } else {
-      inMemoryTweets.push(newTweet);
-    }
-    return;
-  }
-
+export async function saveTweet(tweet: Tweet): Promise<void> {
   try {
-    const tweetObj = tweet as Record<string, unknown>;
-    
-    // Using the global 'sql' object for the query.
     await sql`
       INSERT INTO tweets (
-        id, account_id, content, hashtags, persona, posted_at, 
-        twitter_id, twitter_url, error_message, image_url, status, created_at, 
+        id, account_id, content, hashtags, persona, status, created_at, 
+        posted_at, twitter_id, twitter_url, error_message, image_url, 
         thread_id, thread_sequence, parent_twitter_id, content_type, 
         image_status, card_data, source_url
       ) VALUES (
@@ -173,20 +176,20 @@ export async function saveTweet(
         ${tweet.content},
         ${JSON.stringify(tweet.hashtags)},
         ${tweet.persona},
-        ${getProperty(tweetObj, 'posted_at', 'postedAt')},
-        ${getProperty(tweetObj, 'twitter_id', 'twitterId')},
-        ${getProperty(tweetObj, 'twitter_url', 'twitterUrl')},
-        ${getProperty(tweetObj, 'error_message', 'errorMessage')},
-        ${getProperty(tweetObj, 'image_url', 'imageUrl')},
         ${tweet.status},
-        ${tweet.createdAt || getProperty(tweetObj, 'created_at', 'createdAt') || new Date().toISOString()},
-        ${(tweetObj.thread_id as string) || null},
-        ${(tweetObj.thread_sequence as number) || null},
-        ${(tweetObj.parent_twitter_id as string) || null},
+        ${tweet.created_at},
+        ${tweet.posted_at || null},
+        ${tweet.twitter_id || null},
+        ${tweet.twitter_url || null},
+        ${tweet.error_message || null},
+        ${tweet.image_url || null},
+        ${tweet.thread_id || null},
+        ${tweet.thread_sequence || null},
+        ${tweet.parent_twitter_id || null},
         ${tweet.content_type || 'single_tweet'},
-        ${(getProperty(tweetObj, 'image_status', 'imageStatus') || 'none') as Tweet['image_status']},
-        ${getProperty(tweetObj, 'card_data', 'cardData')},
-        ${getProperty(tweetObj, 'source_url', 'sourceUrl')}
+        ${tweet.image_status || 'none'},
+        ${tweet.card_data ? JSON.stringify(tweet.card_data) : null},
+        ${tweet.source_url || null}
       )
       ON CONFLICT (id) 
       DO UPDATE SET
@@ -194,25 +197,27 @@ export async function saveTweet(
         content = EXCLUDED.content,
         hashtags = EXCLUDED.hashtags,
         persona = EXCLUDED.persona,
+        status = EXCLUDED.status,
         posted_at = EXCLUDED.posted_at,
         twitter_id = EXCLUDED.twitter_id,
         twitter_url = EXCLUDED.twitter_url,
         error_message = EXCLUDED.error_message,
-        status = EXCLUDED.status,
+        image_url = EXCLUDED.image_url,
         thread_id = EXCLUDED.thread_id,
         thread_sequence = EXCLUDED.thread_sequence,
         parent_twitter_id = EXCLUDED.parent_twitter_id,
         content_type = EXCLUDED.content_type,
         image_status = EXCLUDED.image_status,
         card_data = EXCLUDED.card_data,
-        source_url = EXCLUDED.source_url
+        source_url = EXCLUDED.source_url;
     `;
     
   } catch (error) {
-    console.error(`[Neon] Error saving tweet ${tweet.id}:`, error);
+    console.error(`[Neon] Error saving tweet ${tweet.id}:`, 'db-save-tweet-error');
     throw error;
   }
 }
+
 
 
 
@@ -436,37 +441,11 @@ export function generateTweetId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
-// Thread management functions
-export async function createThread(thread: Omit<Thread, 'id' | 'created_at' | 'current_tweet' >): Promise<string> {
-  try {
-    const threadId = crypto.randomUUID();
-    
-    await sql`
-      INSERT INTO threads (
-        id, account_id, title, persona, total_tweets,
-        current_tweet, parent_tweet_id, status,
-        story_category, created_at
-      ) VALUES (
-        ${threadId},
-        ${thread.account_id},
-        ${thread.title},
-        ${thread.persona},
-        ${thread.total_tweets},
-        1,
-        ${thread.parent_tweet_id || null},
-        ${thread.status},
-        ${thread.story_category},
-        ${new Date().toISOString()}
-      )
-    `;
-    
-    console.log(`[Neon] Created thread ${threadId}`);
-    return threadId;
-  } catch (error) {
-    console.error('[Neon] Error creating thread:', error);
-    throw error;
-  }
-}
+
+
+
+
+
 
 export async function getActiveThreadForPosting(accountId: string): Promise<Thread | null> {
   try {
@@ -526,28 +505,107 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
   }
 }
 
-export async function updateThreadAfterPosting(threadId: string, twitterId: string, isComplete: boolean): Promise<void> {
+
+
+
+// Interface for the payload to ensure type safety
+export interface ThreadUpdatePayload {
+  status?: 'generating' | 'ready' | 'completed' | 'failed';
+  total_tweets?: number;
+  increment_current_tweet?: boolean;
+  parent_tweet_id?: string;
+}
+
+
+
+// Interface for the payload to ensure type safety
+export interface ThreadUpdatePayload {
+  status?: 'generating' | 'ready' | 'completed' | 'failed';
+  total_tweets?: number;
+  increment_current_tweet?: boolean;
+  parent_tweet_id?: string;
+}
+
+/**
+ * Updates a thread record with a flexible payload.
+ * This is the primary function for all thread updates, handling both generation
+ * finalization and post-posting status changes.
+ * @param threadId The ID of the thread to update.
+ * @param payload An object containing the fields to update.
+ */
+export async function updateThread(threadId: string, payload: ThreadUpdatePayload): Promise<void> {
+  const { status, total_tweets, increment_current_tweet, parent_tweet_id } = payload;
+  
+  // This will hold the string parts of our SET clause
+  const setClauses: string[] = [];
+  // This will hold the values for parameterization, starting with threadId for the WHERE clause ($1)
+  const values: (string | number)[] = [threadId];
+
+  if (status) {
+    setClauses.push(`status = $${values.length + 1}`);
+    values.push(status);
+  }
+  if (total_tweets !== undefined) {
+    setClauses.push(`total_tweets = $${values.length + 1}`);
+    values.push(total_tweets);
+  }
+  if (parent_tweet_id) {
+    // COALESCE ensures we only set the parent_tweet_id on the first update
+    setClauses.push(`parent_tweet_id = COALESCE(parent_tweet_id, $${values.length + 1})`);
+    values.push(parent_tweet_id);
+  }
+  if (increment_current_tweet) {
+    // This clause is a direct expression and does not require a value parameter
+    setClauses.push(`current_tweet = current_tweet + 1`);
+  }
+
+  if (setClauses.length === 0) {
+    console.warn(`[Neon] updateThread called for thread ${threadId} with an empty payload.`, 'db-update-warning');
+    return; // Nothing to update
+  }
+  
   try {
-    if (isComplete) {
-      await sql`
-        UPDATE threads
-        SET status = 'completed'
-        WHERE id = ${threadId}
-      `;
-    } else {
-      await sql`
-        UPDATE threads 
-        SET current_tweet = current_tweet + 1,
-            parent_tweet_id = COALESCE(parent_tweet_id, ${twitterId})
-        WHERE id = ${threadId}
-      `;
-    }
-    console.log(`[Neon] Updated thread ${threadId} after posting`);
+    // Construct the query string for use with sql.query, which handles parameterized queries
+    const queryString = `
+      UPDATE threads
+      SET ${setClauses.join(', ')}
+      WHERE id = $1
+    `;
+    
+    // Execute the query with its dynamic values
+    await sql.query(queryString, values);
+
+    console.info(`[Neon] Updated thread ${threadId} with payload: ${JSON.stringify(payload)}`, 'db-update-success');
   } catch (error) {
-    console.error('[Neon] Error updating thread after posting:', error);
+    console.error(`[Neon] Error updating thread ${threadId}:`, 'db-update-error');
     throw error;
   }
 }
+
+/**
+ * A wrapper function that uses the generic updateThread to handle state
+ * changes after a tweet from a thread is posted to Twitter.
+ * @param threadId The ID of the thread.
+ * @param twitterId The Twitter ID of the tweet that was just posted.
+ * @param isComplete A boolean indicating if this was the last tweet in the thread.
+ */
+export async function updateThreadAfterPosting(threadId: string, twitterId: string, isComplete: boolean): Promise<void> {
+  if (isComplete) {
+    // If it's the last tweet, mark the thread as 'completed'
+    await updateThread(threadId, { status: 'completed' });
+  } else {
+    // Otherwise, increment the tweet counter and set the parent ID for threading
+    await updateThread(threadId, {
+      increment_current_tweet: true,
+      parent_tweet_id: twitterId,
+    });
+  }
+}
+
+
+
+
+
 
 export async function startThreadPosting(threadId: string): Promise<void> {
   try {
@@ -854,7 +912,7 @@ export async function getRecentSatiristSources(accountId: string, days: number =
       SELECT DISTINCT source_url
       FROM tweets
       WHERE account_id = ${accountId}
-        AND persona = 'satirist'
+        AND persona IN ('satirist', 'pattern_spotter')
         AND source_url IS NOT NULL
         AND created_at > ${cutoffDate.toISOString()}
       ORDER BY source_url
@@ -886,7 +944,7 @@ export async function getRecentPatternSpotterSources(accountId: string, days: nu
       SELECT DISTINCT source_url
       FROM tweets
       WHERE account_id = ${accountId}
-        AND persona = 'pattern_spotter'
+        AND persona IN ('satirist', 'pattern_spotter', 'business_storyteller')
         AND source_url IS NOT NULL
         AND created_at > ${cutoffDate.toISOString()}
       ORDER BY source_url
@@ -918,7 +976,7 @@ export async function getRecentBusinessStorytellerSources(accountId: string, day
       SELECT DISTINCT source_url
       FROM tweets
       WHERE account_id = ${accountId}
-        AND persona = 'business_storyteller'
+        AND persona IN ('satirist', 'pattern_spotter', 'business_storyteller')
         AND source_url IS NOT NULL
         AND created_at > ${cutoffDate.toISOString()}
       ORDER BY source_url

@@ -172,8 +172,7 @@ export async function GET(request: NextRequest) {
               status = CASE
                 WHEN twitter_id IS NOT NULL THEN 'posted'
                 ELSE status
-              END,
-              updated_at = NOW()
+              END
             WHERE id = ${tweet.id}
           `;
 
@@ -188,8 +187,7 @@ export async function GET(request: NextRequest) {
           await sql`
             UPDATE tweets
             SET
-              error_message = ${`LinkedIn: ${errorMsg}`},
-              updated_at = NOW()
+              error_message = ${`LinkedIn: ${errorMsg}`}
             WHERE id = ${tweet.id}
           `;
 

@@ -1,4 +1,4 @@
-//imageGenerationService.ts
+// lib/imageGenerationService.ts
 
 import { createCanvas, loadImage, CanvasRenderingContext2D, registerFont } from 'canvas';
 import path from 'path';
@@ -196,7 +196,6 @@ async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account
 
 */
 
-// lib/imageGenerationService.ts
 
 async function fetchUnsplashImage(query: string, width: number, height: number): Promise<string> {
   const accessKey = process.env.UNSPLASH_ACCESS_KEY;

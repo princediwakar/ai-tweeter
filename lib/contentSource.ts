@@ -134,8 +134,8 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
       const parsed = await parseStringPromise(xml);
       const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
 
-      // Take 6 headlines from each feed for variety
-      const headlinesPerFeed = 6;
+      // Take 4 headlines from each feed for variety
+      const headlinesPerFeed = 2;
 
       const headlines: HeadlineWithSource[] = [];
       for (let i = 0; i < Math.min(headlinesPerFeed, items.length); i++) {
@@ -182,7 +182,7 @@ async function fetchFromCricketNewsRSS(): Promise<HeadlineWithSource[]> {
 
       const xml = await response.text();
       const parsed = await parseStringPromise(xml);
-      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 4) ?? [];
+      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 2) ?? [];
 
       items.forEach((item) => {
         const title = item.title?.[0];
@@ -375,13 +375,13 @@ async function getSatiristContext(accountId?: string): Promise<string> {
     if (filteredHeadlines.length === 0) {
       console.warn('[Content Source] All headlines have been used recently. Using all headlines.');
       // Fallback to all headlines if everything has been used
-      const selectedHeadlines = uniqueHeadlines.slice(0, 8);
+      const selectedHeadlines = uniqueHeadlines.slice(0, 5);
       const enrichedArticles = await enrichArticles(selectedHeadlines, 3);
       return formatSatiristContext(enrichedArticles);
     }
 
-    // Take first 8 unique headlines for enrichment (no shuffling needed)
-    const selectedHeadlines = filteredHeadlines.slice(0, 8);
+    // Take first 5 unique headlines for enrichment (no shuffling needed)
+    const selectedHeadlines = filteredHeadlines.slice(0, 5);
 
     // Fetch full article content with entity extraction
     console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} headlines...`);

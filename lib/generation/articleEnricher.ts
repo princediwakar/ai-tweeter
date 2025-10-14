@@ -179,7 +179,7 @@ export async function enrichArticle(
       headline,
       url,
       description,
-      fullText: fullText.substring(0, 2000), // Limit text length for storage/performance
+      fullText: fullText.substring(0, 3000), // Limit text length for storage/performance
       twitterHandles: [], // Disabled
       websites,
       entities,

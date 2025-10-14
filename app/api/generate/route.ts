@@ -307,7 +307,7 @@ if (shouldGenerateThreads) {
     try {
       // Import the image processing logic directly
       const { getTweetsWithPendingImages, updateTweetImage } = await import('@/lib/db');
-      const { generatePersonaImage } = await import('@/lib/imageGenerationService');
+      const { generatePersonaImage } = await import('@/lib/services/imageGenerationService');
       
       const pendingImageTweets = await getTweetsWithPendingImages(10, accountId);
       

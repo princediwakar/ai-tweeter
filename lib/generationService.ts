@@ -154,7 +154,13 @@ function parseAndValidateTweetResponse(
           if (match && match[1]) {
             sourceUrl = match[1].trim();
             console.log(`📰 [Satirist] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
+          } else {
+            console.error(`❌ [Satirist] Failed to extract source URL for headline #${headlineNumber}. Source pattern not found in RSS context.`);
+            console.error(`RSS Context preview: ${rssContext.substring(0, 500)}...`);
           }
+        } else {
+          // This should never happen now due to validation above, but keeping as safety net
+          console.error(`❌ [Satirist] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
         }
       } else if (['business_storyteller', 'cricket_storyteller'].includes(persona)) {
         // Generic extraction for personas with a "Primary News Item"
@@ -186,6 +192,13 @@ function parseAndValidateTweetResponse(
     } else if (persona === 'satirist') {
       if (!data.tweetText) {
         throw new Error('AI response for satirist missing required field: tweetText.');
+      }
+      // CRITICAL: Validate selectedHeadlineNumber is present for source URL tracking
+      if (!data.selectedHeadlineNumber || typeof data.selectedHeadlineNumber !== 'number') {
+        throw new Error('AI response for satirist missing required field: selectedHeadlineNumber. Cannot track source URL without it.');
+      }
+      if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > 8) {
+        throw new Error(`AI response for satirist has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. Must be between 1 and 8.`);
       }
       tweetContent = data.tweetText;
       // Store imageContent in cardData ONLY if present (image format)
@@ -227,6 +240,14 @@ function parseAndValidateTweetResponse(
       contentType: 'explanation',
       selectedHeadlineNumber: data.selectedHeadlineNumber || undefined
     };
+
+    // CRITICAL: Final validation for satirist persona - must have source URL
+    if (persona === 'satirist' && !sourceUrl) {
+      console.error(`❌ [Satirist] Critical validation failed: No source URL extracted for tweet. This tweet will be rejected.`);
+      console.error(`Tweet content: "${tweetContent}"`);
+      console.error(`Selected headline: ${data.selectedHeadlineNumber}`);
+      throw new Error('Satirist tweet missing source URL - cannot proceed without attribution');
+    }
 
     // MODIFIED: Return the extracted sourceUrl
     return { tweet, cardData, sourceUrl };

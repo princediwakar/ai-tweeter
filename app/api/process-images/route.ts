@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTweetsWithPendingImages, updateTweetImage } from '@/lib/db';
-import { generatePersonaImage } from '@/lib/imageGenerationService';
+import { generatePersonaImage } from '@/lib/services/imageGenerationService';
 import { VocabularyCard } from '@/lib/types';
 import { logger } from '@/lib/logger';
 

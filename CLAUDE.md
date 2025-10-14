@@ -28,7 +28,7 @@
 * `lib/contentSource.ts` - RSS feed aggregation & article enrichment orchestration
 * `lib/generationService.ts` - Main AI orchestration
 * `lib/threadGenerationService.ts` - Thread creation with shareability hooks
-* `lib/imageGenerationService.ts` - Cloudinary image rendering
+* `lib/services/imageGenerationService.ts` - Cloudinary image rendering
 
 **Posting & Automation:**
 * `lib/twitter.ts` - Twitter API integration

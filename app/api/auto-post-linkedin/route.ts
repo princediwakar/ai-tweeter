@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
 
         // In debug mode, provide default persona if none scheduled
         if (debugMode && scheduledPersonas.length === 0) {
-          scheduledPersonas = ['satirist'];
-          logger.info(`🔍 [LinkedIn] Debug mode: Using default persona 'satirist' for ${account.name}`, 'auto-post-linkedin');
+          scheduledPersonas = ['satirist', 'pattern_spotter'];
+          logger.info(`🔍 [LinkedIn] Debug mode: Using default persona 'satirist' or 'pattern_spotter' for ${account.name}`, 'auto-post-linkedin');
         }
 
         if (scheduledPersonas.length === 0) {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           ORDER BY created_at ASC
         `;
 
-        // Filter by scheduled personas (satirist)
+        // Filter by scheduled personas (satirist, pattern_spotter)
         const eligibleTweets = result.rows.filter(tweet =>
           scheduledPersonas.includes(tweet.persona)
         );

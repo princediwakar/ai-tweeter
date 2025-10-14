@@ -914,3 +914,35 @@ export async function getRecentSatiristSources(accountId: string, days: number =
     return []; // Return empty array on error to allow generation to proceed
   }
 }
+
+/**
+ * Gets recently used source URLs for pattern_spotter persona to avoid repetition.
+ * Returns an array of source URLs used in the last N days.
+ */
+export async function getRecentPatternSpotterSources(accountId: string, days: number = 30): Promise<string[]> {
+  try {
+    // Use a calculated date instead of INTERVAL with interpolation
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    const result = await sql`
+      SELECT DISTINCT source_url
+      FROM tweets
+      WHERE account_id = ${accountId}
+        AND persona = 'pattern_spotter'
+        AND source_url IS NOT NULL
+        AND created_at > ${cutoffDate.toISOString()}
+      ORDER BY source_url
+    `;
+
+    const sources = result.rows
+      .map(row => row.source_url)
+      .filter((url): url is string => typeof url === 'string');
+
+    console.log(`[Neon] Found ${sources.length} recently used pattern_spotter sources for account ${accountId} (last ${days} days)`);
+    return sources;
+  } catch (error) {
+    console.error('[Neon] Error getting recent pattern_spotter sources:', error);
+    return []; // Return empty array on error to allow generation to proceed
+  }
+}

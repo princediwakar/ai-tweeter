@@ -23,6 +23,12 @@ export interface TweetGenerationConfig {
 import type { Account } from '../types';
 import type { PersonaConfig } from '../personas';
 
+export interface HeadlineWithSource {
+  headline: string;
+  url: string;
+  description?: string;
+}
+
 export interface GenerationContext {
   account: Account | null;
   useRSSSources: boolean;

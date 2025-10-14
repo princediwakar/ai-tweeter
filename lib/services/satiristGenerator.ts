@@ -34,35 +34,35 @@ export function renderMixedLine(
   }
   return currentX;
 }
-
 /**
- * Highlights numbers and key metrics in text using an enhanced detection regex.
+ * Highlights a broad range of numerical metrics with high precision and flexibility.
+ * This version handles currency symbols ($, ₹, Rs), magnitude suffixes (K, M, B, T, L, Lakh, Cr),
+ * percentages (%), plus-sign qualifiers (+), and common standalone number-noun pairs.
+ * It is also robust to optional spacing between numbers, symbols, and suffixes.
  */
 function highlightNumbers(text: string): string {
-  // Enhanced multi-part regex for better coverage of numbers and metrics. Case-insensitive.
-  const numberDetectionRegex = new RegExp([
-    // Rule 1: Consolidated Main Pattern - Financial units
-    // Handles optional currency ($/₹/Rs), numbers, and all known units/suffixes.
-    // Catches: $300B, ₹14,000 Cr, ₹2,00,000 Cr, 5L, 14x, 100+, 270 cities, 1lakh etc.
-    '((?:Rs\\.?\\s*|[$₹])?\\b\\d[\\d,.]*\\s*(?:Cr(?:/[a-zA-Z]+)?|crore|Lakh|lakh|L|M|B|K|x|\\+|cities|city|year|years|units?|users?|customer|customers|plaza|plazas|toll plazas?)\\b)',
+  const metricDetectionRegex = new RegExp([
+    // Pattern 1: Currency-prefixed numbers. Now handles spaces like "₹ 500 M".
+    '(\\b(?:Rs\\.?|\\$|₹)\\s*\\d[\\d,.]*\\s*(?:K|M|B|T|L|Lakh|Cr|crore)?\\+?\\b)',
 
-    // Rule 2: Percentage Pattern
-    // Handles all variations of percentages.
-    // Catches: (26.78%), -1.36% MoM, 55% avg
-    '(\\(?[+-]?[\\d,.]+%(\\s*(?:avg|YoY|MoM))?\\)?)',
+    // Pattern 2: Numbers with a mandatory magnitude suffix. Now handles spaces like "50 M+".
+    '(\\b\\d[\\d,.]+\\s*(?:K|M|B|T|L|Lakh|Cr|crore)\\+?\\b)',
 
-    // Rule 3: Specific Patterns
-    // Catches unique formats that don't fit the general rules.
-    '(FY\\d+)',      // Catches: FY24
-    '(\\d+-\\w+)',    // Catches: 10-min
+    // Pattern 3: Percentages. Now handles spaces like "70 %".
+    '(\\b\\d[\\d,.]*\\s*%\\+?\\b)',
 
-    // Rule 4: Multi-word units
-    '(\\b\\d+\\s+toll\\s+plazas?\\b)'
-  ].join('|'), 'gi'); // 'g' for global, 'i' for case-insensitive
+    // Pattern 4: Numbers that are only followed by a plus sign (e.g., "1,500+").
+    // Kept strict (no space) as "1500 +" is ambiguous.
+    '(\\b\\d[\\d,.]*\\+\\b)',
 
-  return text.replace(numberDetectionRegex, (match) => `【${match}】`);
+    // Pattern 5 (REFINED): Standalone numbers followed by a curated list of common metric-related nouns.
+    // Removed uncommon/specific words for better general-purpose use. Added plurals.
+    '(\\b\\d[\\d,.]*(?:-\\w+)?\\s+(?:applications|startups|funded|cities|city|year|years|minute|minutes|users|customers|subscribers)\\b)'
+
+  ].join('|'), 'gi'); // 'g' for global search, 'i' for case-insensitive
+
+  return text.replace(metricDetectionRegex, (match) => `【${match.trim()}】`);
 }
-
 /**
  * Calculates the total vertical space needed for all text content at a given
  * font size. It intelligently groups short sentences and word-wraps long ones.

@@ -124,6 +124,20 @@ export const SATIRIST: PersonaConfig = {
   ]
 };
 
+export const PATTERN_SPOTTER: PersonaConfig = {
+  key: 'pattern_spotter',
+  displayName: 'The Pattern Spotter 🔍',
+  description: 'Finds non-obvious patterns across multiple news stories. Connects dots others miss by looking at the bigger picture.',
+  prompt_persona: "You are The Pattern Spotter - a keen observer who identifies compelling patterns and trends by analyzing multiple news stories together. You excel at cross-cutting insights that connect seemingly unrelated headlines into meaningful observations about market direction, strategic shifts, and emerging trends.",
+  content_types: ['single_tweet'],
+  image_generation: {
+    enabled: false // No image generation for pattern spotter
+  },
+  topics: [
+    { key: 'news_patterns', displayName: 'Patterns in Current News' }
+  ]
+};
+
 export const THE_CATALYST: PersonaConfig = {
   key: 'the_catalyst',
   displayName: 'The Catalyst',
@@ -158,6 +172,7 @@ When you use context, be specific ("IIT founder playbook", "we saw this pattern 
 
 export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better type safety
   SATIRIST,
+  PATTERN_SPOTTER,
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
   VOCABULARY_BUILDER,
@@ -190,7 +205,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'business_storyteller', 'cricket_storyteller', 'the_catalyst'] 
+  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller', 'the_catalyst']
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {

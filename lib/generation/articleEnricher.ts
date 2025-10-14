@@ -2,6 +2,7 @@
 
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
+import { GENERATION_CONFIG } from './config';
 
 // Create a virtual console to suppress CSS parsing warnings
 const virtualConsole = new VirtualConsole();
@@ -82,7 +83,7 @@ function extractWebsites(text: string): string[] {
     websites.add(cleanDomain);
   }
 
-  return Array.from(websites).slice(0, 5); // Limit to 5 to avoid excessive fetching
+  return Array.from(websites).slice(0, GENERATION_CONFIG.enrichment.maxWebsites);
 }
 
 /**
@@ -101,7 +102,7 @@ function extractEntities(text: string): string[] {
       entities.add(entity.replace(/'s$/, '')); // Remove possessive 's
     }
   }
-  return Array.from(entities).slice(0, 10); // Limit to top 10 entities
+  return Array.from(entities).slice(0, GENERATION_CONFIG.enrichment.maxEntities);
 }
 
 /**
@@ -118,7 +119,7 @@ async function fetchHandlesFromHomepage(domain: string): Promise<string[]> {
     console.log(`🔎 Visiting homepage to find handles: ${url}`);
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
-      signal: AbortSignal.timeout(5000), // Shorter 5-second timeout for this secondary fetch
+      signal: AbortSignal.timeout(GENERATION_CONFIG.enrichment.homepageFetchTimeout),
     });
     if (!response.ok) return [];
     const html = await response.text();
@@ -144,7 +145,7 @@ export async function enrichArticle(
     console.log(`📰 Fetching full article: ${url.substring(0, 60)}...`);
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(GENERATION_CONFIG.enrichment.articleFetchTimeout),
     });
 
     if (!response.ok) {
@@ -179,7 +180,7 @@ export async function enrichArticle(
       headline,
       url,
       description,
-      fullText: fullText.substring(0, 3000), // Limit text length for storage/performance
+      fullText: fullText.substring(0, GENERATION_CONFIG.enrichment.fullTextLimit),
       twitterHandles: [], // Disabled
       websites,
       entities,
@@ -213,7 +214,7 @@ export async function enrichArticles(
     });
 
     if (i + maxConcurrent < articles.length) {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, GENERATION_CONFIG.enrichment.batchDelay));
     }
   }
   return results;

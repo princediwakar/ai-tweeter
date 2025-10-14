@@ -2,13 +2,15 @@ import { EnglishVocabBuilderGenerator } from './englishVocabBuilder';
 import { SatiristGenerator } from './satirist';
 import { BusinessStorytellerGenerator } from './businessStoryteller';
 import { CricketStorytellerGenerator } from './cricketStoryteller';
+import { PatternSpotterGenerator } from './patternSpotter';
 import type { PersonaGenerator } from './base';
 
 export const PERSONA_GENERATORS: Record<string, PersonaGenerator> = {
   'english_vocab_builder': new EnglishVocabBuilderGenerator(),
   'satirist': new SatiristGenerator(),
   'business_storyteller': new BusinessStorytellerGenerator(),
-  'cricket_storyteller': new CricketStorytellerGenerator()
+  'cricket_storyteller': new CricketStorytellerGenerator(),
+  'pattern_spotter': new PatternSpotterGenerator()
 };
 
 export function getPersonaGenerator(personaKey: string): PersonaGenerator | undefined {
@@ -20,3 +22,4 @@ export * from './englishVocabBuilder';
 export * from './satirist';
 export * from './businessStoryteller';
 export * from './cricketStoryteller';
+export * from './patternSpotter';

@@ -44,7 +44,7 @@ const CONFIG = {
     },
     prince: {
       handle: '@princediwakar25', 
-      personas: ['satirist', 'business_storyteller', 'cricket_storyteller'],
+      personas: ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller'],
       contentTypes: [ 'single_tweet', 'thread'],
       description: 'Business/cricket storytelling threads + satirical tweets'
     }
@@ -214,9 +214,10 @@ function selectRandomGeneration(options) {
   // --- 5. Select the persona (this logic was good, so we keep it) ---
   let persona = randomChoice(accountConfig.personas);
 
-  // For Prince's single tweets, prefer satirist persona
+  // For Prince's single tweets, prefer satirist persona and pattern_spotter
   if (selectedAccount === 'prince' && contentType === 'single_tweet') {
-    persona = 'satirist';
+    const personas = ['satirist', 'pattern_spotter'];
+    persona = randomChoice(personas);
   }
 
   // For Prince's threads, prefer business/cricket storytellers

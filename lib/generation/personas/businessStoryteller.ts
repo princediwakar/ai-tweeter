@@ -42,7 +42,6 @@ private generatePromptForTemplate(
   markers: { timeMarker: string; tokenMarker: string }
 ): string {
   const { timeMarker, tokenMarker } = markers;
-  const topicHashtags = this.getTopicHashtags(topic);
   
   let deepDiveBriefing = '';
   if (context.rssContext) {
@@ -106,7 +105,7 @@ Choose based on the thread's nature:
 
 FORMATTING:
 •   Use emojis sparingly (2-3 across entire thread, not every tweet)
-•   1-2 hashtags from: ${topicHashtags}
+•   NO hashtags - focus on substance over discovery
 •   NO business jargon: "synergy," "disruption," "game-changer," "paradigm shift"
 •   Name real companies/people from the briefing (NO made-up names)
 
@@ -118,33 +117,4 @@ STORYTELLING FOCUS: Clear, logical analysis that explains the 'why' and 'what's 
   basePrompt = this.addGibbiCTA(basePrompt, context.account);
   return this.addCommonSuffix(basePrompt);
 }
-
-  private getTopicHashtags(topic: { key: string; displayName: string }): string {
-    const topicHashtags: Record<string, string> = {
-        indian_tech_unicorns: '#StartupIndia #UnicornStories',
-        indian_tech_pioneers: '#TechPioneers #IndianTech',
-        fintech_revolution_india: '#FinTechIndia #DigitalPayments',
-        edtech_transformation: '#EdTech #OnlineLearning',
-        ecommerce_battles_india: '#EcommerceIndia #RetailWars',
-        saas_india_global: '#SaaS #GlobalIndian',
-        gaming_content_creators: '#GamingIndia #CreatorEconomy',
-        deep_tech_ai_india: '#DeepTech #AIIndia',
-        space_tech_startups: '#SpaceTech #NewSpace',
-        silicon_valley_legends: '#SiliconValley #FounderStories',
-        big_tech_evolution: '#BigTech #TechEvolution',
-        startup_ecosystem_global: '#StartupLife #Entrepreneur',
-        tech_disruption_industries: '#TechDisruption #Innovation',
-        crypto_blockchain_stories: '#Crypto #Blockchain',
-        ai_ml_breakthrough: '#AI #MachineLearning',
-        social_media_impact: '#SocialMedia #DigitalImpact',
-        mobile_revolution: '#MobileTech #AppEconomy',
-        cloud_computing_shift: '#CloudComputing #BusinessTech',
-        cybersecurity_battles: '#CyberSecurity #DigitalDefense',
-        ai_ethics_dilemmas: '#AIEthics #TechEthics',
-        sustainable_business: '#SustainableBusiness #GreenTech',
-        remote_work_revolution: '#RemoteWork #FutureOfWork',
-        influencer_economy: '#InfluencerMarketing #CreatorEconomy'
-    };
-    return topicHashtags[topic.key] || '#BusinessStories #Entrepreneurship';
-  }
 }

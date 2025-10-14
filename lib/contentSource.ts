@@ -5,7 +5,8 @@ import { parseStringPromise } from 'xml2js';
 // Assuming the PersonaTopic interface is available via an import path like this:
 import type { PersonaTopic } from './personas';
 import { enrichArticles } from './generation/articleEnricher';
-import { getRecentSatiristSources } from './db';
+import { getRecentSatiristSources, getRecentPatternSpotterSources } from './db';
+import { GENERATION_CONFIG } from './generation/config';
 
 // Use native fetch
 const fetchFn = globalThis.fetch;
@@ -33,7 +34,6 @@ interface HeadlineWithSource {
 // ─────────────────────────────────────────────
 // 🔧 Constants & Helpers
 // ─────────────────────────────────────────────
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 mins for fast-moving trends
 const contentCache: Map<string, CacheEntry> = new Map();
 
 const USER_AGENTS = [
@@ -64,7 +64,7 @@ function cleanDescription(text: string | undefined): string | undefined {
 // ─────────────────────────────────────────────
 function getCachedContext(key: string): string | null {
   const cached = contentCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+  if (cached && Date.now() - cached.timestamp < GENERATION_CONFIG.rss.cacheTTL) {
     console.log(`[Content Source] 📦 Using cached context for: "${key}"`);
     return cached.context;
   }
@@ -89,12 +89,12 @@ async function fetchFromGoogle(query: string): Promise<HeadlineWithSource[]> {
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)} when:1d&hl=en-IN&gl=IN&ceid=IN:en`;
 
   try {
-    const response = await fetchFn(url, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(4000) });
+    const response = await fetchFn(url, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(GENERATION_CONFIG.rss.fetchTimeout) });
     if (!response.ok) throw new Error(`Google News responded with status: ${response.status}`);
 
     const xml = await response.text();
     const parsed = await parseStringPromise(xml);
-    const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, 5) ?? [];
+    const items: RssItem[] = parsed?.rss?.channel?.[0]?.item?.slice(0, GENERATION_CONFIG.rss.headlinesPerFeed) ?? [];
 
     return items
       .map((item) => {
@@ -112,20 +112,14 @@ async function fetchFromGoogle(query: string): Promise<HeadlineWithSource[]> {
 
 async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
   const userAgent = getRandomUserAgent();
-  const rssFeeds = [
-    'https://indianstartupnews.com/rss',
-    'https://entrackr.com/rss',
-    'https://inc42.com/feed',
-    'https://economictimes.indiatimes.com/prime/technology-and-startups/rssfeeds/63319172.cms',
-    'https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms'
-  ];
+  const rssFeeds = GENERATION_CONFIG.feeds.business;
 
   // Fetch from all feeds in parallel for better performance
   const fetchPromises = rssFeeds.map(async (feed) => {
     try {
       const response = await fetchFn(feed, {
         headers: { 'User-Agent': userAgent },
-        signal: AbortSignal.timeout(4000)
+        signal: AbortSignal.timeout(GENERATION_CONFIG.rss.fetchTimeout)
       });
 
       if (!response.ok) return [];
@@ -166,18 +160,18 @@ async function fetchFromIndianNewsRSS(): Promise<HeadlineWithSource[]> {
 
   console.log(`[Content Source] 📰 Fetched ${allHeadlines.length} headlines from ${rssFeeds.length} RSS feeds`);
 
-  // Return up to 20 headlines (filtering will happen in satirist context)
-  return allHeadlines.slice(0, 20);
+  // Return up to max total headlines (filtering will happen in satirist context)
+  return allHeadlines.slice(0, GENERATION_CONFIG.rss.maxTotalHeadlines);
 }
 
 async function fetchFromCricketNewsRSS(): Promise<HeadlineWithSource[]> {
   const userAgent = getRandomUserAgent();
-  const rssFeeds = [ 'https://www.espncricinfo.com/rss/content/story/feeds/6.xml', 'https://www.thehindu.com/sport/cricket/feeder/default.rss', 'https://sports.ndtv.com/rss/cricket' ];
+  const rssFeeds = GENERATION_CONFIG.feeds.cricket;
   const results: HeadlineWithSource[] = [];
 
   for (const feed of rssFeeds) {
     try {
-      const response = await fetchFn(feed, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(4000) });
+      const response = await fetchFn(feed, { headers: { 'User-Agent': userAgent }, signal: AbortSignal.timeout(GENERATION_CONFIG.rss.fetchTimeout) });
       if (!response.ok) continue;
 
       const xml = await response.text();
@@ -197,6 +191,38 @@ async function fetchFromCricketNewsRSS(): Promise<HeadlineWithSource[]> {
     }
   }
   return results.sort(() => 0.5 - Math.random()).slice(0, 10);
+}
+
+/**
+ * Lightweight headline fetcher for Pattern Spotter persona
+ * Fetches headlines from business RSS feeds WITHOUT heavy enrichment
+ * @param limit Maximum number of headlines to return (default: 20)
+ * @returns Array of headlines with basic metadata
+ */
+export async function fetchHeadlinesOnly(limit = 20): Promise<HeadlineWithSource[]> {
+  console.log(`[Content Source] 📰 Fetching ${limit} headlines for Pattern Spotter (no enrichment)...`);
+
+  try {
+    const headlines = await fetchFromIndianNewsRSS();
+
+    if (headlines.length === 0) {
+      console.warn('[Content Source] ⚠️ No headlines fetched');
+      return [];
+    }
+
+    // Get unique headlines
+    const uniqueHeadlines = Array.from(
+      new Map(headlines.map((item) => [item.headline, item])).values()
+    );
+
+    console.log(`[Content Source] ✅ Fetched ${uniqueHeadlines.length} unique headlines`);
+
+    // Return up to limit
+    return uniqueHeadlines.slice(0, limit);
+  } catch (error) {
+    console.error('[Content Source] ❌ Failed to fetch headlines:', error);
+    return [];
+  }
 }
 
 
@@ -364,8 +390,8 @@ async function getSatiristContext(accountId?: string): Promise<string> {
     // Get recently used source URLs to avoid repetition
     let usedSources: string[] = [];
     if (accountId) {
-      usedSources = await getRecentSatiristSources(accountId, 5);
-      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last 30 days)`);
+      usedSources = await getRecentSatiristSources(accountId, GENERATION_CONFIG.deduplication.satiristSourceDays);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last ${GENERATION_CONFIG.deduplication.satiristSourceDays} days)`);
     }
 
     // Filter out already-used sources
@@ -375,17 +401,17 @@ async function getSatiristContext(accountId?: string): Promise<string> {
     if (filteredHeadlines.length === 0) {
       console.warn('[Content Source] All headlines have been used recently. Using all headlines.');
       // Fallback to all headlines if everything has been used
-      const selectedHeadlines = uniqueHeadlines.slice(0, 5);
-      const enrichedArticles = await enrichArticles(selectedHeadlines, 3);
+      const selectedHeadlines = uniqueHeadlines.slice(0, GENERATION_CONFIG.rss.selectedHeadlinesForSatirist);
+      const enrichedArticles = await enrichArticles(selectedHeadlines, GENERATION_CONFIG.enrichment.maxConcurrent);
       return formatSatiristContext(enrichedArticles);
     }
 
-    // Take first 5 unique headlines for enrichment (no shuffling needed)
-    const selectedHeadlines = filteredHeadlines.slice(0, 5);
+    // Take first N unique headlines for enrichment (no shuffling needed)
+    const selectedHeadlines = filteredHeadlines.slice(0, GENERATION_CONFIG.rss.selectedHeadlinesForSatirist);
 
     // Fetch full article content with entity extraction
     console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} headlines...`);
-    const enrichedArticles = await enrichArticles(selectedHeadlines, 3); // Process 3 at a time
+    const enrichedArticles = await enrichArticles(selectedHeadlines, GENERATION_CONFIG.enrichment.maxConcurrent);
 
     return formatSatiristContext(enrichedArticles);
   } catch (error) {
@@ -429,6 +455,67 @@ function formatSatiristContext(enrichedArticles: Awaited<ReturnType<typeof enric
 ${formattedHeadlines}
 
 Select ONE headline and provide witty, data-driven commentary.
+
+--- SOURCE METADATA (for logging only) ---
+${sourceMap}`;
+}
+
+async function getPatternSpotterContext(accountId?: string): Promise<string> {
+  console.log('[Content Source] 🔍 Pattern Spotter selected. Fetching headlines with deduplication...');
+
+  try {
+    const primaryHeadlines = await fetchFromIndianNewsRSS();
+    if (primaryHeadlines.length === 0) {
+      return 'No trending news found. Unable to perform pattern analysis.';
+    }
+
+    // Get unique headlines
+    const uniqueHeadlines = Array.from(new Map(primaryHeadlines.map((item) => [item.headline, item])).values());
+    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for pattern_spotter`);
+
+    // Get recently used source URLs to avoid repetition
+    let usedSources: string[] = [];
+    if (accountId) {
+      usedSources = await getRecentPatternSpotterSources(accountId, GENERATION_CONFIG.deduplication.satiristSourceDays);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last ${GENERATION_CONFIG.deduplication.satiristSourceDays} days)`);
+    }
+
+    // Filter out already-used sources
+    const filteredHeadlines = uniqueHeadlines.filter(h => !usedSources.includes(h.url));
+    console.log(`[Content Source] ${filteredHeadlines.length} new headlines after filtering`);
+
+    if (filteredHeadlines.length === 0) {
+      console.warn('[Content Source] All headlines have been used recently. Using all headlines.');
+      // Fallback to all headlines if everything has been used
+      const selectedHeadlines = uniqueHeadlines.slice(0, GENERATION_CONFIG.patternSpotter.headlinesToFetch);
+      return formatPatternSpotterContext(selectedHeadlines);
+    }
+
+    // Take first N unique headlines
+    const selectedHeadlines = filteredHeadlines.slice(0, GENERATION_CONFIG.patternSpotter.headlinesToFetch);
+
+    return formatPatternSpotterContext(selectedHeadlines);
+  } catch (error) {
+    return handleContextError('pattern_spotter', error, 'Could not fetch latest news due to a system error. Unable to perform pattern analysis.');
+  }
+}
+
+/**
+ * Helper function to format headlines into pattern_spotter context
+ */
+function formatPatternSpotterContext(headlines: HeadlineWithSource[]): string {
+  const formattedHeadlines = headlines
+    .map((h, idx) => `${idx + 1}. ${h.headline}${h.description ? `\n   ${h.description}` : ''}`)
+    .join('\n\n');
+
+  const sourceMap = headlines.map((h, idx) => `[SOURCE_${idx + 1}]: ${h.url}`).join('\n');
+
+  return `HEADLINES FOR PATTERN ANALYSIS
+-------------------------------------------
+
+${formattedHeadlines}
+
+Analyze these headlines and identify ONE compelling pattern or insight.
 
 --- SOURCE METADATA (for logging only) ---
 ${sourceMap}`;
@@ -488,6 +575,11 @@ export async function getDynamicContext(persona: string, topic: PersonaTopic | s
   // Special handling for satirist to pass accountId for source filtering
   if (persona === 'satirist') {
     return getSatiristContext(accountId);
+  }
+
+  // Pattern spotter gets headlines with deduplication
+  if (persona === 'pattern_spotter') {
+    return getPatternSpotterContext(accountId);
   }
 
   const handler = personaHandlers[persona];

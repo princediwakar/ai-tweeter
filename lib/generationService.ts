@@ -11,6 +11,7 @@ import { getPersonaGenerator } from './generation/personas';
 import type { TweetGenerationConfig, GenerationContext } from './generation/types';
 import { TweetV2 } from './twitter';
 import { EngagementTarget } from './engagement/targets';
+import { GENERATION_CONFIG } from './generation/config';
 
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -93,9 +94,9 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
 
   // For satirist persona, decide image vs text-only format BEFORE prompt generation
   if (persona.key === 'satirist' && !config.satiristFormat) {
-    const shouldGenerateImage = Math.random() < 0.1;
+    const shouldGenerateImage = Math.random() < GENERATION_CONFIG.imageGeneration.satiristImagePercentage;
     config.satiristFormat = shouldGenerateImage ? 'image' : 'text-only';
-    console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (30% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+    console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(GENERATION_CONFIG.imageGeneration.satiristImagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
 
   const topic = config.topic
@@ -146,21 +147,21 @@ function parseAndValidateTweetResponse(
     let sourceUrl: string | undefined;
 
     if (rssContext) {
-      if (persona === 'satirist') {
+      if (persona === 'satirist' || persona === 'pattern_spotter') {
         if (data.selectedHeadlineNumber) {
           const headlineNumber = data.selectedHeadlineNumber;
           const sourcePattern = new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm');
           const match = rssContext.match(sourcePattern);
           if (match && match[1]) {
             sourceUrl = match[1].trim();
-            console.log(`📰 [Satirist] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
+            console.log(`📰 [${persona}] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
           } else {
-            console.error(`❌ [Satirist] Failed to extract source URL for headline #${headlineNumber}. Source pattern not found in RSS context.`);
+            console.error(`❌ [${persona}] Failed to extract source URL for headline #${headlineNumber}. Source pattern not found in RSS context.`);
             console.error(`RSS Context preview: ${rssContext.substring(0, 500)}...`);
           }
         } else {
           // This should never happen now due to validation above, but keeping as safety net
-          console.error(`❌ [Satirist] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
+          console.error(`❌ [${persona}] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
         }
       } else if (['business_storyteller', 'cricket_storyteller'].includes(persona)) {
         // Generic extraction for personas with a "Primary News Item"
@@ -209,6 +210,20 @@ function parseAndValidateTweetResponse(
         } satisfies SatiristCard;
       }
       // For text-only format, cardData remains null
+    } else if (persona === 'pattern_spotter') {
+      if (!data.tweetText) {
+        throw new Error('AI response for pattern_spotter missing required field: tweetText.');
+      }
+      // CRITICAL: Validate selectedHeadlineNumber is present for source URL tracking
+      if (!data.selectedHeadlineNumber || typeof data.selectedHeadlineNumber !== 'number') {
+        throw new Error('AI response for pattern_spotter missing required field: selectedHeadlineNumber. Cannot track source URL without it.');
+      }
+      const maxHeadlines = GENERATION_CONFIG.patternSpotter.headlinesToFetch;
+      if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > maxHeadlines) {
+        throw new Error(`AI response for pattern_spotter has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. Must be between 1 and ${maxHeadlines}.`);
+      }
+      tweetContent = data.tweetText;
+      console.log(`🔍 [Pattern Spotter] Used headline #${data.selectedHeadlineNumber} as primary source`);
     } else {
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('AI response missing required "content" field.');
@@ -241,12 +256,12 @@ function parseAndValidateTweetResponse(
       selectedHeadlineNumber: data.selectedHeadlineNumber || undefined
     };
 
-    // CRITICAL: Final validation for satirist persona - must have source URL
-    if (persona === 'satirist' && !sourceUrl) {
-      console.error(`❌ [Satirist] Critical validation failed: No source URL extracted for tweet. This tweet will be rejected.`);
+    // CRITICAL: Final validation for satirist and pattern_spotter personas - must have source URL
+    if ((persona === 'satirist' || persona === 'pattern_spotter') && !sourceUrl) {
+      console.error(`❌ [${persona}] Critical validation failed: No source URL extracted for tweet. This tweet will be rejected.`);
       console.error(`Tweet content: "${tweetContent}"`);
       console.error(`Selected headline: ${data.selectedHeadlineNumber}`);
-      throw new Error('Satirist tweet missing source URL - cannot proceed without attribution');
+      throw new Error(`${persona} tweet missing source URL - cannot proceed without attribution`);
     }
 
     // MODIFIED: Return the extracted sourceUrl
@@ -265,10 +280,10 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     const { prompt, persona, topic, rssContext } = await generateTweetPrompt(config);
 
     const response = await deepseekClient.chat.completions.create({
-      model: "deepseek-chat",
+      model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.9,
-      max_tokens: 500, // Limit to 500 tokens for focused, crisp responses
+      temperature: GENERATION_CONFIG.ai.temperature,
+      max_tokens: GENERATION_CONFIG.ai.maxTokens,
       response_format: { type: "json_object" },
     });
 
@@ -328,19 +343,19 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
   }
 }
 
-async function getRecentVocabularyWords(accountId: string, days: number = 30): Promise<string[]> {
+async function getRecentVocabularyWords(accountId: string, days: number = GENERATION_CONFIG.deduplication.vocabularyWordDays): Promise<string[]> {
   try {
     const { sql } = await import('@vercel/postgres');
-    
+
     const result = await sql`
       SELECT DISTINCT card_data
-      FROM tweets 
-      WHERE account_id = ${accountId} 
+      FROM tweets
+      WHERE account_id = ${accountId}
         AND persona = 'english_vocab_builder'
         AND card_data IS NOT NULL
         AND created_at > NOW() - INTERVAL '${days} days'
       ORDER BY created_at DESC
-      LIMIT 100
+      LIMIT ${GENERATION_CONFIG.deduplication.vocabularyWordLimit}
     `;
     
     const recentWords: string[] = [];
@@ -373,7 +388,7 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 
   let recentWords: string[] = [];
   if (config.account_id && config.persona === 'english_vocab_builder') {
-    recentWords = await getRecentVocabularyWords(config.account_id, 30);
+    recentWords = await getRecentVocabularyWords(config.account_id);
     console.log(`📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`);
   }
 
@@ -420,10 +435,10 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
         generatedWords.push(newWord);
         console.log(`🆕 New word generated: ${newWord}`);
       }
-      // Track used headlines for satirist persona
-      if (result.persona === 'satirist' && result.selectedHeadlineNumber) {
+      // Track used headlines for satirist and pattern_spotter personas
+      if ((result.persona === 'satirist' || result.persona === 'pattern_spotter') && result.selectedHeadlineNumber) {
         usedHeadlines.push(result.selectedHeadlineNumber);
-        console.log(`📰 Satirist used headline #${result.selectedHeadlineNumber}`);
+        console.log(`📰 ${result.persona} used headline #${result.selectedHeadlineNumber}`);
       }
     }
   }

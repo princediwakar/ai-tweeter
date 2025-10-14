@@ -48,60 +48,53 @@ const gibbiPostingPattern: HourlySchedule = {
 // --- ALTERNATIVE: HIGHER-VOLUME SCHEDULE ---
 
 // Thread A: Business Storyteller
-const THREAD_A = 'business_storyteller'; 
+const THREAD_A = 'business_storyteller';
 // Thread B: Cricket Storyteller
 const THREAD_B = 'cricket_storyteller';
-
 const princeGenerationPattern: DailySchedule = {
-  // Strategy: Three daily "Reframer" takes for consistent presence, with threads on peak days.
-  // Total per week: 21 Satirist, 3 Threads
-  0: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Sunday
-  1: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] },           // Monday
-  2: { 8: ['satirist'], 13: ['satirist'], 19: [THREAD_A] }, // Tuesday
-  3: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist']    }, // Wednesday
-  4: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Thursday
-  5: { 8: ['satirist'], 13: ['satirist'], 17: ['satirist'] }, // Friday
-  6: { 8: ['satirist'], 13: ['satirist'], 19: [THREAD_A], }, // Saturday
+  // Strategy: Focused on Tue-Thu peaks; removed weekends. Total: 12 satirist, 3 pattern_spotter, 1 thread/week
+  0: {}, // Sunday - removed for focus
+  1: { 8: ['satirist'], 12: ['satirist'] }, // Monday - lighter mornings
+  2: { 8: ['satirist'], 12: ['satirist'], 18: [THREAD_A] }, // Tuesday - full day + evening thread
+  3: { 8: ['satirist'], 12: ['satirist'], 11: ['pattern_spotter'] }, // Wednesday - morning heavy
+  4: { 8: ['satirist'], 12: ['satirist'], 11: ['pattern_spotter'] }, // Thursday - morning heavy
+  5: { 8: ['satirist'], 12: ['pattern_spotter'] }, // Friday - lighter
+  6: {}, // Saturday - removed for focus
 };
 
 const princePostingPattern: DailySchedule = {
-  // Posting: Morning (9 AM), Midday (2 PM), and Evening (6 PM). Threads in prime time (8 PM).
-  0: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Sunday
-  1: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Monday
-  2: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Tuesday
-  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Wednesday
-  4: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Thursday
-  5: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] },           // Friday
-  6: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'], 20: [THREAD_A] }, // Saturday
+  // Posting: 9-10 AM mornings, 1 PM afternoons (Tue-Thu emphasis). Thread Tue 7 PM prime.
+  0: {12: [THREAD_B]}, // Sunday - no posts
+  1: { 9: ['satirist'], 13: ['satirist'] }, // Monday
+  2: { 9: ['satirist'], 13: ['satirist'], 19: [THREAD_A] }, // Tuesday
+  3: { 10: ['satirist'], 12: ['satirist'], 13: ['pattern_spotter'] }, // Wednesday
+  4: { 10: ['satirist'], 12: ['satirist'], 13: ['pattern_spotter'] }, // Thursday
+  5: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Friday
+  6: {}, // Saturday - no posts
 };
 
 const princeEngagementPattern: HourlySchedule = {
-  9: ['engagement'],   // Morning window: 9:00, 9:15, 9:30, 9:45
-  10: ['engagement'],   // Morning window: 10:00, 10:15, 10:30, 10:45
-  11: ['engagement'],   // Morning window 11:00,119:15, 11:30, 11:45
-  20: ['engagement'],   // Evening window: 20:00, 20:15, 20:30, 20:45
-  21: ['engagement']   // Evening window: 21:00, 21:15, 21:30, 21:45
+  9: ['engagement'],  // Morning: 9-11 AM window
+  10: ['engagement'],
+  19: ['engagement']  // Evening: 7-8 PM for threads/replies
 };
+
+
 
 /**
- * Prince LinkedIn Posting Schedule
- * Strategy: Post satirist content to LinkedIn at optimal professional times
- * LinkedIn frequency: Mon-Fri with 2-3 posts/day matching Twitter satirist cadence
- * Best times: 8-10 AM, 12-2 PM, and 5-6 PM IST (professional engagement windows)
- * Total: ~12-15 posts/week (increased from 6 for better algorithm favor)
+ * Optimized Prince LinkedIn Posting Schedule
+ * Strategy: Tue-Thu heavy in pro windows; Mon/Fri lighter. Total: 10-12 posts/week for algorithm sweet spot.
+ * No weekends; evenings minimized as mornings drive 2x views.
  */
 const princeLinkedInPostingPattern: DailySchedule = {
-  // LinkedIn posts Mon-Fri to maintain consistent professional presence
-  // Offset slightly from Twitter posting times to avoid racing conditions
-  0: {}, // Sunday - no LinkedIn posts
-  1: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Monday - morning, afternoon, evening
-  2: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Tuesday - morning, afternoon, evening
-  3: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Wednesday - morning, afternoon, evening
-  4: { 9: ['satirist'], 14: ['satirist'], 18: ['satirist'] }, // Thursday - morning, afternoon, evening
-  5: { 9: ['satirist'], 14: ['satirist'] }, // Friday - morning & afternoon only (lighter day)
-  6: {}, // Saturday - no LinkedIn posts
+  0: {}, // Sunday - none
+  1: { 10: ['satirist'], 13: ['satirist'] }, // Monday - mornings/afternoons
+  2: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Tuesday - full pro day
+  3: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Wednesday - full pro day
+  4: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Thursday - full pro day
+  5: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Friday - lighter
+  6: {}, // Saturday - none
 };
-
 // Twitter handle mapping - maps twitter handles to schedule keys
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
@@ -171,7 +164,7 @@ export function getGenerationSchedule(twitterHandle: string): DailySchedule {
   if (!scheduleKey) {
     throw new Error(`No schedule mapping found for twitter handle: ${twitterHandle}`);
   }
-  
+
   const schedules = ACCOUNT_SCHEDULES[scheduleKey];
   if (!schedules) {
     throw new Error(`No generation schedule found for twitter handle: ${twitterHandle} (scheduleKey: ${scheduleKey})`);
@@ -187,7 +180,7 @@ export function getPostingSchedule(twitterHandle: string): DailySchedule {
   if (!scheduleKey) {
     throw new Error(`No schedule mapping found for twitter handle: ${twitterHandle}`);
   }
-  
+
   const schedules = ACCOUNT_SCHEDULES[scheduleKey];
   if (!schedules) {
     throw new Error(`No posting schedule found for twitter handle: ${twitterHandle} (scheduleKey: ${scheduleKey})`);
@@ -208,7 +201,7 @@ export function getScheduledPersonasForGeneration(
   const schedule = getGenerationSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
   const personas = daySchedule?.[hour] || [];
-  
+
   return personas;
 }
 
@@ -223,9 +216,9 @@ export function getScheduledPersonasForPosting(
   const schedule = getPostingSchedule(twitterHandle);
   const daySchedule = schedule[dayOfWeek];
   const personas = daySchedule?.[hour] || [];
-  
 
-  
+
+
   return personas;
 }
 
@@ -353,11 +346,11 @@ export function getCurrentScheduledActivity(date: Date = new Date()): {
   const istDate = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
   const dayOfWeek = istDate.getDay();
   const hour = istDate.getHours();
-  
+
   return getScheduledTwitterHandles().map(twitterHandle => {
     const generationPersonas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
     const postingPersonas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
-    
+
     return {
       twitterHandle,
       generation_personas: generationPersonas,
@@ -381,32 +374,34 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
   const dayOfWeek = istDate.getDay();
   const hour = istDate.getHours();
   let personas = getScheduledPersonasForGeneration(twitterHandle, dayOfWeek, hour);
-  
+
   // In debug mode, provide default personas if none scheduled
   if (debugMode && personas.length === 0) {
     if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
     } else if (twitterHandle === '@princediwakar25') {
-      personas = ['business_storyteller', 'cricket_storyteller'];
+      personas = ['business_storyteller', 'cricket_storyteller', 'satirist', 'pattern_spotter'];
     }
   }
-  
+
   let batchSize = 1; // Default for threads
-    if (twitterHandle === '@gibbi_ai' ) {
-      batchSize = 1; // Educational content can be batched larger
-    } else if (twitterHandle === '@princediwakar25') {
-      // If the scheduled persona is Satirist, only generate one post
-      if (personas.length === 1 && personas[0] === 'satirist') {
-          batchSize = 1; 
-      } else if (personas.length === 1 && (personas[0] === THREAD_A || personas[0] === THREAD_B)) {
-          batchSize = 1; // Only one thread template per generation run
-      } else {
-          batchSize = 1; // Fallback for multi-persona/topic runs (rare in optimized schedule)
-      }
+  if (twitterHandle === '@gibbi_ai') {
+    batchSize = 1; // Educational content can be batched larger
+  } else if (twitterHandle === '@princediwakar25') {
+    // If the scheduled persona is Satirist, only generate one post
+    if (personas.length === 1 && personas[0] === 'satirist') {
+      batchSize = 1;
+    } else if (personas.length === 1 && personas[0] === 'pattern_spotter') {
+      batchSize = 1;
+    } else if (personas.length === 1 && (personas[0] === THREAD_A || personas[0] === THREAD_B)) {
+      batchSize = 1; // Only one thread template per generation run
+    } else {
+      batchSize = 1; // Fallback for multi-persona/topic runs (rare in optimized schedule)
     }
-  
+  }
+
   const shouldGenerate = debugMode ? personas.length > 0 : personas.length > 0;
-  
+
   return {
     should_generate: shouldGenerate,
     personas,
@@ -429,17 +424,17 @@ export function getPostingEligibility(twitterHandle: string, date: Date = new Da
   const dayOfWeek = istDate.getDay();
   const hour = istDate.getHours();
   const personas = getScheduledPersonasForPosting(twitterHandle, dayOfWeek, hour);
-  
+
   let maxPostsThisHour = 1; // Conservative default
-    if (twitterHandle === '@gibbi_ai') {
-      // Educational posts are frequent but short. Max 2 posts to allow catch-up.
-      maxPostsThisHour = personas.length > 0 ? 2 : 1; 
-    } else if (twitterHandle === '@princediwakar25') {
-      // Only 1 main content piece (single satirist tweet OR a thread start) is allowed per hour slot.
-      maxPostsThisHour = 1; 
-    }
-  
-  
+  if (twitterHandle === '@gibbi_ai') {
+    // Educational posts are frequent but short. Max 2 posts to allow catch-up.
+    maxPostsThisHour = personas.length > 0 ? 2 : 1;
+  } else if (twitterHandle === '@princediwakar25') {
+    // Only 1 main content piece (single satirist tweet OR a thread start) is allowed per hour slot.
+    maxPostsThisHour = 1;
+  }
+
+
   return {
     should_post: personas.length > 0,
     personas,

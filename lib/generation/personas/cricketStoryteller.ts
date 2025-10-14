@@ -41,7 +41,6 @@ export class CricketStorytellerGenerator extends BasePersonaGenerator {
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
     const { timeMarker, tokenMarker } = markers;
-    const topicHashtags = this.getTopicHashtags(topic);
 
     let deepDiveBriefing = '';
     if (context.rssContext) {
@@ -106,7 +105,7 @@ Choose based on the thread's nature:
 
 FORMATTING:
 •   Emojis: 1-2 max across entire thread (🏏, 🧠, 📊)
-•   1-2 hashtags from: ${topicHashtags}
+•   NO hashtags - focus on substance over discovery
 •   NO clichés: "psychological warfare," "writing a new chapter," "eternal struggle," "battle of nerves"
 •   Use real player names, scores, venues from the briefing (NO made-up stats)
 
@@ -117,23 +116,5 @@ STORYTELLING FOCUS: Sharp, specific analysis that tells the story *through* the 
 
     basePrompt = this.addGibbiCTA(basePrompt, context.account);
     return this.addCommonSuffix(basePrompt);
-  }
-
-  private getTopicHashtags(topic: { key: string; displayName: string }): string {
-    const topicHashtags: Record<string, string> = {
-        'iconic_indian_victories': '#TeamIndia #CricketHistory',
-        'ipl_drama': '#IPL #CricketDrama',
-        'women_cricket_rise': '#WomensCricket #SheInspires',
-        'test_cricket_epics': '#TestCricket #RedBall',
-        't20_explosions': '#T20Cricket #BigHits',
-        'cricket_legends': '#CricketLegends #GOAT',
-        'international_rivalries': '#IndvsPak #Ashes',
-        'youth_emergence': '#NextGenCricket #RisingStars',
-        'coaching_masterclass': '#CricketCoaching #Mentorship',
-        'fan_culture': '#CricketFans #12thMan',
-        'mental_health_stories': '#MentalHealthInSports #CricketWellness',
-        'global_leagues': '#GlobalCricket #NewLeagues'
-    };
-    return topicHashtags[topic.key] || '#CricketStories #PassionForCricket';
   }
 }

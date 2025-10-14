@@ -377,13 +377,23 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
     console.log(`📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`);
   }
 
+  // Fetch account to determine if RSS sources should be used
+  let account: Account | null = null;
+  if (config.account_id && config.account_id !== 'fallback') {
+    account = await accountService.getAccount(config.account_id);
+    if (account) {
+      console.log(`🎯 Batch generation account context: ${account.name} (${account.twitter_handle})`);
+    }
+  }
+
   // --- START: MODIFIED BATCH LOGIC ---
   // Fetch context ONCE for the entire batch to ensure efficiency and provide the same pool of news to each generator.
   let batchRssContext = '';
-  if (config.persona && shouldUseRSSSources(null)) {
+  if (config.persona && shouldUseRSSSources(account)) {
     try {
       // Pass accountId for satirist source filtering
       batchRssContext = await getDynamicContext(config.persona, '', config.account_id);
+      console.log(`📰 Fetched RSS context for batch generation (${config.persona}): ${batchRssContext.length > 0 ? 'success' : 'empty'}`);
     } catch (error) {
       console.error("❌ Failed to fetch batch of dynamic contexts. Proceeding without them.", error);
     }

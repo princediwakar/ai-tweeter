@@ -364,8 +364,8 @@ async function getSatiristContext(accountId?: string): Promise<string> {
     // Get recently used source URLs to avoid repetition
     let usedSources: string[] = [];
     if (accountId) {
-      usedSources = await getRecentSatiristSources(accountId, 2);
-      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources`);
+      usedSources = await getRecentSatiristSources(accountId, 5);
+      console.log(`[Content Source] Filtering out ${usedSources.length} recently used sources (last 30 days)`);
     }
 
     // Filter out already-used sources

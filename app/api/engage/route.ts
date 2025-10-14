@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const minute = now.getMinutes();
   const targets = engagementConfig.priority_targets;
-  const groupSize = 3;  // Reduced from 4 to 3 for more frequent checks per target
+  const groupSize = 6;  // Increased to 6 to widen search and improve engagement rate
   const groupIndex = Math.floor(minute / 15) % Math.ceil(targets.length / groupSize);
   const targetGroup = targets.slice(groupIndex * groupSize, (groupIndex + 1) * groupSize);
 

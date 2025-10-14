@@ -93,7 +93,7 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
 
   // For satirist persona, decide image vs text-only format BEFORE prompt generation
   if (persona.key === 'satirist' && !config.satiristFormat) {
-    const shouldGenerateImage = Math.random() < 0.3;
+    const shouldGenerateImage = Math.random() < 0.1;
     config.satiristFormat = shouldGenerateImage ? 'image' : 'text-only';
     console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (30% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }

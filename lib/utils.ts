@@ -9,27 +9,9 @@ export function cn(...inputs: ClassValue[]) {
 export const INDIAN_TZ = 'Asia/Kolkata';
 
 export function getCurrentTimeInIST(): Date {
-  // Create a proper IST date using Intl
-  const now = new Date();
-  const istTime = new Intl.DateTimeFormat('en-CA', {
-    timeZone: INDIAN_TZ,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(now);
-  
-  const year = parseInt(istTime.find(part => part.type === 'year')?.value || '2025');
-  const month = parseInt(istTime.find(part => part.type === 'month')?.value || '1') - 1; // 0-indexed
-  const day = parseInt(istTime.find(part => part.type === 'day')?.value || '1');
-  const hour = parseInt(istTime.find(part => part.type === 'hour')?.value || '0');
-  const minute = parseInt(istTime.find(part => part.type === 'minute')?.value || '0');
-  const second = parseInt(istTime.find(part => part.type === 'second')?.value || '0');
-  
-  return new Date(year, month, day, hour, minute, second);
+  // Simply return the current Date object
+  // The schedule functions will handle IST conversion properly
+  return new Date();
 }
 
 export function formatForUserDisplay(date: Date | string): string {

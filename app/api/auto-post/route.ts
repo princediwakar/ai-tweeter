@@ -7,11 +7,11 @@ import {
 } from '@/lib/db';
 import { postCompleteThread } from '@/lib/instantThreadService';
 import { logger } from '@/lib/logger';
-import { getCurrentTimeInIST } from '@/lib/utils';
-import { 
-  getScheduledPersonasForPosting, 
+import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/utils';
+import {
+  getScheduledPersonasForPosting,
   getScheduledTwitterHandles,
-  isPostingScheduled 
+  isPostingScheduled
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import { postTweet, postTweetWithImage } from '@/lib/twitter';
@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
     }
 
     const nowIST = getCurrentTimeInIST();
-    const currentHourIST = nowIST.getHours();
-    const dayOfWeek = nowIST.getDay();
-    
+    const currentHourIST = getCurrentISTHour(nowIST);
+    const dayOfWeek = getCurrentISTDay(nowIST);
+
     logger.info(`🔍 [GET] Multi-account posting check at ${currentHourIST}:00 IST`, 'auto-post');
 
     const scheduledTwitterHandles = getScheduledTwitterHandles();
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
     for (const account of accountsToProcess) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
-        let scheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, nowIST.getDay(), nowIST.getHours());
+        let scheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, getCurrentISTDay(nowIST), getCurrentISTHour(nowIST));
         
         if (debugMode && scheduledPersonas.length === 0) {
           if (account.twitter_handle.includes('gibbi')) {

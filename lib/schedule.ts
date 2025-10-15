@@ -45,7 +45,6 @@ const gibbiPostingPattern: HourlySchedule = {
  * Frequency: Low (2 posts/day max) for high quality/long-form content
  */
 
-// --- ALTERNATIVE: HIGHER-VOLUME SCHEDULE ---
 
 // Thread A: Business Storyteller
 const THREAD_A = 'business_storyteller';

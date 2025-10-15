@@ -5,7 +5,7 @@ import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
-import { getCurrentTimeInIST } from '@/lib/utils';
+import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { 
   getGenerationBatchInfo,
@@ -108,7 +108,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     logger.info(`[Enhanced:${callId}] Generation skipped by schedule. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
       success: true,
-      message: `⏳ No generation scheduled for account ${accountId} at ${nowIST.getHours()}:00 IST`,
+      message: `⏳ No generation scheduled for account ${accountId} at ${getCurrentISTHour(nowIST)}:00 IST`,
       accountId,
       batchInfo,
       timestamp: new Date().toISOString()
@@ -218,7 +218,7 @@ if (shouldGenerateThreads) {
     const config: TweetGenerationConfig = {
       account_id: accountId,
       persona: selectedPersonaKey,
-      contentType: contentTypes[(nowIST.getHours() + i) % contentTypes.length] as TweetGenerationConfig['contentType']
+      contentType: contentTypes[(getCurrentISTHour(nowIST) + i) % contentTypes.length] as TweetGenerationConfig['contentType']
     };
 
     const tweetCallStart = performance.now();

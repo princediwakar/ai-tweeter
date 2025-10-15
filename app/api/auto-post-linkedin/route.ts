@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { logger } from '@/lib/logger';
-import { getCurrentTimeInIST } from '@/lib/utils';
+import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/utils';
 import {
   getScheduledPersonasForLinkedInPosting,
   isLinkedInPostingScheduled
@@ -32,8 +32,8 @@ export async function GET(request: NextRequest) {
 
     const debugMode = process.env.DEBUG_MODE === 'true';
     const nowIST = getCurrentTimeInIST();
-    const currentHourIST = nowIST.getHours();
-    const dayOfWeek = nowIST.getDay();
+    const currentHourIST = getCurrentISTHour(nowIST);
+    const dayOfWeek = getCurrentISTDay(nowIST);
 
     logger.info(`🔍 [LinkedIn] Auto-post check at ${currentHourIST}:00 IST${debugMode ? ' (DEBUG MODE)' : ''}`, 'auto-post-linkedin');
 

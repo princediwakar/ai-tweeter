@@ -26,7 +26,9 @@ export interface EnrichedArticle {
   url: string;
   description?: string;
   fullText?: string;
+  keyMetrics?: string;       // Metric-heavy paragraphs extracted
   entities: string[];
+  cached?: boolean;          // Flag for cached results
 }
 
 /**
@@ -61,16 +63,19 @@ export interface SatiristContext {
 export interface RecentPattern {
   text: string;
   timestamp?: string;
+  lane?: string;             // Track which lane was used
 }
+
 /**
  * Structured context for Pattern Spotter persona
+ * ✨ UPDATED: Now uses enriched articles instead of headlines
  */
 export interface PatternSpotterContext {
-  headlines: HeadlineWithSource[];
+  articles: EnrichedArticle[];        // ✨ CHANGED: Enriched articles with full text
   sourceMetadata: SourceMetadata[];
   totalHeadlines: number;
-  recentContent?: string[]; // ADD THIS
-  usedSourceUrls?: string[]; // ADD THIS
+  recentContent?: string[];           // Recent tweet content for deduplication
+  usedSourceUrls?: string[];          // Recently used source URLs
 }
 
 /**

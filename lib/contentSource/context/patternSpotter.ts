@@ -1,20 +1,22 @@
 // lib/contentSource/context/patternSpotter.ts
 /**
- * Pattern Spotter context builder - returns structured data
+ * Pattern Spotter context builder - NOW WITH ENRICHMENT
+ * Fetches full article content for deep Socratic reasoning
  */
 
 import { GENERATION_CONFIG } from '../../generation/config';
-import { getRecentPatternData } from '../../db'; // UPDATED: Use the function that gets both content and URLs
+import { getRecentPatternData } from '../../db';
+import { enrichArticles } from '../../generation/articleEnricher';
 import { fetchHeadlinesOnly, fetchFromReddit, fetchFromTwitter } from '../fetchers';
 import { selectRandomSources } from '../utils';
 import type { PatternSpotterContext } from '../types';
 
 /**
- * Builds structured context for Pattern Spotter persona
- * Returns HeadlineWithSource[] with source metadata instead of formatted strings
+ * Builds structured context for Pattern Spotter persona with enriched articles
+ * NOW: Enriches top 3 articles for deep Socratic analysis
  */
 export async function getPatternSpotterContext(accountId?: string): Promise<PatternSpotterContext | null> {
-  console.log('[Content Source] 🔍 Pattern Spotter selected. Fetching a combined set of headlines for analysis...');
+  console.log('[Content Source] 🔍 Pattern Spotter selected. Activating enrichment for Socratic reasoning...');
 
   try {
     const { feeds, subredditsToFetch, headlinesToAnalyze, twitterHandlesToFetch } = GENERATION_CONFIG.personas.patternSpotter;
@@ -76,24 +78,46 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
 
     // Use filtered headlines, or fall back to unique if all were filtered
     const headlinesToUse = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
-    
-    // Take only what we need for analysis
-    const selectedHeadlines = headlinesToUse.slice(0, headlinesToAnalyze);
+
+    // ✨ NEW: Select top 3 for enrichment (quality over quantity)
+    // Prioritize diversity: pick from different sources if possible
+    const selectedForEnrichment = headlinesToUse.slice(0, 3);
+
+    if (selectedForEnrichment.length === 0) {
+      console.error('[Content Source] ❌ No headlines available for enrichment');
+      return null;
+    }
+
+    // ✨ NEW: Enrich the top 3 articles with full content
+    console.log(`[Content Source] 📰 Enriching ${selectedForEnrichment.length} articles for deep Socratic analysis...`);
+    const enrichedArticles = await enrichArticles(
+      selectedForEnrichment,
+      GENERATION_CONFIG.enrichment.maxConcurrent
+    );
+
+    // Filter out articles that failed to enrich
+    const successfulArticles = enrichedArticles.filter(article =>
+      article.fullText && article.fullText.length > 200
+    );
+
+    if (successfulArticles.length === 0) {
+      console.error('[Content Source] ❌ No articles successfully enriched');
+      return null;
+    }
+
+    console.log(`[Content Source] ✅ Successfully enriched ${successfulArticles.length}/${enrichedArticles.length} articles`);
 
     // Build source metadata for tracking
-    const sourceMetadata = selectedHeadlines.map((h, idx) => ({
+    const sourceMetadata = successfulArticles.map((article, idx) => ({
       index: idx + 1,
-      url: h.url,
-      headline: h.headline
+      url: article.url,
+      headline: article.headline
     }));
 
-    console.log(`[Content Source] ✅ Final selection: ${selectedHeadlines.length} headlines for pattern analysis`);
-
     return {
-      headlines: selectedHeadlines,
+      articles: successfulArticles, // ✨ CHANGED: Return enriched articles instead of headlines
       sourceMetadata,
-      totalHeadlines: selectedHeadlines.length,
-      // Include recent content for the prompt to avoid repetition
+      totalHeadlines: successfulArticles.length,
       recentContent: usedContent,
       usedSourceUrls
     };

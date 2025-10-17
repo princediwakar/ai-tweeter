@@ -43,6 +43,8 @@ const PERSONA_CONFIG = {
       // 'https://economictimes.indiatimes.com/tech/funding/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       // 'https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms'
+      // 'https://www.techcircle.in/rss/technology/',
+      // 'https://sajithpai.com/feed/',
     ],
   },
 
@@ -57,9 +59,10 @@ const PERSONA_CONFIG = {
     deduplicationDays: 5,
     feeds: {
       business: [
-      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
+      // 'https://www.techcircle.in/rss/technology/'
       // 'https://www.livemint.com/rss/technology',
       // 'https://techcrunch.com/category/apps/feed/',
       // 'https://techcrunch.com/category/startups/feed',

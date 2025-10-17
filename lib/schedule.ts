@@ -52,51 +52,52 @@ const THREAD_A = 'business_storyteller';
 // Thread B: Cricket Storyteller
 const THREAD_B = 'cricket_storyteller';
 /**
- * OPTIMIZED SCHEDULES FOR 96-FOLLOWER ACCOUNT
- * 
+ * OPTIMIZED SCHEDULES FOR 96-FOLLOWER ACCOUNT (60-Day Pattern Spotter Focus)
+ *
  * Philosophy at this stage:
  * - Consistency > Volume (build posting habit)
  * - Quality > Quantity (every tweet must earn engagement)
- * - Mix personas for variety (satirist morning, pattern afternoon)
- * - Avoid posting fatigue (you're manually reviewing these)
- * 
- * Target: 8-10 tweets/week = 1-2/day
- * Mix: 50/50 Satirist/Pattern Spotter (variety > specialization at small scale)
+ * - Single persona mastery (Pattern Spotter with 3 rotating lanes for variety)
+ * - Sustainable pace (5 tweets/week leaves energy for engagement)
+ * - Focus on testing which lanes get most saves/replies
+ *
+ * Target: 5 tweets/week
+ * Strategy: Pattern Spotter only, lane rotation provides tonal variety
+ * Goal: Reach 200-300 followers in 60 days via content + engagement
  */
 
 // ============================================================================
-// TWITTER GENERATION SCHEDULE
+// TWITTER GENERATION SCHEDULE (60-Day Pattern Spotter Focus)
 // ============================================================================
 const princeGenerationPattern: DailySchedule = {
+  // Pattern Spotter 5x/week: Sustainable quality over volume
   // Generate 1-2 hours before posting to allow review/editing
-  // Pattern: Satirist (morning) + Pattern Spotter (afternoon) for content variety
   0: {}, // Sunday - rest
-  1: { 9: ['satirist'] }, // Monday - 1 morning tweet
-  2: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Tuesday - morning data + afternoon insight
-  3: { 9: ['satirist'] }, // Wednesday - 1 morning tweet
-  4: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Thursday - morning data + afternoon insight
-  5: { 9: ['pattern_spotter'] }, // Friday - 1 pattern (lighter)
-  6: { 9: ['satirist'] }, // Saturday - 1 weekend data hit
+  1: { 9: ['pattern_spotter'] }, // Monday - morning insight (Bullshit Detector bias)
+  2: { 13: ['pattern_spotter'] }, // Tuesday - afternoon insight (Tactical Playbook bias)
+  3: { 9: ['pattern_spotter'] }, // Wednesday - morning insight (Business Model bias)
+  4: { 13: ['pattern_spotter'] }, // Thursday - afternoon insight (Tactical/Detector mix)
+  5: { 9: ['pattern_spotter'] }, // Friday - morning insight (Weekly wildcard)
+  6: {}, // Saturday - rest
 };
-// Total: 9 tweets/week (5 satirist, 4 pattern_spotter) - balanced mix
+// Total: 5 tweets/week (pattern_spotter only) - focus on lane variety & engagement
 
 // ============================================================================
-// TWITTER POSTING SCHEDULE
+// TWITTER POSTING SCHEDULE (60-Day Pattern Spotter Focus)
 // ============================================================================
 const princePostingPattern: DailySchedule = {
-  // Optimized for Indian audience peak times + content type matching
-  // Morning (9 AM): Satirist - data hits for commute/coffee time
-  // Afternoon (1 PM): Pattern Spotter - insights for lunch break thinking
-  
+  // Pattern Spotter 5x/week: Mix of morning (9am) and afternoon (1pm) for variety
+  // All posts optimized for Indian audience peak engagement times
+
   0: {}, // Sunday - rest
-  1: { 9: ['satirist'] }, // Monday morning data
-  2: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Tuesday: data morning, pattern lunch
-  3: { 9: ['satirist'] }, // Wednesday morning data
-  4: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Thursday: data morning, pattern lunch
-  5: { 9: ['pattern_spotter'] }, // Friday morning pattern (lighter for weekend)
-  6: { 11: ['satirist'] }, // Saturday late morning data hit
+  1: { 9: ['pattern_spotter'] }, // Monday morning
+  2: { 13: ['pattern_spotter'] }, // Tuesday afternoon
+  3: { 9: ['pattern_spotter'] }, // Wednesday morning
+  4: { 13: ['pattern_spotter'] }, // Thursday afternoon
+  5: { 9: ['pattern_spotter'] }, // Friday morning
+  6: {}, // Saturday - rest
 };
-// Total: 9 posts/week (5 satirist morning, 4 pattern afternoon/Friday)
+// Total: 5 posts/week (pattern_spotter only)
 
 // ============================================================================
 // TWITTER ENGAGEMENT SCHEDULE

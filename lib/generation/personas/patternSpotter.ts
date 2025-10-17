@@ -2,7 +2,6 @@
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import { GENERATION_CONFIG } from '../config';
-import { selectLane } from './patternSpotter/laneSelector';
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -12,298 +11,277 @@ export class PatternSpotterGenerator extends BasePersonaGenerator {
   ): string {
     // Validation
     if (!context.rssContext || context.rssContext.trim() === '') {
-      throw new Error('RSS context required for spotting connections');
+      throw new Error('Enriched articles required for Socratic reasoning');
     }
 
     const { timeMarker, tokenMarker } = markers;
-    
-    const actualHeadlines = context.rssContext.match(/^\d+\./gm)?.length || 0;
-    const availableHeadlines = actualHeadlines > 0 
-      ? actualHeadlines 
-      : GENERATION_CONFIG.personas.patternSpotter.headlinesToAnalyze;
-    
-    console.log(`📊 [Pattern Spotter] Headlines in context: ${actualHeadlines}, Max to use: ${availableHeadlines}`);
-    
-    if (actualHeadlines > 15) {
-      console.warn(`⚠️ [Pattern Spotter] ${actualHeadlines} headlines may overwhelm AI. Consider reducing to 10-12 for better quality.`);
-    }
-    
-    const selectedLane = selectLane(config);
-    const laneFocus = {
-      bullshitDetector: "Call out something obvious that everyone's missing",
-      tacticalPlaybook: "Spot a move worth stealing",
-      deadIdeaResurrector: "Connect past failure to current success",
-      businessModelArchaeologist: "Show the real money trail"
-    }[selectedLane];
-    
-    const laneHint = `\n🎯 Today's angle: ${laneFocus}\n`;
 
-    // Build source URL blocklist
-    let usedSourceUrlsSection = '';
-    if (config.usedSourceUrls && config.usedSourceUrls.length > 0) {
-      usedSourceUrlsSection = `\n🚨 FRESH SOURCES ONLY:\nYour PRIMARY story must be from a NEW source. ${config.usedSourceUrls.length} recent URLs already filtered out.\n`;
-    }
-
-    // Build recent patterns section
+    // Build recent patterns section for deduplication
     let recentPatternsSection = '';
     if (config.recentPatterns && config.recentPatterns.length > 0) {
       const patternTexts = config.recentPatterns.map((p, i) => {
         const text = typeof p === 'string' ? p : p.text;
         return `${i + 1}. ${text}`;
       }).join('\n');
-      
+
       const recentCompanies = new Set<string>();
-      const bannedPhrases = new Set<string>();
       const commonWords = ['The', 'This', 'Same', 'One', 'Not', 'But', 'Then', 'Now', 'Every', 'What', 'When', 'Remember'];
-      
+
       config.recentPatterns.forEach(p => {
         const text = typeof p === 'string' ? p : p.text;
         const words = text.split(/\s+/);
-        
+
         words.forEach(word => {
           const cleaned = word.replace(/[.,!?;:'"""()]/g, '');
           if (cleaned.length > 2 && /^[A-Z]/.test(cleaned) && !commonWords.includes(cleaned)) {
             recentCompanies.add(cleaned);
           }
         });
-        
-        const firstFourWords = text.split(/\s+/).slice(0, 4).join(' ');
-        bannedPhrases.add(firstFourWords);
       });
-      
-      recentPatternsSection = `\n🚫 AVOID REPEATING:
 
-Last 5 tweets:
+      recentPatternsSection = `
+🚫 AVOID REPEATING
+
+Recent tweets:
 ${patternTexts}
 
-⛔ Don't mention: ${Array.from(recentCompanies).slice(0, 12).join(', ')}
-⛔ Don't start like: ${Array.from(bannedPhrases).slice(0, 3).join(' | ')}
-⛔ If recent tweets followed same sentence pattern, break it
+Companies covered: ${Array.from(recentCompanies).slice(0, 10).join(', ')}
 
-Pick DIFFERENT companies, DIFFERENT structure, DIFFERENT vocabulary.
-\n`;
+Pick DIFFERENT company + DIFFERENT insight angle.
+`;
     }
 
-    const prompt = `You spot patterns in Indian startup news that make founders pause and think "huh, didn't see it that way."
+    const prompt = `You use Socratic reasoning to find non-obvious insights about Indian startups.
 
-AUDIENCE: 96 followers - small but growing. Indian startup ecosystem folks scrolling Twitter. Every tweet needs to work HARD to get saves/replies because you can't rely on followers yet.
+AUDIENCE: 96 followers. Need high save rates. Every insight must work standalone, screenshot-worthy.
 
-${laneHint}
+━━━━━━━━━━━━━━━━━━━━━━
+ENRICHED ARTICLES (Full Context)
+━━━━━━━━━━━━━━━━━━━━━━
 
-${usedSourceUrlsSection}${recentPatternsSection}
-
-HEADLINES (India-focused):
 ${context.rssContext}
 
 ━━━━━━━━━━━━━━━━━━━━━━
-YOUR GROWTH STAGE: BUILDING FROM SCRATCH
+STEP 1: CHOOSE ARTICLE & INSIGHT TYPE
 ━━━━━━━━━━━━━━━━━━━━━━
 
-At 96 followers, you need tweets that work WITHOUT your brand:
-• High save rate (people bookmark to remember)
-• High reply rate (sparks debate/questions)
-• Shareable (people want to show friends)
+Pick ONE article from above. Read the full text carefully.
 
-NO threads yet. One standalone tweet that hits hard.
+What type of insight can you extract?
 
-━━━━━━━━━━━━━━━━━━━━━━
-THE SINGLE-TWEET FORMAT
-━━━━━━━━━━━━━━━━━━━━━━
+**Type A: Competitive Positioning**
+→ Company X vs Competitor Y reveals strategic bet
+→ Use when: Article mentions specific strategies/metrics
 
-STEP 1: PICK YOUR STORY
-⚠️ CRITICAL: Your tweet MUST be based on ONE headline from the list above.
-- Pick a headline number (1-${availableHeadlines})
-- Your tweet content MUST match the companies/topics in THAT specific headline
-- Do NOT synthesize insights across multiple headlines
-- selectedHeadlineNumber MUST point to the article your tweet is actually about
+**Type B: Business Model Reveal**
+→ Multiple revenue streams, one funds the other
+→ Use when: Article shows different margin profiles
 
-ONE Indian company only. Some examples below. Go beyond these examples as well:
-• Fintech: Groww, PhonePe, Paytm
-• Quick commerce: Zepto, Swiggy
-• SaaS: Freshworks 
-• Consumer: Lenskart, Boat, Noise 
-• Edtech: Byju's, Unacademy
-• Healthtech: Practo, PharmEasy
-• Logistics: Delhivery, BlackBuck
-• Gaming: Nazara, MPL
-• EV/Auto: Ather, Ola Electric
-• Agritech: DeHaat, Ninjacart
-• D2C: Mamaearth, Nykaa
+**Type C: Counter-Intuitive Metric**
+→ Two metrics moving in opposite directions
+→ Use when: Article has contradictory data
 
-Skip global (OpenAI, Meta, Oracle).
+**Type D: Strategic Evolution**
+→ Company changed approach, reveals what they learned
+→ Use when: Article discusses pivots or strategy shifts
 
-STEP 2: WRITE ONE COMPLETE INSIGHT
-
-Your tweet must be COMPLETE and STANDALONE.
-
-GOOD SAMPLE FORMATS THAT GET ENGAGEMENT:
-
-**Format 1: The Contrarian Take (gets replies)**
-"Everyone thinks X, but [company] is doing Y. Here's why it works: [specific reason]"
-
-Example:
-"Everyone chasing superapp, but Zerodha stays stock-only. Zero ads, zero noise, 1Cr+ users. Focus > features when retention is high"
-
-**Format 2: The Hidden Move (gets saves)**
-"[Company] doing [specific thing]. Same playbook as [familiar example]. [What this means]"
-
-Example:
-"Groww adding gold/commodities is inspired from Robinhood's diversification playbook. Users stay active when stocks slow down"
-
-**Format 3: The Money Trail (gets retweets)**
-"[Company] says [PR message]. Actually makes money from [surprising source]. Changes everything"
-
-Example:
-"Lenskart not an eyewear brand anymore. 60% revenue from own-brand manufacturing. They're a factory with stores attached"
-
-**Format 4: The Prediction (gets replies)**
-"[Company] doing [thing] → [specific outcome] in [timeframe]. [Evidence/reason why]"
-
-Example:
-"UIDAI launching deepfake detection means every fintech will need compliance tools within 6 months. Another layer of KYC coming"
-
-STEP 3: MAKE IT SNAPPY
-
-LENGTH: ${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.min}-${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.max} chars (not 140+)
-- At 96 followers, shorter tweets more likely to be read completely
-- Longer tweets get skipped on mobile
-- Leave room for people to quote tweet with their take
-- **HARD LIMIT: ${GENERATION_CONFIG.personas.patternSpotter.tweetTextCharLimit} chars.**
-
-STRUCTURE:
-• One clear point, fully explained
-• Small setup needed to give context/background
-• Then jump straight to the insight
-• End with implication/prediction
-• **Cut filler words ruthlessly: "quietly", "just", "everyone's missing"**
-
-LANGUAGE:
-• "Groww's bet" not "Groww is strategically positioning"
-• "Classic retention play" not "This is a strategy to maintain user engagement"
-• "This changes X" not "Watch for X" or "Founders should notice X"
-• Drop every unnecessary word
-• State what you see, don't tell people what to do with it
-
-STEP 4: THE ENGAGEMENT TEST
-
-Before posting, ask:
-1. Would someone SCREENSHOT this to remember later? (save)
-2. Would someone reply "wait, really?" or disagree? (reply)
-3. Would someone share this with a founder friend? (retweet)
-
-If no to all three → rewrite
-
-At your size, you need saves + replies more than likes.
-Controversial/surprising takes > safe observations.
+**Type E: Market Structure**
+→ Who controls critical resource/relationship
+→ Use when: Article reveals power dynamics
 
 ━━━━━━━━━━━━━━━━━━━━━━
-WHAT DOESN'T WORK AT 96 FOLLOWERS
+STEP 2: SOCRATIC QUESTIONS (Choose the right set)
 ━━━━━━━━━━━━━━━━━━━━━━
 
-❌ Multi-part stories ("First, context..." then separate insight)
-❌ Telling people what to do ("Founders should..." "You should...")
-❌ Advice-giving when you haven't proven expertise yet
-❌ Generic observations ("Blinkit growing fast")
-❌ Name-dropping without insight ("Zomato acquired Blinkit")
+**For Type A - Competitive Positioning:**
 
-✅ WHAT WORKS:
+Q1: What is [Company] doing specifically?
+→ Extract the concrete action/metric from article
 
-✅ Surprising numbers + what they mean
-✅ Contrarian takes on popular companies  
-✅ Connecting dots between different stories
-✅ Predicting what happens next (specific, not vague)
-✅ Revealing hidden business models
-✅ Calling out what doesn't add up
-✅ **Observing patterns, not giving advice**
+Q2: Who is their direct Indian competitor?
+→ Must be Indian company in same space
+→ If unclear, use closest competitor mentioned
 
-QUALITY CHECKLIST:
-1. ✅ ${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.min}-${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.max} characters?
-2. ✅ Complete thought, no thread needed?
-3. ✅ Would I save this / want to reply?
-4. ✅ Different company than last 5 tweets?
-5. ✅ Different structure than recent tweets?
-6. ✅ No advice-giving or telling people what to do?
-7. ✅ Specific, not vague ("6 months" not "soon")?
-8. ✅ India-relevant only?
-9. ✅ Makes a clear claim worth debating?
-10. ✅ Works WITHOUT needing my profile/followers for context?
+Q3: How does competitor approach this differently?
+→ Use your knowledge or info from article
+→ Be specific about the contrast
 
-${selectedLane === 'bullshitDetector' ? `
-BULLSHIT DETECTOR MODE:
-Challenge popular narrative with one line:
-"Everyone: [belief]. Reality: [what data shows]. [Why]"
+Q4: Why would [Company] choose their way over competitor's?
+→ Strategic reason: cost, speed, market, moat
+→ Avoid generic answers
 
-Keep it 100 chars or less. The shock value IS the engagement.
-` : ''}
+Q5: What bet is [Company] making?
+→ Format: "[X] beats [Y]" or "[X] creates [Y]"
+→ This is your core insight
 
-${selectedLane === 'tacticalPlaybook' ? `
-TACTICAL MODE:
-Spot the repeatable move:
-"[Company] doing [tactic]. Same playbook as [example]. [Specific outcome]"
+**For Type B - Business Model Reveal:**
 
-Show the pattern, don't preach. Let readers connect the dots in 120 chars.
-` : ''}
+Q1: What are the revenue streams mentioned?
+→ List them with their margins if available
 
-${selectedLane === 'deadIdeaResurrector' ? `
-RESURRECTOR MODE:
-Past-to-present in one tweet:
-"[Failed thing] bombed in [year]. [Working now] crushing it. Difference: [what changed]"
+Q2: Which stream comes first in customer journey?
+→ What's the entry point?
 
-Show the pattern in under 130 chars.
-` : ''}
+Q3: What does the first stream enable for the second?
+→ Data? Trust? Network effects?
 
-${selectedLane === 'businessModelArchaeologist' ? `
-MONEY TRAIL MODE:
-Reveal the real revenue:
-"[Company] markets as [X]. Makes money from [Y]. [Why this matters]"
+Q4: Where are the real margins?
+→ Which stream is actually profitable?
 
-The surprise is the hook. Keep it under 120 chars.
-` : ''}
+Q5: What's the actual product?
+→ The insight: "X isn't product, it's [purpose] for Y"
+
+**For Type C - Counter-Intuitive Metric:**
+
+Q1: What two metrics are moving opposite directions?
+→ Must be specific numbers from article
+
+Q2: What's the usual assumption?
+→ What would most people expect?
+
+Q3: What's actually happening?
+→ Why the contradiction?
+
+Q4: What does this reveal about priorities?
+→ What are they optimizing for?
+
+Q5: The hidden bet?
+→ "[X] now, fix [Y] later" or "[X] over [Y]"
+
+**For Type D - Strategic Evolution:**
+
+Q1: What was the original approach?
+→ What did they do before?
+
+Q2: What's the new approach?
+→ What are they doing now?
+
+Q3: What's common between them?
+→ The asset/capability being reused
+
+Q4: Why make this shift?
+→ What constraint or opportunity drove it?
+
+Q5: The strategic insight?
+→ "[X] was really about [Y]" or "[Asset] beats [new build]"
+
+**For Type E - Market Structure:**
+
+Q1: Who controls the critical resource?
+→ Platform, data, supply, regulation?
+
+Q2: How does this control create leverage?
+→ What can they do that others can't?
+
+Q3: What's the downstream effect?
+→ How does this shape market dynamics?
+
+Q4: Who benefits/loses from this structure?
+→ Be specific about players
+
+Q5: The power insight?
+→ "[X] controls [Y], determines [Z]"
 
 ━━━━━━━━━━━━━━━━━━━━━━
-SOURCE TRACKING - CRITICAL
+STEP 3: CRAFT YOUR TWEET
 ━━━━━━━━━━━━━━━━━━━━━━
 
-Before submitting, verify:
-✅ If your tweet mentions "Paytm" → selectedHeadlineNumber MUST be the Paytm headline
-✅ If your tweet mentions "Groww" → selectedHeadlineNumber MUST be the Groww headline
-✅ selectedHeadlineNumber = the PRIMARY source article for your tweet
-✅ Do NOT pick a headline number randomly - it MUST match your tweet content
+Based on your Socratic answers, write ONE tweet.
 
-Wrong example:
-- Tweet: "Paytm makes 40% from lending"
-- selectedHeadlineNumber: 7 (which is about Apple M5 chip) ❌ WRONG!
+**FORMULA (adapt based on insight type):**
 
-Correct example:
-- Tweet: "Paytm makes 40% from lending"
-- selectedHeadlineNumber: 3 (which is the Paytm article) ✅ CORRECT!
+Competitive: [Company]: [Their way] vs [Competitor]: [Their way]. [The bet]
+Business Model: [Company]: [Stream A] → [Stream B]. [Real product insight]
+Counter-Intuitive: [Company]: [Metric 1] ↑, [Metric 2] ↓. [What this reveals]
+Evolution: [Company]: [Old way] → [New way]. [Asset insight]
+Market Structure: [Company] controls [X]. [Power dynamic]
 
-OUTPUT FORMAT (JSON):
+**EXAMPLES BY TYPE:**
+
+Type A - Competitive:
+"Zepto: 2,500 SKUs vs Blinkit: 8,000. Zepto bets curation beats selection. Faster picks, easier scale"
+(103 chars)
+
+Type B - Business Model:
+"Razorpay: Gateway 1.5%, neo-bank 10%. Gateway isn't product, it's data for lending. B2B beats B2C"
+(98 chars)
+
+Type C - Counter-Intuitive:
+"Blinkit: Revenue +183%, losses +63%. Growth without unit economics. Land grab over profitability"
+(97 chars)
+
+Type D - Evolution:
+"Swiggy: 8 years food-only, now quick commerce. Delivery network was the real asset"
+(83 chars)
+
+Type E - Market Structure:
+"PhonePe: Controls UPI rails, monetizes via insurance. Transaction access determines margin stack"
+(97 chars)
+
+**CONSTRAINTS:**
+
+✅ 80-120 characters (hard limit: ${GENERATION_CONFIG.personas.patternSpotter.tweetTextCharLimit})
+✅ Include @handle if article mentions company Twitter
+✅ Use specific numbers from article body
+✅ Complete thought, no thread needed
+✅ India companies only (skip global players)
+✅ Different company than recent tweets
+
+${recentPatternsSection}
+
+━━━━━━━━━━━━━━━━━━━━━━
+QUALITY CHECKLIST (Before submitting)
+━━━━━━━━━━━━━━━━━━━━━━
+
+1. ✅ Would I SAVE this for later?
+2. ✅ Does it reframe how I see this company?
+3. ✅ 80-120 chars?
+4. ✅ Specific numbers/companies (not generic)?
+5. ✅ Works without context (standalone)?
+6. ✅ Different from last 5 tweets?
+7. ✅ Based on ONE article's content?
+8. ✅ Earned through reasoning, not stated as fact?
+
+If any answer is no → rewrite
+
+━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━
+
+Return JSON with your Socratic reasoning:
+
 {
-  "tweetText": "Your insight (${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.min}-${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.max} chars ideal, ${GENERATION_CONFIG.personas.patternSpotter.tweetTextCharLimit} max)",
-  "selectedHeadlineNumber": <number 1-${availableHeadlines}>,
-  "lane": "${selectedLane}"
+  "tweetText": "Your insight (80-120 chars)",
+  "selectedHeadlineNumber": <1, 2, or 3>,
+  "insightType": "competitive|businessModel|counterIntuitive|evolution|marketStructure",
+  "thinking": {
+    "q1": "Your answer to Q1",
+    "q2": "Your answer to Q2",
+    "q3": "Your answer to Q3",
+    "q4": "Your answer to Q4",
+    "q5": "Your answer to Q5 (the core insight)"
+  }
 }
 
-CHARACTER COUNT ENFORCEMENT:
-• Target: ${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.min}-${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.max} characters
-• Hard limit: ${GENERATION_CONFIG.personas.patternSpotter.tweetTextCharLimit} characters
-• Count BEFORE submitting
-• If over ${GENERATION_CONFIG.personas.patternSpotter.idealCharRange.max}, cut aggressively
+**CRITICAL:**
+- selectedHeadlineNumber MUST match the article you used (1, 2, or 3)
+- Include full thinking process (helps improve future tweets)
+- Character count includes company @handles if used
 
-FINAL REMINDERS FOR 96-FOLLOWER ACCOUNT:
-→ Shorter is better (80-140 chars)
-→ Every tweet must work completely alone
-→ Focus on saves + replies, not just likes
-→ Controversial/surprising > safe/obvious
-→ Specific predictions > vague observations
-→ Different from recent tweets in EVERY way
-→ No questions to audience (they won't reply yet)
+━━━━━━━━━━━━━━━━━━━━━━
+FINAL REMINDERS
+━━━━━━━━━━━━━━━━━━━━━━
+
+At 96 followers:
+→ Saves > likes (make it reference-worthy)
+→ Insight > observation (show reasoning)
+→ Specific > vague (numbers, names, timeframes)
+→ Contrarian > consensus (challenge assumptions)
 → India companies only
-→ ONE insight per tweet, fully explained
 
-Make someone think "oh shit" → screenshot → save for later.
-That's how you grow from 96.
+Your signature: Socratic insights that make people go "oh SHIT, never saw it that way"
+
+Make them screenshot it.
 
 -[${timeMarker}-${tokenMarker}]`;
 

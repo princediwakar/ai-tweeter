@@ -158,8 +158,19 @@ function parseAndValidateTweetResponse(
       if (persona === 'satirist' || persona === 'pattern_spotter') {
         if (data.selectedHeadlineNumber) {
           const headlineNumber = data.selectedHeadlineNumber;
-          const sourcePattern = new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm');
-          const match = rssContext.match(sourcePattern);
+
+          // Try multiple patterns to support both old and new formatters
+          const patterns = [
+            new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm'),      // Old format: [SOURCE_X]: URL
+            new RegExp(`ARTICLE ${headlineNumber}[\\s\\S]*?\\*\\*Source:\\*\\* (.+?)(?=\\n|$)`, 'm'), // New format: **Source:** URL
+          ];
+
+          let match = null;
+          for (const pattern of patterns) {
+            match = rssContext.match(pattern);
+            if (match && match[1]) break;
+          }
+
           if (match && match[1]) {
             sourceUrl = match[1].trim();
             console.log(`📰 [${persona}] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);

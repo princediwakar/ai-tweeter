@@ -52,26 +52,52 @@ export function formatSatiristContext(ctx: SatiristContext): string {
 
 /**
  * Formats Pattern Spotter context into a prompt string
+ * ✨ UPDATED: Now formats enriched articles with full text for Socratic reasoning
  */
 export function formatPatternSpotterContext(ctx: PatternSpotterContext): string {
-  const sections: string[] = [
-    'TRENDING HEADLINES ACROSS TECH, BUSINESS & CULTURE',
-    '------------------------------------------------',
-    ''
-  ];
+  const sections: string[] = [];
 
-  ctx.headlines.forEach((h, idx) => {
+  ctx.articles.forEach((article, idx) => {
     const num = idx + 1;
-    sections.push(`${num}. ${h.headline}`);
-    if (h.description) {
-      sections.push(`   Context: ${h.description}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━━━━`);
+    sections.push(`ARTICLE ${num}`);
+    sections.push(`━━━━━━━━━━━━━━━━━━━━━━`);
+    sections.push('');
+    sections.push(`**Headline:** ${article.headline}`);
+    sections.push('');
+
+    if (article.description) {
+      sections.push(`**Summary:** ${article.description}`);
+      sections.push('');
     }
-    sections.push(`   [SOURCE_${num}]: ${h.url}`);
+
+    // Include full text for Socratic analysis
+    if (article.fullText) {
+      const truncated = article.fullText.substring(0, 2000); // First 2000 chars
+      sections.push(`**Full Text:**`);
+      sections.push(truncated);
+      if (article.fullText.length > 2000) {
+        sections.push('[... article continues ...]');
+      }
+      sections.push('');
+    }
+
+    // Include key metrics if extracted
+    if (article.keyMetrics && article.keyMetrics.length > 0) {
+      sections.push(`**Key Metrics (from article):**`);
+      sections.push(article.keyMetrics);
+      sections.push('');
+    }
+
+    // Include entities for context
+    if (article.entities.length > 0) {
+      sections.push(`**Mentioned:** ${article.entities.slice(0, 10).join(', ')}`);
+      sections.push('');
+    }
+
+    sections.push(`**Source:** ${article.url}`);
     sections.push('');
   });
-
-  sections.push('------------------------------------------------');
-  sections.push(`Total: ${ctx.totalHeadlines} headlines. Identify emerging patterns and synthesize a meta-insight.`);
 
   return sections.join('\n');
 }

@@ -106,7 +106,7 @@ const princeEngagementPattern: HourlySchedule = {
   // Goal: Get noticed, not spam
   // Time budget: 15-20 min per session
   
-  9: ['engagement'],   // Post-posting: reply to morning tweets
+  10: ['engagement'],   // Post-posting: reply to morning tweets
   13: ['engagement'],  // Lunch break: reply to trending topics
   20: ['engagement'],  // Evening: reply to day's popular tweets (when big accounts are active)
 };
@@ -123,7 +123,7 @@ const gandhiEngagementPattern: HourlySchedule = {
 
   9: ['engagement'],   // Morning: Engage with early morning posts from leaders
   10: ['engagement'],   // Morning: Engage with early morning posts from leaders
-  2: ['engagement'],  // Evening: Engage with day's political/social discussions
+  14: ['engagement'],  // Evening: Engage with day's political/social discussions
   21: ['engagement'],  // Night: Reflect on day's events with wisdom
 };
 // Total: 4 sessions/day, targeting social/political discourse

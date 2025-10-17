@@ -56,91 +56,77 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: false, message: `Daily engagement limit of ${engagementConfig.rules.max_engagements_per_day} reached.` });
   }
   
-  // 5. Rotate and Scout for Activity
-  const now = new Date();
-  const minute = now.getMinutes();
+  // 5. Scout for Activity (all targets, no rotation needed)
   const targets = engagementConfig.priority_targets;
-  const groupSize = 6;  // Increased to 6 to widen search and improve engagement rate
-  const groupIndex = Math.floor(minute / 15) % Math.ceil(targets.length / groupSize);
-  const targetGroup = targets.slice(groupIndex * groupSize, (groupIndex + 1) * groupSize);
+  console.log(`[Engage API] Checking ${targets.length} target(s): ${targets.map(t => t.username).join(', ')}`);
 
-  if (targetGroup.length === 0) {
-     console.log(`[Engage API] Skipping: No targets scheduled for this check (Group ${groupIndex}).`);
-     return NextResponse.json({ success: false, message: `No targets scheduled for this check (Group ${groupIndex}).` });
-  }
-  
-  console.log(`[Engage API] Checking target group ${groupIndex + 1}: ${targetGroup.map(t => t.username).join(', ')}`);
-  const candidateTweets = await scoutAndFetch(account, targetGroup);
+  const candidateTweets = await scoutAndFetch(account, targets);
 
   if (candidateTweets.length === 0) {
-    const checkedAccounts = targetGroup.map(t => t.username).join(', ');
-    console.log(`[Engage API] Result: No recent activity found. Checked accounts: ${checkedAccounts}`);
+    console.log(`[Engage API] Result: No recent activity found from any targets.`);
     return NextResponse.json({
       success: false,
-      message: 'No recent activity from target group.',
-      checked_accounts: targetGroup.map(t => t.username)
+      message: 'No recent activity from targets.',
+      checked_accounts: targets.map(t => t.username)
     });
   }
 
-  // 6. Filter out already-engaged tweets
-  const unenagagedTweets = [];
+  // 6. Filter out already-engaged tweets and check cooldowns
+  const validTweets = [];
   for (const tweet of candidateTweets) {
+    // Check if already engaged with this specific tweet
     const alreadyEngaged = await hasEngagedWithTweet(account.id, tweet.id);
-    if (!alreadyEngaged) {
-      unenagagedTweets.push(tweet);
-    } else {
-      console.log(`[Engage API] Skipping tweet ${tweet.id} - already engaged`);
+    if (alreadyEngaged) {
+      console.log(`[Engage API] Skipping tweet ${tweet.id} from ${tweet.targetUsername} - already engaged`);
+      continue;
     }
+
+    // Check target cooldown
+    const lastEngagementTime = await getLastEngagementForTarget(account.id, tweet.targetUsername);
+    if (lastEngagementTime) {
+      const hoursSinceLast = (new Date().getTime() - lastEngagementTime.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceLast < engagementConfig.rules.min_hours_between_same_target) {
+        console.log(`[Engage API] Skipping tweet from ${tweet.targetUsername} - on cooldown (${hoursSinceLast.toFixed(1)}h ago, need ${engagementConfig.rules.min_hours_between_same_target}h)`);
+        continue;
+      }
+    }
+
+    validTweets.push(tweet);
   }
 
-  if (unenagagedTweets.length === 0) {
-    console.log('[Engage API] Result: All fetched tweets have already been engaged with.');
-    return NextResponse.json({ success: false, message: 'All tweets have already been engaged with.' });
+  if (validTweets.length === 0) {
+    console.log('[Engage API] Result: All fetched tweets are either already engaged or on cooldown.');
+    return NextResponse.json({ success: false, message: 'All tweets are already engaged or on cooldown.' });
   }
 
   // 7. Select Best Tweet
-  const tweetToEngage = selectBestTweet(unenagagedTweets);
+  const tweetToEngage = selectBestTweet(validTweets);
   if (!tweetToEngage) {
     console.log('[Engage API] Result: Found tweets, but none passed the quality filters.');
     return NextResponse.json({ success: false, message: 'No tweets passed quality filters.' });
   }
 
-  // 8. Map author_id to target username
-  // Since we searched "(from:user1 OR from:user2 OR from:user3)", we know any tweet returned
-  // must be from one of those targets. However, we need to determine WHICH ONE.
-  // The Twitter API doesn't include username in the response by default, only author_id.
-  // Solution: For each candidate tweet, we can match it by checking if we have multiple tweets
-  // from different authors, or we can just use the first target if we only got one tweet.
+  // 8. Get target info (now embedded in tweet from activityScout)
+  const targetUsername = (tweetToEngage as typeof tweetToEngage & { targetUsername: string }).targetUsername;
+  const targetTier = (tweetToEngage as typeof tweetToEngage & { targetTier: number }).targetTier;
 
-  // TEMPORARY FIX: Since we're getting tweets from a group and selecting the best one,
-  // and we know it's from one of our targets, let's just use the first target for now.
-  // TODO: Enhance this by either:
-  // 1. Requesting 'expansions=author_id&user.fields=username' in the search query
-  // 2. Maintaining a local cache of author_id -> username mappings
-  // 3. Making a separate API call to lookup the user by ID
-
-  const targetInfo = targetGroup[0]; // Pick first target as a fallback
-  console.log(`[Engage API] Using target ${targetInfo.username} for tweet ${tweetToEngage.id} (author_id: ${tweetToEngage.author_id})`);
-  console.warn(`[Engage API] ⚠️  WARNING: Cannot definitively match author_id to target without user expansion. Using first target in group.`);
-
-  // 9. Check Target Rate Limit
-  const lastEngagementTime = await getLastEngagementForTarget(account.id, targetInfo.username);
-  if (lastEngagementTime) {
-    const hoursSinceLast = (new Date().getTime() - lastEngagementTime.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLast < engagementConfig.rules.min_hours_between_same_target) {
-      console.log(`[Engage API] Skipping: Target ${targetInfo.username} is on cooldown (${hoursSinceLast.toFixed(1)}h ago).`);
-      return NextResponse.json({ success: false, message: `Skipping ${targetInfo.username}: Engaged ${hoursSinceLast.toFixed(1)}h ago (cooldown: ${engagementConfig.rules.min_hours_between_same_target}h).` });
-    }
+  // Find the full target object for persona info
+  const targetInfo = targets.find(t => t.username === targetUsername);
+  if (!targetInfo) {
+    console.error(`[Engage API] Failed: Could not find target info for ${targetUsername}`);
+    return NextResponse.json({ error: 'Internal error: target info not found' }, { status: 500 });
   }
 
-  // 10. Generate Reply
+  console.log(`[Engage API] Selected tweet ${tweetToEngage.id} from ${targetUsername} (tier: ${targetTier})`);
+
+  // 9. Generate Reply
   const replyText = await generateEngagementReply(tweetToEngage, targetInfo, engagementConfig.engagement_persona);
   if (!replyText) {
     console.error(`[Engage API] Failed: AI failed to generate a high-quality reply for tweet ${tweetToEngage.id}.`);
     return NextResponse.json({ error: 'Failed to generate a high-quality reply.' }, { status: 500 });
   }
 
-  // 11. Post Reply
+  // 10. Post Reply
   const credentials = {
     apiKey: account.twitter_api_key,
     apiSecret: account.twitter_api_secret,
@@ -151,26 +137,26 @@ export async function GET(request: NextRequest) {
   const replyTweetId = replyResult.data.id;
   console.log(`[Engage API] ✅ Successfully posted reply: ${replyTweetId}`);
 
-  // 12. Log to Database
+  // 11. Log to Database
   await logEngagement({
     account_id: account.id,
-    target_username: targetInfo.username,
+    target_username: targetUsername,
     target_tweet_id: tweetToEngage.id,
     target_tweet_text: tweetToEngage.text,
     reply_tweet_id: replyTweetId,
     reply_text: replyText,
-    discovery_method: 'counts_api',
+    discovery_method: 'user_timeline',
     target_tweet_likes: tweetToEngage.public_metrics?.like_count,
     target_tweet_retweets: tweetToEngage.public_metrics?.retweet_count,
-    tier: targetInfo.tier
+    tier: targetTier
   });
 
   return NextResponse.json({
     success: true,
-    message: `Successfully engaged with ${targetInfo.username}`,
+    message: `Successfully engaged with ${targetUsername}`,
     engagement: {
-      target: targetInfo.username,
-      originalTweetUrl: `https://twitter.com/${targetInfo.username.replace('@', '')}/status/${tweetToEngage.id}`,
+      target: targetUsername,
+      originalTweetUrl: `https://twitter.com/${targetUsername.replace('@', '')}/status/${tweetToEngage.id}`,
       replyUrl: `https://twitter.com/${twitterHandle.replace('@', '')}/status/${replyTweetId}`,
     }
   });

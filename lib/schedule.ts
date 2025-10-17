@@ -106,9 +106,13 @@ const princeEngagementPattern: HourlySchedule = {
   // Goal: Get noticed, not spam
   // Time budget: 15-20 min per session
   
+  9: ['engagement'],   // Post-posting: reply to morning tweets
   10: ['engagement'],   // Post-posting: reply to morning tweets
+  11: ['engagement'],  // Lunch break: reply to trending topics
   13: ['engagement'],  // Lunch break: reply to trending topics
+  19: ['engagement'],  // Evening: reply to day's popular tweets (when big accounts are active)
   20: ['engagement'],  // Evening: reply to day's popular tweets (when big accounts are active)
+  21: ['engagement'],  // Evening: reply to day's popular tweets (when big accounts are active)
 };
 // Total: 3 sessions/day, ~45-60 min total engagement time
 

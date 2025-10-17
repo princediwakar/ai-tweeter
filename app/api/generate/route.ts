@@ -1,5 +1,8 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
+
 // NOTE: Assuming these imports exist and are correct based on your original file structure
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -7,12 +10,11 @@ import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
 import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
 import { logger } from '@/lib/logger';
-import { 
+import {
   getGenerationBatchInfo,
 } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
 import { getPersonaByKey } from '@/lib/personas';
-
 
 
 // MODIFIED: Added sourceUrl to the info type
@@ -23,9 +25,44 @@ interface GeneratedTweetInfo {
   sourceUrl?: string;
 }
 
-type GenerationResultUnion = 
+type GenerationResultUnion =
   { type: 'tweet'; data: GeneratedTweetInfo; needsImage: boolean } |
   { type: 'thread'; data: ThreadGenerationResult };
+
+// <<< MODIFICATION START >>>
+// NEW: Helper function to save debug output to a single file
+/**
+ * Appends generated content to a single local debug file (debug-output.log).
+ * Only intended for use when debugMode is active.
+ * @param data The essential data to save.
+ */
+async function saveDebugOutput(data: { content: string | string[]; persona: string; source?: string; created_at: string }) {
+  try {
+    const debugDir = path.join(process.cwd(), 'debug-tweets');
+    await fs.mkdir(debugDir, { recursive: true });
+
+    const filePath = path.join(debugDir, 'debug-output.log'); // Static filename
+
+    // Handle both single tweets (string) and threads (string[])
+    const contentString = Array.isArray(data.content)
+      ? data.content.join('\n  -> ') // Join thread parts for readability
+      : data.content;
+    
+    // Escape any double quotes within the content to keep the format valid
+    const sanitizedContent = contentString.replace(/"/g, '\\"');
+
+    // Format the output line as per your requested pattern
+    const sourceInfo = data.source ? `\nsource: "${data.source}"` : '';
+    const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;
+
+    await fs.appendFile(filePath, lineToAppend, 'utf-8');
+    logger.info(`[Debug] Appended generation output to ${filePath}`, 'save-debug-output');
+  } catch (error) {
+    // Log the error but don't crash the main process. Debug saving is non-critical.
+    logger.error('[Debug] Failed to save debug output file', 'save-debug-output-error', error as Error);
+  }
+}
+// <<< MODIFICATION END >>>
 
 
 /**
@@ -44,12 +81,12 @@ export async function GET(request: NextRequest) {
     const twitterHandle = searchParams.get('twitter_handle');
     const debugMode = searchParams.get('debug') === 'true';
     const personaOverride = searchParams.get('persona');
-    
-    
+
+
     if (accountId) {
       return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
     }
-    
+
     if (twitterHandle) {
       const account = await accountService.getAccountByTwitterHandle(twitterHandle);
       if (!account) {
@@ -61,10 +98,10 @@ export async function GET(request: NextRequest) {
     }
 
     return await generateForAllAccountsEnhanced(request, debugMode);
-    
+
   } catch (error) {
     logger.error('Enhanced generation failed', 'generate', error as Error);
-    
+
     return NextResponse.json({
       success: false,
       error: 'Failed to start enhanced generation',
@@ -82,7 +119,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const startTime = performance.now(); // START
   const nowIST = getCurrentTimeInIST();
   const callId = Math.random().toString(36).substring(2, 8);
-  
+
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced', { timestamp: new Date().toISOString() });
 
   // --- Initial Setup & Account Check ---
@@ -93,17 +130,17 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       error: `Account ${accountId} not found`
     }, { status: 404 });
   }
-  
+
   const batchInfo = getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
-  
+
   // ... (Persona Override and Skip Logic remains the same)
   if (debugMode && personaOverride) {
     batchInfo.personas = [personaOverride];
     logger.info(`[Enhanced:${callId}] Debug mode: overriding persona to ${personaOverride}`, 'generate-debug');
   }
-  
+
   logger.info(`[Enhanced:${callId}] Account ${accountId} batchInfo: ${JSON.stringify(batchInfo)} (Debug: ${debugMode})`, 'generate-debug');
-  
+
   if (!batchInfo.should_generate && !debugMode) {
     logger.info(`[Enhanced:${callId}] Generation skipped by schedule. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
@@ -114,7 +151,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       timestamp: new Date().toISOString()
     });
   }
-  
+
   if (debugMode && !batchInfo.should_generate) {
     logger.info(`[Enhanced:${callId}] Debug mode enabled - bypassing schedule for account ${accountId}`, 'generate-debug');
   }
@@ -132,10 +169,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const accountTweets = await getTweetsByAccount(accountId);
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
   logger.info(`[Enhanced:${callId}] DB read time: ${((performance.now() - dbReadStart) / 1000).toFixed(2)}s. Pending tweets: ${pendingTweets.length}`, 'generate-timing');
-  
+
   const maxPipelineSize = account.twitter_handle.includes('gibbi') ? 8 : 30;
   const supportsThreading = canGenerateThreads(account);
-  
+
   if (pendingTweets.length >= maxPipelineSize) {
     logger.info(`[Enhanced:${callId}] Generation skipped: pipeline full. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
@@ -151,70 +188,83 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
 
   let targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
-  
+
   // For threading personas, only generate one thread per call  
   const selectedPersonaKey = batchInfo.personas[0];
   const persona = getPersonaByKey(selectedPersonaKey);
   const isThreadingPersona = supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey);
   const shouldGenerateThreads = isThreadingPersona && persona?.content_types?.includes('thread');
-  
+
   if (shouldGenerateThreads) {
     targetBatchSize = 1; // Only one thread per generation call
     logger.info(`[Enhanced:${callId}] Threading persona detected - limiting batch size to 1`, 'generate-batch');
   }
-  
+
   if (targetBatchSize <= 0) {
     logger.info(`[Enhanced:${callId}] Generation skipped: target batch size 0. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
-        success: true,
-        message: `✅ Account pipeline is healthy. No new tweets needed at this time.`,
-        generated: 0,
+      success: true,
+      message: `✅ Account pipeline is healthy. No new tweets needed at this time.`,
+      generated: 0,
     });
   }
-  
+
   const generatedTweets: GeneratedTweetInfo[] = [];
   const generatedThreads: ThreadGenerationResult[] = [];
   const errors: string[] = [];
   let imageIsNeeded = false;
-  
+
   logger.info(`[Enhanced:${callId}] Generating batch (size: ${targetBatchSize}) for account ${accountId} (Threading: ${shouldGenerateThreads ? 'threads' : 'tweets'})`, 'generate-batch');
 
   const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
 
   // --- AI GENERATION START ---
-  const generationStart = performance.now(); 
+  const generationStart = performance.now();
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
 
-if (shouldGenerateThreads) {
-  const threadCallStart = performance.now();
-  logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
+    if (shouldGenerateThreads) {
+      const threadCallStart = performance.now();
+      logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
 
-  // Fetch context with accountId for source deduplication
-  const { getDynamicContext } = await import('@/lib/contentSource');
-  const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId);
+      // Fetch context with accountId for source deduplication
+      const { getDynamicContext } = await import('@/lib/contentSource');
+      const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId);
 
-  // Generate thread with the fetched context
-  const threadResult = await generateThread({
-      account_id: accountId,
-      persona: selectedPersonaKey,
-      rssContext: rssContext // Pass the fetched context
-  });
+      // Generate thread with the fetched context
+      const threadResult = await generateThread({
+        account_id: accountId,
+        persona: selectedPersonaKey,
+        rssContext: rssContext // Pass the fetched context
+      });
 
-  if (threadResult) {
-    logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s. Source: ${threadResult.sourceUrl || 'N/A'}`, 'thread-generation-timing');
-    return {
-      type: 'thread',
-      data: threadResult
-    };
-  } else {
-    logger.error(`❌ [Enhanced:${callId}] Thread generation failed for ${selectedPersonaKey}`, 'thread-generation');
-    throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
-  }
-}
+      if (threadResult) {
+        logger.info(`✅ [Enhanced:${callId}] Thread generated in ${((performance.now() - threadCallStart) / 1000).toFixed(2)}s. Source: ${threadResult.sourceUrl || 'N/A'}`, 'thread-generation-timing');
 
- 
+        // <<< MODIFICATION START >>>
+        // ADDED: Save debug output if in debug mode
+        if (debugMode) {
+          await saveDebugOutput({
+            content: threadResult.tweets.map(t => t.content),
+            persona: selectedPersonaKey,
+            source: threadResult.sourceUrl,
+            created_at: new Date().toISOString()
+          });
+        }
+        // <<< MODIFICATION END >>>
+
+        return {
+          type: 'thread',
+          data: threadResult
+        };
+      } else {
+        logger.error(`❌ [Enhanced:${callId}] Thread generation failed for ${selectedPersonaKey}`, 'thread-generation');
+        throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
+      }
+    }
+
+
     const config: TweetGenerationConfig = {
       account_id: accountId,
       persona: selectedPersonaKey,
@@ -223,10 +273,10 @@ if (shouldGenerateThreads) {
 
     const tweetCallStart = performance.now();
     const generatedTweet = await generateTweet(config);
-    logger.info(`✅ [Enhanced:${callId}] Tweet ${i+1}/${targetBatchSize} generated in ${((performance.now() - tweetCallStart) / 1000).toFixed(2)}s.`, 'tweet-generation-timing');
+    logger.info(`✅ [Enhanced:${callId}] Tweet ${i + 1}/${targetBatchSize} generated in ${((performance.now() - tweetCallStart) / 1000).toFixed(2)}s.`, 'tweet-generation-timing');
 
     if (!generatedTweet) throw new Error(`Failed to generate tweet for persona ${selectedPersonaKey}`);
-    
+
     const saveStart = performance.now();
     // MODIFIED: Added source_url to the object saved in the database
     const tweet: Partial<Tweet> = {
@@ -245,8 +295,20 @@ if (shouldGenerateThreads) {
     };
 
     await saveTweet(tweet as Tweet);
-    logger.info(`[Enhanced:${callId}] Tweet ${i+1}/${targetBatchSize} saved in ${((performance.now() - saveStart) / 1000).toFixed(2)}s.`, 'tweet-db-timing');
-    
+    logger.info(`[Enhanced:${callId}] Tweet ${i + 1}/${targetBatchSize} saved in ${((performance.now() - saveStart) / 1000).toFixed(2)}s.`, 'tweet-db-timing');
+
+    // <<< MODIFICATION START >>>
+    // ADDED: Save debug output if in debug mode
+    if (debugMode) {
+      await saveDebugOutput({
+        content: generatedTweet.content,
+        persona: selectedPersonaKey,
+        source: generatedTweet.sourceUrl,
+        created_at: tweet.created_at!
+      });
+    }
+    // <<< MODIFICATION END >>>
+
     // MODIFIED: Added sourceUrl to the API response object
     return {
       type: 'tweet',
@@ -262,7 +324,7 @@ if (shouldGenerateThreads) {
 
   const results = await Promise.allSettled(generationPromises);
   logger.info(`[Enhanced:${callId}] Total AI generation time: ${((performance.now() - generationStart) / 1000).toFixed(2)}s. Batch size: ${targetBatchSize}`, 'generate-timing');
-  
+
   results.forEach(result => {
     if (result.status === 'fulfilled' && result.value) {
       if (result.value.type === 'tweet') {
@@ -279,22 +341,22 @@ if (shouldGenerateThreads) {
   });
 
   const totalContentUnits = generatedTweets.length + generatedThreads.reduce((sum, thread) => sum + thread.total_tweets, 0);
-  
+
   // --- IMAGE PROCESSING START ---
   if (imageIsNeeded) {
     const imageProcessingStart = performance.now(); // START: Image Processing
     logger.info(`[Enhanced:${callId}] Starting synchronous image processing for account ${accountId}`, 'image-processing');
-    
+
     try {
       // Import the image processing logic directly
       const { getTweetsWithPendingImages, updateTweetImage } = await import('@/lib/db');
       const { generatePersonaImage } = await import('@/lib/services/imageGenerationService');
-      
+
       const pendingImageTweets = await getTweetsWithPendingImages(10, accountId);
-      
+
       if (pendingImageTweets.length > 0) {
         logger.info(`[Enhanced:${callId}] Found ${pendingImageTweets.length} tweets needing images`, 'image-processing');
-        
+
         // Process images in parallel but wait for completion
         const imageProcessingPromises = pendingImageTweets.map(async (tweet) => {
           const imageCallStart = performance.now();
@@ -322,11 +384,11 @@ if (shouldGenerateThreads) {
             return { success: false, tweetId: tweet.id, error: errorMsg };
           }
         });
-        
+
         const imageResults = await Promise.allSettled(imageProcessingPromises);
         const successful = imageResults.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length;
         const failed = imageResults.length - successful;
-        
+
         logger.info(`[Enhanced:${callId}] Total image processing time: ${((performance.now() - imageProcessingStart) / 1000).toFixed(2)}s. ${successful} successful, ${failed} failed`, 'image-processing-timing');
       }
     } catch (error) {
@@ -365,6 +427,21 @@ if (shouldGenerateThreads) {
   return NextResponse.json(response);
 }
 
+
+// Define a specific type for the results of the account generation process.
+type AccountGenerationResult = {
+  success: boolean;
+  message: string;
+  accountId: string;
+  accountName: string;
+  generated?: {
+    single_tweets: number;
+    threads: number;
+    total_content_units: number;
+  };
+  // Add other potential properties to make the type more complete if needed
+};
+
 /**
  * Enhanced multi-account orchestration
  */
@@ -372,10 +449,16 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
   const sessionId = Math.random().toString(36).substring(2, 8);
   const activeAccounts = await accountService.getAllAccounts();
 
-  if (activeAccounts.length === 0) { /* ... no change ... */ }
+  if (activeAccounts.length === 0) {
+    logger.info(`[Session:${sessionId}] No active accounts found for generation.`, 'generate-multi-skip');
+    return NextResponse.json({
+        success: true,
+        message: 'No active accounts found.'
+    });
+   }
 
   // Fire off all account generations in parallel
-  const accountPromises = activeAccounts.map(account => 
+  const accountPromises = activeAccounts.map(account =>
     generateForAccountEnhanced(account.id, request, debugMode)
       .then(res => res.json())
       .catch(error => {
@@ -391,12 +474,12 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
   );
 
   const results = await Promise.all(accountPromises);
-  
+
   // Summarize results
   const totalGenerated = results.reduce((sum, r) => sum + (r.generated?.total_content_units || 0), 0);
   const successfulAccounts = results.filter(r => r.success).length;
   const accountsWithGeneration = results.filter(r => (r.generated?.total_content_units || 0) > 0).length;
-  
+
   const response = {
     success: true,
     message: `Multi-account generation complete: ${totalGenerated} content units generated across ${accountsWithGeneration} accounts.`,
@@ -405,12 +488,13 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     successfulAccounts,
     accountsWithGeneration,
     totalGenerated,
-    results: debugMode ? results : results.map(r => ({
+    // Use the specific type `AccountGenerationResult` instead of `any`.
+    results: debugMode ? results : results.map((r: AccountGenerationResult) => ({
       accountId: r.accountId,
       accountName: r.accountName,
       success: r.success,
       generated: r.generated,
-      strategy: r.strategy
+      message: r.message,
     })),
     timestamp: new Date().toISOString()
   };

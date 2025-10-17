@@ -50,10 +50,62 @@ Choose a hook style that FITS the news, leading with a concrete fact:
 CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to see the proof.
 
 THE NARRATIVE BUILD (TWEETS 2 THROUGH 7 - THE EVIDENCE):
-• **Use Real Evidence:** Your story MUST be built on facts. Cite specific numbers, financial data, quotes, or strategic moves directly from the briefing.
-• **Show, Don't Tell:** Instead of saying "it was a huge success," say "it led to a 300% increase in revenue to ₹150 Cr."
-• One clear data point per tweet: Build a logical, evidence-based case across the thread.
-• You MUST write enough narrative tweets to meet the 6-8 total tweet requirement.
+🚨 CRITICAL: EVERY tweet must contain specific data points. Use these proven data-rich formats:
+
+**FORMAT 1: Financial Breakdown**
+Revenue/metrics with bullet points (each → on new line):
+"Zepto FY24 financials:
+→ Revenue: ₹2,024 Cr (↑14x YoY)
+→ Burn rate: ₹1,272 Cr (↑3x YoY)
+→ GMV: ₹6,000+ Cr
+→ Monthly orders: 4M+
+Money as a weapon in winner-take-all markets."
+
+**FORMAT 2: Unit Economics Deep Dive**
+Break down profitability metrics:
+"Their secret isn't scale. It's unit economics:
+→ LTV/CAC: 6.7 (industry avg: 3.1)
+→ Repeat rate: 82% within 90 days
+→ CAC: ₹310 (competitors: ₹850)
+→ Contribution margin: +18% (rare in D2C)
+Data-driven discipline builds moats."
+
+**FORMAT 3: Before/After Transformation**
+Strategic shift with specific outcomes:
+"The pivot in Q3 2023 changed everything:
+→ Before: ₹12 Cr revenue, -45% margin
+→ After: ₹47 Cr revenue, +8% margin
+→ Key change: B2B sales from 15% → 62%
+One strategic bet, 4x revenue impact."
+
+**FORMAT 4: Market Position Comparison**
+Head-to-head competitive metrics:
+"Zomato vs Swiggy (Q2 2024):
+→ Revenue: ₹2,416 Cr vs ₹2,087 Cr
+→ EBITDA: +₹178 Cr vs -₹213 Cr
+→ Monthly transacting users: 21M vs 17M
+Product quality compounds faster than hype."
+
+**FORMAT 5: The Hidden Bet**
+Secondary business driving future value:
+"Everyone watches food delivery (↑23% YoY).
+The real bet: Hyperpure B2B
+→ Revenue: ₹340 Cr (↑180% YoY)
+→ Restaurant partners: 18,000+
+→ Already EBITDA positive
+Building infrastructure beats delivering meals."
+
+**FORMAT 6: Growth Trajectory Analysis**
+Sequential growth with inflection point:
+"The fundraising timeline tells the story:
+→ 2021: $5M at $20M valuation
+→ 2022: $15M at $85M valuation
+→ 2024: $60M at $420M valuation
+Unit economics unlocked exponential trust."
+
+• **One Data-Rich Insight Per Tweet:** Each tweet = specific numbers + strategic interpretation
+• You MUST write enough data-backed tweets to meet the 6-8 total tweet requirement
+• REJECT vague statements like "huge growth" - demand specifics: "↑340% to ₹2,400 Cr"
 
 THE FINAL TWEET (TWEET 6, 7, or 8):
 → For analysis: "What key data point am I missing? Quote tweet with your take 👇"

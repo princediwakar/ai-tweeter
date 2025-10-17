@@ -57,7 +57,6 @@ Stores individual tweets and thread components.
 | `hashtags` | JSONB | NOT NULL, DEFAULT '[]' | Array of hashtags (kept empty per project rules) |
 | `persona` | VARCHAR | NOT NULL | Persona used to generate (e.g., 'english_vocab_builder') |
 | `status` | VARCHAR | NOT NULL | Tweet status: 'ready', 'posted', 'failed', 'draft', 'scheduled' |
-| `quality_score` | JSONB | NULLABLE | Quality scoring data |
 | `posted_at` | TIMESTAMP | NULLABLE | When tweet was posted to Twitter |
 | `twitter_id` | VARCHAR | NULLABLE | Twitter's ID for posted tweet |
 | `twitter_url` | VARCHAR | NULLABLE | Full URL to posted tweet |

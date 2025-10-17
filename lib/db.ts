@@ -1,5 +1,7 @@
 import { sql } from '@vercel/postgres';
 import type { Tweet } from './types';
+import { GENERATION_CONFIG } from './generation/config';
+import type { RecentPattern } from './generation/types';
 
 // In-memory storage for testing when database is not available
 const inMemoryTweets: Tweet[] = [];
@@ -898,70 +900,133 @@ export async function hasEngagedWithTweet(accountId: string, tweetId: string): P
   }
 }
 
-/**
- * Gets recently used source URLs for satirist persona to avoid repetition.
- * Returns an array of source URLs used in the last N days.
- */
-export async function getRecentSatiristSources(accountId: string, days: number = 30): Promise<string[]> {
+
+
+export async function getRecentVocabularyWords(accountId: string, days: number = GENERATION_CONFIG.personas.englishVocabBuilder.deduplicationDays): Promise<string[]> {
   try {
-    // Use a calculated date instead of INTERVAL with interpolation
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
+    const { sql } = await import('@vercel/postgres');
 
     const result = await sql`
-      SELECT DISTINCT source_url
+      SELECT DISTINCT card_data
       FROM tweets
       WHERE account_id = ${accountId}
-        AND persona IN ('satirist', 'pattern_spotter')
-        AND source_url IS NOT NULL
-        AND created_at > ${cutoffDate.toISOString()}
-      ORDER BY source_url
+        AND persona = 'english_vocab_builder'
+        AND card_data IS NOT NULL
+        AND created_at > NOW() - INTERVAL '${days} days'
+      ORDER BY created_at DESC
+      LIMIT ${GENERATION_CONFIG.personas.englishVocabBuilder.deduplicationLimit}
     `;
 
-    const sources = result.rows
-      .map(row => row.source_url)
-      .filter((url): url is string => typeof url === 'string');
+    const recentWords: string[] = [];
+    for (const row of result.rows) {
+      if (row.card_data) {
+        try {
+          const cardData = typeof row.card_data === 'string'
+            ? JSON.parse(row.card_data)
+            : row.card_data;
+          if (cardData?.word) {
+            recentWords.push(cardData.word.toLowerCase());
+          }
+        } catch {
+          // Skip malformed card data
+        }
+      }
+    }
 
-    console.log(`[Neon] Found ${sources.length} recently used satirist sources for account ${accountId} (last ${days} days)`);
-    return sources;
+    return recentWords;
   } catch (error) {
-    console.error('[Neon] Error getting recent satirist sources:', error);
-    return []; // Return empty array on error to allow generation to proceed
+    console.warn('Failed to fetch recent vocabulary words:', error);
+    return [];
   }
 }
 
-/**
- * Gets recently used source URLs for pattern_spotter persona to avoid repetition.
- * Returns an array of source URLs used in the last N days.
- */
-export async function getRecentPatternSpotterSources(accountId: string, days: number = 30): Promise<string[]> {
-  try {
-    // Use a calculated date instead of INTERVAL with interpolation
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
 
+
+
+
+export async function getRecentSatiristData(
+  accountId: string,
+  limit: number = 7
+): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
+  try {
     const result = await sql`
-      SELECT DISTINCT source_url
+      SELECT content, source_url, created_at
       FROM tweets
       WHERE account_id = ${accountId}
-        AND persona IN ('satirist', 'pattern_spotter', 'business_storyteller')
-        AND source_url IS NOT NULL
-        AND created_at > ${cutoffDate.toISOString()}
-      ORDER BY source_url
+        AND content IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT ${limit}
     `;
 
-    const sources = result.rows
-      .map(row => row.source_url)
-      .filter((url): url is string => typeof url === 'string');
+    const recentPatterns: RecentPattern[] = [];
+    const usedSourceUrls: string[] = [];
 
-    console.log(`[Neon] Found ${sources.length} recently used pattern_spotter sources for account ${accountId} (last ${days} days)`);
-    return sources;
+    for (const row of result.rows) {
+      if (row.content) {
+        recentPatterns.push({
+          text: row.content,
+          timestamp: row.created_at ? new Date(row.created_at).toISOString() : undefined
+        });
+      }
+      
+      if (row.source_url && !usedSourceUrls.includes(row.source_url)) {
+        usedSourceUrls.push(row.source_url);
+      }
+    }
+
+    console.log(`[DB] Found ${recentPatterns.length} recent satirist tweets and ${usedSourceUrls.length} used source URLs for account ${accountId}`);
+    return { patterns: recentPatterns, usedSourceUrls };
   } catch (error) {
-    console.error('[Neon] Error getting recent pattern_spotter sources:', error);
-    return []; // Return empty array on error to allow generation to proceed
+    console.warn('[DB] Failed to fetch recent satirist tweets:', error);
+    return { patterns: [], usedSourceUrls: [] };
   }
 }
 
+
+
+
+
+export async function getRecentPatternData(
+  accountId: string,
+  limit: number = 5
+): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
+  try {
+    // Fetch both the content for thematic deduplication and the source_url for strict avoidance.
+    const result = await sql`
+      SELECT content, source_url, created_at
+      FROM tweets
+      WHERE account_id = ${accountId}
+        AND content IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `;
+
+    const recentPatterns: RecentPattern[] = [];
+    const usedSourceUrls: string[] = [];
+
+    for (const row of result.rows) {
+      // Build RecentPattern object with text and timestamp
+      if (row.content) {
+        recentPatterns.push({
+          text: row.content,
+          timestamp: row.created_at ? new Date(row.created_at).toISOString() : undefined
+        });
+      }
+      
+      // The source_url is for the strict blocklist.
+      if (row.source_url && !usedSourceUrls.includes(row.source_url)) {
+        usedSourceUrls.push(row.source_url);
+      }
+    }
+
+    console.log(`[DB] Found ${recentPatterns.length} recent patterns and ${usedSourceUrls.length} used source URLs for account ${accountId} to avoid.`);
+    return { patterns: recentPatterns, usedSourceUrls };
+  } catch (error) {
+    console.warn('[DB] Failed to fetch recent pattern tweets:', error);
+    // Return empty state to allow generation to proceed without deduplication context.
+    return { patterns: [], usedSourceUrls: [] };
+  }
+}
 /**
  * Gets recently used source URLs for business_storyteller persona to avoid repetition.
  * Returns an array of source URLs used in the last N days.

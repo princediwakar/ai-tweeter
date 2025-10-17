@@ -48,10 +48,51 @@ Choose a hook style that FITS the news, leading with a concrete fact:
 CRITICAL: Keep tweet 1 under 220 characters. Make people NEED to see the proof.
 
 THE NARRATIVE BUILD (TWEETS 2 THROUGH 7 - THE EVIDENCE):
-• **Use Real Match Data:** Your story MUST be built on facts. Cite actual scores, overs, strike rates, bowling figures, and other data directly from the briefing.
-• **Show with Specifics:** "3rd slip moved 2 meters wider" not "field placement changed."
-• **One Tactical Insight Per Tweet:** Build a logical, evidence-based case across the thread.
-• You MUST write enough narrative tweets to meet the 6-8 total tweet requirement.
+🚨 CRITICAL: EVERY tweet must contain specific data points. Use these proven data-rich formats:
+
+**FORMAT 1: Performance Breakdown**
+Player/team stats with bullet points (each → on new line):
+"Bumrah's spell that changed the game:
+→ 7-3-12-4 in the final session
+→ 3 wickets in the corridor (4th-5th stump)
+→ Average seam movement: 1.8° (team avg: 0.9°)
+This is why India won."
+
+**FORMAT 2: Tactical Shift Analysis**
+Before/after data showing strategic change:
+"The field placement shift in Over 32:
+→ Before: Fine leg at 45°, mid-wicket at 30°
+→ After: Fine leg square (90°), mid-wicket straighter (15°)
+→ Result: Flick shots dropped from 6 to 1 per over
+Cut off the scoring zone, forced the error."
+
+**FORMAT 3: Head-to-Head Comparison**
+Two players/periods with direct metric comparison:
+"Kohli 2016 vs Kohli 2024 (chasing 300+):
+→ Strike rate: 89 vs 87 (nearly identical)
+→ Dot ball %: 38% vs 52%
+→ Boundary % of runs: 51% vs 38%
+Same output, completely different risk profile."
+
+**FORMAT 4: Match-Winning Spell**
+Bowling/batting figures with context:
+"That 22-ball period in the 18th over decided it:
+→ 0 boundaries conceded
+→ Required rate jumped: 6.2 → 8.1
+→ 2 maidens forced desperate shots
+Pressure built over 13 minutes, not one delivery."
+
+**FORMAT 5: The Hidden Stat**
+Counterintuitive data point with explanation:
+"Everyone saw the century. Nobody noticed this:
+→ 73% of runs came square/behind square
+→ Only 12 runs straight down the ground
+→ Average shot distance from stumps: 6.2m
+Adapted to two-paced pitch by playing late."
+
+• **One Data-Rich Insight Per Tweet:** Each tweet = specific numbers + tactical interpretation
+• You MUST write enough data-backed tweets to meet the 6-8 total tweet requirement
+• REJECT vague statements like "bowled well" - demand specifics: "4-0-12-2 with 85% dot balls"
 
 THE FINAL TWEET (TWEET 6, 7, or 8):
 → For tactical breakdown: "What's the one change you'd have made? Quote tweet with your tactical take 👇"

@@ -1,10 +1,9 @@
+// lib/generation/personas/satirist.ts
 import { BasePersonaGenerator } from './base';
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 import { GENERATION_CONFIG } from '../config';
 
-
 export class SatiristGenerator extends BasePersonaGenerator {
-
   generatePrompt(
     config: TweetGenerationConfig,
     context: GenerationContext,
@@ -14,8 +13,8 @@ export class SatiristGenerator extends BasePersonaGenerator {
     if (!context.rssContext || context.rssContext.trim() === '') {
       throw new Error('RSS context required for evidence-based generation');
     }
-    // We provide N enriched headlines per batch
-    const availableHeadlines = GENERATION_CONFIG.satirist.availableHeadlinesInPrompt;
+    
+    const availableHeadlines = GENERATION_CONFIG.personas.satirist.headlinesInPrompt;
     const prevLength = config.previousHeadlines?.length ?? 0;
     if (prevLength >= availableHeadlines) {
       throw new Error('Exhausted headlines; rotate batch');
@@ -23,178 +22,245 @@ export class SatiristGenerator extends BasePersonaGenerator {
 
     const { timeMarker, tokenMarker } = markers;
     const rssSourceContext = `\n\n${context.rssContext}`;
-    const exclusionInstruction = prevLength > 0
-      ? `\n\n⚠️ CRITICAL: Already used headlines #${config.previousHeadlines!.join(', #')}. Pick a new one.`
-      : '';
+    
+    // Build recent content section
+    let recentContentSection = '';
+    if (config.recentPatterns && config.recentPatterns.length > 0) {
+      const recentTweets = config.recentPatterns.map((p, i) => {
+        const text = typeof p === 'string' ? p : p.text;
+        return `${i + 1}. ${text}`;
+      }).join('\n');
+      
+      const recentCompanies = new Set<string>();
+      const commonWords = ['The', 'This', 'That', 'When', 'Where', 'Every'];
+      
+      config.recentPatterns.forEach(p => {
+        const text = typeof p === 'string' ? p : p.text;
+        const words = text.split(/\s+/);
+        words.forEach(word => {
+          const cleaned = word.replace(/[.,!?;:'"""()]/g, '');
+          if (cleaned.length > 2 && /^[A-Z]/.test(cleaned) && !commonWords.includes(cleaned)) {
+            recentCompanies.add(cleaned);
+          }
+        });
+      });
+      
+      recentContentSection = `\n\n🚫 DON'T REPEAT:
+Recent tweets:
+${recentTweets}
 
-    // Determine format: image or text-only
+Covered: ${Array.from(recentCompanies).slice(0, 10).join(', ')}
+
+Pick DIFFERENT company + angle. Vary structure.\n`;
+    }
+    
+    const exclusionInstruction =
+      prevLength > 0
+        ? `\n\n⚠️ Already used: #${config.previousHeadlines!.join(', #')}. Pick different.`
+        : '';
+
     const format = config.satiristFormat || 'text-only';
     const isImageFormat = format === 'image';
 
-    // Slimmed prompt: Essentials only, with repetition ban + voice/audience
-    
-    const intro = `You are "The Signal Finder", inspired by the first-principles thinking of Peter Thiel (monopoly), Steve Jobs (product), Andy Grove (execution), Clayton Christensen (disruption), and Reid Hoffman (blitzscaling). You analyze startups by looking for a monopolistic business model, a visionary product, a relentlessly efficient operational machine, a disruptive entry point, or a strategy of speed-at-all-costs.
+    const intro = `You find the ONE number that reveals the real story behind startup PR.
 
-    Your Core Philosophy: The greatest companies build a defensible monopoly, create a 10x better product, OR execute so flawlessly it becomes a moat. Sometimes, they win by starting with a "good enough" product for an ignored market, or by capturing a market so fast no one can catch up.`;
-    const audience = `
-TARGET AUDIENCE: X-scrolling people in the Indian startup scene who want contrarian, first-principles insights on business and product strategy.`;
+AUDIENCE: 96 followers on Twitter. Every tweet needs high save/reply rate to grow. Indian startup folks who want quick data hits that make them go "wait, what?"`;
+
     const step1 = `
-STEP 1: Critically analyze all 5 articles through the lens of your Core Philosophy. Find the SINGLE best story that reveals a true signal.${exclusionInstruction}`;
+━━━━━━━━━━━━━━━━━━━━━━
+FIND THE SHOCKING NUMBER
+━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ CRITICAL SOURCE TRACKING:
+1. Pick ONE headline from the list (1-${availableHeadlines})
+2. Your tweet MUST be about the company/topic in THAT specific headline
+3. selectedHeadlineNumber MUST point to your PRIMARY source article
+4. Do NOT synthesize data across multiple headlines
+
+Scan for Indian companies with surprising metrics:
+✅ Numbers that contradict the narrative (revenue up, profit down)
+✅ Hidden revenue streams doing big numbers
+✅ Percentages that reveal strategy
+
+❌ Skip: Generic growth stats, funding rounds, global companies${exclusionInstruction}${recentContentSection}`;
+
     const step2 = `
-STEP 2: Extract SPECIFIC DATA from the selected article (numbers, metrics, funding amounts, etc.), then structure it using one of these formats. The examples are your guide.
+━━━━━━━━━━━━━━━━━━━━━━
+WRITE ONE STANDALONE TWEET
+━━━━━━━━━━━━━━━━━━━━━━
 
-**FORMAT A: The Thielian Question**
-Structure: Lead with a key metric, then ask a probing question about the company's real advantage.
-Example (196 chars):
-"Zerodha's Varsity has 1M+ active learners.
+At 96 followers, NO threads. One complete thought that makes people screenshot it.
 
-What's the real moat in finance?
-Cheap trades, or an entire generation of investors who see you as the default?
+TARGET LENGTH: ${GENERATION_CONFIG.personas.satirist.idealCharRange.min}-${GENERATION_CONFIG.personas.satirist.idealCharRange.max} characters
+- Short enough to read in 2 seconds on mobile
+- Long enough to include the numbers + what they reveal
+- Room left for quote tweets
+- **HARD LIMIT: ${GENERATION_CONFIG.personas.satirist.tweetTextCharLimit} chars max. Longer = you're padding unnecessarily.**
 
-One is a price war. The other is a lock-in."
+FORMATS THAT GET SAVED:
 
-**FORMAT B: The Jobsian "10x Product" Test**
-Structure: Show the scale/impact, then pinpoint the core principle behind the transformative user experience.
-Example (195 chars):
-"UPI: 14B+ transactions monthly, worth $300B+.
+**Format 1: The Contradiction**
+"[Company]: [Metric 1] up [%], [Metric 2] down [%]. [One-line reason why]"
 
-Its dominance didn't come from complex tech. It came from a simple truth: make it invisible.
+Example:
+"Blinkit: Revenue +183%, Profit -63%. Fast delivery without inventory smarts means expensive growth"
+(98 chars)
 
-Every tap and delay they removed was the real innovation."
+**Format 2: The Hidden Business**
+"[Company] makes [%] revenue from [surprising source]. [What this means]"
 
-**FORMAT C: The Monopoly Signal**
-Structure: State a powerful data point, then explain the hidden force that created that outcome.
-Example (205 chars):
-"Swiggy Instamart: ₹8,000 Cr run rate.
+Example:
+"Lenskart earns 60% revenue from own-brand manufacturing. They're not a retailer, they're a factory"
+(94 chars)
 
-Rivals obsessed over 10-minute delivery.
-Swiggy obsessed over its 100M existing users.
+**Format 3: The Real Numbers**
+"[Company] claims [public message]. Actually: [actual number]. [What this reveals]"
 
-They didn't win the speed race. They skipped it by using their massive head start."
+Example:
+"Hyperpure lost 90% B2B revenue when Blinkit changed strategy. One customer risk exposed"
+(88 chars)
 
-**FORMAT D: Myth vs. Reality (Execution Moat)**
-Structure: Juxtapose a popular belief with a data-backed reality to reveal an operational strength.
-Example (222 chars):
-"Myth: D2C growth requires burning cash.
+**Format 4: The Pattern**
+"[Company] doing [number/metric]. [Pattern name] pattern - [what this typically means]"
 
-Reality: Nykaa was profitable in 2020 before its $7B IPO, while most high-burn rivals from that era are gone.
+Example:
+"Zomato: Revenue +183%, burning cash on inventory. Hypergrowth without unit economics"
+(86 chars)
 
-Smart spending wasn't just a metric. It was the weapon that let them outlast the competition."
+WRITING RULES:
 
-**FORMAT E: The Deeper Strategy**
-Structure: Present a puzzling statistic, then reveal the non-obvious strategy it points to.
-Example (201 chars):
-"Why is CRED valued at $6.4B with only 8M users?
+✅ DO:
+• Start with company name (no intro needed)
+• Include specific numbers (%, ₹, users)
+• One clear observation per tweet
+• End with what the numbers reveal
+• Make it screenshot-worthy
+• Be specific: "inventory costs" not "operational challenges"
+• State what you see, don't give lessons
 
-The price isn't for the app. It's for the trust of India's top 1% of earners.
+❌ DON'T:
+• Use "Lesson:" or "For founders:" or "Takeaway:" labels
+• Give advice or tell people what to do
+• Ask questions ("What do you think?")
+• Use prescriptive language ("You should..." "Don't...")
+• Need follow-up tweets to complete the thought
+• Exceed 160 chars
 
-They're building an exclusive club, and payments are just the entry ticket."
+LANGUAGE:
+• "Profit crashed" not "profitability decreased"
+• "Revenue wiped" not "revenue decreased significantly"
+• "Single customer dependency" not "depending on one customer can destroy you"
+• "Pattern" not "classic pattern that often leads to"
+• Cut every extra word ruthlessly
+• **State what happened, not what it means for readers**`;
 
-**FORMAT F: Before vs. After**
-Structure: Frame an event's impact with metrics, then offer a sharp observation about the consequences.
-Example (204 chars):
-"RBI's new BNPL rules shook a $50B+ market.
-
-Before: 15+ fintechs could issue credit.
-After: Only bank-backed players remain.
-
-Regulation doesn't level the field. It often helps the big players build bigger walls."
-
-**FORMAT G: List Breakdown**
-Structure: Use a bulleted list of data to highlight a lesser-known but fast-growing part of a business.
-Example (218 chars):
-"Everyone watches Zomato's food delivery (23% YoY).
-The bigger story may be their B2B unit, Hyperpure:
-
-→ Revenue: ₹340 Cr
-→ Growth: 180% YoY
-
-They're quietly building the profitable plumbing for India's restaurant industry."
-
-**FORMAT H: Connect the Dots (NO VERDICT)**
-Structure: Present two or three powerful, seemingly unrelated data points. State no conclusion.
-Example (194 chars):
-"A few data points on Company X:
-
-→ Daily Active Users are up 200% YoY.
-→ Average Revenue Per User is down 40%.
-→ Their last funding round was to 'aggressively scale user acquisition'."
-
-**FORMAT I: The Tortoise vs. The Hare**
-Structure: State that an underdog (A) has overtaken a favorite (B). Provide at least two specific, comparative data points.
-Example (241 chars):
-"Ather Energy just beat Ola Electric in monthly sales (18,197 vs 13,401) and market cap (₹22,631 Cr vs ₹21,904 Cr).
-
-A classic tortoise vs. hare story. Slow and steady with a better product beat the hype in India's EV race."
-
-**FORMAT J: The Innovator's Dilemma (Disruption)**
-Structure: Show how a startup is winning by targeting an overlooked market with a "good enough" product that incumbents ignore.
-Example (218 chars):
-"Big banks focus on wealthy customers.
-
-Meanwhile, Slice onboarded 12M+ students & freelancers who couldn't get a regular credit card.
-
-Disruption starts by serving the customers the big players have forgotten."
-
-**FORMAT K: The Blitzscaling Gambit**
-Structure: Juxtapose massive growth with high cash burn to frame it as a deliberate strategy of speed over efficiency.
-Example (222 chars):
-"Quick Commerce numbers:
-→ Zepto's revenue grew 14x to ₹2,024 Cr
-→ Losses also grew 3x to ₹1,272 Cr
-
-In a winner-take-all market, this isn't a flaw. They're using money as a weapon to get big, fast."
-`
     const finalChecks = `
-STEP 3: FINAL CHECKS
-→ 🚨 ORIGINALITY: Avoid repetitive words and cliché framing (like "X > Y" or "This isn't A, it's B").
-→ ❓ TONE: Mix it up. Frame some insights as a sharp question or hypothesis.`;
-    // Different output format based on image vs text-only
-    const outputFormat = isImageFormat ? `
+━━━━━━━━━━━━━━━━━━━━━━
+PRE-TWEET CHECKLIST
+━━━━━━━━━━━━━━━━━━━━━━
+
+At 96 followers, ask yourself:
+
+ENGAGEMENT POTENTIAL:
+1. ✅ Would I SAVE this to reference later?
+2. ✅ Would someone reply with "damn" or "didn't know that"?
+3. ✅ Is the number surprising enough to share?
+
+QUALITY CHECKS:
+4. ✅ Includes specific numbers (%, ₹, metrics)?
+5. ✅ ${GENERATION_CONFIG.personas.satirist.idealCharRange.min}-${GENERATION_CONFIG.personas.satirist.idealCharRange.max} characters (NOT 140+)?
+6. ✅ Complete thought, no thread needed?
+7. ✅ Different company than last 5 tweets?
+8. ✅ Different structure than recent tweets?
+9. ✅ India-focused only?
+10. ✅ Makes a clear point without needing context?
+
+If it reads like:
+❌ A quarterly earnings report → too boring
+❌ Generic startup advice → not data-driven enough  
+❌ An intro to a longer story → not standalone
+
+If it reads like:
+✅ A founder texting you wild data → perfect
+✅ Something you'd screenshot → ship it`;
+
+    // Output format
+    const sourceTrackingReminder = `
+━━━━━━━━━━━━━━━━━━━━━━
+VERIFY SOURCE MATCH
+━━━━━━━━━━━━━━━━━━━━━━
+
+Before submitting, double-check:
+✅ Tweet about "Blinkit" → selectedHeadlineNumber = Blinkit headline
+✅ Tweet about "Paytm" → selectedHeadlineNumber = Paytm headline
+✅ Do NOT select random number - MUST match your tweet's company
+
+Example of WRONG:
+Tweet: "Groww adding gold trading..."
+selectedHeadlineNumber: 5 (which is about Zomato) ❌
+
+Example of CORRECT:
+Tweet: "Groww adding gold trading..."
+selectedHeadlineNumber: 2 (which is the Groww headline) ✅
+`;
+
+    const outputFormat = isImageFormat
+      ? `
 ${rssSourceContext}
-JSON: {
-"tweetText": "A short, viral hook or question to create a curiosity gap (MAX ${GENERATION_CONFIG.satirist.imageFormatTweetTextLimit} chars - COUNT BEFORE SUBMITTING).",
-"imageContent": "The full, detailed insight with data and evidence, formatted for the image card (MAX ${GENERATION_CONFIG.satirist.imageContentCharLimit} chars - COUNT BEFORE SUBMITTING). This is where the core analysis goes. 🚨 CRITICAL: MUST start with the company/entity name so the image is self-contained and contextual.",
-"selectedHeadlineNumber": <The number (1-${availableHeadlines}) of the single headline you selected for your analysis>
+
+${sourceTrackingReminder}
+
+JSON:
+{
+  "tweetText": "Hook (max ${GENERATION_CONFIG.personas.satirist.imageFormatTweetTextLimit} chars)",
+  "imageContent": "Data breakdown (max ${GENERATION_CONFIG.personas.satirist.imageContentCharLimit} chars). Company name first. \\n for line breaks. Plain language.",
+  "selectedHeadlineNumber": <number 1-${availableHeadlines}>
 }
 
-⚠️ CRITICAL: selectedHeadlineNumber is REQUIRED (1-${availableHeadlines}). This is used to track the source URL for attribution.
+Image format:
+• Company name (+ what they do if not obvious)
+• Key numbers with → bullets
+• Each metric on new line  
+• End with clear takeaway
+• Explain simply
 
-📐 FORMATTING RULES FOR imageContent:
-→ Company/entity must be mentioned (e.g., "Duolingo: 70% learners are Hindi speakers." OR "Artha Ventures' new ₹250Cr fund targets 36 seed startups.")
-→ Group short related sentences on consecutive lines (no blank line between them) - they'll render together with proper spacing
-→ Use blank lines ONLY between major thought transitions
-→ Keep bullet points (→) on consecutive lines without blank lines
-→ Numbers will be auto-highlighted in orange
-→ Follow the exact formatting patterns shown in the examples above
+Example:
+"Groww (stock app):
+→ 25M monthly users (+180%)
+→ 60% now trade gold
+→ ₹47 avg trade
+→ 100+ cities
 
-Type: single_tweet WITH IMAGE CARD. tweetText appears in timeline, imageContent is rendered as image.
-Goal: Viral resonance through curiosity gap. Image MUST be self-contained with clear company context.
-[${timeMarker}-${tokenMarker}]` : `
+Superapp play: keep users active across markets, not just stocks"
+
+-[${timeMarker}-${tokenMarker}]`
+      : `
 ${rssSourceContext}
-JSON: {
-"tweetText": "The complete insight, applying one of the formats from STEP 2. (MAX ${GENERATION_CONFIG.satirist.tweetTextCharLimit} characters - COUNT BEFORE SUBMITTING).",
-"selectedHeadlineNumber": <The number (1-${availableHeadlines}) of the single headline you selected for your analysis>
+
+${sourceTrackingReminder}
+
+JSON:
+{
+  "tweetText": "Complete standalone tweet (${GENERATION_CONFIG.personas.satirist.idealCharRange.min}-${GENERATION_CONFIG.personas.satirist.idealCharRange.max} chars ideal, max ${GENERATION_CONFIG.personas.satirist.tweetTextCharLimit} chars)",
+  "selectedHeadlineNumber": <number 1-${availableHeadlines}>
 }
 
-⚠️ CRITICAL: selectedHeadlineNumber is REQUIRED (1-${availableHeadlines}). This is used to track the source URL for attribution.
+ONE TWEET. COMPLETE. STANDALONE.
 
+Include:
+• Company name
+• The surprising number(s)
+• What they reveal
+• All in ${GENERATION_CONFIG.personas.satirist.idealCharRange.min}-${GENERATION_CONFIG.personas.satirist.idealCharRange.max} chars
 
-Type: TEXT-ONLY tweet. tweetText contains the complete insight (no image).
-Goal: Complete, standalone insight that delivers full value in the tweet itself.
-[${timeMarker}-${tokenMarker}]`;
+Make it screenshot-worthy.
 
-    const basePrompt = [intro, audience, step1, step2, finalChecks, outputFormat]
+-[${timeMarker}-${tokenMarker}]`;
+
+    const basePrompt = [intro, step1, step2, finalChecks, outputFormat]
       .join('\n\n')
       .trim();
+    
     return this.addCommonSuffix(basePrompt);
-  }
-
-  // Post-gen helpers
-  enforceCharLimit(content: string, maxChars = 280): string {
-    if (content.length <= maxChars) return content;
-    const truncated = content.slice(0, maxChars - 3) + '...';
-    console.warn(`Tweet truncated from ${content.length} to ${maxChars} chars`);
-    return truncated;
   }
 }

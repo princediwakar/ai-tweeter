@@ -1,5 +1,4 @@
 // lib/generation/articleEnricher.ts
-
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
 import { GENERATION_CONFIG } from './config';
@@ -10,170 +9,230 @@ virtualConsole.on('error', () => {
   // Suppress errors silently
 });
 
+// Simple in-memory cache for article content
+const articleCache = new Map<string, EnrichedArticle>();
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+
 export interface EnrichedArticle {
   headline: string;
   url: string;
   description?: string;
   fullText?: string; // Article body text
+  keyMetrics?: string; // NEW: Extracted metric-heavy paragraphs
   entities: string[]; // Company/person names mentioned
+  cached?: boolean; // NEW: Flag for cached results
 }
 
 /**
- * Extracts Twitter/X handles from a given string of HTML content.
- * Looks for both direct links and text mentions like "@handle".
- * @param html The HTML content to scan.
- * @returns An array of unique, lowercase Twitter handles.
+ * Extracts paragraphs that contain metrics/numbers
  */
-function extractTwitterHandles(html: string): string[] {
-  const handles = new Set<string>();
-
-  // Pattern 1: Links to twitter.com or x.com in href attributes
-  const linkPattern = /href=["']https?:\/\/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)["']/g;
-  let match;
-  while ((match = linkPattern.exec(html)) !== null) {
-    const handle = match[1];
-    // Filter out generic twitter links like /share or /intent
-    if (handle && handle !== 'intent' && handle !== 'share') {
-      handles.add(handle.toLowerCase());
-    }
-  }
-
-  // Pattern 2: Text mentions like "@ZypeApp"
-  const textPattern = /@([a-zA-Z0-9_]{1,15})\b/g;
-  while ((match = textPattern.exec(html)) !== null) {
-    handles.add(match[1].toLowerCase());
-  }
-
-  return Array.from(handles);
+function extractKeyMetrics(fullText: string): string {
+  const paragraphs = fullText.split(/\n\n+/);
+  
+  const metricParagraphs = paragraphs.filter(p => {
+    // Must have numbers
+    const hasNumbers = /\d+[,.]?\d*/.test(p);
+    
+    // Prefer paragraphs with growth indicators or currency
+    const hasMetrics = 
+      p.includes('%') || 
+      p.includes('Cr') || 
+      p.includes('crore') ||
+      p.includes('million') || 
+      p.includes('billion') ||
+      p.includes('growth') ||
+      p.includes('revenue') ||
+      p.includes('profit') ||
+      /YoY|QoQ|MoM/i.test(p);
+    
+    return hasNumbers && hasMetrics && p.length > 50;
+  });
+  
+  // Return top 3 metric-heavy paragraphs
+  return metricParagraphs.slice(0, 3).join('\n\n');
 }
 
-
+/**
+ * Detects if article is behind paywall
+ */
+function detectPaywall(text: string): boolean {
+  const paywallIndicators = [
+    'subscribe to read',
+    'premium members only',
+    'sign in to continue',
+    'this article is for subscribers',
+    'become a member to',
+    'subscription required',
+    'exclusive to subscribers',
+    'register to read'
+  ];
+  
+  const lowerText = text.toLowerCase();
+  return paywallIndicators.some(indicator => lowerText.includes(indicator));
+}
 
 /**
  * Extracts entity names (companies, people) from text using capitalization patterns.
- * @param text The text content of the article.
- * @returns An array of potential entity names.
  */
 function extractEntities(text: string): string[] {
   const entities = new Set<string>();
   const entityPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:'s)?)\b/g;
   let match;
+  
   while ((match = entityPattern.exec(text)) !== null) {
     const entity = match[1];
     // Filter out common words that start sentences but aren't entities
-    if (entity.length > 2 && !['The', 'A', 'An', 'This', 'That'].includes(entity)) {
+    const commonWords = ['The', 'A', 'An', 'This', 'That', 'These', 'Those', 'When', 'Where', 'Why', 'How'];
+    if (entity.length > 2 && !commonWords.includes(entity)) {
       entities.add(entity.replace(/'s$/, '')); // Remove possessive 's
     }
   }
+  
   return Array.from(entities).slice(0, GENERATION_CONFIG.enrichment.maxEntities);
 }
 
 /**
- * Fetches the homepage for a given domain and extracts Twitter handles from it.
- * This is a key part of the secondary enrichment process.
- * @param domain The domain name (e.g., "google.com")
- * @returns A promise that resolves to an array of Twitter handles found on the homepage.
- * NOTE: Currently disabled as Twitter handle extraction is turned off
- */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function fetchHandlesFromHomepage(domain: string): Promise<string[]> {
-  try {
-    const url = `https://${domain}`;
-    console.log(`🔎 Visiting homepage to find handles: ${url}`);
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' },
-      signal: AbortSignal.timeout(GENERATION_CONFIG.enrichment.homepageFetchTimeout),
-    });
-    if (!response.ok) return [];
-    const html = await response.text();
-    return extractTwitterHandles(html);
-  } catch (error) {
-    console.warn(`🔎 Failed to fetch or parse homepage ${domain}:`, error instanceof Error ? error.message : 'unknown error');
-    return [];
-  }
-}
-
-/**
- * Fetches and enriches a single article by extracting metadata and performing secondary lookups.
+ * Fetches and enriches a single article by extracting metadata
  */
 export async function enrichArticle(
   headline: string,
   url: string,
   description?: string
 ): Promise<EnrichedArticle> {
-  const baseResult: EnrichedArticle = { headline, url, description,  entities: [] };
+  const baseResult: EnrichedArticle = { 
+    headline, 
+    url, 
+    description, 
+    entities: [] 
+  };
+
+  // Check cache first
+  const cached = articleCache.get(url);
+  if (cached) {
+    console.log(`📰 [Cache Hit] ${url.substring(0, 60)}...`);
+    return { ...cached, cached: true };
+  }
 
   try {
-    // --- Step 1: Primary Enrichment (from the article page) ---
-    console.log(`📰 Fetching full article: ${url.substring(0, 60)}...`);
+    console.log(`📰 Fetching: ${url.substring(0, 60)}...`);
+    
     const response = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36' },
-      signal: AbortSignal.timeout(GENERATION_CONFIG.enrichment.articleFetchTimeout),
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml'
+      },
+      signal: AbortSignal.timeout(GENERATION_CONFIG.fetching.articlePageTimeout || 12000),
     });
 
     if (!response.ok) {
-      console.warn(`📰 Failed to fetch article (${response.status}): ${url}`);
+      console.warn(`📰 Failed to fetch (${response.status}): ${url}`);
       return baseResult;
     }
 
     const html = await response.text();
-    // Twitter handle extraction disabled - keeping functions for potential future use
-    // const initialHandles = extractTwitterHandles(html);
-
     const dom = new JSDOM(html, { url, virtualConsole });
     const reader = new Readability(dom.window.document);
     const article = reader.parse();
 
     if (!article || !article.textContent) {
-      console.warn(`📰 Could not extract readable text from article: ${url}`);
+      console.warn(`📰 Could not extract readable text: ${url}`);
       return baseResult;
     }
 
     const fullText = article.textContent;
+    
+    // Check for paywall
+    if (detectPaywall(fullText)) {
+      console.warn(`📰 Article appears paywalled: ${url}`);
+      return baseResult;
+    }
+    
+    // Check minimum length
+    if (fullText.length < 200) {
+      console.warn(`📰 Article too short (${fullText.length} chars): ${url}`);
+      return baseResult;
+    }
+
+    // Extract entities and key metrics
     const entities = extractEntities(fullText);
+    const keyMetrics = extractKeyMetrics(fullText);
 
-
-    console.log(`📰 Article enriched:${entities.length} entities.`);
-
-    // --- Step 2: Final Consolidation ---
-    return {
+    const enrichedResult: EnrichedArticle = {
       headline,
       url,
       description,
-      fullText: fullText.substring(0, GENERATION_CONFIG.enrichment.fullTextLimit),
+      fullText: fullText.substring(0, GENERATION_CONFIG.enrichment.fullTextLimit || 8000),
+      keyMetrics: keyMetrics || fullText.substring(0, 1000), // Fallback to first 1000 chars
       entities,
     };
 
+    // Cache the result
+    articleCache.set(url, enrichedResult);
+    
+    // Clear old cache entries after 1 hour
+    setTimeout(() => articleCache.delete(url), CACHE_TTL);
+
+    console.log(`📰 ✅ Enriched: ${entities.length} entities, ${keyMetrics.length} chars of metrics`);
+    return enrichedResult;
+
   } catch (error) {
-    console.warn(`📰 Article enrichment failed for ${url}:`, error instanceof Error ? error.message : 'unknown error');
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      console.warn(`📰 Timeout fetching article: ${url}`);
+    } else {
+      console.warn(`📰 Enrichment failed: ${url}`, error instanceof Error ? error.message : 'unknown');
+    }
     return baseResult;
   }
 }
 
 /**
- * Batch enriches multiple articles with rate limiting to avoid overwhelming servers.
+ * Batch enriches multiple articles with rate limiting
  */
 export async function enrichArticles(
   articles: Array<{ headline: string; url: string; description?: string }>,
   maxConcurrent: number = 3
 ): Promise<EnrichedArticle[]> {
   const results: EnrichedArticle[] = [];
+  const batches = Math.ceil(articles.length / maxConcurrent);
+  
+  console.log(`\n🔄 Enriching ${articles.length} articles in ${batches} batches...`);
+  
   for (let i = 0; i < articles.length; i += maxConcurrent) {
     const batch = articles.slice(i, i + maxConcurrent);
-    console.log(`\n🔄 Processing batch ${i / maxConcurrent + 1} of ${Math.ceil(articles.length / maxConcurrent)}...`);
+    const batchNum = Math.floor(i / maxConcurrent) + 1;
+    
+    console.log(`\n📦 Batch ${batchNum}/${batches}...`);
+    
     const batchResults = await Promise.allSettled(
       batch.map(article => enrichArticle(article.headline, article.url, article.description))
     );
 
-    batchResults.forEach(result => {
+    batchResults.forEach((result, idx) => {
       if (result.status === 'fulfilled') {
         results.push(result.value);
+      } else {
+        console.warn(`📰 Failed to enrich article ${i + idx + 1}: ${result.reason}`);
       }
     });
 
+    // Add delay between batches (except for last batch)
     if (i + maxConcurrent < articles.length) {
-      await new Promise(resolve => setTimeout(resolve, GENERATION_CONFIG.enrichment.batchDelay));
+      const delay = GENERATION_CONFIG.enrichment.batchDelay || 1000;
+      console.log(`⏳ Waiting ${delay}ms before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
+  
+  const successful = results.filter(r => r.fullText && r.fullText.length > 200);
+  console.log(`\n✅ Successfully enriched ${successful.length}/${articles.length} articles`);
+  
   return results;
+}
+
+/**
+ * Clear the article cache (useful for testing)
+ */
+export function clearArticleCache(): void {
+  articleCache.clear();
+  console.log('🗑️ Article cache cleared');
 }

@@ -1,4 +1,9 @@
-// lib/generation/types.ts
+// lib/generation/types.ts - ADD THESE TYPES TO YOUR EXISTING FILE
+import type { Account } from '../types';
+import type { PersonaConfig } from '../personas';
+import { PatternLane } from './personas/patternSpotter/laneSelector';
+
+// Existing types remain unchanged...
 export interface VariationMarkers {
   time_marker: string;
   token_marker: string;
@@ -6,6 +11,7 @@ export interface VariationMarkers {
   content_hash: string;
 }
 
+// UPDATED: Added recentPatterns with proper typing
 export interface TweetGenerationConfig {
   account_id?: string;
   persona?: string;
@@ -15,14 +21,22 @@ export interface TweetGenerationConfig {
   batchPosition?: number;
   batchSize?: number;
   previousWords?: string[];
-  previousHeadlines?: number[]; // Track used headline numbers for satirist
+  previousHeadlines?: number[];
+  recentPatterns?: RecentPattern[]; // UPDATED: Now properly typed
+  usedSourceUrls?: string[];
   rssContext?: string;
-  satiristFormat?: 'image' | 'text-only'; // Determine satirist output format before generation
-  vocabFormat?: 'image' | 'text-only'; // Determine satirist output format before generation
+  satiristFormat?: 'image' | 'text-only';
+  vocabFormat?: 'image' | 'text-only';
 }
 
-import type { Account } from '../types';
-import type { PersonaConfig } from '../personas';
+// NEW: Pattern tracking type
+export interface RecentPattern {
+  text: string;
+  lane?: PatternLane;
+  timestamp?: string;
+}
+
+
 
 export interface HeadlineWithSource {
   headline: string;

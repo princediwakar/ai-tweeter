@@ -4,6 +4,7 @@
  * * - Satirist (News/Hot Take): Posts mid-morning for commute/work-start scroll.
  * - Storyteller (Thread): Posts prime-time (8 PM IST) for maximum long-form consumption.
  * - Gibbi (Education): Retains global spread with multiple peak slots.
+ * - Pattern Spotter: Identifies patterns from headlines 
  */
 
 interface HourlySchedule {
@@ -50,50 +51,89 @@ const gibbiPostingPattern: HourlySchedule = {
 const THREAD_A = 'business_storyteller';
 // Thread B: Cricket Storyteller
 const THREAD_B = 'cricket_storyteller';
-const princeGenerationPattern: DailySchedule = {
-  // Strategy: Focused on Tue-Thu peaks; removed weekends. Total: 12 satirist, 3 pattern_spotter, 1 thread/week
-  0: {}, // Sunday - cricket thread
-  1: { 8: ['satirist'], 12: ['satirist'] }, // Monday - lighter mornings
-  2: { 8: ['satirist'], 12: ['satirist'], 18: [THREAD_A] }, // Tuesday - full day + evening thread
-  3: { 8: ['satirist'], 12: ['satirist'], 11: ['pattern_spotter'] }, // Wednesday - morning heavy
-  4: { 8: ['satirist'], 12: ['satirist'], 11: ['pattern_spotter'] }, // Thursday - morning heavy
-  5: { 8: ['satirist'], 12: ['pattern_spotter'] }, // Friday - lighter
-  6: {}, // Saturday - removed for focus
-};
-
-const princePostingPattern: DailySchedule = {
-  // Posting: 9-10 AM mornings, 1 PM afternoons (Tue-Thu emphasis). Thread Tue 7 PM prime.
-  0: {}, // Sunday - cricket thread
-  1: { 9: ['satirist'], 13: ['satirist'] }, // Monday
-  2: { 9: ['satirist'], 13: ['satirist'], 19: [THREAD_A] }, // Tuesday
-  3: { 10: ['satirist'], 12: ['satirist'], 13: ['pattern_spotter'] }, // Wednesday
-  4: { 10: ['satirist'], 12: ['satirist'], 13: ['pattern_spotter'] }, // Thursday
-  5: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Friday
-  6: {}, // Saturday - no posts
-};
-
-const princeEngagementPattern: HourlySchedule = {
-  9: ['engagement'],  // Morning: 9-11 AM window
-  10: ['engagement'],
-  19: ['engagement']  // Evening: 7-8 PM for threads/replies
-};
-
-
-
 /**
- * Optimized Prince LinkedIn Posting Schedule
- * Strategy: Tue-Thu heavy in pro windows; Mon/Fri lighter. Total: 10-12 posts/week for algorithm sweet spot.
- * No weekends; evenings minimized as mornings drive 2x views.
+ * OPTIMIZED SCHEDULES FOR 96-FOLLOWER ACCOUNT
+ * 
+ * Philosophy at this stage:
+ * - Consistency > Volume (build posting habit)
+ * - Quality > Quantity (every tweet must earn engagement)
+ * - Mix personas for variety (satirist morning, pattern afternoon)
+ * - Avoid posting fatigue (you're manually reviewing these)
+ * 
+ * Target: 8-10 tweets/week = 1-2/day
+ * Mix: 50/50 Satirist/Pattern Spotter (variety > specialization at small scale)
+ */
+
+// ============================================================================
+// TWITTER GENERATION SCHEDULE
+// ============================================================================
+const princeGenerationPattern: DailySchedule = {
+  // Generate 1-2 hours before posting to allow review/editing
+  // Pattern: Satirist (morning) + Pattern Spotter (afternoon) for content variety
+  0: {}, // Sunday - rest
+  1: { 9: ['satirist'] }, // Monday - 1 morning tweet
+  2: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Tuesday - morning data + afternoon insight
+  3: { 9: ['satirist'] }, // Wednesday - 1 morning tweet
+  4: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Thursday - morning data + afternoon insight
+  5: { 9: ['pattern_spotter'] }, // Friday - 1 pattern (lighter)
+  6: { 9: ['satirist'] }, // Saturday - 1 weekend data hit
+};
+// Total: 9 tweets/week (5 satirist, 4 pattern_spotter) - balanced mix
+
+// ============================================================================
+// TWITTER POSTING SCHEDULE
+// ============================================================================
+const princePostingPattern: DailySchedule = {
+  // Optimized for Indian audience peak times + content type matching
+  // Morning (9 AM): Satirist - data hits for commute/coffee time
+  // Afternoon (1 PM): Pattern Spotter - insights for lunch break thinking
+  
+  0: {}, // Sunday - rest
+  1: { 9: ['satirist'] }, // Monday morning data
+  2: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Tuesday: data morning, pattern lunch
+  3: { 9: ['satirist'] }, // Wednesday morning data
+  4: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Thursday: data morning, pattern lunch
+  5: { 9: ['pattern_spotter'] }, // Friday morning pattern (lighter for weekend)
+  6: { 11: ['satirist'] }, // Saturday late morning data hit
+};
+// Total: 9 posts/week (5 satirist morning, 4 pattern afternoon/Friday)
+
+// ============================================================================
+// TWITTER ENGAGEMENT SCHEDULE
+// ============================================================================
+const princeEngagementPattern: HourlySchedule = {
+  // Focus: Reply to bigger accounts in your niche (10-50K followers)
+  // Goal: Get noticed, not spam
+  // Time budget: 15-20 min per session
+  
+  9: ['engagement'],   // Post-posting: reply to morning tweets
+  13: ['engagement'],  // Lunch break: reply to trending topics
+  20: ['engagement'],  // Evening: reply to day's popular tweets (when big accounts are active)
+};
+// Total: 3 sessions/day, ~45-60 min total engagement time
+
+// ============================================================================
+// LINKEDIN POSTING SCHEDULE
+// ============================================================================
+/**
+ * LinkedIn Strategy for 2400 Connections:
+ * - You have REACH - use it (4-5 posts/week, not 3)
+ * - Tuesday-Thursday focus PLUS Monday opener + Friday closer
+ * - Pattern Spotter dominant (LinkedIn = insights platform)
+ * - Morning + early afternoon slots (global professionals)
+ * - Different tone than Twitter (more professional, less casual)
  */
 const princeLinkedInPostingPattern: DailySchedule = {
-  0: {}, // Sunday - none
-  1: { 10: ['satirist'], 13: ['satirist'] }, // Monday - mornings/afternoons
-  2: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Tuesday - full pro day
-  3: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Wednesday - full pro day
-  4: { 10: ['satirist'], 12: ['satirist'], 15: ['pattern_spotter'] }, // Thursday - full pro day
-  5: { 9: ['satirist'], 13: ['pattern_spotter'] }, // Friday - lighter
-  6: {}, // Saturday - none
+  0: {}, // Sunday
+  1: { 9: ['satirist'] }, // Monday - week starter insight
+  2: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
+  3: { 10: ['pattern_spotter'] }, // Wednesday - mid-week insight
+  4: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
+  5: { 9: ['pattern_spotter'] }, // Friday - week closer insight
+  6: {}, // Saturday
 };
+// Total: 8 posts/week (5 pattern_spotter, 3 satirist)
+;
 // Twitter handle mapping - maps twitter handles to schedule keys
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',

@@ -216,7 +216,7 @@ function selectRandomGeneration(options) {
 
   // For Prince's single tweets, prefer satirist persona and pattern_spotter
   if (selectedAccount === 'prince' && contentType === 'single_tweet') {
-    const personas = ['satirist', 'pattern_spotter'];
+    const personas = ['pattern_spotter',];
     persona = randomChoice(personas);
   }
 
@@ -261,7 +261,6 @@ async function generateContent(selection) {
       const data = response.data;
       console.log(`\n✅ Generation successful (${duration}ms)`);
       console.log(`👤 Account: ${data.accountName || 'Unknown'}`);
-      console.log(`📊 Strategy: ${data.strategy || 'Not specified'}`);
       
       if (data.generated) {
         console.log(`📈 Generated: ${data.generated.single_tweets || 0} tweets, ${data.generated.threads || 0} threads`);

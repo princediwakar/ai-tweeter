@@ -8,10 +8,11 @@ import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
 import { generateVariationMarkers, generateContentHash, shouldUseRSSSources } from './generation/utils';
 import { getPersonaGenerator } from './generation/personas';
-import type { TweetGenerationConfig, GenerationContext } from './generation/types';
+import type { TweetGenerationConfig, GenerationContext, RecentPattern } from './generation/types';
 import { TweetV2 } from './twitter';
 import { EngagementTarget } from './engagement/targets';
 import { GENERATION_CONFIG } from './generation/config';
+import { getRecentPatternData, getRecentSatiristData, getRecentVocabularyWords } from './db';
 
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
@@ -94,17 +95,18 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
 
   // For satirist persona, decide image vs text-only format BEFORE prompt generation
   if (persona.key === 'satirist' && !config.satiristFormat) {
-    const shouldGenerateImage = Math.random() < GENERATION_CONFIG.imageGeneration.satiristImagePercentage;
+    const imageProbability = GENERATION_CONFIG.personas.satirist.imageProbability;
+    const shouldGenerateImage = Math.random() < imageProbability;
     config.satiristFormat = shouldGenerateImage ? 'image' : 'text-only';
-    console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(GENERATION_CONFIG.imageGeneration.satiristImagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+    console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(imageProbability * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
 
   // For english_vocab_builder persona, decide image vs text-only format
   if (persona.key === 'english_vocab_builder' && !config.vocabFormat) {
-    const imagePercentage = GENERATION_CONFIG.imageGeneration.vocabImagePercentage || 0.8; // Default to 80% if not configured
-    const shouldGenerateImage = Math.random() < imagePercentage;
+    const imageProbability = GENERATION_CONFIG.personas.englishVocabBuilder.imageProbability;
+    const shouldGenerateImage = Math.random() < imageProbability;
     config.vocabFormat = shouldGenerateImage ? 'image' : 'text-only';
-    console.log(`🎲 [Vocab Builder] Format decided: ${config.vocabFormat} (${Math.round(imagePercentage * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+    console.log(`🎲 [Vocab Builder] Format decided: ${config.vocabFormat} (${Math.round(imageProbability * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
 
 
@@ -132,17 +134,26 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   };
 }
 
-// MODIFIED: Function signature and logic updated to extract and return sourceUrl
+// Complete rewrite of parseAndValidateTweetResponse in generationService.ts
+
 function parseAndValidateTweetResponse(
   content: string,
   persona: string,
-  rssContext?: string
+  rssContext?: string,
+  actualHeadlineCount?: number
 ): { tweet: EnhancedTweet; cardData: CardData | null; sourceUrl: string | undefined } | null {
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
     const data = JSON.parse(cleanedContent);
+    
+    // Initialize variables that will be populated in persona-specific branches
     let sourceUrl: string | undefined;
+    let cardData: CardData | null = null;
+    let tweetContent: string;
 
+    // ========================================
+    // STEP 1: Extract source URL from RSS context (for applicable personas)
+    // ========================================
     if (rssContext) {
       if (persona === 'satirist' || persona === 'pattern_spotter') {
         if (data.selectedHeadlineNumber) {
@@ -157,11 +168,10 @@ function parseAndValidateTweetResponse(
             console.error(`RSS Context preview: ${rssContext.substring(0, 500)}...`);
           }
         } else {
-          // This should never happen now due to validation above, but keeping as safety net
           console.error(`❌ [${persona}] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
         }
       } else if (['business_storyteller', 'cricket_storyteller'].includes(persona)) {
-        // Generic extraction for personas with a "Primary News Item"
+        // Generic extraction for storyteller personas with a "Primary News Item"
         const sourcePattern = /Source URL \(for context\): (https?:\/\/\S+)/m;
         const match = rssContext.match(sourcePattern);
         if (match && match[1]) {
@@ -171,16 +181,18 @@ function parseAndValidateTweetResponse(
       }
     }
 
-    let cardData: CardData | null = null;
-    let tweetContent: string;
-
+    // ========================================
+    // STEP 2: Parse persona-specific response format
+    // ========================================
+    
     if (persona === 'english_vocab_builder') {
-      if (!data.tweetText) { // tweetText is always required
+      // Vocab Builder: requires tweetText, optionally has cardData for image tweets
+      if (!data.tweetText) {
         throw new Error('AI response for vocab_builder missing required field: tweetText.');
       }
       tweetContent = data.tweetText;
 
-      // If cardData exists and is valid, it's an image tweet.
+      // If cardData exists and is valid, it's an image tweet
       if (data.cardData && data.cardData.word && data.cardData.meaning) {
         cardData = {
           word: data.cardData.word,
@@ -191,25 +203,36 @@ function parseAndValidateTweetResponse(
           type: data.cardData.type,
         };
       } else {
-        // Otherwise, it's a text-only tweet, so cardData remains null.
-        // This handles cases where cardData is explicitly null or malformed.
+        // Text-only tweet, cardData remains null
         if (data.cardData) {
-             console.warn(`[vocab_builder] Received malformed cardData for a text-only tweet. Discarding.`, data.cardData);
+          console.warn(`[vocab_builder] Received malformed cardData for a text-only tweet. Discarding.`, data.cardData);
         }
         cardData = null;
       }
-    } else if (persona === 'satirist') {
+    } 
+    
+    else if (persona === 'satirist') {
+      // Satirist: requires tweetText and selectedHeadlineNumber, optionally has imageContent
       if (!data.tweetText) {
         throw new Error('AI response for satirist missing required field: tweetText.');
       }
+      
       // CRITICAL: Validate selectedHeadlineNumber is present for source URL tracking
       if (!data.selectedHeadlineNumber || typeof data.selectedHeadlineNumber !== 'number') {
         throw new Error('AI response for satirist missing required field: selectedHeadlineNumber. Cannot track source URL without it.');
       }
-      if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > 8) {
-        throw new Error(`AI response for satirist has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. Must be between 1 and 8.`);
+      
+      // Validate selectedHeadlineNumber is in valid range
+      const maxHeadlines = actualHeadlineCount || 8; // Default to 8 for satirist if not provided
+      if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > maxHeadlines) {
+        throw new Error(
+          `AI response for satirist has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. ` +
+          `Must be between 1 and ${maxHeadlines} (actual headlines: ${actualHeadlineCount || 'unknown'}).`
+        );
       }
+      
       tweetContent = data.tweetText;
+      
       // Store imageContent in cardData ONLY if present (image format)
       if (data.imageContent) {
         cardData = {
@@ -218,27 +241,43 @@ function parseAndValidateTweetResponse(
         } satisfies SatiristCard;
       }
       // For text-only format, cardData remains null
-    } else if (persona === 'pattern_spotter') {
+    } 
+    
+    else if (persona === 'pattern_spotter') {
+      // Pattern Spotter: requires tweetText and selectedHeadlineNumber
       if (!data.tweetText) {
         throw new Error('AI response for pattern_spotter missing required field: tweetText.');
       }
+      
       // CRITICAL: Validate selectedHeadlineNumber is present for source URL tracking
       if (!data.selectedHeadlineNumber || typeof data.selectedHeadlineNumber !== 'number') {
         throw new Error('AI response for pattern_spotter missing required field: selectedHeadlineNumber. Cannot track source URL without it.');
       }
-      const maxHeadlines = GENERATION_CONFIG.patternSpotter.headlinesToFetch;
+      
+      // Validate selectedHeadlineNumber is in valid range
+      const maxHeadlines = actualHeadlineCount || GENERATION_CONFIG.personas.patternSpotter.headlinesToAnalyze;
       if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > maxHeadlines) {
-        throw new Error(`AI response for pattern_spotter has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. Must be between 1 and ${maxHeadlines}.`);
+        throw new Error(
+          `AI response for pattern_spotter has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. ` +
+          `Must be between 1 and ${maxHeadlines} (actual headlines: ${actualHeadlineCount || 'unknown'}).`
+        );
       }
+      
       tweetContent = data.tweetText;
       console.log(`🔍 [Pattern Spotter] Used headline #${data.selectedHeadlineNumber} as primary source`);
-    } else {
+    } 
+    
+    else {
+      // Default case: all other personas (business_storyteller, cricket_storyteller, etc.)
       if (!data.content || typeof data.content !== 'string') {
         throw new Error('AI response missing required "content" field.');
       }
       tweetContent = data.content;
     }
 
+    // ========================================
+    // STEP 3: Handle CTA and length validation
+    // ========================================
     const ctaString = data.gibbiCTA ? '\n\n' + data.gibbiCTA : '';
     const totalLength = tweetContent.length + ctaString.length;
 
@@ -252,6 +291,9 @@ function parseAndValidateTweetResponse(
       }
     }
 
+    // ========================================
+    // STEP 4: Build the EnhancedTweet object
+    // ========================================
     const tweet: EnhancedTweet = {
       content: tweetContent,
       hashtags: [],
@@ -262,7 +304,9 @@ function parseAndValidateTweetResponse(
       selectedHeadlineNumber: data.selectedHeadlineNumber || undefined
     };
 
-    // CRITICAL: Final validation for satirist and pattern_spotter personas - must have source URL
+    // ========================================
+    // STEP 5: Final validation - source URL required for certain personas
+    // ========================================
     if ((persona === 'satirist' || persona === 'pattern_spotter') && !sourceUrl) {
       console.error(`❌ [${persona}] Critical validation failed: No source URL extracted for tweet. This tweet will be rejected.`);
       console.error(`Tweet content: "${tweetContent}"`);
@@ -270,7 +314,9 @@ function parseAndValidateTweetResponse(
       throw new Error(`${persona} tweet missing source URL - cannot proceed without attribution`);
     }
 
-    // MODIFIED: Return the extracted sourceUrl
+    // ========================================
+    // STEP 6: Return the complete result
+    // ========================================
     return { tweet, cardData, sourceUrl };
     
   } catch (error) {
@@ -279,11 +325,33 @@ function parseAndValidateTweetResponse(
   }
 }
 
-
+// 2. UPDATE generateTweet to count and pass actualHeadlineCount
 export async function generateTweet(config: TweetGenerationConfig = {}): Promise<EnhancedTweet | null> {
   try {
 
+    if (config.persona === 'satirist' && config.account_id && !config.recentPatterns) {
+      console.log(`[Single Tweet] Fetching recent satirist data for account ${config.account_id}...`);
+      const recentData = await getRecentSatiristData(config.account_id, 5);
+      config.recentPatterns = recentData.patterns;
+      config.usedSourceUrls = recentData.usedSourceUrls;
+    }
+
+    if (config.persona === 'pattern_spotter' && config.account_id && !config.recentPatterns) {
+      console.log(`[Single Tweet] Fetching recent pattern data for account ${config.account_id}...`);
+      const recentData = await getRecentPatternData(config.account_id, 5);
+      config.recentPatterns = recentData.patterns;
+      config.usedSourceUrls = recentData.usedSourceUrls;
+    }
+    
     const { prompt, persona, rssContext } = await generateTweetPrompt(config);
+
+    // NEW: Count actual headlines in RSS context for validation
+    let actualHeadlineCount: number | undefined;
+    if (rssContext && (persona.key === 'pattern_spotter' || persona.key === 'satirist')) {
+      const headlineMatches = rssContext.match(/^\d+\./gm);
+      actualHeadlineCount = headlineMatches ? headlineMatches.length : undefined;
+      console.log(`📊 [${persona.key}] Counted ${actualHeadlineCount} headlines in RSS context for validation`);
+    }
 
     const response = await deepseekClient.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
@@ -299,11 +367,11 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
     }
 
 
-
     const parsedResponse = parseAndValidateTweetResponse(
       content,
       persona.key,
-      rssContext
+      rssContext,
+      actualHeadlineCount // NEW: Pass the count
     );
     if (!parsedResponse) {
       throw new Error('Failed to parse or validate AI response.');
@@ -329,7 +397,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
     const contentHash = generateContentHash(tweetData);
 
-    console.log(`✅ Generated enhanced tweet for ${persona.displayName} on contnt Hash: ${contentHash}`);
+    console.log(`✅ Generated enhanced tweet for ${persona.displayName} on content Hash: ${contentHash}`);
 
     // MODIFIED: Add sourceUrl to the final returned object
     return {
@@ -346,43 +414,6 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
   }
 }
 
-async function getRecentVocabularyWords(accountId: string, days: number = GENERATION_CONFIG.deduplication.vocabularyWordDays): Promise<string[]> {
-  try {
-    const { sql } = await import('@vercel/postgres');
-
-    const result = await sql`
-      SELECT DISTINCT card_data
-      FROM tweets
-      WHERE account_id = ${accountId}
-        AND persona = 'english_vocab_builder'
-        AND card_data IS NOT NULL
-        AND created_at > NOW() - INTERVAL '${days} days'
-      ORDER BY created_at DESC
-      LIMIT ${GENERATION_CONFIG.deduplication.vocabularyWordLimit}
-    `;
-    
-    const recentWords: string[] = [];
-    for (const row of result.rows) {
-      if (row.card_data) {
-        try {
-          const cardData = typeof row.card_data === 'string' 
-            ? JSON.parse(row.card_data) 
-            : row.card_data;
-          if (cardData?.word) {
-            recentWords.push(cardData.word.toLowerCase());
-          }
-        } catch {
-          // Skip malformed card data
-        }
-      }
-    }
-    
-    return recentWords;
-  } catch (error) {
-    console.warn('Failed to fetch recent vocabulary words:', error);
-    return [];
-  }
-}
 
 export async function generateBatchTweets(count: number, config: TweetGenerationConfig = {}): Promise<EnhancedTweet[]> {
   const tweets: EnhancedTweet[] = [];
@@ -395,27 +426,15 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
     console.log(`📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`);
   }
 
-  // Fetch account to determine if RSS sources should be used
-  let account: Account | null = null;
-  if (config.account_id && config.account_id !== 'fallback') {
-    account = await accountService.getAccount(config.account_id);
-    if (account) {
-      console.log(`🎯 Batch generation account context: ${account.name} (${account.twitter_handle})`);
-    }
+  let recentPatterns: RecentPattern[] = [];
+  let usedSourceUrls: string[] = [];
+  if (config.account_id && config.persona === 'pattern_spotter') {
+    const recentData = await getRecentPatternData(config.account_id, 5);
+    recentPatterns = recentData.patterns;
+    usedSourceUrls = recentData.usedSourceUrls;
+    console.log(`🔍 [Batch] Initial context: ${recentPatterns.length} recent patterns and ${usedSourceUrls.length} used source URLs to avoid.`);
   }
 
-  // --- START: MODIFIED BATCH LOGIC ---
-  // Fetch context ONCE for the entire batch to ensure efficiency and provide the same pool of news to each generator.
-  let batchRssContext = '';
-  if (config.persona && shouldUseRSSSources(account)) {
-    try {
-      // Pass accountId for satirist source filtering
-      batchRssContext = await getDynamicContext(config.persona, '', config.account_id);
-      console.log(`📰 Fetched RSS context for batch generation (${config.persona}): ${batchRssContext.length > 0 ? 'success' : 'empty'}`);
-    } catch (error) {
-      console.error("❌ Failed to fetch batch of dynamic contexts. Proceeding without them.", error);
-    }
-  }
 
   for (let i = 0; i < count; i++) {
     const allPreviousWords = [...recentWords, ...generatedWords];
@@ -426,26 +445,51 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
       batchSize: count,
       previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined,
       previousHeadlines: usedHeadlines.length > 0 ? usedHeadlines : undefined,
-      rssContext: batchRssContext // Pass the same pre-fetched context to each iteration.
+      recentPatterns: recentPatterns.length > 0 ? recentPatterns : undefined,
+      usedSourceUrls: usedSourceUrls.length > 0 ? usedSourceUrls : undefined,
+      // ✅ DON'T pass rssContext - let generateTweet fetch fresh each time
+      rssContext: undefined, // This forces fresh context with updated filters
     };
+
+    console.log(`🔄 [Batch ${i + 1}/${count}] Generating with ${usedSourceUrls.length} blocked URLs...`);
 
     const result = await generateTweet(batchConfig);
 
     if (result) {
       tweets.push(result);
+      
+      // Track vocab words
       if (result.persona === 'english_vocab_builder' && result.cardData && result.cardData.type !== 'satirist_insight' && result.cardData.word) {
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
-        console.log(`🆕 New word generated: ${newWord}`);
       }
-      // Track used headlines for satirist and pattern_spotter personas
+      
+      // Track headline numbers
       if ((result.persona === 'satirist' || result.persona === 'pattern_spotter') && result.selectedHeadlineNumber) {
         usedHeadlines.push(result.selectedHeadlineNumber);
-        console.log(`📰 ${result.persona} used headline #${result.selectedHeadlineNumber}`);
+      }
+      
+      // ✅ CRITICAL: Update blocklist immediately for next tweet in batch
+      if (result.persona === 'pattern_spotter') {
+        // Add this tweet's content to recent patterns for next iteration
+        recentPatterns.push({
+          text: result.content,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Add this tweet's source URL to blocklist for next iteration
+        if (result.sourceUrl && !usedSourceUrls.includes(result.sourceUrl)) {
+          usedSourceUrls.push(result.sourceUrl);
+          console.log(`🚫 [Batch ${i + 1}] Blocked source for next tweet: ${result.sourceUrl.substring(0, 50)}...`);
+        }
       }
     }
+    
+    // Small delay between generations to avoid rate limits
+    if (i < count - 1) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
-  // --- END: MODIFIED BATCH LOGIC ---
 
   console.log(`📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`);
   console.log(`🔤 Generated words: ${generatedWords.join(', ')}`);
@@ -453,102 +497,101 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
   if (usedHeadlines.length > 0) {
     console.log(`📰 Used headlines: #${usedHeadlines.join(', #')}`);
   }
+  if (usedSourceUrls.length > 0) {
+    console.log(`🚫 Final blocked URLs (total ${usedSourceUrls.length})`);
+  }
   return tweets;
 }
-
-
-/* Generates a high-impact reply to a tweet using the "THE_CATALYST" philosophy.
-* This function is optimized for insight and brevity over all else.
-*/
+  
 export async function generateEngagementReply(
- tweet: TweetV2,
- target: EngagementTarget,
- persona: PersonaConfig
-): Promise<string | null> {
-  const prompt = `You are The Catalyst. Your goal is to spark meaningful conversation. You analyze a tweet's intent (is it news, humor, a debate?) and adapt your mode: from sharp analyst to witty partner to empathetic validator. Your voice is versatile and intelligent, optimized for high-reach replies that resonate deeply.
-
-BACKGROUND CONTEXT (use strategically, not always):
-You're from IIT BHU Varanasi with experience in the Indian startup ecosystem. This gives you credibility when discussing:
-- Technical/product decisions by IIT founders or tech leaders
-- Pattern recognition across Indian startups and scaling challenges
-- Engineering-first approaches vs off-the-shelf solutions
-- India's tech transformation (digital payments, startup ecosystem growth)
-
-WHEN TO USE THIS CONTEXT:
-✅ Founder discussing technical architecture, scaling, or hiring
-✅ Debates about India vs global tech/business models
-✅ Pattern recognition across IIT/startup ecosystem
-✅ Technical validation where engineering background adds weight
-
-WHEN NOT TO USE:
-❌ Generic business advice or news commentary
-❌ Personal/lifestyle topics unrelated to tech/startups
-❌ When it feels like forced credential-dropping
-❌ Topics where lived experience doesn't add unique insight
-
-When you use context, be specific ("IIT founder playbook", "we saw this pattern at BHU") not generic ("as an engineer...").,
-
-
-  Reply Context:
-  - You are replying to: @${target.username} (Tier ${target.tier} influencer: ${target.description})
-  - Their original tweet: "${tweet.text}"
-
-  ---
-
-  **Core Logic: A 3-Step Process**
-
-  1.  **Analyze the Tweet's INTENT:** First, silently determine the primary nature of the original tweet. Is it:
-      * **Informational/News:** Reporting a fact, statistic, or event.
-      * **Opinion/Debate:** Presenting a viewpoint to be discussed.
-      * **Humor/Meme:** Intended to be funny or relatable.
-      * **Personal/Story:** Sharing a personal experience or feeling.
-      * **Question:** Directly asking for input from the audience.
-
-  2.  **Select the ENGAGEMENT MODE:** Based on the intent, choose one of these strategic modes for your reply.
-      * **For Informational/News -> The Analyst Mode:** Find the "signal within the noise." Provide the deeper implication, the overlooked context, or the next logical question.
-      * **For Opinion/Debate -> The Reframer Mode:** Don't just agree or disagree. Reframe the core idea with a surprising analogy, a thoughtful counterpoint, or by revealing the underlying principle that everyone is missing.
-      * **For Humor/Meme -> The Riff Mode:** Add to the joke. Don't just say "lol". Build on the premise with a witty observation or a clever twist, like a good improv partner ("Yes, and...").
-      * **For Personal/Story -> The Validator Mode:** Validate the person's experience and distill it into a universal human truth. Make them feel seen, then connect their feeling to a broader insight. Avoid generic sympathy.
-      * **For Question -> The Sage Mode:** Provide an answer that isn't the most obvious one, but the most insightful one. Answer the question behind the question.
-
-  3.  **Execute with THE CATALYST PRINCIPLES:**
-      * **Principle 1: Add Definitive Value.** Your reply must contribute something new: insight, humor, or empathy. Never be a generic "This!" or "So true."
-      * **Principle 2: Economize Every Word.** Be ruthlessly concise, but don't sacrifice clarity or wit. Aim for high impact-per-character. Under 200 characters is ideal.
-      * **Principle 3: Resonate with Emotion.** Match the emotional frequency of the original tweet, whether it's serious, funny, or vulnerable. A tonal mismatch kills reach.
-      * **Principle 4: Use Background Context Strategically.** Only reference your IIT/startup background when it adds unique credibility (technical decisions, pattern recognition, founder challenges). Never force it.
-
-  **Final Instruction:**
-  Generate ONLY the raw text for the reply based on your analysis. Do not explain your choice of mode.
-
-  `;
-
- try {
-   console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
-   const response = await deepseekClient.chat.completions.create({
-     model: "deepseek-chat",
-     messages: [{ role: "user", content: prompt }],
-     temperature: 0.85,
-     max_tokens: 120,
-   });
-   const replyText = response.choices[0].message.content;
-
-   if (!replyText) {
-       console.error('[Generator] AI returned an empty reply.');
-       return null;
-   }
-
-   const cleanedReply = replyText.replace(/"/g, '').trim();
-
-   if (cleanedReply.length > 280) {
-     console.error(`[Generator] ❌ Generated reply exceeds 280 chars (${cleanedReply.length}). Rejecting this reply.`);
-     console.error(`[Generator] Reply text: "${cleanedReply}"`);
-     return null;
-   }
-
-   console.log(`[Generator] ✅ Generated reply (${cleanedReply.length} chars): "${cleanedReply}"`);
-   return cleanedReply;
- } catch (error) {
-   console.error('[Generator] Error generating AI reply:', error);
-   return null;
+  tweet: TweetV2,
+  target: EngagementTarget,
+  persona: PersonaConfig
+ ): Promise<string | null> {
+   const prompt = `You are The Catalyst. Your goal is to spark meaningful conversation. You analyze a tweet's intent (is it news, humor, a debate?) and adapt your mode: from sharp analyst to witty partner to empathetic validator. Your voice is versatile and intelligent, optimized for high-reach replies that resonate deeply.
+ 
+ BACKGROUND CONTEXT (use strategically, not always):
+ You're from IIT BHU Varanasi with experience in the Indian startup ecosystem. This gives you credibility when discussing:
+ - Technical/product decisions by IIT founders or tech leaders
+ - Pattern recognition across Indian startups and scaling challenges
+ - Engineering-first approaches vs off-the-shelf solutions
+ - India's tech transformation (digital payments, startup ecosystem growth)
+ 
+ WHEN TO USE THIS CONTEXT:
+ ✅ Founder discussing technical architecture, scaling, or hiring
+ ✅ Debates about India vs global tech/business models
+ ✅ Pattern recognition across IIT/startup ecosystem
+ ✅ Technical validation where engineering background adds weight
+ 
+ WHEN NOT TO USE:
+ ❌ Generic business advice or news commentary
+ ❌ Personal/lifestyle topics unrelated to tech/startups
+ ❌ When it feels like forced credential-dropping
+ ❌ Topics where lived experience doesn't add unique insight
+ 
+ When you use context, be specific ("IIT founder playbook", "we saw this pattern at BHU") not generic ("as an engineer...").,
+ 
+ 
+   Reply Context:
+   - You are replying to: @${target.username} (Tier ${target.tier} influencer: ${target.description})
+   - Their original tweet: "${tweet.text}"
+ 
+   ---
+ 
+   **Core Logic: A 3-Step Process**
+ 
+   1.  **Analyze the Tweet's INTENT:** First, silently determine the primary nature of the original tweet. Is it:
+       * **Informational/News:** Reporting a fact, statistic, or event.
+       * **Opinion/Debate:** Presenting a viewpoint to be discussed.
+       * **Humor/Meme:** Intended to be funny or relatable.
+       * **Personal/Story:** Sharing a personal experience or feeling.
+       * **Question:** Directly asking for input from the audience.
+ 
+   2.  **Select the ENGAGEMENT MODE:** Based on the intent, choose one of these strategic modes for your reply.
+       * **For Informational/News -> The Analyst Mode:** Find the "signal within the noise." Provide the deeper implication, the overlooked context, or the next logical question.
+       * **For Opinion/Debate -> The Reframer Mode:** Don't just agree or disagree. Reframe the core idea with a surprising analogy, a thoughtful counterpoint, or by revealing the underlying principle that everyone is missing.
+       * **For Humor/Meme -> The Riff Mode:** Add to the joke. Don't just say "lol". Build on the premise with a witty observation or a clever twist, like a good improv partner ("Yes, and...").
+       * **For Personal/Story -> The Validator Mode:** Validate the person's experience and distill it into a universal human truth. Make them feel seen, then connect their feeling to a broader insight. Avoid generic sympathy.
+       * **For Question -> The Sage Mode:** Provide an answer that isn't the most obvious one, but the most insightful one. Answer the question behind the question.
+ 
+   3.  **Execute with THE CATALYST PRINCIPLES:**
+       * **Principle 1: Add Definitive Value.** Your reply must contribute something new: insight, humor, or empathy. Never be a generic "This!" or "So true."
+       * **Principle 2: Economize Every Word.** Be ruthlessly concise, but don't sacrifice clarity or wit. Aim for high impact-per-character. Under 200 characters is ideal.
+       * **Principle 3: Resonate with Emotion.** Match the emotional frequency of the original tweet, whether it's serious, funny, or vulnerable. A tonal mismatch kills reach.
+       * **Principle 4: Use Background Context Strategically.** Only reference your IIT/startup background when it adds unique credibility (technical decisions, pattern recognition, founder challenges). Never force it.
+ 
+   **Final Instruction:**
+   Generate ONLY the raw text for the reply based on your analysis. Do not explain your choice of mode.
+ 
+   `;
+ 
+  try {
+    console.log(`[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.key}`);
+    const response = await deepseekClient.chat.completions.create({
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.85,
+      max_tokens: 120,
+    });
+    const replyText = response.choices[0].message.content;
+ 
+    if (!replyText) {
+        console.error('[Generator] AI returned an empty reply.');
+        return null;
+    }
+ 
+    const cleanedReply = replyText.replace(/"/g, '').trim();
+ 
+    if (cleanedReply.length > 280) {
+      console.error(`[Generator] ❌ Generated reply exceeds 280 chars (${cleanedReply.length}). Rejecting this reply.`);
+      console.error(`[Generator] Reply text: "${cleanedReply}"`);
+      return null;
+    }
+ 
+    console.log(`[Generator] ✅ Generated reply (${cleanedReply.length} chars): "${cleanedReply}"`);
+    return cleanedReply;
+  } catch (error) {
+    console.error('[Generator] Error generating AI reply:', error);
+    return null;
+  }
  }
-}

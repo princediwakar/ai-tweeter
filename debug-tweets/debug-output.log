@@ -1,0 +1,45 @@
+pattern_spotter: "Paytm's UPI growth story masks reality: 70% revenue from payment gateway fees, not P2P transfers. Classic platform pivot."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE1XbWEzQzUwM3dMWGlMWU4wLVEwRGg2R0hGcmk5ZTNuUm5OX0k0SmxWUmNzcUc3cjdyeWg4T25hbkZKeEtJemFHTk9qSEliWVpaSkp0Wjd6UVlickhWdF9HRQ?oc=5"
+
+pattern_spotter: "Freshworks pivoting from SMB to enterprise while cutting 20% staff. Classic growth trap: chasing whales kills the fish that fed you."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE13UThTQWdyZmdpVlppUEZGLXZPbGtLblgyRDlCVHI3SUZJd0Q2MWNhVEZmVHJkNXMyYlpvMXlaZ2lYT0FNRDZjV0FXMTRJT2I3NU9nMjRwdzJuWl9GRUVmWQ?oc=5"
+
+pattern_spotter: "Groww's gold trading isn't diversification - it's user retention when markets are flat. Same playbook as Robinhood's crypto pivot."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE84SVF0aXlMRDhDdk1pT0g2OEljM3JyZW5RMnBMamhycEd1enpaNEpBSmVrQ3RyenU2Z0ZnZ1cxam9leHZUaDVnRUktT3BrTHpsckswUE50cnBSN1BqRnRIZg?oc=5"
+
+pattern_spotter: "Everyone: Zepto's 10-min delivery is the game. Reality: Their dark store network is becoming India's last-mile logistics backbone. This changes everything."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9JODh5S2Q2ZnY1YUd6a0lwS05DdVp5bnBaRUxLMVhiamc0M3NuT01qS3lENXFCR0lrNzV3NHEzTkNFNmVtOWtaMk5LSGpsWVpCeThkX1hxTzFvNndxdm15SA?oc=5"
+
+pattern_spotter: "Lenskart's 60% revenue from own-brand manufacturing reveals they're a factory with stores attached, not just eyewear retail."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE13UThTQWdyZmdpVlppUEZGLXZPbGtLblgyRDlCVHI3SUZJd0Q2MWNhVEZmVHJkNXMyYlpvMXlaZ2lYT0FNRDZjV0FXMTRJT2I3NU9nMjRwdzJuWl9GRUVmWQ?oc=5"
+
+pattern_spotter: "PharmEasy's pharmacy delivery masks their real play: 40% margins on diagnostic tests. They're a health lab with delivery attached."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE13UThTQWdyZmdpVlppUEZGLXZPbGtLblgyRDlCVHI3SUZJd0Q2MWNhVEZmVHJkNXMyYlpvMXlaZ2lYT0FNRDZjV0FXMTRJT2I3NU9nMjRwdzJuWl9GRUVmWQ?oc=5"
+
+pattern_spotter: "Paytm's new UPI-first strategy mirrors WhatsApp's payments pivot - user retention through embedded finance, not just transactions."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE1XbWEzQzUwM3dMWGlMWU4wLVEwRGg2R0hGcmk5ZTNuUm5OX0k0SmxWUmNzcUc3cjdyeWg4T25hbkZKeEtJemFHTk9qSEliWVpaSkp0Wjd6UVlickhWdF9HRQ?oc=5"
+
+pattern_spotter: "Freshworks adding AI features mirrors Salesforce's Einstein playbook. Classic upsell strategy when core product matures."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE1XbWEzQzUwM3dMWGlMWU4wLVEwRGg2R0hGcmk5ZTNuUm5OX0k0SmxWUmNzcUc3cjdyeWg4T25hbkZKeEtJemFHTk9qSEliWVpaSkp0Wjd6UVlickhWdF9HRQ?oc=5"
+
+pattern_spotter: "Groww adding gold mirrors Robinhood's diversification playbook. Users stay active when stocks slow down."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE84SVF0aXlMRDhDdk1pT0g2OEljM3JyZW5RMnBMamhycEd1enpaNEpBSmVrQ3RyenU2Z0ZnZ1cxam9leHZUaDVnRUktT3BrTHpsckswUE50cnBSN1BqRnRIZg?oc=5"
+
+pattern_spotter: "Zepto's 10-minute delivery masks their real play: 40% margins on private label snacks. They're a CPG brand with delivery attached."
+source: "https://news.google.com/rss/articles/CBMiYEFVX3lxTE9JODh5S2Q2ZnY1YUd6a0lwS05DdVp5bnBaRUxLMVhiamc0M3NuT01qS3lENXFCR0lrNzV3NHEzTkNFNmVtOWtaMk5LSGpsWVpCeThkX1hxTzFvNndxdm15SA?oc=5"
+
+pattern_spotter: "Zepto losing CXO to FoodStories mirrors Swiggy's talent drain to Rebel Foods. Quick commerce execs jumping to premium food chains."
+source: "https://yourstory.com/2025/10/zepto-cafe-cxo-shashank-sharma-exits-joins-foodstories"
+
+pattern_spotter: "Lenskart's factory-first model mirrors Xiaomi's playbook. Own manufacturing = control margins, speed iteration. D2C brands take note."
+source: "https://yourstory.com/2025/10/logistics-20-why-every-d2c-brand-needs-an-ai-powered-backend"
+
+pattern_spotter: "Everyone: Paytm is a payments app. Reality: 40% revenue from lending. They're a bank with a payments UI."
+source: "https://yourstory.com/2025/10/apple-brings-m5-chip-power-new-lineup-devices-ai"
+
+pattern_spotter: "Groww adding gold trading mirrors Zerodha's commodities playbook. User retention when markets slow down."
+source: "https://yourstory.com/2025/10/logistics-20-why-every-d2c-brand-needs-an-ai-powered-backend"
+
+pattern_spotter: "Freshworks adding AI to customer support mirrors Salesforce's Einstein playbook. Classic upselling strategy when market matures."
+source: "https://yourstory.com/2025/10/logistics-20-why-every-d2c-brand-needs-an-ai-powered-backend"
+

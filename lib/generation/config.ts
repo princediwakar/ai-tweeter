@@ -52,8 +52,8 @@ const PERSONA_CONFIG = {
     idealCharRange: { min: 80, max: 120 }, // Sweet spot for engagement
     subredditsToFetch: 0,
     postsPerSubreddit: 0,
-    twitterHandlesToFetch: 2,
-    postsPerTwitterHandle: 3,
+    twitterHandlesToFetch: 0,
+    postsPerTwitterHandle: 0,
     deduplicationDays: 5,
     feeds: {
       business: [

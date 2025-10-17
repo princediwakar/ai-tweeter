@@ -36,10 +36,19 @@
 * `app/api/generate/route.ts` - Content generation endpoint
 * `app/api/auto-post/route.ts` - Automated posting endpoint
 
+**Engagement System (Multi-Account):**
+* `lib/engagement/personas.ts` - Engagement AI personas (the_catalyst, gandhi, etc.)
+* `lib/engagement/activityScout.ts` - Finds recent tweets from target accounts
+* `lib/engagement/selector.ts` - Selects best tweets to engage with
+* `config/engagement-targets.json` - Per-account target lists and rules
+* `app/api/engage/route.ts` - Engagement endpoint with rate limiting
+* **Setup guide:** `docs/MULTI_ACCOUNT_ENGAGEMENT_SETUP.md`
+
 **Database Schema (Neon):**
 * `accounts` - Multi-account credentials, personas, branding
 * `tweets` - Content with threading support (thread_id, sequence, parent, source_url)
 * `threads` - Thread metadata (status, progress tracking)
+* `engagement_log` - Engagement history with rate limiting (account_id, target, reply)
 * **Full schema:** `docs/DATABASE_SCHEMA.md` | **Project ID:** `round-sun-88150229`
 
 ### 📰 Article Enrichment Pipeline (Satirist Persona)
@@ -70,6 +79,24 @@ The satirist persona uses a sophisticated two-step enrichment process:
 * **Pre-Commit:** Run `npm run build && npm run lint` before every commit.
 * **Database Access:** Use direct `psql "$DATABASE_URL"` commands (MCP disabled to save tokens)
 * **Cron Endpoints:**
-  - `GET /api/generate?twitter_handle={account}` (per account)
-  - `GET /api/auto-post` (all accounts)
+  - `GET /api/generate?twitter_handle={account}` - Content generation per account
+  - `GET /api/auto-post` - Post ready tweets (all accounts)
+  - `GET /api/engage?twitter_handle={account}` - Engagement per account
   - Auth via `CRON_SECRET` env var
+
+### 🤝 Multi-Account Engagement System
+
+Each account can have its own engagement strategy:
+
+**Architecture:**
+1. **Engagement Personas** - Different AI voices (Catalyst for startups, Gandhi for wisdom)
+2. **Target Lists** - Account-specific lists of who to engage with
+3. **Schedules** - Per-account timing (IST-based)
+4. **Rate Limits** - Daily caps and cooldown periods
+
+**Example Accounts:**
+- `@princediwakar25` → Uses "the_catalyst" persona → Engages with startup founders (3/day)
+- `@Gandhi_Wisom_` → Uses "gandhi" persona → Engages with social leaders (4/day)
+
+**Adding New Accounts:**
+See `docs/MULTI_ACCOUNT_ENGAGEMENT_SETUP.md` for complete setup guide

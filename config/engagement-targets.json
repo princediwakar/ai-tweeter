@@ -19,5 +19,17 @@
       "max_engagements_per_day": 3,
       "min_hours_between_same_target": 4
     }
+  },
+
+  "@Gandhi_Wisom_": {
+    "priority_targets": [
+      
+      { "username": "@naval", "description": "Investor and writer on startups and growth", "tier": 1 }
+    ],
+    "engagement_persona": "gandhi",
+    "rules": {
+      "max_engagements_per_day": 4,
+      "min_hours_between_same_target": 0
+    }
   }
 }

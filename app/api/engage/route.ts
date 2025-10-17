@@ -8,7 +8,6 @@ import { postReplyTweet } from '@/lib/twitter';
 import { scoutAndFetch } from '@/lib/engagement/activityScout';
 import { selectBestTweet } from '@/lib/engagement/selector';
 import { generateEngagementReply } from '@/lib/generationService';
-import { getPersonaByKey } from '@/lib/personas';
 
 export async function GET(request: NextRequest) {
   // 1. Authorization
@@ -135,12 +134,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 10. Generate Reply
-  const persona = getPersonaByKey(engagementConfig.engagement_persona);
-  if (!persona) {
-    console.error(`[Engage API] Failed: Persona '${engagementConfig.engagement_persona}' not found.`);
-    return NextResponse.json({ error: `Persona '${engagementConfig.engagement_persona}' not found.` }, { status: 500 });
-  }
-  const replyText = await generateEngagementReply(tweetToEngage, targetInfo, persona);
+  const replyText = await generateEngagementReply(tweetToEngage, targetInfo, engagementConfig.engagement_persona);
   if (!replyText) {
     console.error(`[Engage API] Failed: AI failed to generate a high-quality reply for tweet ${tweetToEngage.id}.`);
     return NextResponse.json({ error: 'Failed to generate a high-quality reply.' }, { status: 500 });

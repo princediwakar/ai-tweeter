@@ -113,6 +113,22 @@ const princeEngagementPattern: HourlySchedule = {
 // Total: 3 sessions/day, ~45-60 min total engagement time
 
 // ============================================================================
+// GANDHI ACCOUNT ENGAGEMENT SCHEDULE
+// ============================================================================
+const gandhiEngagementPattern: HourlySchedule = {
+  // Focus: Engage with leaders, activists, and news about social issues
+  // Goal: Share wisdom, promote peace and ethical thinking
+  // Time budget: 20-25 min per session
+  // Philosophy: Thoughtful engagement during key moments of global discourse
+
+  9: ['engagement'],   // Morning: Engage with early morning posts from leaders
+  10: ['engagement'],   // Morning: Engage with early morning posts from leaders
+  2: ['engagement'],  // Evening: Engage with day's political/social discussions
+  21: ['engagement'],  // Night: Reflect on day's events with wisdom
+};
+// Total: 4 sessions/day, targeting social/political discourse
+
+// ============================================================================
 // LINKEDIN POSTING SCHEDULE
 // ============================================================================
 /**
@@ -138,12 +154,14 @@ const princeLinkedInPostingPattern: DailySchedule = {
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
   '@princediwakar25': 'prince_account',
+  '@Gandhi_Wisom_': 'gandhi_account',
 };
 
 // Reverse mapping - from schedule keys to twitter handles
 const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
   'gibbi_account': '@gibbi_ai',
   'prince_account': '@princediwakar25',
+  'gandhi_account': '@Gandhi_Wisom_',
 };
 
 /**
@@ -192,6 +210,21 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
       6: princeEngagementPattern, // Saturday
     },
     linkedin_posting: princeLinkedInPostingPattern,
+  },
+
+  gandhi_account: {
+    // Gandhi account is engagement-only (no content generation/posting)
+    generation: {}, // No content generation
+    posting: {}, // No content posting
+    engagement: {
+      0: gandhiEngagementPattern, // Sunday
+      1: gandhiEngagementPattern, // Monday
+      2: gandhiEngagementPattern, // Tuesday
+      3: gandhiEngagementPattern, // Wednesday
+      4: gandhiEngagementPattern, // Thursday
+      5: gandhiEngagementPattern, // Friday
+      6: gandhiEngagementPattern, // Saturday
+    },
   }
 };
 

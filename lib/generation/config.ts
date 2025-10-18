@@ -50,8 +50,8 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
-    tweetTextCharLimit: 120, // Hard limit for small accounts
-    idealCharRange: { min: 80, max: 120 }, // Sweet spot for engagement
+    tweetTextCharLimit: 250, // Allow multi-line format for clarity and save rate
+    idealCharRange: { min: 180, max: 250 }, // 3-line structure with breathing room
     subredditsToFetch: 0,
     postsPerSubreddit: 0,
     twitterHandlesToFetch: 0,

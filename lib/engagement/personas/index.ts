@@ -1,8 +1,8 @@
 // lib/engagement/personas/index.ts
 
 import { EngagementPersonaPrompt } from './types';
-import { theCatalyst } from './the_catalyst';
 import { gandhi } from './gandhi';
+import { theCatalyst } from './the_catalyst';
 
 // Registry of all available engagement personas
 export const ENGAGEMENT_PERSONAS: Record<string, EngagementPersonaPrompt> = {

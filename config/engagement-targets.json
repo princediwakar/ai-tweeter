@@ -1,13 +1,13 @@
 {
-"@princediwakar25": {
-"priority_targets": [
+  "@princediwakar25": {
+    "priority_targets": [
       {
         "username": "@paraschopra",
         "description": "Founder, Wingify (VWO) - The 'SaaS Founder-Philosopher'",
         "tier": 1
       },
       {
-        "username": "@manassaloi",
+        "username": "@manasjsaloi",
         "description": "Product & Founder (building `salt`) - The 'Product-First Thinker'",
         "tier": 1
       },
@@ -17,14 +17,14 @@
         "tier": 1
       },
       {
-        "username": "@tanmaig",
+        "username": "@tanmaigo",
         "description": "Co-founder & CEO, Hasura - IIT Context, deep-tech founder",
         "tier": 1
       },
       {
         "username": "@monagandhi",
         "description": "Founder, Upraised (ex-Airbnb) - High-signal on product/culture",
-        "tier":1
+        "tier": 1
       },
       {
         "username": "@hnshah",
@@ -42,27 +42,12 @@
         "tier": 2
       },
       {
-        "username": "@shivangs",
-        "description": "VP Product (ex-Swiggy, Zeta) - Senior product practitioner",
-        "tier": 2
-      },
-      {
-        "username": "@jonty",
-        "description": "Co-founder, Kutumb - IIT Context, building for Bharat",
-        "tier": 2
-      },
-      {
-        "username": "@s_ameer",
-        "description": "Analyst & Writer (Mobile & Tech) - High-signal, low-noise analyst",
-        "tier": 2
-      },
-      {
-        "username": "@arindam_m",
+        "username": "@amukho",
         "description": "Co-founder, NextLeap - Active in product/growth community",
         "tier": 2
       }
     ]
-},
+  },
   "@Gandhi_Wisom_": {
     "priority_targets": [
       {

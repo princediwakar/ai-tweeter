@@ -1,30 +1,155 @@
 {
-  "@princediwakar25": {
-    "priority_targets": [
-      { "username": "@aviralbhat", "description": "Founder of OML Entertainment, startup ecosystem insights", "tier": 1 },
-      { "username": "@_vaibhavsikhwal", "description": "Product manager, startup breakdowns and insights", "tier": 1 },
-      { "username": "@jithamithra", "description": "EIR at Sequoia, startup ecosystem content", "tier": 1 },
-      { "username": "@Karthik", "description": "Angel investor, Indian startup ecosystem", "tier": 1 },
-      { "username": "@ankitsoni", "description": "Founder of Slice (fintech), startup operator", "tier": 1 },
-      { "username": "@rohitma", "description": "Founder of Meesho, D2C/commerce insights", "tier": 1 },
-      { "username": "@StartupStoryIND", "description": "Indian startup stories and breakdowns, high engagement", "tier": 2 },
-      { "username": "@stats_feed", "description": "Data-driven insights and statistics, analytical", "tier": 2 },
-      { "username": "@shraddhakaushik", "description": "Founder of The Ken, deep startup analysis", "tier": 2 },
-      { "username": "@Inc42", "description": "Indian startup news media, engages with ecosystem", "tier": 2 },
-      { "username": "@ETtech", "description": "Economic Times tech news, Indian business focus", "tier": 2 }
-    ],
-    "engagement_persona": "the_catalyst",
-    "rules": {
-      "max_engagements_per_day": 3,
-      "min_hours_between_same_target": 4
-    }
-  },
-
+"@princediwakar25": {
+"priority_targets": [
+      {
+        "username": "@paraschopra",
+        "description": "Founder, Wingify (VWO) - The 'SaaS Founder-Philosopher'",
+        "tier": 1
+      },
+      {
+        "username": "@manassaloi",
+        "description": "Product & Founder (building `salt`) - The 'Product-First Thinker'",
+        "tier": 1
+      },
+      {
+        "username": "@shreyas",
+        "description": "Product Leader (ex-Stripe, Twitter) - Essential product voice",
+        "tier": 1
+      },
+      {
+        "username": "@tanmaig",
+        "description": "Co-founder & CEO, Hasura - IIT Context, deep-tech founder",
+        "tier": 1
+      },
+      {
+        "username": "@monagandhi",
+        "description": "Founder, Upraised (ex-Airbnb) - High-signal on product/culture",
+        "tier":1
+      },
+      {
+        "username": "@hnshah",
+        "description": "Founder, Nira/KISSmetrics - Global SaaS practitioner",
+        "tier": 1
+      },
+      {
+        "username": "@nixxin",
+        "description": "Founder, Medianama - The 'Tech Policy Analyst' Target",
+        "tier": 2
+      },
+      {
+        "username": "@sajithpai",
+        "description": "Partner, Blume Ventures - The 'VC-Analyst' on market patterns",
+        "tier": 2
+      },
+      {
+        "username": "@shivangs",
+        "description": "VP Product (ex-Swiggy, Zeta) - Senior product practitioner",
+        "tier": 2
+      },
+      {
+        "username": "@jonty",
+        "description": "Co-founder, Kutumb - IIT Context, building for Bharat",
+        "tier": 2
+      },
+      {
+        "username": "@s_ameer",
+        "description": "Analyst & Writer (Mobile & Tech) - High-signal, low-noise analyst",
+        "tier": 2
+      },
+      {
+        "username": "@arindam_m",
+        "description": "Co-founder, NextLeap - Active in product/growth community",
+        "tier": 2
+      }
+    ]
+},
   "@Gandhi_Wisom_": {
     "priority_targets": [
-      { "username": "@IndianTechGuide", "description": "Everything about Indian technology, infrastructure, and economy. The opinions expressed here are strictly personal", "tier": 1 }
-
-
+      {
+        "username": "@kunalb11",
+        "description": "CRED Founder. Peak 'absurd empire' tweets on wealth/status. Prime 'Tapas' roast target.",
+        "tier": 1
+      },
+      {
+        "username": "@nikhilkamathcio",
+        "description": "Zerodha Co-founder. Tweets on wealth & philosophy. Perfect for 'Satya' (truth) roasts.",
+        "tier": 1
+      },
+      {
+        "username": "@balajis",
+        "description": "Tech-optimist, investor. The *king* of high-concept takes. Prime target for 'Dharma' critiques.",
+        "tier": 1
+      },
+      {
+        "username": "@naval",
+        "description": "AngelList Co-founder. Philosopher-king of wealth. Ideal for 'Swaraj' vs. 'rich' debates.",
+        "tier": 1
+      },
+      {
+        "username": "@sahilbloom",
+        "description": "Global 'Grindset' Guru. The definition of hustle culture. Perfect for 'Spin yarn, not your soul' QRTs.",
+        "tier": 1
+      },
+      {
+        "username": "@AmanGupta0303",
+        "description": "boAt Founder / Shark Tank. The face of new-age Indian hustle. Great for 'Dignity of Labor' takes.",
+        "tier": 1
+      },
+      {
+        "username": "@deepigoyal",
+        "description": "Founder of Zomato. Gig economy, hustle. Perfect for 'Where's the chai wallah?' critiques.",
+        "tier": 1
+      },
+      {
+        "username": "@sama",
+        "description": "CEO of OpenAI. The face of AI hubris. Target for 'Back to charkha' and 'humanity' roasts.",
+        "tier": 1
+      },
+      {
+        "username": "@garyvee",
+        "description": "Global King of Hustle. The final boss of '9-to-5 slavery.' Your 'Swaraj' nemesis.",
+        "tier": 1
+      },
+      {
+        "username": "@vijayshekhar",
+        "description": "Founder of Paytm. High-profile tech. Good for 'Is this helping the poors?' takes.",
+        "tier": 1
+      },
+      {
+        "username": "@Nithin0dha",
+        "description": "Founder of Zerodha. More grounded, but still a billionaire. Good for 'simple living' pokes.",
+        "tier": 1
+      },
+      {
+        "username": "@anandmahindra",
+        "description": "Industrialist. A different kind of 'empire.' Good for 'desi uncle to desi uncle' commentary on India.",
+        "tier": 2
+      },
+      {
+        "username": "@ChetanBhagat",
+        "description": "Author, Columnist. Prolific 'hot takes' on everything. The perfect 'Beta, chill' target.",
+        "tier": 2
+      },
+      {
+        "username": "@ParikPatelCFA",
+        "description": "Famous Finance Bro (Parody Account). Your first 'parody parliament' ally. Engage for 'Tapas' humor.",
+        "tier": 2
+      },
+      {
+        "username": "@shradhasharma",
+        "description": "Founder of YourStory. A top source for startup news you can QRT-roast.",
+        "tier": 2
+      },
+      {
+        "username": "@TheKen",
+        "description": "Startup & tech media. QRT their breakdowns with a 'simplicity' zinger.",
+        "tier": 2
+      },
+      {
+        "username": "@stats_feed",
+        "description": "Data/Statistics account. QRT their stats with 'My charkha has one stat: it works.'",
+        "tier": 2
+      }
     ],
     "engagement_persona": "gandhi",
     "rules": {

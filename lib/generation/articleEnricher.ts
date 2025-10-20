@@ -1,3 +1,4 @@
+
 // lib/generation/articleEnricher.ts
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
@@ -23,35 +24,27 @@ export interface EnrichedArticle {
   cached?: boolean; // NEW: Flag for cached results
 }
 
+interface ExtractEntitiesOptions {
+	ignoreWords?: Set<string>;
+	minLength?: number;
+}
+
 /**
- * Extracts paragraphs that contain metrics/numbers
+ * Extracts the most data-heavy paragraphs from the article text to focus the AI's analysis.
  */
 function extractKeyMetrics(fullText: string): string {
   const paragraphs = fullText.split(/\n\n+/);
-  
   const metricParagraphs = paragraphs.filter(p => {
-    // Must have numbers
     const hasNumbers = /\d+[,.]?\d*/.test(p);
-    
-    // Prefer paragraphs with growth indicators or currency
-    const hasMetrics = 
-      p.includes('%') || 
-      p.includes('Cr') || 
-      p.includes('crore') ||
-      p.includes('million') || 
-      p.includes('billion') ||
-      p.includes('growth') ||
-      p.includes('revenue') ||
-      p.includes('profit') ||
-      /YoY|QoQ|MoM/i.test(p);
-    
+    const hasMetrics =
+      p.includes('%') ||
+      /\b(Rs|₹|crore|Cr|lakh|million|billion|mn|bn)\b/i.test(p) ||
+      /\b(growth|revenue|profit|funding|valuation|GMV|YTD|YoY|QoQ)\b/i.test(p);
     return hasNumbers && hasMetrics && p.length > 50;
   });
-  
-  // Return top 3 metric-heavy paragraphs
+  // Return the top 3 most relevant paragraphs, joined together.
   return metricParagraphs.slice(0, 3).join('\n\n');
 }
-
 /**
  * Detects if article is behind paywall
  */
@@ -72,25 +65,33 @@ function detectPaywall(text: string): boolean {
 }
 
 /**
- * Extracts entity names (companies, people) from text using capitalization patterns.
+ * [REUSABLE UTILITY] Extracts potential entities (like company or people names) from a string.
+ * It looks for capitalized words, including multi-word names, and can be configured.
+ * @param text The text to parse.
+ * @param options Configuration for extraction (e.g., words to ignore).
+ * @returns An array of unique entities found.
  */
-function extractEntities(text: string): string[] {
-  const entities = new Set<string>();
-  const entityPattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*(?:'s)?)\b/g;
-  let match;
-  
-  while ((match = entityPattern.exec(text)) !== null) {
-    const entity = match[1];
-    // Filter out common words that start sentences but aren't entities
-    const commonWords = ['The', 'A', 'An', 'This', 'That', 'These', 'Those', 'When', 'Where', 'Why', 'How'];
-    if (entity.length > 2 && !commonWords.includes(entity)) {
-      entities.add(entity.replace(/'s$/, '')); // Remove possessive 's
-    }
-  }
-  
-  return Array.from(entities).slice(0, GENERATION_CONFIG.enrichment.maxEntities);
-}
+/**
+ * [REUSABLE UTILITY] Extracts potential entities (like company or people names) from a string.
+ * It looks for capitalized words, including multi-word names, and can be configured.
+ * @param text The text to parse.
+ * @param options Configuration for extraction (e.g., words to ignore).
+ * @returns An array of unique entities found.
+ */
+export function extractEntities(text: string, options: ExtractEntitiesOptions = {}): string[] {
+	const { ignoreWords = new Set<string>(), minLength = 3 } = options;
+	const entities = new Set<string>();
+	const entityPattern = /\b([A-Z][a-zA-Z0-9.-]+(?:\s+[A-Z][a-zA-Z0-9.-]+)*)\b/g;
 
+	let match;
+	while ((match = entityPattern.exec(text)) !== null) {
+		const entity = match[1].trim();
+		if (entity.length >= minLength && !ignoreWords.has(entity)) {
+			entities.add(entity.replace(/'s$/, '')); // Remove possessive 's
+		}
+	}
+	return Array.from(entities);
+}
 /**
  * Fetches and enriches a single article by extracting metadata
  */
@@ -236,3 +237,4 @@ export function clearArticleCache(): void {
   articleCache.clear();
   console.log('🗑️ Article cache cleared');
 }
+

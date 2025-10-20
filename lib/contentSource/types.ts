@@ -25,10 +25,10 @@ export interface EnrichedArticle {
   headline: string;
   url: string;
   description?: string;
-  fullText?: string;
-  keyMetrics?: string;       // Metric-heavy paragraphs extracted
-  entities: string[];
-  cached?: boolean;          // Flag for cached results
+  fullText?: string; // Article body text
+  keyMetrics?: string; // NEW: Extracted metric-heavy paragraphs
+  entities: string[]; // Company/person names mentioned
+  cached?: boolean; // NEW: Flag for cached results
 }
 
 /**
@@ -73,6 +73,7 @@ export interface RecentPattern {
 export interface PatternSpotterContext {
   articles: EnrichedArticle[];        // ✨ CHANGED: Enriched articles with full text
   sourceMetadata: SourceMetadata[];
+  articlesJson?: string;
   totalHeadlines: number;
   recentContent?: string[];           // Recent tweet content for deduplication
   usedSourceUrls?: string[];          // Recently used source URLs

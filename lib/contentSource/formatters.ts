@@ -50,57 +50,55 @@ export function formatSatiristContext(ctx: SatiristContext): string {
   return sections.join('\n');
 }
 
+
 /**
  * Formats Pattern Spotter context into a prompt string
- * ✨ UPDATED: Now formats enriched articles with full text for Socratic reasoning
+ * ✨ UPDATED: Now formats articles as a JSON array to prevent context bleed.
  */
 export function formatPatternSpotterContext(ctx: PatternSpotterContext): string {
-  const sections: string[] = [];
+  
+  // 1. Create a clean array of objects for the AI to analyze.
+  // We only include the data the AI needs, not the full text.
+  const articlesForJson = ctx.articles.map((article, idx) => ({
+    index: idx + 1,
+    headline: article.headline,
+    // Use keyMetrics, fallback to a truncated excerpt if keyMetrics is empty
+    keyMetrics: article.keyMetrics && article.keyMetrics.length > 50 
+      ? article.keyMetrics 
+      : article.fullText?.substring(0, 1500) || '',
+    entities: article.entities.slice(0, 10) // Limit to top 10 entities
+  }));
 
-  ctx.articles.forEach((article, idx) => {
-    const num = idx + 1;
-    sections.push(`━━━━━━━━━━━━━━━━━━━━━━`);
-    sections.push(`ARTICLE ${num}`);
-    sections.push(`━━━━━━━━━━━━━━━━━━━━━━`);
-    sections.push('');
-    sections.push(`**Headline:** ${article.headline}`);
-    sections.push('');
+  // 2. Stringify this array into a JSON block
+  const jsonString = JSON.stringify(articlesForJson, null, 2);
 
-    if (article.description) {
-      sections.push(`**Summary:** ${article.description}`);
-      sections.push('');
-    }
+  // 3. Create a separate "Source Map" using the [SOURCE_X] format.
+  // Your parser in `generationService.ts` already supports this format (from the Satirist persona).
+  const sourceMap = ctx.articles.map(
+    (article, idx) => `[SOURCE_${idx + 1}]: ${article.url}`
+  ).join('\n');
 
-    // Include full text for Socratic analysis
-    if (article.fullText) {
-      const truncated = article.fullText.substring(0, 2000); // First 2000 chars
-      sections.push(`**Full Text:**`);
-      sections.push(truncated);
-      if (article.fullText.length > 2000) {
-        sections.push('[... article continues ...]');
-      }
-      sections.push('');
-    }
-
-    // Include key metrics if extracted
-    if (article.keyMetrics && article.keyMetrics.length > 0) {
-      sections.push(`**Key Metrics (from article):**`);
-      sections.push(article.keyMetrics);
-      sections.push('');
-    }
-
-    // Include entities for context
-    if (article.entities.length > 0) {
-      sections.push(`**Mentioned:** ${article.entities.slice(0, 10).join(', ')}`);
-      sections.push('');
-    }
-
-    sections.push(`**Source:** ${article.url}`);
-    sections.push('');
-  });
+  // 4. Combine them into the final prompt string
+  const sections: string[] = [
+    'Here is a list of articles for analysis in JSON format.',
+    '**Instruction:** Find a non-obvious pattern or contrast between 2-3 articles.',
+    '**CRITICAL RULE:** You MUST NOT mix data between articles. Facts from one article (e.g., index 1) CANNOT be attributed to another (e.g., index 2).',
+    '',
+    '---',
+    'ARTICLES_JSON_PAYLOAD:',
+    '```json',
+    jsonString,
+    '```',
+    '',
+    '---',
+    'SOURCE_URL_MAP (For internal reference ONLY):',
+    sourceMap,
+    ''
+  ];
 
   return sections.join('\n');
 }
+
 
 /**
  * Formats Business Storyteller context into a prompt string

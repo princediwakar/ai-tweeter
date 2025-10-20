@@ -1,8 +1,9 @@
+// lib/generation/personas/index.ts
 import { EnglishVocabBuilderGenerator } from './englishVocabBuilder';
 import { SatiristGenerator } from './satirist';
 import { BusinessStorytellerGenerator } from './businessStoryteller';
 import { CricketStorytellerGenerator } from './cricketStoryteller';
-import { PatternSpotterGenerator } from './patternSpotter';
+import { PatternSpotterGenerator } from './patternSpotter.ts';
 import type { PersonaGenerator } from './base';
 
 export const PERSONA_GENERATORS: Record<string, PersonaGenerator> = {
@@ -22,4 +23,4 @@ export * from './englishVocabBuilder';
 export * from './satirist';
 export * from './businessStoryteller';
 export * from './cricketStoryteller';
-export * from './patternSpotter';
+export * from './patternSpotter.ts';

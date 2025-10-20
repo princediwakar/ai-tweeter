@@ -1,3 +1,4 @@
+
 // lib/generationService.ts
 import OpenAI from 'openai';
 import { getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
@@ -143,9 +144,8 @@ function parseAndValidateTweetResponse(
   actualHeadlineCount?: number
 ): { tweet: EnhancedTweet; cardData: CardData | null; sourceUrl: string | undefined } | null {
   try {
-    const cleanedContent = content.replace(/```json\n?|\n?```/g, '').trim();
+    const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();    
     const data = JSON.parse(cleanedContent);
-    
     // Initialize variables that will be populated in persona-specific branches
     let sourceUrl: string | undefined;
     let cardData: CardData | null = null;
@@ -293,13 +293,7 @@ function parseAndValidateTweetResponse(
     const totalLength = tweetContent.length + ctaString.length;
 
     if (totalLength > 280) {
-      console.warn(`Generated tweet exceeds 280 characters (${totalLength}), truncating content...`);
-      const availableLength = 280 - ctaString.length;
-      if (availableLength > 0) {
-        tweetContent = tweetContent.substring(0, availableLength - 3) + '...';
-      } else {
-        tweetContent = tweetContent.substring(0, 200);
-      }
+      throw new Error('Generated tweet exceeds 280 characters');
     }
 
     // ========================================
@@ -358,7 +352,7 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
     // NEW: Count actual headlines in RSS context for validation
     let actualHeadlineCount: number | undefined;
-    if (rssContext && (persona.key === 'pattern_spotter' || persona.key === 'satirist')) {
+    if (rssContext && (persona.key === 'satirist')) {
       const headlineMatches = rssContext.match(/^\d+\./gm);
       actualHeadlineCount = headlineMatches ? headlineMatches.length : undefined;
       console.log(`📊 [${persona.key}] Counted ${actualHeadlineCount} headlines in RSS context for validation`);
@@ -565,3 +559,6 @@ export async function generateEngagementReply(
     return null;
   }
  }
+
+
+

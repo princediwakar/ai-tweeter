@@ -1,9 +1,5 @@
-// lib/contentSource/context/patternSpotter.ts
-/**
- * Pattern Spotter context builder - NOW WITH ENRICHMENT
- * Fetches full article content for deep Socratic reasoning
- */
 
+// lib/contentSource/context/patternSpotter.ts
 import { GENERATION_CONFIG } from '../../generation/config';
 import { getRecentPatternData } from '../../db';
 import { enrichArticles } from '../../generation/articleEnricher';
@@ -12,117 +8,86 @@ import { selectRandomSources } from '../utils';
 import type { PatternSpotterContext } from '../types';
 
 /**
- * Builds structured context for Pattern Spotter persona with enriched articles
- * NOW: Enriches top 3 articles for deep Socratic analysis
+ * Builds structured context for the Pattern Spotter persona by fetching headlines,
+ * filtering them for relevance, and deeply enriching the best candidates.
  */
 export async function getPatternSpotterContext(accountId?: string): Promise<PatternSpotterContext | null> {
-  console.log('[Content Source] 🔍 Pattern Spotter selected. Activating enrichment for Socratic reasoning...');
+  console.log('[Context] 🔍 Pattern Spotter: Fetching and enriching articles...');
 
   try {
     const { feeds, subredditsToFetch, headlinesToAnalyze, twitterHandlesToFetch } = GENERATION_CONFIG.personas.patternSpotter;
 
-    console.log('[Content Source] Strategy: Fetching from both News RSS, Reddit, and Twitter.');
-    const subredditsToFetchFrom = selectRandomSources([...feeds.reddit], subredditsToFetch);
-    const twitterHandlesToFetchFrom = selectRandomSources([...(feeds.twitter || [])], twitterHandlesToFetch);
-
+    // 1. Fetch a diverse set of headlines
     const [rssHeadlines, redditHeadlines, twitterHeadlines] = await Promise.all([
       fetchHeadlinesOnly(headlinesToAnalyze),
-      fetchFromReddit(subredditsToFetchFrom),
-      fetchFromTwitter(twitterHandlesToFetchFrom)
+      fetchFromReddit(selectRandomSources(feeds.reddit, subredditsToFetch)),
+      fetchFromTwitter(selectRandomSources(feeds.twitter || [], twitterHandlesToFetch))
     ]);
-
     const allHeadlines = [...rssHeadlines, ...redditHeadlines, ...twitterHeadlines].sort(() => 0.5 - Math.random());
-    console.log(`[Content Source] 📰 Fetched ${rssHeadlines.length} from RSS, 🤖 ${redditHeadlines.length} from Reddit, 🐦 ${twitterHeadlines.length} from Twitter. Total: ${allHeadlines.length}`);
+    console.log(`[Context] 📰 Fetched ${allHeadlines.length} total headlines.`);
 
-    if (allHeadlines.length === 0) {
-      throw new Error('No trending content could be fetched for Pattern Spotter after all attempts.');
-    }
+    if (allHeadlines.length === 0) throw new Error('No headlines fetched.');
 
-    // Filter out financial-only headlines
-    const financialKeywords = [
-      'revenue', 'profit', 'pat', 'raises', 'funding', 'series a', 'series b', 'series c',
-      'valuation', 'crore', 'inr', 'usd', 'million', 'billion', '% up', '% yoy',
-      'q1', 'q2', 'q3', 'q4', 'h1', 'h2', 'fy25', 'fy26', 'earnings'
-    ];
+    // 2. Deduplicate headlines based on URL and title
+    const uniqueHeadlines = Array.from(new Map(allHeadlines.map(h => [h.headline + h.url, h])).values());
+    console.log(`[Context] ✨ Found ${uniqueHeadlines.length} unique headlines.`);
 
-    const actionOrientedHeadlines = allHeadlines.filter(h =>
-      !financialKeywords.some(keyword => h.headline.toLowerCase().includes(keyword))
-    );
-
-    console.log(`[Content Source] ✅ Filtered out financial news. Kept ${actionOrientedHeadlines.length} of ${allHeadlines.length} action-oriented headlines.`);
-
-    const headlinesToProcess = actionOrientedHeadlines.length > 0 ? actionOrientedHeadlines : allHeadlines;
-    const uniqueHeadlines = Array.from(new Map(headlinesToProcess.map((item) => [item.headline, item])).values());
-    console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for pattern_spotter`);
-
-    // ✨ NEW: Simple deduplication using last 5 tweets' content and source URLs
-    let usedContent: string[] = [];
+    // 3. Filter out recently used source URLs to ensure freshness
     let usedSourceUrls: string[] = [];
-    
     if (accountId) {
-      const recentData = await getRecentPatternData(accountId, 5);
-      usedContent = recentData.patterns.map(p => p.text);
+      const recentData = await getRecentPatternData(accountId, 10); // Check last 10 tweets
       usedSourceUrls = recentData.usedSourceUrls;
-      
-      console.log(`[Content Source] 🚫 Blocking ${usedSourceUrls.length} recently used source URLs`);
-      console.log(`[Content Source] 📝 Tracking ${usedContent.length} recent tweet patterns for reference`);
+      console.log(`[Context] 🚫 Blocking ${usedSourceUrls.length} recently used source URLs.`);
     }
-    const normalizeUrl = (url: string) => url.split('?')[0]; // Remove query params
+    const normalizeUrl = (url: string) => url.split('?')[0];
+    const normalizedUsedUrls = new Set(usedSourceUrls.map(normalizeUrl));
+    const freshHeadlines = uniqueHeadlines.filter(h => !normalizedUsedUrls.has(normalizeUrl(h.url)));
+    console.log(`[Context] ✅ ${freshHeadlines.length} fresh headlines remain after deduplication.`);
 
-    // Filter out headlines from recently used source URLs
-    const normalizedUsedUrls = usedSourceUrls.map(normalizeUrl);
-    const filteredHeadlines = uniqueHeadlines.filter(h => 
-      !normalizedUsedUrls.includes(normalizeUrl(h.url))
-    );
-    console.log(`[Content Source] ${filteredHeadlines.length} fresh headlines after filtering used sources`);
+    // 4. Enrich the top N fresh articles to get deep context
+    const headlinesToEnrich = freshHeadlines.slice(0, 3);
+    if (headlinesToEnrich.length === 0) throw new Error('No fresh headlines available for enrichment.');
 
-    // Use filtered headlines, or fall back to unique if all were filtered
-    const headlinesToUse = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
-
-    // ✨ NEW: Select top 3 for enrichment (quality over quantity)
-    // Prioritize diversity: pick from different sources if possible
-    const selectedForEnrichment = headlinesToUse.slice(0, 3);
-
-    if (selectedForEnrichment.length === 0) {
-      console.error('[Content Source] ❌ No headlines available for enrichment');
-      return null;
-    }
-
-    // ✨ NEW: Enrich the top 3 articles with full content
-    console.log(`[Content Source] 📰 Enriching ${selectedForEnrichment.length} articles for deep Socratic analysis...`);
     const enrichedArticles = await enrichArticles(
-      selectedForEnrichment,
+      headlinesToEnrich,
       GENERATION_CONFIG.enrichment.maxConcurrent
     );
 
-    // Filter out articles that failed to enrich
-    const successfulArticles = enrichedArticles.filter(article =>
-      article.fullText && article.fullText.length > 200
-    );
+    // 5. Filter for successfully enriched articles...
+    const successfulArticles = enrichedArticles.filter(a => a.fullText && a.fullText.length > 200);
+    if (successfulArticles.length === 0) throw new Error('No articles could be successfully enriched.');
 
-    if (successfulArticles.length === 0) {
-      console.error('[Content Source] ❌ No articles successfully enriched');
-      return null;
-    }
+    console.log(`[Context] ✅ Final context: ${successfulArticles.length} enriched articles ready for AI.`);
 
-    console.log(`[Content Source] ✅ Successfully enriched ${successfulArticles.length}/${enrichedArticles.length} articles`);
-
-    // Build source metadata for tracking
-    const sourceMetadata = successfulArticles.map((article, idx) => ({
+    // 6. Create a structured JSON representation of the articles
+    // This prevents the AI from mixing up metrics between articles.
+    const articlesForJson = successfulArticles.map((article, idx) => ({
       index: idx + 1,
+      headline: article.headline,
       url: article.url,
-      headline: article.headline
+      // Only include keyMetrics/entities to keep the context focused and clean
+      keyMetrics: article.keyMetrics || article.fullText?.substring(0, 1000) || '', 
+      entities: article.entities
     }));
+    const articlesJson = JSON.stringify(articlesForJson, null, 2);
+
+    // 7. Get recent tweet text for the AI to avoid repeating patterns
+    const recentContent = accountId ? (await getRecentPatternData(accountId, 5)).patterns.map(p => p.text) : [];
 
     return {
-      articles: successfulArticles, // ✨ CHANGED: Return enriched articles instead of headlines
-      sourceMetadata,
+      articles: successfulArticles,
+      sourceMetadata: successfulArticles.map((article, idx) => ({
+        index: idx + 1,
+        url: article.url,
+        headline: article.headline
+      })),
+      articlesJson: articlesJson, // ✨ POPULATE THE JSON FIELD
       totalHeadlines: successfulArticles.length,
-      recentContent: usedContent,
-      usedSourceUrls
+      recentContent,
+      usedSourceUrls,
     };
   } catch (error) {
-    console.error('[Content Source] ❌ Context failure for pattern_spotter:', error);
+    console.error('[Context] ❌ Context failure for Pattern Spotter:', error);
     return null;
   }
 }

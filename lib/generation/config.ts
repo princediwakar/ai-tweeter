@@ -42,6 +42,7 @@ const PERSONA_CONFIG = {
       'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       // 'https://economictimes.indiatimes.com/tech/funding/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
+      'https://yourstory.com/feed',
       // 'https://economictimes.indiatimes.com/tech/rssfeeds/13357270.cms'
       // 'https://www.techcircle.in/rss/technology/',
       // 'https://sajithpai.com/feed/',
@@ -50,8 +51,8 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
-    tweetTextCharLimit: 250, // Allow multi-line format for clarity and save rate
-    idealCharRange: { min: 180, max: 250 }, // 3-line structure with breathing room
+    tweetTextCharLimit: 140, // Allow multi-line format for clarity and save rate
+    idealCharRange: { min: 100, max: 120 }, // 3-line structure with breathing room
     subredditsToFetch: 0,
     postsPerSubreddit: 0,
     twitterHandlesToFetch: 0,

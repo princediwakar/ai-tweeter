@@ -1,7 +1,6 @@
 // lib/generation/types.ts - ADD THESE TYPES TO YOUR EXISTING FILE
 import type { Account } from '../types';
 import type { PersonaConfig } from '../personas';
-import { PatternLane } from './personas/patternSpotter/laneSelector';
 
 // Existing types remain unchanged...
 export interface VariationMarkers {
@@ -26,13 +25,13 @@ export interface TweetGenerationConfig {
   usedSourceUrls?: string[];
   rssContext?: string;
   satiristFormat?: 'image' | 'text-only';
+  patternSpotterFormat?: 'image' | 'text-only';
   vocabFormat?: 'image' | 'text-only';
 }
 
 // NEW: Pattern tracking type
 export interface RecentPattern {
   text: string;
-  lane?: PatternLane;
   timestamp?: string;
 }
 

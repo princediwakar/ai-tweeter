@@ -32,14 +32,14 @@ const PERSONA_CONFIG = {
   satirist: {
     headlinesToFetch: 20,
     headlinesInPrompt: 8,
-    tweetTextCharLimit: 120, // Hard limit for small accounts
-    idealCharRange: { min: 80, max: 120 }, // Sweet spot for engagement
+    tweetTextCharLimit: 240, // Hard limit for small accounts
+    idealCharRange: { min: 140, max: 240 }, // Sweet spot for engagement
     imageFormatTweetTextLimit: 100, // Shorter hooks for image tweets
     imageContentCharLimit: 240,
     imageProbability: 0,
     deduplicationDays: 5,
     feeds: [
-      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       // 'https://economictimes.indiatimes.com/tech/funding/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
@@ -51,12 +51,15 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
-    tweetTextCharLimit: 140, // Allow multi-line format for clarity and save rate
+    tweetTextCharLimit: 200, // Allow multi-line format for clarity and save rate
     idealCharRange: { min: 100, max: 120 }, // 3-line structure with breathing room
     subredditsToFetch: 0,
     postsPerSubreddit: 0,
     twitterHandlesToFetch: 0,
     postsPerTwitterHandle: 0,
+    imageProbability: 0,
+    imageFormatTweetTextLimit: 100,
+    imageContentCharLimit: 200,
     deduplicationDays: 5,
     feeds: {
       business: [
@@ -92,7 +95,7 @@ const PERSONA_CONFIG = {
     feeds: [
       'https://indianstartupnews.com/rss',
       'https://inc42.com/feed',
-      'https://economictimes.indiatimes.com/prime/technology-and-startups/rssfeeds/63319172.cms',
+      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
     ],
   },
   cricketStoryteller: {

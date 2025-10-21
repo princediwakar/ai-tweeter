@@ -1,4 +1,4 @@
-// types.ts
+// lib/types.ts
 
 // Core Account and User Types
 export interface Account {
@@ -114,7 +114,16 @@ export interface SatiristCard {
   imageContent: string;
 }
 
-export type CardData = VocabularyCard | SatiristCard;
+// --- NEW ---
+export interface PatternSpotterCard {
+  type: 'pattern_spotter_insight';
+  imageContent: string;
+}
+// --- END NEW ---
+
+// --- MODIFIED ---
+export type CardData = VocabularyCard | SatiristCard | PatternSpotterCard;
+// --- END MODIFIED ---
 
 export interface TweetJob {
   id: string;

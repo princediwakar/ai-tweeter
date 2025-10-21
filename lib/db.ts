@@ -164,6 +164,8 @@ export async function createThreadWithRetry(
  * Saves or updates a tweet in the database.
  * Uses ON CONFLICT to perform an "upsert" operation, making it safe to call for both new and existing tweets.
  */
+// lib/db.ts (or wherever saveTweet is located)
+
 export async function saveTweet(tweet: Tweet): Promise<void> {
   try {
     await sql`
@@ -190,7 +192,11 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         ${tweet.parent_twitter_id || null},
         ${tweet.content_type || 'single_tweet'},
         ${tweet.image_status || 'none'},
-        ${tweet.card_data ? JSON.stringify(tweet.card_data) : null},
+        
+        -- <<< THIS IS THE FIX ---
+        ${tweet.card_data || null}, 
+        -- >>> END OF FIX ---
+        
         ${tweet.source_url || null}
       )
       ON CONFLICT (id) 

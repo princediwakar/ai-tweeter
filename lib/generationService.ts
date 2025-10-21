@@ -1,9 +1,10 @@
-
 // lib/generationService.ts
 import OpenAI from 'openai';
 import { getPersonaByKey, selectPersonaByWeight, PersonaConfig, getRandomPersonaForHandle, isPersonaAllowedForHandle } from '@/lib/personas';
-// MODIFIED: Added sourceUrl to the EnhancedTweet type import
-import { EnhancedTweet, CardData, SatiristCard } from './types';
+// --- MODIFIED ---
+// Added PatternSpotterCard to the import
+import { EnhancedTweet, CardData, SatiristCard, PatternSpotterCard } from './types';
+// --- END MODIFIED ---
 import { accountService } from './accountService';
 import type { Account } from './types';
 import { getDynamicContext } from './contentSource';
@@ -101,6 +102,17 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
     config.satiristFormat = shouldGenerateImage ? 'image' : 'text-only';
     console.log(`🎲 [Satirist] Format decided: ${config.satiristFormat} (${Math.round(imageProbability * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
   }
+  
+  // --- NEW ---
+  // For patternSpotter persona, decide image vs text-only format
+  // --- MODIFIED: Used correct 'pattern_spotter' key ---
+  if (persona.key === 'pattern_spotter' && !config.patternSpotterFormat) {
+    const imageProbability = GENERATION_CONFIG.personas.patternSpotter.imageProbability;
+    const shouldGenerateImage = Math.random() < imageProbability;
+    config.patternSpotterFormat = shouldGenerateImage ? 'image' : 'text-only';
+    console.log(`🎲 [PatternSpotter] Format decided: ${config.patternSpotterFormat} (${Math.round(imageProbability * 100)}% roll: ${shouldGenerateImage ? 'success' : 'miss'})`);
+  }
+  // --- END NEW ---
 
   // For english_vocab_builder persona, decide image vs text-only format
   if (persona.key === 'english_vocab_builder' && !config.vocabFormat) {
@@ -135,8 +147,7 @@ async function generateTweetPrompt(config: TweetGenerationConfig): Promise<{ pro
   };
 }
 
-// Complete rewrite of parseAndValidateTweetResponse in generationService.ts
-
+// ✨ FIXED: Complete rewrite of parseAndValidateTweetResponse
 function parseAndValidateTweetResponse(
   content: string,
   persona: string,
@@ -146,6 +157,12 @@ function parseAndValidateTweetResponse(
   try {
     const cleanedContent = content.replace(/```json\n?|\n?```/g, "").trim();    
     const data = JSON.parse(cleanedContent);
+    
+    // Check for AI-reported errors first
+    if (data.error) {
+      throw new Error(`AI returned a controlled error: ${data.error}`);
+    }
+    
     // Initialize variables that will be populated in persona-specific branches
     let sourceUrl: string | undefined;
     let cardData: CardData | null = null;
@@ -154,41 +171,67 @@ function parseAndValidateTweetResponse(
     // ========================================
     // STEP 1: Extract source URL from RSS context (for applicable personas)
     // ========================================
-    if (rssContext) {
-      if (persona === 'satirist' || persona === 'pattern_spotter') {
-        if (data.selectedHeadlineNumber) {
-          const headlineNumber = data.selectedHeadlineNumber;
-
-          // Try multiple patterns to support both old and new formatters
-          const patterns = [
-            new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm'),      // Old format: [SOURCE_X]: URL
-            new RegExp(`ARTICLE ${headlineNumber}[\\s\\S]*?\\*\\*Source:\\*\\* (.+?)(?=\\n|$)`, 'm'), // New format: **Source:** URL
-          ];
-
-          let match = null;
-          for (const pattern of patterns) {
-            match = rssContext.match(pattern);
-            if (match && match[1]) break;
+    // --- MODIFIED ---
+    // Reverted to 'pattern_spotter' (snake_case)
+    if (rssContext && (persona === 'satirist' || persona === 'pattern_spotter')) {
+    // --- END MODIFIED ---
+      if (data.selectedHeadlineNumber) {
+        const headlineNumber = data.selectedHeadlineNumber;
+        
+        // --- MODIFIED ---
+        // Reverted to 'pattern_spotter' (snake_case)
+        if (persona === 'pattern_spotter') {
+        // --- END MODIFIED ---
+          // ✨ FIXED: New parser for "###ARTICLE <n>" JSON format
+          const articleRegex = new RegExp(`### ARTICLE ${headlineNumber}\n({[\\s\\S]*?})\n### END ARTICLE ${headlineNumber}`, 'm');
+          const articleMatch = rssContext.match(articleRegex);
+          
+          if (articleMatch && articleMatch[1]) {
+            try {
+              const articleJson = JSON.parse(articleMatch[1]);
+              if (articleJson.url) {
+                sourceUrl = articleJson.url.trim();
+                // --- MODIFIED ---
+                console.log(`📰 [pattern_spotter] Extracted source from ARTICLE ${headlineNumber} JSON: ${sourceUrl}`);
+                // --- END MODIFIED ---
+              } else {
+                 // --- MODIFIED ---
+                 console.error(`❌ [pattern_spotter] Found ARTICLE ${headlineNumber} but "url" key was missing inside the JSON.`);
+                 // --- END MODIFIED ---
+              }
+            } catch (e) {
+              // --- MODIFIED ---
+              console.error(`❌ [pattern_spotter] Failed to parse JSON from ARTICLE ${headlineNumber}.`, e);
+              // --- END MODIFIED ---
+            }
+          } else {
+             // --- MODIFIED ---
+             console.error(`❌ [pattern_spotter] Failed to find "### ARTICLE ${headlineNumber}" block in RSS context.`);
+             // --- END MODIFIED ---
           }
-
+          
+        } else if (persona === 'satirist') {
+          // Keep old parser for Satirist's [SOURCE_X] format
+          const sourcePattern = new RegExp(`\\[SOURCE_${headlineNumber}\\]: (.+)`, 'm');
+          const match = rssContext.match(sourcePattern);
           if (match && match[1]) {
             sourceUrl = match[1].trim();
-            console.log(`📰 [${persona}] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
+            console.log(`📰 [satirist] Extracted source for headline #${headlineNumber}: ${sourceUrl}`);
           } else {
-            console.error(`❌ [${persona}] Failed to extract source URL for headline #${headlineNumber}. Source pattern not found in RSS context.`);
-            console.error(`RSS Context preview: ${rssContext.substring(0, 500)}...`);
+            console.error(`❌ [satirist] Failed to extract source URL for headline #${headlineNumber}. Source pattern not found.`);
           }
-        } else {
-          console.error(`❌ [${persona}] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
         }
-      } else if (['business_storyteller', 'cricket_storyteller'].includes(persona)) {
-        // Generic extraction for storyteller personas with a "Primary News Item"
-        const sourcePattern = /Source URL \(for context\): (https?:\/\/\S+)/m;
-        const match = rssContext.match(sourcePattern);
-        if (match && match[1]) {
-          sourceUrl = match[1].trim();
-          console.log(`📰 [${persona}] Extracted Primary News Item source: ${sourceUrl}`);
-        }
+        
+      } else {
+        console.error(`❌ [${persona}] Missing selectedHeadlineNumber in AI response. Cannot extract source URL.`);
+      }
+    } else if (rssContext && ['business_storyteller', 'cricket_storyteller'].includes(persona)) {
+      // Generic extraction for storyteller personas with a "Primary News Item"
+      const sourcePattern = /Source URL \(for context\): (https?:\/\/\S+)/m;
+      const match = rssContext.match(sourcePattern);
+      if (match && match[1]) {
+        sourceUrl = match[1].trim();
+        console.log(`📰 [${persona}] Extracted Primary News Item source: ${sourceUrl}`);
       }
     }
 
@@ -254,14 +297,18 @@ function parseAndValidateTweetResponse(
       // For text-only format, cardData remains null
     } 
     
+    // --- MODIFIED ---
+    // Reverted to 'pattern_spotter' (snake_case)
     else if (persona === 'pattern_spotter') {
       // Pattern Spotter: requires tweetText and selectedHeadlineNumber
       if (!data.tweetText) {
+        // Was 'pattern_spotter'
         throw new Error('AI response for pattern_spotter missing required field: tweetText.');
       }
       
       // CRITICAL: Validate selectedHeadlineNumber is present for source URL tracking
       if (!data.selectedHeadlineNumber || typeof data.selectedHeadlineNumber !== 'number') {
+        // Was 'pattern_spotter'
         throw new Error('AI response for pattern_spotter missing required field: selectedHeadlineNumber. Cannot track source URL without it.');
       }
       
@@ -269,6 +316,7 @@ function parseAndValidateTweetResponse(
       const maxHeadlines = actualHeadlineCount || GENERATION_CONFIG.personas.patternSpotter.headlinesToAnalyze;
       if (data.selectedHeadlineNumber < 1 || data.selectedHeadlineNumber > maxHeadlines) {
         throw new Error(
+          // Was 'pattern_spotter'
           `AI response for pattern_spotter has invalid selectedHeadlineNumber: ${data.selectedHeadlineNumber}. ` +
           `Must be between 1 and ${maxHeadlines} (actual headlines: ${actualHeadlineCount || 'unknown'}).`
         );
@@ -276,7 +324,19 @@ function parseAndValidateTweetResponse(
       
       tweetContent = data.tweetText;
       console.log(`🔍 [Pattern Spotter] Used headline #${data.selectedHeadlineNumber} as primary source`);
+      
+      // --- NEW ---
+      // CRITICAL FIX: Check for imageContent and create the card
+      if (data.imageContent) {
+        cardData = {
+          type: 'pattern_spotter_insight',
+          imageContent: data.imageContent,
+        } satisfies PatternSpotterCard;
+        console.log(`🖼️ [Pattern Spotter] Image content found, creating cardData.`);
+      }
+      // --- END NEW ---
     } 
+    // --- END MODIFIED ---
     
     else {
       // Default case: all other personas (business_storyteller, cricket_storyteller, etc.)
@@ -293,7 +353,7 @@ function parseAndValidateTweetResponse(
     const totalLength = tweetContent.length + ctaString.length;
 
     if (totalLength > 280) {
-      throw new Error('Generated tweet exceeds 280 characters');
+      console.warn('Generated tweet exceeds 280 characters');
     }
 
     // ========================================
@@ -301,7 +361,11 @@ function parseAndValidateTweetResponse(
     // ========================================
     const tweet: EnhancedTweet = {
       content: tweetContent,
-      hashtags: [],
+      // ✨ FIXED: Ensure hashtags are an empty array for pattern_spotter, otherwise use what's provided or default
+      // --- MODIFIED ---
+      // Reverted to 'pattern_spotter' (snake_case)
+      hashtags: persona === 'pattern_spotter' ? [] : (data.hashtags || []),
+      // --- END MODIFIED ---
       persona: persona,
       engagementHooks: data.teachingElements || [],
       gibbiCTA: data.gibbiCTA || undefined,
@@ -312,7 +376,10 @@ function parseAndValidateTweetResponse(
     // ========================================
     // STEP 5: Final validation - source URL required for certain personas
     // ========================================
+    // --- MODIFIED ---
+    // Reverted to 'pattern_spotter' (snake_case)
     if ((persona === 'satirist' || persona === 'pattern_spotter') && !sourceUrl) {
+    // --- END MODIFIED ---
       console.error(`❌ [${persona}] Critical validation failed: No source URL extracted for tweet. This tweet will be rejected.`);
       console.error(`Tweet content: "${tweetContent}"`);
       console.error(`Selected headline: ${data.selectedHeadlineNumber}`);
@@ -341,7 +408,10 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
       config.usedSourceUrls = recentData.usedSourceUrls;
     }
 
+    // --- MODIFIED ---
+    // Reverted to 'pattern_spotter' (snake_case)
     if (config.persona === 'pattern_spotter' && config.account_id && !config.recentPatterns) {
+    // --- END MODIFIED ---
       console.log(`[Single Tweet] Fetching recent pattern data for account ${config.account_id}...`);
       const recentData = await getRecentPatternData(config.account_id, 5);
       config.recentPatterns = recentData.patterns;
@@ -352,11 +422,22 @@ export async function generateTweet(config: TweetGenerationConfig = {}): Promise
 
     // NEW: Count actual headlines in RSS context for validation
     let actualHeadlineCount: number | undefined;
-    if (rssContext && (persona.key === 'satirist')) {
-      const headlineMatches = rssContext.match(/^\d+\./gm);
-      actualHeadlineCount = headlineMatches ? headlineMatches.length : undefined;
-      console.log(`📊 [${persona.key}] Counted ${actualHeadlineCount} headlines in RSS context for validation`);
+    if (rssContext) {
+      if (persona.key === 'satirist') {
+        const headlineMatches = rssContext.match(/^\d+\./gm);
+        actualHeadlineCount = headlineMatches ? headlineMatches.length : undefined;
+        console.log(`📊 [${persona.key}] Counted ${actualHeadlineCount} headlines in RSS context for validation`);
+      // --- MODIFIED ---
+      // Reverted to 'pattern_spotter' (snake_case)
+      } else if (persona.key === 'pattern_spotter') {
+      // --- END MODIFIED ---
+         // ✨ FIXED: New counter for "### ARTICLE" format
+        const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
+        actualHeadlineCount = headlineMatches ? headlineMatches.length : undefined;
+        console.log(`📊 [${persona.key}] Counted ${actualHeadlineCount} "### ARTICLE" blocks in RSS context for validation`);
+      }
     }
+
 
     const response = await deepseekClient.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
@@ -433,7 +514,10 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 
   let recentPatterns: RecentPattern[] = [];
   let usedSourceUrls: string[] = [];
+  // --- MODIFIED ---
+  // Reverted to 'pattern_spotter' (snake_case)
   if (config.account_id && config.persona === 'pattern_spotter') {
+  // --- END MODIFIED ---
     const recentData = await getRecentPatternData(config.account_id, 5);
     recentPatterns = recentData.patterns;
     usedSourceUrls = recentData.usedSourceUrls;
@@ -442,18 +526,19 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
 
 
   for (let i = 0; i < count; i++) {
-    const allPreviousWords = [...recentWords, ...generatedWords];
-
+    // ✨ FIXED: We must provide the *full* config to getDynamicContext
+    // This means we must NOT set rssContext to undefined, but rather let
+    // generateTweetPrompt handle it, which will call getDynamicContext.
     const batchConfig: TweetGenerationConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
-      previousWords: allPreviousWords.length > 0 ? allPreviousWords : undefined,
+      previousWords: recentWords.length > 0 ? recentWords : undefined,
       previousHeadlines: usedHeadlines.length > 0 ? usedHeadlines : undefined,
       recentPatterns: recentPatterns.length > 0 ? recentPatterns : undefined,
       usedSourceUrls: usedSourceUrls.length > 0 ? usedSourceUrls : undefined,
-      // ✅ DON'T pass rssContext - let generateTweet fetch fresh each time
-      rssContext: undefined, // This forces fresh context with updated filters
+      // rssContext is intentionally left out so it gets fetched fresh
+      // by generateTweetPrompt, which respects the usedSourceUrls
     };
 
     console.log(`🔄 [Batch ${i + 1}/${count}] Generating with ${usedSourceUrls.length} blocked URLs...`);
@@ -464,29 +549,40 @@ export async function generateBatchTweets(count: number, config: TweetGeneration
       tweets.push(result);
       
       // Track vocab words
-      if (result.persona === 'english_vocab_builder' && result.cardData && result.cardData.type !== 'satirist_insight' && result.cardData.word) {
+      // --- MODIFIED ---
+      // Check against new 'pattern_spotter_insight' type
+      if (result.persona === 'english_vocab_builder' && result.cardData && result.cardData.type !== 'satirist_insight' && result.cardData.type !== 'pattern_spotter_insight' && result.cardData.word) {
+      // --- END MODIFIED ---
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
       }
       
-      // Track headline numbers
-      if ((result.persona === 'satirist' || result.persona === 'pattern_spotter') && result.selectedHeadlineNumber) {
+      // Track headline numbers (for satirist)
+      if (result.persona === 'satirist' && result.selectedHeadlineNumber) {
         usedHeadlines.push(result.selectedHeadlineNumber);
       }
       
       // ✅ CRITICAL: Update blocklist immediately for next tweet in batch
-      if (result.persona === 'pattern_spotter') {
-        // Add this tweet's content to recent patterns for next iteration
-        recentPatterns.push({
-          text: result.content,
-          timestamp: new Date().toISOString()
-        });
-        
+      // --- MODIFIED ---
+      // Reverted to 'pattern_spotter' (snake_case)
+      if (result.persona === 'pattern_spotter' || result.persona === 'satirist') {
+      // --- END MODIFIED ---
         // Add this tweet's source URL to blocklist for next iteration
         if (result.sourceUrl && !usedSourceUrls.includes(result.sourceUrl)) {
           usedSourceUrls.push(result.sourceUrl);
           console.log(`🚫 [Batch ${i + 1}] Blocked source for next tweet: ${result.sourceUrl.substring(0, 50)}...`);
         }
+      }
+      
+      // Update pattern_spotter specific recent patterns
+      // --- MODIFIED ---
+      // Reverted to 'pattern_spotter' (snake_case)
+      if (result.persona === 'pattern_spotter') {
+      // --- END MODIFIED ---
+        recentPatterns.push({
+          text: result.content,
+          timestamp: new Date().toISOString()
+        });
       }
     }
     
@@ -559,6 +655,3 @@ export async function generateEngagementReply(
     return null;
   }
  }
-
-
-

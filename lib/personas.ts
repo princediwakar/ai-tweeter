@@ -66,7 +66,7 @@ export const PATTERN_SPOTTER: PersonaConfig = {
   description: 'Finds non-obvious patterns across multiple news stories. Connects dots others miss by looking at the bigger picture.',
   content_types: ['single_tweet'],
   image_generation: {
-    enabled: false // No image generation for pattern spotter
+    enabled: true // No image generation for pattern spotter
   },
 };
 

@@ -60,12 +60,6 @@ export interface SatiristContext {
 }
 
 
-export interface RecentPattern {
-  text: string;
-  timestamp?: string;
-  lane?: string;             // Track which lane was used
-}
-
 /**
  * Structured context for Pattern Spotter persona
  * ✨ UPDATED: Now uses enriched articles instead of headlines

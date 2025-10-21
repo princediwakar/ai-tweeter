@@ -26,7 +26,7 @@ This document maps all generation-related configuration values to their current 
 | `maxConcurrent` | `lib/generation/articleEnricher.ts:199` | `3` | Concurrent article enrichment processes |
 | `maxConcurrent` (call site) | `lib/contentSource.ts:386` | `3` | Where enrichArticles is called |
 | `fullTextLimit` | `lib/generation/articleEnricher.ts:182` | `3000` | Max characters from article text |
-| `maxEntities` | `lib/generation/articleEnricher.ts:104` | `10` | Max entity names extracted |
+t| `maxEntities` | `lib/generation/articleEnricher.ts:104` | `10` | Max entity names extracted |
 | `articleFetchTimeout` | `lib/generation/articleEnricher.ts:147` | `8000` | Timeout for article page fetching |
 | `homepageFetchTimeout` | `lib/generation/articleEnricher.ts:121` | `5000` | Timeout for homepage fetching (disabled) |
 | `batchDelay` | `lib/generation/articleEnricher.ts:216` | `500` | Delay between enrichment batches |

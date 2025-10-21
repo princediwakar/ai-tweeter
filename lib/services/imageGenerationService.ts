@@ -11,6 +11,9 @@ import { fetchUnsplashImage } from '../utils/unsplashUtils';
 import { getSafeFont, wordWrap, fitTextOnCanvas } from '../utils/canvasUtils';
 import { generateVocabularyCardImage } from './vocabularyGenerator';
 import { generateSatiristImage, calculateTotalTextHeight, renderMixedLine } from './satiristGenerator';
+// --- NEW ---
+import { generatePatternSpotterImage } from './patternSpotterGenerator';
+// --- END NEW ---
 
 // Register Poppins fonts
 const fontsPath = path.join(process.cwd(), 'public', 'fonts');
@@ -79,13 +82,12 @@ export async function generatePersonaImage(
 
     // Use 'parsedCardData' from here on
     if (personaKey === 'english_vocab_builder') {
-      // The type guard 'satirist_insight' is for TypeScript, ensuring 'word' exists.
-      if (parsedCardData.type === 'satirist_insight' || !parsedCardData.word) {
+      // The type guard ensures 'word' exists for vocab.
+      if (parsedCardData.type === 'satirist_insight' || parsedCardData.type === 'pattern_spotter_insight' || !parsedCardData.word) {
         console.warn("⚠️ Cannot generate image: vocabulary card data is missing or invalid.");
         return null;
       }
       imageBuffer = await generateVocabularyCardImage(parsedCardData, config);
-      // This line is now safe because parsedCardData is a guaranteed object with a 'word' property
       publicId = `vocab_${parsedCardData.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
     } else if (personaKey === 'satirist') {
       if (parsedCardData.type !== 'satirist_insight') {
@@ -95,6 +97,18 @@ export async function generatePersonaImage(
       const imageContent = parsedCardData.imageContent;
       imageBuffer = await generateSatiristImage(imageContent);
       publicId = `satirist_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // --- NEW ---
+    // --- MODIFIED: Reverted to 'pattern_spotter' (snake_case) ---
+    } else if (personaKey === 'pattern_spotter') {
+      if (parsedCardData.type !== 'pattern_spotter_insight') {
+        console.warn("⚠️ Cannot generate pattern_spotter image: imageContent is missing from card data.");
+        return null;
+      }
+      const imageContent = parsedCardData.imageContent;
+      imageBuffer = await generatePatternSpotterImage(imageContent);
+      publicId = `pattern_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // --- END MODIFIED ---
+    // --- END NEW ---
     } else {
       return null; // Persona doesn't support images
     }

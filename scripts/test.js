@@ -216,7 +216,7 @@ function selectRandomGeneration(options) {
 
   // For Prince's single tweets, prefer satirist persona and pattern_spotter
   if (selectedAccount === 'prince' && contentType === 'single_tweet') {
-    const personas = ['pattern_spotter',];
+    const personas = ['pattern_spotter'];
     persona = randomChoice(personas);
   }
 

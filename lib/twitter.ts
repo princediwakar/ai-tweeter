@@ -189,20 +189,23 @@ export async function getUserIdByUsername(username: string, credentials: Twitter
 export async function getUserRecentTweets(
   userId: string,
   credentials: TwitterCredentials,
-  maxResults: number = 5
+  maxResults: number = 1,
+  startTime?: string  // New param: ISO string for lookback
 ): Promise<{ data: TweetV2[] }> {
   const endpoint = `https://api.twitter.com/2/users/${userId}/tweets`;
-  // Twitter API requires max_results to be between 5 and 100
   const validatedMaxResults = Math.max(5, Math.min(100, maxResults));
-  const queryParams = {
+  const queryParams: Record<string, string> = {
     'tweet.fields': 'created_at,public_metrics,author_id',
     'max_results': String(validatedMaxResults),
-    'exclude': 'retweets,replies', // Only get original tweets
+    'exclude': 'retweets,replies',
   };
+  if (startTime) {
+    queryParams['start_time'] = startTime;  // Only fetch since lookback
+  }
   const url = `${endpoint}?${new URLSearchParams(queryParams).toString()}`;
-
+  
   try {
-    console.log(`[Twitter API] Fetching recent tweets for user ${userId}`);
+    console.log(`[Twitter API] Fetching recent tweets for user ${userId} (start_time: ${startTime || 'none'})`);
     const bearerToken = await getAppBearerToken(credentials);
     const response = await fetch(url, {
       method: 'GET',
@@ -210,13 +213,11 @@ export async function getUserRecentTweets(
         'Authorization': `Bearer ${bearerToken}`,
       },
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error fetching user tweets:', errorText);
       throw new Error(`Twitter API error on user timeline: ${response.statusText}`);
     }
-
     const result = await response.json();
     console.log(`[Twitter API] Fetched ${result.data?.length || 0} tweets for user ${userId}`);
     return result;

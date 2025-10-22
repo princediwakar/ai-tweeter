@@ -73,11 +73,11 @@ const princeGenerationPattern: DailySchedule = {
   // Pattern Spotter 5x/week: Sustainable quality over volume
   // Generate 1-2 hours before posting to allow review/editing
   0: {}, // Sunday - rest
-  1: { 9: ['pattern_spotter'] }, // Monday - morning insight (Bullshit Detector bias)
-  2: { 13: ['pattern_spotter'] }, // Tuesday - afternoon insight (Tactical Playbook bias)
-  3: { 9: ['pattern_spotter'] }, // Wednesday - morning insight (Business Model bias)
-  4: { 13: ['pattern_spotter'] }, // Thursday - afternoon insight (Tactical/Detector mix)
-  5: { 9: ['pattern_spotter'] }, // Friday - morning insight (Weekly wildcard)
+  1: { 9: ['pattern_spotter'] }, // Monday - morning insight 
+  2: { 13: ['pattern_spotter'] }, // Tuesday - afternoon insight 
+  3: { 9: ['pattern_spotter'] }, // Wednesday - morning insight 
+  4: { 13: ['pattern_spotter'] }, // Thursday - afternoon insight 
+  5: { 9: ['pattern_spotter'] }, // Friday - morning insight 
   6: {}, // Saturday - rest
 };
 // Total: 5 tweets/week (pattern_spotter only) - focus on lane variety & engagement
@@ -98,6 +98,30 @@ const princePostingPattern: DailySchedule = {
   6: {}, // Saturday - rest
 };
 // Total: 5 posts/week (pattern_spotter only)
+
+
+// ============================================================================
+// LINKEDIN POSTING SCHEDULE
+// ============================================================================
+/**
+ * LinkedIn Strategy for 2400 Connections:
+ * - You have REACH - use it (4-5 posts/week, not 3)
+ * - Tuesday-Thursday focus PLUS Monday opener + Friday closer
+ * - Pattern Spotter dominant (LinkedIn = insights platform)
+ * - Morning + early afternoon slots (global professionals)
+ * - Different tone than Twitter (more professional, less casual)
+ */
+const princeLinkedInPostingPattern: DailySchedule = {
+  0: {}, // Sunday
+  1: { 9: ['satirist'] }, // Monday - week starter insight
+  2: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
+  3: { 10: ['pattern_spotter'] }, // Wednesday - mid-week insight
+  4: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
+  5: { 9: ['pattern_spotter'] }, // Friday - week closer insight
+  6: {}, // Saturday
+};
+// Total: 8 posts/week (5 pattern_spotter, 3 satirist)
+
 
 // ============================================================================
 // TWITTER ENGAGEMENT SCHEDULE
@@ -129,31 +153,10 @@ const gandhiEngagementPattern: HourlySchedule = {
   9: ['engagement'],   // Morning: Engage with early morning posts from leaders
   10: ['engagement'],   // Morning: Engage with early morning posts from leaders
   14: ['engagement'],  // Evening: Engage with day's political/social discussions
-  21: ['engagement'],  // Night: Reflect on day's events with wisdom
+  20: ['engagement'],  // Night: Reflect on day's events with wisdom
 };
 // Total: 4 sessions/day, targeting social/political discourse
 
-// ============================================================================
-// LINKEDIN POSTING SCHEDULE
-// ============================================================================
-/**
- * LinkedIn Strategy for 2400 Connections:
- * - You have REACH - use it (4-5 posts/week, not 3)
- * - Tuesday-Thursday focus PLUS Monday opener + Friday closer
- * - Pattern Spotter dominant (LinkedIn = insights platform)
- * - Morning + early afternoon slots (global professionals)
- * - Different tone than Twitter (more professional, less casual)
- */
-const princeLinkedInPostingPattern: DailySchedule = {
-  0: {}, // Sunday
-  1: { 9: ['satirist'] }, // Monday - week starter insight
-  2: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
-  3: { 10: ['pattern_spotter'] }, // Wednesday - mid-week insight
-  4: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
-  5: { 9: ['pattern_spotter'] }, // Friday - week closer insight
-  6: {}, // Saturday
-};
-// Total: 8 posts/week (5 pattern_spotter, 3 satirist)
 ;
 // Twitter handle mapping - maps twitter handles to schedule keys
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {

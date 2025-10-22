@@ -1,8 +1,8 @@
-// lib/engagement/activityScout.ts
 import { getRecentTweetCounts, getUserIdByUsername, getUserRecentTweets, TweetV2 } from '../twitter';
 import type { AccountWithCredentials } from '../types';
 import { qualityFilters } from './config';
 import { EngagementTarget } from './targets';
+
 /**
  * Interface to track individual target activity with their tweets
  */
@@ -12,78 +12,107 @@ interface TargetWithTweets extends EngagementTarget {
 }
 
 /**
- * Constructs a Twitter search query for a group of targets.
- * Excludes retweets and replies. Allows images since we filter by text length.
+ * Builds a Twitter search query for a single target.
+ * Excludes retweets and replies.
  */
-function buildTargetGroupQuery(targets: EngagementTarget[]): string {
-  const fromClauses = targets.map(t => `from:${t.username.replace('@', '')}`).join(' OR ');
-  const query = `(${fromClauses}) -is:retweet -is:reply`;
-  // Note: We no longer exclude images. Text length filter handles quality.
-  return query;
+function buildSingleTargetQuery(target: EngagementTarget): string {
+  const username = target.username.replace('@', '');
+  return `from:${username} -is:retweet -is:reply`;
 }
 
 /**
- * Phase 1: Uses the free Tweet Counts API to check if any target has posted recently.
+ * Phase 1: Check counts for each target individually (free API).
+ * Returns active targets (those with >0 tweets in lookback).
  */
-async function isTargetGroupActive(query: string, credentials: { apiKey: string, apiSecret: string, accessToken: string, accessSecret: string }): Promise<boolean> {
-  try {
-    const lookbackDate = new Date(Date.now() - qualityFilters.lookback_minutes * 60 * 1000);
-    console.log(`[Scout] Checking activity from ${lookbackDate.toISOString()} (${qualityFilters.lookback_minutes} mins ago)`);
-    console.log(`[Scout] Query: "${query}"`);
-    const counts = await getRecentTweetCounts(query, lookbackDate.toISOString(), credentials);
-    const totalTweets = counts.total_tweet_count;
-    console.log(`[Scout] Found ${totalTweets} tweet(s) for query: "${query}" in the last ${qualityFilters.lookback_minutes} mins.`);
-    return totalTweets > 0;
-  } catch (error) {
-    console.error('[Scout] Error checking tweet counts:', error);
-    return false;
-  }
-}
-
-/**
- * Phase 2: Fetch tweets individually from each active target using user timeline API.
- * This is more efficient than bulk search - only pulls 1-2 tweets per target.
- */
-async function fetchIndividualTargetTweets(
+async function getTargetActivityCounts(
   targets: EngagementTarget[],
+  lookbackDate: string,
   credentials: { apiKey: string, apiSecret: string, accessToken: string, accessSecret: string }
-): Promise<TargetWithTweets[]> {
-  const targetsWithTweets: TargetWithTweets[] = [];
-
+): Promise<EngagementTarget[]> {
+  console.log(`[Scout] Checking activity from ${lookbackDate} (${qualityFilters.lookback_minutes} mins ago)`);
+  const activeTargets: EngagementTarget[] = [];
   for (const target of targets) {
     try {
-      // Step 1: Get user ID from username
-      const userId = await getUserIdByUsername(target.username, credentials);
-      if (!userId) {
-        console.log(`[Scout] Skipping ${target.username} - user not found`);
-        continue;
-      }
-
-      // Step 2: Fetch their recent tweets (only 5 tweets max to save quota)
-      const result = await getUserRecentTweets(userId, credentials, qualityFilters.max_tweets_per_retrieval);
-
-      if (result.data && result.data.length > 0) {
-        console.log(`[Scout] ${target.username}: Found ${result.data.length} recent tweet(s)`);
-        targetsWithTweets.push({
-          ...target,
-          userId,
-          recentTweets: result.data,
-        });
-      } else {
-        console.log(`[Scout] ${target.username}: No recent tweets`);
+      const query = buildSingleTargetQuery(target);
+      console.log(`[Scout] Query for ${target.username}: "${query}"`);
+      const counts = await getRecentTweetCounts(query, lookbackDate, credentials);
+      const totalTweets = counts.total_tweet_count;
+      console.log(`[Scout] ${target.username}: Found ${totalTweets} tweet(s) in last ${qualityFilters.lookback_minutes} mins`);
+      if (totalTweets > 0) {
+        activeTargets.push(target);
       }
     } catch (error) {
-      console.error(`[Scout] Error fetching tweets for ${target.username}:`, error);
-      // Continue to next target instead of failing completely
+      console.error(`[Scout] Error checking counts for ${target.username}:`, error);
+      // Continue; don't fail the whole scan
     }
   }
+  return activeTargets;
+}
 
+/**
+ * Phase 2: Fetch tweets only from active targets.
+ * Now single-focus: Pick one if multiple (rotate via random for simplicity).
+ */
+async function fetchIndividualTargetTweets(
+  activeTargets: EngagementTarget[],
+  credentials: { apiKey: string, apiSecret: string, accessToken: string, accessSecret: string },
+  lookbackDate: string
+): Promise<TargetWithTweets[]> {
+  // Single-focus: If multiple active, pick one (random; could be round-robin via DB if needed)
+  const selectedTarget = activeTargets.length > 1 
+    ? activeTargets[Math.floor(Math.random() * activeTargets.length)] 
+    : activeTargets[0];
+  
+  if (!selectedTarget) return [];
+
+  console.log(`[Scout] Focusing on active target: ${selectedTarget.username} ${activeTargets.length > 1 ? `(skipping ${activeTargets.length - 1} others)` : ''}`);
+  const targetsWithTweets: TargetWithTweets[] = [];
+  
+  try {
+    // Get user ID
+    const userId = await getUserIdByUsername(selectedTarget.username, credentials);
+    if (!userId) {
+      console.log(`[Scout] Skipping ${selectedTarget.username} - user not found`);
+      return [];
+    }
+    
+    // Fetch recent tweets (with start_time to limit scope)
+    const result = await getUserRecentTweets(userId, credentials, qualityFilters.max_tweets_per_retrieval, lookbackDate);
+    let recentTweets = result.data || [];
+    
+// Safety filter: Ensure all are within lookback (in case API ignores start_time)
+const now = new Date();
+const lookbackMs = qualityFilters.lookback_minutes * 60 * 1000;
+recentTweets = recentTweets.filter(tweet => {
+  if (!tweet.created_at) {
+    console.warn(`[Scout] Skipping tweet ${tweet.id} - missing created_at`);
+    return false;
+  }
+  const tweetTime = new Date(tweet.created_at).getTime();
+  return (now.getTime() - tweetTime) <= lookbackMs;
+});
+    
+    if (recentTweets.length > 0) {
+      console.log(`[Scout] ${selectedTarget.username}: Found ${recentTweets.length} recent tweet(s)`);
+      targetsWithTweets.push({
+        ...selectedTarget,
+        userId,
+        recentTweets,
+      });
+    } else {
+      console.log(`[Scout] ${selectedTarget.username}: No qualifying recent tweets after filter`);
+    }
+  } catch (error) {
+    console.error(`[Scout] Error fetching tweets for ${selectedTarget.username}:`, error);
+    // Don't throw; log and continue (could retry in 15min via cron)
+  }
+  
   return targetsWithTweets;
 }
 
 /**
- * Main scouting function that orchestrates the two-phase process.
- * Returns tweets with their associated target information.
+ * Main scouting function: Two-phase, quota-efficient.
+ * Returns tweets with target metadata (single-focus).
  */
 export async function scoutAndFetch(
   account: AccountWithCredentials,
@@ -92,29 +121,28 @@ export async function scoutAndFetch(
   if (targets.length === 0) {
     return [];
   }
-
-  // The account object from accountService already has decrypted keys
+  
   const credentials = {
     apiKey: account.twitter_api_key,
     apiSecret: account.twitter_api_secret,
     accessToken: account.twitter_access_token,
     accessSecret: account.twitter_access_token_secret,
   };
-
-  // Phase 1: Quick activity check using counts API (FREE)
-  const query = buildTargetGroupQuery(targets);
-  const isActive = await isTargetGroupActive(query, credentials);
-
-  if (!isActive) {
-    console.log('[Scout] No recent activity detected for target group');
+  
+  const lookbackDate = new Date(Date.now() - qualityFilters.lookback_minutes * 60 * 1000).toISOString();
+  
+  // Phase 1: Free counts per target
+  const activeTargets = await getTargetActivityCounts(targets, lookbackDate, credentials);
+  if (activeTargets.length === 0) {
+    console.log('[Scout] No recent activity detected across targets');
     return [];
   }
-
-  // Phase 2: Fetch tweets individually from each target (COSTS QUOTA)
-  console.log('[Scout] Activity detected! Fetching individual tweets...');
-  const targetsWithTweets = await fetchIndividualTargetTweets(targets, credentials);
-
-  // Flatten all tweets and attach target metadata
+  
+  // Phase 2: Fetch only from selected active target(s)
+  console.log(`[Scout] ${activeTargets.length} active target(s) found! Fetching tweets...`);
+  const targetsWithTweets = await fetchIndividualTargetTweets(activeTargets, credentials, lookbackDate);
+  
+  // Flatten tweets with metadata
   const allTweets: Array<TweetV2 & { targetUsername: string; targetTier: number }> = [];
   for (const target of targetsWithTweets) {
     for (const tweet of target.recentTweets) {
@@ -125,7 +153,7 @@ export async function scoutAndFetch(
       });
     }
   }
-
-  console.log(`[Scout] Total tweets fetched: ${allTweets.length} from ${targetsWithTweets.length} active target(s)`);
+  
+  console.log(`[Scout] Total tweets fetched: ${allTweets.length} from ${targetsWithTweets.length} target(s)`);
   return allTweets;
 }

@@ -91,67 +91,82 @@ STEP-BY-STEP (internal reasoning you must include in the JSON output):
 5) dataEffect: The second part of the narrative pair.
 6) theConcludingInsight: 1 punchy, second-order insight *that flows naturally from the data pair.*
     * **WILDLY VARIED A+ EXAMPLES (Modeling Strong "Declarative Claim" Hooks):**
+    // ... inside your prompt ...
+    * **WILDLY VARIED A+ EXAMPLES (Modeling Strong "Declarative Claim" Hooks):**
     Full assembled tweets (under 280 chars) with natural line flow:
         * **(Story: Cause → Effect - Negative)**
             Full Tweet:
             "EduCore's low-cost model is eating its own foundation.
+           
             40% of their top instructors left amid pay cuts.
+           
             Subscriber churn spiked 58% right after.
            
             A company's core product is its core talent."
-            (Char count: 178)
+            (Char count: 195)
+
         * **(Story: Competitive / GTM)**
             Full Tweet:
             "Product X just turned a competitor's mistake into a goldmine.
+           
             Incumbent Y raised prices 20% last quarter.
-            Product X launched a free import tool.
-            Signups jumped 300% overnight.
+            Product X launched a free import tool, and signups jumped 300%.
            
             The sharpest GTM weaponizes rivals' bad calls."
-            (Char count: 212)
+            (Char count: 219)
+
         * **(Story: Strategic Decision / Product Focus)**
             Full Tweet:
             "MediaCo is making a counter-intuitive bet on 'boring'.
+           
             They shut down 5 hot experimental verticals.
             All 50 staff moved back to the 10-year-old flagship.
            
             In a noisy market, the deepest moat is the oldest brand."
-            (Char count: 196)
+            (Char count: 215)
+
         * **(Story: GTM / Ecosystem Building)**
             Full Tweet:
             "BuildFast found a brilliant GTM hack: stop selling.
+           
             They halted pitches to CTOs entirely.
             Instead, gave the dev tool free to 50 top bootcamps.
            
             Ecosystems own the next gen of devs this way."
-            (Char count: 184)
+            (Char count: 196)
+
         * **(Story: Partnerships / Pivot)**
             Full Tweet:
             "HealthTech Co's new partnership reveals its real model.
+           
             Consumer app growth flattened to zero.
             A Big Pharma deal now drives 50% of new revenue.
            
             The B2C app was just a demo for B2B scale."
-            (Char count: 172)
+            (Char count: 196)
+
         * **(Story: Investment → Cost - Neutral Tradeoff)**
             Full Tweet:
             "AeroCore's profit is being sacrificed for talent.
+           
             R&D costs surged 241% on specialist hires.
             Overall profit inched up just 6%.
            
             In deep tech, the talent war is the margin war."
-            (Char count: 168)
+            (Char count: 183)
+
 7) internalReview: Actively check the output. Is it short? Are the two data lines a *narrative pair*? Is the insight an observational conclusion? Total chars < 280?
     * **hookCheck:** "Is the hook a sharp, *declarative claim*? Does it AVOID lazy titles?"
     * **insightCheck:** "Is the insight a 2nd-order principle? Does it AVOID fluff openers like 'This shows that...' or 'The lesson:...'?"
     * **preachingCheck:** "Does the insight AVOID commands ('Stop...'), or direct advice ('You should...')?"
     * **flowCheck:** "Do lines flow naturally? Does the final line emerge seamlessly from the data pair?"
     * **lengthCheck:** "Total tweet text < 280 chars? Each line short and scannable?"
+
 OUTPUT FORMAT (JSON):
 ${isImageFormat
     ? `{
   "tweetText": "Teaser for the image tweet (max ${GENERATION_CONFIG.personas.patternSpotter.imageFormatTweetTextLimit} chars)",
-  "imageContent": "The Hook\\nThe Data Pair (Cause/Action)\\nThe Data Pair (Effect/Consequence)\\n\\nThe Concluding Insight",
+  "imageContent": "The Hook\\n\\nThe Data Pair (Cause/Action)\\nThe Data Pair (Effect/Consequence)\\n\\nThe Concluding Insight",
   "selectedHeadlineNumber": <number>,
   "analysisAngle": "productAnalysis",
   "thinking": {
@@ -175,7 +190,7 @@ ${isImageFormat
   "hashtags": []
 }`
     : `{
-  "tweetText": "The Hook\\nThe Data Pair (Cause/Action)\\nThe Data Pair (Effect/Consequence)\\n\\nThe Concluding Insight",
+  "tweetText": "The Hook.\\n\\nThe Data Pair (Cause/Action).\\nThe Data Pair (Effect/Consequence).\\n\\nThe Concluding Insight",
   "selectedHeadlineNumber": <number>,
   "analysisAngle": "productAnalysis",
   "thinking": {

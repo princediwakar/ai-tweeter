@@ -2,6 +2,11 @@
   "@princediwakar25": {
     "priority_targets": [
       {
+        "username": "@princediwakar25",
+        "description": "Founder of Supersite and previously Product Manager at ApnaJobs'",
+        "tier": 1
+      },
+      {
         "username": "@paraschopra",
         "description": "Founder, Wingify (VWO) - The 'SaaS Founder-Philosopher'",
         "tier": 1

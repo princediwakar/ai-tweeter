@@ -36,7 +36,7 @@ const PERSONA_CONFIG = {
     idealCharRange: { min: 140, max: 240 }, // Sweet spot for engagement
     imageFormatTweetTextLimit: 100, // Shorter hooks for image tweets
     imageContentCharLimit: 240,
-    imageProbability: 0,
+    imageProbability: 0.1,
     deduplicationDays: 5,
     feeds: [
       // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',

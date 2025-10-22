@@ -53,7 +53,8 @@ async function saveDebugOutput(data: { content: string | string[]; persona: stri
 
     // Format the output line as per your requested pattern
     const sourceInfo = data.source ? `\nsource: "${data.source}"` : '';
-    const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;
+    // const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;
+    const lineToAppend = `"${sanitizedContent}"${sourceInfo}\n\n`;
 
     await fs.appendFile(filePath, lineToAppend, 'utf-8');
     logger.info(`[Debug] Appended generation output to ${filePath}`, 'save-debug-output');

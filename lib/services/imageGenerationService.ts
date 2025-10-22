@@ -105,7 +105,7 @@ export async function generatePersonaImage(
         return null;
       }
       const imageContent = parsedCardData.imageContent;
-      imageBuffer = await generatePatternSpotterImage(imageContent);
+      imageBuffer = await generatePatternSpotterImage(imageContent); 
       publicId = `pattern_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     // --- END MODIFIED ---
     // --- END NEW ---

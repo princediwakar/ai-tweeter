@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Gandhi Wisdom account (@Gandhi_Wisom_) has been configured as an engagement-only account that responds to social leaders, activists, and news with thoughtful, Gandhi-inspired wisdom.
+The Gandhi Wisdom account (@gandhi_wisdom_) has been configured as an engagement-only account that responds to social leaders, activists, and news with thoughtful, Gandhi-inspired wisdom.
 
 ## What's Been Configured
 
@@ -47,7 +47,7 @@ The Gandhi Wisdom account (@Gandhi_Wisom_) has been configured as an engagement-
 ### Step 1: Get Twitter API Credentials
 
 1. Go to https://developer.twitter.com/en/portal/dashboard
-2. Create a Twitter app for @Gandhi_Wisom_ account
+2. Create a Twitter app for @gandhi_wisdom_ account
 3. Generate API keys with **Read and Write** permissions
 4. Copy these credentials:
    - API Key (Consumer Key)
@@ -89,7 +89,7 @@ Add to `vercel.json`:
 {
   "crons": [
     {
-      "path": "/api/engage?twitter_handle=@Gandhi_Wisom_",
+      "path": "/api/engage?twitter_handle=@gandhi_wisdom_",
       "schedule": "0 7,12,18,21 * * *"
     }
   ]
@@ -104,7 +104,7 @@ crontab -e
 
 # Add this line (runs at 7 AM, 12 PM, 6 PM, 9 PM IST)
 0 7,12,18,21 * * * curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
-  "https://yourapp.com/api/engage?twitter_handle=@Gandhi_Wisom_"
+  "https://yourapp.com/api/engage?twitter_handle=@gandhi_wisdom_"
 ```
 
 ### Step 4: Test the Setup
@@ -117,7 +117,7 @@ node scripts/test-gandhi-config.js
 **Test 2: API Test (Debug Mode)**
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_&debug=true"
+  "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_&debug=true"
 ```
 
 Expected response:
@@ -128,7 +128,7 @@ Expected response:
   "engagement": {
     "target": "@targetuser",
     "originalTweetUrl": "https://twitter.com/...",
-    "replyUrl": "https://twitter.com/Gandhi_Wisom_/status/..."
+    "replyUrl": "https://twitter.com/gandhi_wisdom_/status/..."
   }
 }
 ```
@@ -142,7 +142,7 @@ SELECT
   LEFT(reply_text, 50) as reply
 FROM engagement_log
 WHERE account_id = (
-  SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_'
+  SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_'
 )
 ORDER BY engaged_at DESC
 LIMIT 5;
@@ -179,13 +179,13 @@ LIMIT 5;
 curl "http://localhost:3000/api/accounts" | jq
 
 # View engagement logs
-psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_') ORDER BY engaged_at DESC LIMIT 10;"
+psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_') ORDER BY engaged_at DESC LIMIT 10;"
 ```
 
 ### Common Issues
 
 **"No engagement config found"**
-- Check that `@Gandhi_Wisom_` exists in `config/engagement-targets.json`
+- Check that `@gandhi_wisdom_` exists in `config/engagement-targets.json`
 - Ensure the @ symbol is included
 
 **"Engagement is not scheduled for this hour"**
@@ -209,13 +209,13 @@ psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT
 Edit `lib/schedule.ts` → `gandhiEngagementPattern`
 
 **To add/remove targets:**
-Edit `config/engagement-targets.json` → `@Gandhi_Wisom_.priority_targets`
+Edit `config/engagement-targets.json` → `@gandhi_wisdom_.priority_targets`
 
 **To modify AI persona:**
 Edit `lib/engagement/personas.ts` → `gandhi.systemPrompt`
 
 **To adjust rate limits:**
-Edit `config/engagement-targets.json` → `@Gandhi_Wisom_.rules`
+Edit `config/engagement-targets.json` → `@gandhi_wisdom_.rules`
 
 ## Files Reference
 
@@ -244,7 +244,7 @@ Track these to measure engagement quality:
 2. **Response rate**: How often targets respond to Gandhi
 3. **Engagement rate**: Likes/RTs on Gandhi's replies
 4. **Sentiment**: Positive/neutral/negative responses
-5. **Growth**: Follower count for @Gandhi_Wisom_
+5. **Growth**: Follower count for @gandhi_wisdom_
 
 ## Support
 

@@ -10,7 +10,7 @@ The system now supports multiple Twitter accounts, each with:
 - **Their own schedules** (when to engage)
 - **Their own rate limits** (daily caps, cooldowns)
 
-### 2. Added Gandhi Wisdom Account (@Gandhi_Wisom_)
+### 2. Added Gandhi Wisdom Account (@gandhi_wisdom_)
 
 **Engagement Persona:**
 - Name: "Gandhi - The Thoughtful Voice"
@@ -64,7 +64,7 @@ CLAUDE.md                                     # Updated project docs
 ### Step 1: Get Twitter API Credentials
 
 1. Go to https://developer.twitter.com/en/portal/dashboard
-2. Create app for @Gandhi_Wisom_ account
+2. Create app for @gandhi_wisdom_ account
 3. Set permissions to **Read and Write**
 4. Copy these credentials:
    - API Key (Consumer Key)
@@ -82,7 +82,7 @@ nano scripts/add-gandhi-account.sql
 psql "$DATABASE_URL" -f scripts/add-gandhi-account.sql
 
 # Verify
-psql "$DATABASE_URL" -c "SELECT id, twitter_handle FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_';"
+psql "$DATABASE_URL" -c "SELECT id, twitter_handle FROM accounts WHERE twitter_handle = '@gandhi_wisdom_';"
 ```
 
 ### Step 3: Set Up Cron Job
@@ -94,7 +94,7 @@ Add to `vercel.json`:
 {
   "crons": [
     {
-      "path": "/api/engage?twitter_handle=@Gandhi_Wisom_",
+      "path": "/api/engage?twitter_handle=@gandhi_wisdom_",
       "schedule": "0 7,12,18,21 * * *"
     }
   ]
@@ -106,7 +106,7 @@ Add to `vercel.json`:
 crontab -e
 
 # Add this line:
-0 7,12,18,21 * * * curl -H "Authorization: Bearer $CRON_SECRET" "https://yourapp.com/api/engage?twitter_handle=@Gandhi_Wisom_"
+0 7,12,18,21 * * * curl -H "Authorization: Bearer $CRON_SECRET" "https://yourapp.com/api/engage?twitter_handle=@gandhi_wisdom_"
 ```
 
 ### Step 4: Test
@@ -117,10 +117,10 @@ node scripts/test-gandhi-config.js
 
 # Test engagement (debug mode - bypasses schedule)
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_&debug=true"
+  "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_&debug=true"
 
 # Check logs
-psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_') ORDER BY engaged_at DESC LIMIT 5;"
+psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_') ORDER BY engaged_at DESC LIMIT 5;"
 ```
 
 ## 🏗️ System Architecture
@@ -133,7 +133,7 @@ psql "$DATABASE_URL" -c "SELECT * FROM engagement_log WHERE account_id = (SELECT
         ┌──────────────────┴──────────────────┐
         │                                     │
 ┌───────▼────────┐                  ┌────────▼─────────┐
-│ @princediwakar25│                 │  @Gandhi_Wisom_  │
+│ @princediwakar25│                 │  @gandhi_wisdom_  │
 │                │                  │                  │
 │ Persona:       │                  │ Persona:         │
 │ the_catalyst   │                  │ gandhi           │
@@ -199,7 +199,7 @@ npm run lint
 
 # Test engagement (local, debug mode)
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_&debug=true"
+  "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_&debug=true"
 
 # Check database
 psql "$DATABASE_URL" -c "SELECT * FROM engagement_log ORDER BY engaged_at DESC LIMIT 10;"
@@ -217,20 +217,20 @@ psql "$DATABASE_URL" -c "SELECT * FROM engagement_log ORDER BY engaged_at DESC L
 ```sql
 -- Daily engagement count
 SELECT COUNT(*) FROM engagement_log
-WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_')
+WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_')
 AND DATE(engaged_at) = CURRENT_DATE;
 
 -- Recent engagements
 SELECT engaged_at, target_username,
        LEFT(reply_text, 50) as reply
 FROM engagement_log
-WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_')
+WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_')
 ORDER BY engaged_at DESC LIMIT 10;
 
 -- Success rate by target
 SELECT target_username, COUNT(*) as engagement_count
 FROM engagement_log
-WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_')
+WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_')
 GROUP BY target_username
 ORDER BY engagement_count DESC;
 ```

@@ -70,14 +70,6 @@ export const PATTERN_SPOTTER: PersonaConfig = {
   },
 };
 
-export const THE_CATALYST: PersonaConfig = {
-  key: 'the_catalyst',
-  displayName: 'The Catalyst',
-  description: 'Adapts its approach to spark conversation. Delivers sharp insights, witty riffs, or resonant empathy, always matching the tone of the original post.',
-  content_types: [],
-  thread_templates: [],
-  image_generation: { enabled: false },
-};
 
 export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better type safety
   SATIRIST,
@@ -85,7 +77,6 @@ export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
   VOCABULARY_BUILDER,
-  THE_CATALYST,
 ];
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
@@ -103,7 +94,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller', 'the_catalyst']
+  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller'],
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {

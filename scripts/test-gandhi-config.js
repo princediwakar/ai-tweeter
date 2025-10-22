@@ -14,15 +14,15 @@ console.log('-'.repeat(60));
 const targetsPath = path.join(process.cwd(), 'config', 'engagement-targets.json');
 const targets = JSON.parse(fs.readFileSync(targetsPath, 'utf8'));
 
-if (targets['@Gandhi_Wisom_']) {
+if (targets['@gandhi_wisdom_']) {
   console.log('✓ Gandhi account found in engagement-targets.json');
-  console.log('  - Engagement persona:', targets['@Gandhi_Wisom_'].engagement_persona);
-  console.log('  - Priority targets:', targets['@Gandhi_Wisom_'].priority_targets.length);
-  console.log('  - Max engagements/day:', targets['@Gandhi_Wisom_'].rules.max_engagements_per_day);
-  console.log('  - Min hours between same target:', targets['@Gandhi_Wisom_'].rules.min_hours_between_same_target);
+  console.log('  - Engagement persona:', targets['@gandhi_wisdom_'].engagement_persona);
+  console.log('  - Priority targets:', targets['@gandhi_wisdom_'].priority_targets.length);
+  console.log('  - Max engagements/day:', targets['@gandhi_wisdom_'].rules.max_engagements_per_day);
+  console.log('  - Min hours between same target:', targets['@gandhi_wisdom_'].rules.min_hours_between_same_target);
 
   // Check persona key is valid
-  if (targets['@Gandhi_Wisom_'].engagement_persona === 'gandhi') {
+  if (targets['@gandhi_wisdom_'].engagement_persona === 'gandhi') {
     console.log('✓ Engagement persona key is correct');
   } else {
     console.error('✗ ERROR: Engagement persona should be "gandhi"');
@@ -30,7 +30,7 @@ if (targets['@Gandhi_Wisom_']) {
 
   // List first 3 targets
   console.log('\n  Top 3 targets:');
-  targets['@Gandhi_Wisom_'].priority_targets.slice(0, 3).forEach(t => {
+  targets['@gandhi_wisdom_'].priority_targets.slice(0, 3).forEach(t => {
     console.log(`    - ${t.username} (Tier ${t.tier}): ${t.description}`);
   });
 } else {
@@ -63,11 +63,11 @@ console.log('-'.repeat(60));
 const schedulePath = path.join(process.cwd(), 'lib', 'schedule.ts');
 const scheduleContent = fs.readFileSync(schedulePath, 'utf8');
 
-if (scheduleContent.includes("'@Gandhi_Wisom_': 'gandhi_account'")) {
+if (scheduleContent.includes("'@gandhi_wisdom_': 'gandhi_account'")) {
   console.log('✓ Gandhi account mapped in TWITTER_HANDLE_MAPPING');
 }
 
-if (scheduleContent.includes("'gandhi_account': '@Gandhi_Wisom_'")) {
+if (scheduleContent.includes("'gandhi_account': '@gandhi_wisdom_'")) {
   console.log('✓ Gandhi account mapped in SCHEDULE_KEY_TO_HANDLE');
 }
 
@@ -104,15 +104,15 @@ console.log('='.repeat(60));
 console.log(`
 The Gandhi engagement account is configured with:
 
-1. ✅ Engagement targets: ${targets['@Gandhi_Wisom_']?.priority_targets.length || 0} accounts
-2. ✅ Engagement persona: "${targets['@Gandhi_Wisom_']?.engagement_persona || 'not set'}"
+1. ✅ Engagement targets: ${targets['@gandhi_wisdom_']?.priority_targets.length || 0} accounts
+2. ✅ Engagement persona: "${targets['@gandhi_wisdom_']?.engagement_persona || 'not set'}"
 3. ✅ Schedule: 4 sessions/day (7 AM, 12 PM, 6 PM, 9 PM IST)
-4. ✅ Rate limits: ${targets['@Gandhi_Wisom_']?.rules.max_engagements_per_day || 0}/day, ${targets['@Gandhi_Wisom_']?.rules.min_hours_between_same_target || 0}h cooldown
+4. ✅ Rate limits: ${targets['@gandhi_wisdom_']?.rules.max_engagements_per_day || 0}/day, ${targets['@gandhi_wisdom_']?.rules.min_hours_between_same_target || 0}h cooldown
 
 Next steps:
 1. Add Twitter API credentials to database using scripts/add-gandhi-account.sql
-2. Set up cron job: GET /api/engage?twitter_handle=@Gandhi_Wisom_
-3. Test with debug mode: GET /api/engage?twitter_handle=@Gandhi_Wisom_&debug=true
+2. Set up cron job: GET /api/engage?twitter_handle=@gandhi_wisdom_
+3. Test with debug mode: GET /api/engage?twitter_handle=@gandhi_wisdom_&debug=true
 
 📚 See docs/MULTI_ACCOUNT_ENGAGEMENT_SETUP.md for complete setup guide.
 `);

@@ -159,14 +159,14 @@ const princeLinkedInPostingPattern: DailySchedule = {
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
   '@princediwakar25': 'prince_account',
-  '@Gandhi_Wisom_': 'gandhi_account',
+  '@gandhi_wisdom_': 'gandhi_account',
 };
 
 // Reverse mapping - from schedule keys to twitter handles
 const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
   'gibbi_account': '@gibbi_ai',
   'prince_account': '@princediwakar25',
-  'gandhi_account': '@Gandhi_Wisom_',
+  'gandhi_account': '@gandhi_wisdom_',
 };
 
 /**

@@ -12,7 +12,7 @@ The engagement system is now fully multi-account aware with:
 
 ## Adding a New Account: Step-by-Step
 
-### Example: Adding @Gandhi_Wisom_ Account
+### Example: Adding @gandhi_wisdom_ Account
 
 #### Step 1: Add Account to Database
 
@@ -36,7 +36,7 @@ INSERT INTO accounts (
 ) VALUES (
   gen_random_uuid(),
   'Gandhi Wisdom',
-  '@Gandhi_Wisom_',
+  '@gandhi_wisdom_',
   'active',
   'enc:' || encode('YOUR_TWITTER_API_KEY'::bytea, 'base64'),
   'enc:' || encode('YOUR_TWITTER_API_SECRET'::bytea, 'base64'),
@@ -77,7 +77,7 @@ Edit `config/engagement-targets.json` to specify who this account should engage 
 
 ```json
 {
-  "@Gandhi_Wisom_": {
+  "@gandhi_wisdom_": {
     "priority_targets": [
       { "username": "@narendramodi", "description": "Prime Minister of India", "tier": 1 },
       { "username": "@dalailama", "description": "Spiritual leader", "tier": 1 },
@@ -109,12 +109,12 @@ Edit `lib/schedule.ts` to define when engagement happens:
 ```typescript
 // 1. Add to handle mapping
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
-  '@Gandhi_Wisom_': 'gandhi_account',
+  '@gandhi_wisdom_': 'gandhi_account',
   // ... other accounts
 };
 
 const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
-  'gandhi_account': '@Gandhi_Wisom_',
+  'gandhi_account': '@gandhi_wisdom_',
   // ... other accounts
 };
 
@@ -159,7 +159,7 @@ Add a cron job to trigger engagement at scheduled times:
 {
   "crons": [
     {
-      "path": "/api/engage?twitter_handle=@Gandhi_Wisom_",
+      "path": "/api/engage?twitter_handle=@gandhi_wisdom_",
       "schedule": "0 7,12,18,21 * * *"
     }
   ]
@@ -172,7 +172,7 @@ Add a cron job to trigger engagement at scheduled times:
 crontab -e
 
 # Add line (runs at 7 AM, 12 PM, 6 PM, 9 PM IST daily)
-0 7,12,18,21 * * * curl -H "Authorization: Bearer YOUR_CRON_SECRET" "https://yourapp.com/api/engage?twitter_handle=@Gandhi_Wisom_"
+0 7,12,18,21 * * * curl -H "Authorization: Bearer YOUR_CRON_SECRET" "https://yourapp.com/api/engage?twitter_handle=@gandhi_wisdom_"
 ```
 
 ## Testing the Setup
@@ -182,7 +182,7 @@ crontab -e
 ```bash
 # Test engagement (bypasses schedule check)
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_&debug=true"
+  "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_&debug=true"
 ```
 
 ### 2. Verify Configuration
@@ -192,7 +192,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 curl "http://localhost:3000/api/accounts"
 
 # Check engagement targets loaded
-curl "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_" \
+curl "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_" \
   -H "Authorization: Bearer $CRON_SECRET"
 ```
 
@@ -207,7 +207,7 @@ SELECT
   reply_text
 FROM engagement_log
 WHERE account_id = (
-  SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_'
+  SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_'
 )
 ORDER BY engaged_at DESC
 LIMIT 10;

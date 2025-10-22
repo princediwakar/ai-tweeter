@@ -13,7 +13,7 @@ async function insertGandhiAccount() {
     // Check if account already exists
     const existingCheck = await sql`
       SELECT id, twitter_handle FROM accounts
-      WHERE twitter_handle = '@Gandhi_Wisom_'
+      WHERE twitter_handle = '@gandhi_wisdom_'
     `;
 
     if (existingCheck.rows.length > 0) {
@@ -69,7 +69,7 @@ async function insertGandhiAccount() {
       ) VALUES (
         gen_random_uuid(),
         'Gandhi Wisdom',
-        '@Gandhi_Wisom_',
+        '@gandhi_wisdom_',
         'active',
         ${encryptedApiKey},
         ${encryptedApiSecret},
@@ -101,10 +101,10 @@ async function insertGandhiAccount() {
 
     console.log('\n📝 Next steps:');
     console.log('1. Set up cron job for engagement:');
-    console.log('   GET /api/engage?twitter_handle=@Gandhi_Wisom_');
+    console.log('   GET /api/engage?twitter_handle=@gandhi_wisdom_');
     console.log('2. Test with debug mode:');
     console.log('   curl -H "Authorization: Bearer $CRON_SECRET" \\');
-    console.log('     "http://localhost:3000/api/engage?twitter_handle=@Gandhi_Wisom_&debug=true"');
+    console.log('     "http://localhost:3000/api/engage?twitter_handle=@gandhi_wisdom_&debug=true"');
 
   } catch (error) {
     console.error('❌ Error inserting account:', error);

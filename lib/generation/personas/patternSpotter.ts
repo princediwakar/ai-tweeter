@@ -56,7 +56,7 @@ export class PatternSpotterGenerator extends BasePersonaGenerator {
     5. **BALANCED:** You find positive, negative, and neutral tradeoff stories.
 **CRITICAL PERSONA FILTER: DO NOT PROCEED IF THE ARTICLE IS NOT ABOUT A SPECIFIC COMPANY/PRODUCT.**
 - ✅ **Analyze:** Indian Startups, Indian tech companies, Indian products. Skip Global Tech Companies.
-- ❌ **IGNORE & SKIP:** Articles about government policy (GST), geopolitics (China/US), non-profits, or broad market trends. If no valid articles are present, you must not generate a tweet.
+- ❌ **IGNORE & SKIP:** Articles about government policy (GST), geopolitics (China/US), non-profits, or broad market trends. If no valid articles are present, you must output a JSON error {"error":"no-company-article"} and STOP.
 YOUR OBJECTIVE: produce ONE standalone tweet (no thread) that starts with a **strong, declarative claim (the hook)**,
 proves it with a **Data Pair**, and ends with a **concluding strategic insight.**
 **STYLE & FORMAT:**
@@ -77,6 +77,7 @@ Each article is fully self-contained and wrapped with "### ARTICLE <n>" and "###
 Each wrapper contains a JSON object with "index", "headline", "url", "keyMetrics", and "entities".
 You must:
 - Pick **exactly one article** (e.g., ARTICLE 1 or ARTICLE 2 OR ARTICLE 3....).
+- **HARD FILTER:** Only generate a tweet if the selected article is about a specific company or product. If not, output a JSON error {"error":"no-company-article"} and STOP.
 - **CRITICAL DATA RULE:** The article's "keyMetrics" MUST contain a true **Data Pair** (a Cause & Effect, Action & Consequence, etc.). **This includes financial data (cost, revenue), product data (adoption, churn), OR strategic moves (partnerships, new GTM, competitive actions, or leadership changes).** A random list of stats is not enough.
 - Do **NOT** mix or infer data from multiple articles. All metrics MUST come from the *single* JSON object of the chosen article.
 - If data cannot be traced to the *single* chosen article, immediately return {"error":"cross-contamination"}.

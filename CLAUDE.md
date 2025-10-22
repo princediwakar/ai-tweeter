@@ -63,12 +63,12 @@
 **Engagement System (Multi-Account):**
 * `lib/engagement/personas.ts` - Engagement AI personas:
   - **the_catalyst** - Used by @princediwakar25, adapts tone to spark conversation
-  - **gandhi** - Used by @Gandhi_Wisom_, shares wisdom on social/political topics
+  - **gandhi** - Used by @gandhi_wisdom_, shares wisdom on social/political topics
 * `lib/engagement/activityScout.ts` - **Per-account** recent tweet fetching (not group search)
 * `lib/engagement/selector.ts` - Selects best tweets to engage with
 * `config/engagement-targets.json` - Per-account target lists:
   - **@princediwakar25:** 11 targets (10-50K follower range, Indian startup ecosystem), 5 engagements/day
-  - **@Gandhi_Wisom_:** 1 target, 3 engagements/day
+  - **@gandhi_wisdom_:** 1 target, 3 engagements/day
 * `app/api/engage/route.ts` - Engagement endpoint with rate limiting
 * **Setup guide:** `docs/MULTI_ACCOUNT_ENGAGEMENT_SETUP.md`
 
@@ -167,7 +167,7 @@ Each account can have its own engagement strategy:
   - Targets: 11 accounts (10-50K followers: founders, VCs, startup media)
   - Rate: 5 engagements/day, 7 time slots (9am-9pm IST)
   - Strategy: High-value replies to mid-tier accounts who actually engage back
-- **@Gandhi_Wisom_** (engagement-only account):
+- **@gandhi_wisdom_** (engagement-only account):
   - Persona: "gandhi"
   - Targets: 1 account (@IndianTechGuide)
   - Rate: 3 engagements/day

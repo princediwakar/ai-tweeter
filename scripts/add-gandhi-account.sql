@@ -14,7 +14,7 @@ INSERT INTO accounts (
 ) VALUES (
   gen_random_uuid(),
   'Gandhi Wisdom',
-  '@Gandhi_Wisom_',
+  '@gandhi_wisdom_',
   'active',
   'enc:' || encode('GANDHI_TWITTER_API_KEY'::bytea, 'base64'),
   'enc:' || encode('GANDHI_TWITTER_API_SECRET'::bytea, 'base64'),
@@ -40,12 +40,12 @@ SELECT
   branding,
   created_at
 FROM accounts
-WHERE twitter_handle = '@Gandhi_Wisom_';
+WHERE twitter_handle = '@gandhi_wisdom_';
 
 
 SELECT COUNT(*) as engagement_count
 FROM engagement_log
-WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@Gandhi_Wisom_');
+WHERE account_id = (SELECT id FROM accounts WHERE twitter_handle = '@gandhi_wisdom_');
 
 -- Expected output: 0 (no engagements yet)
 

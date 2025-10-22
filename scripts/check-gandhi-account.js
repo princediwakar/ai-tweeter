@@ -7,13 +7,13 @@ async function checkAccount() {
     const result = await sql`
       SELECT id, name, twitter_handle, status
       FROM accounts
-      WHERE twitter_handle = '@Gandhi_Wisom_'
+      WHERE twitter_handle = '@gandhi_wisdom_'
     `;
 
     if (result.rows.length > 0) {
       console.log('✅ Account found:', result.rows[0]);
     } else {
-      console.log('❌ No account found with handle @Gandhi_Wisom_');
+      console.log('❌ No account found with handle @gandhi_wisdom_');
 
       // Check all accounts
       const all = await sql`SELECT id, name, twitter_handle FROM accounts`;

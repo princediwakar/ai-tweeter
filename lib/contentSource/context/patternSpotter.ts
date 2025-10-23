@@ -2,30 +2,27 @@
 import { GENERATION_CONFIG } from '../../generation/config';
 import { getRecentPatternData } from '../../db';
 // MODIFIED: Import extractEntities to filter by topic
-import { enrichArticles, extractEntities } from '../../generation/articleEnricher';
+import { enrichArticles, EnrichedArticle, extractEntities } from '../../generation/articleEnricher';
 import { fetchHeadlinesOnly, fetchFromReddit, fetchFromTwitter } from '../fetchers';
 import { selectRandomSources } from '../utils';
-import type { PatternSpotterContext } from '../types';
+import type {  PatternSpotterContext } from '../types';
 import { RecentPattern } from '@/lib/generation';
 
-/**
- * Builds structured context for the Pattern Spotter persona by fetching headlines,
- * filtering them for relevance, and deeply enriching the best candidates.
- */
 export async function getPatternSpotterContext(accountId?: string): Promise<PatternSpotterContext | null> {
   console.log('[Context] 🔍 Pattern Spotter: Fetching and enriching articles...');
 
   try {
-    const { feeds, subredditsToFetch, headlinesToAnalyze, twitterHandlesToFetch } = GENERATION_CONFIG.personas.patternSpotter;
+    const { feeds, subredditsToFetch, headlinesToAnalyze, twitterHandlesToFetch, headlinesInPrompt } = GENERATION_CONFIG.personas.patternSpotter;
 
-    // 1. Fetch a diverse set of headlines
+    // 1. Fetch a diverse set of headlines with source tagging
     const [rssHeadlines, redditHeadlines, twitterHeadlines] = await Promise.all([
-      fetchHeadlinesOnly(headlinesToAnalyze),
-      fetchFromReddit(selectRandomSources(feeds.reddit, subredditsToFetch)),
-      fetchFromTwitter(selectRandomSources(feeds.twitter || [], twitterHandlesToFetch))
+      fetchHeadlinesOnly(headlinesToAnalyze).then(hs => hs.map(h => ({ ...h, sourceType: 'rss' as const }))),
+      fetchFromReddit(selectRandomSources(feeds.reddit, subredditsToFetch)).then(hs => hs.map(h => ({ ...h, sourceType: 'reddit' as const }))),
+      fetchFromTwitter(selectRandomSources(feeds.twitter || [], twitterHandlesToFetch)).then(hs => hs.map(h => ({ ...h, sourceType: 'twitter' as const })))
     ]);
     const allHeadlines = [...rssHeadlines, ...redditHeadlines, ...twitterHeadlines].sort(() => 0.5 - Math.random());
-    console.log(`[Context] 📰 Fetched ${allHeadlines.length} total headlines.`);
+
+    console.log(`[Context] 📰 Fetched ${allHeadlines.length} total headlines (RSS: ${rssHeadlines.length}, Reddit: ${redditHeadlines.length}, Twitter: ${twitterHeadlines.length}).`);
 
     if (allHeadlines.length === 0) throw new Error('No headlines fetched.');
 
@@ -33,7 +30,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     const uniqueHeadlines = Array.from(new Map(allHeadlines.map(h => [h.headline + h.url, h])).values());
     console.log(`[Context] ✨ Found ${uniqueHeadlines.length} unique headlines.`);
 
-    // 3. MODIFIED: Filter by recently used URLs *and* recently covered entities
+    // 3. Filter by recently used URLs *and* recently covered entities
     let usedSourceUrls: string[] = [];
     let recentPatterns: RecentPattern[] = [];
 
@@ -51,7 +48,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     const freshHeadlinesByUrl = uniqueHeadlines.filter(h => !normalizedUsedUrls.has(normalizeUrl(h.url)));
     console.log(`[Context] ✅ ${freshHeadlinesByUrl.length} headlines remain after URL deduplication.`);
 
-    // NEW: Filter by recently covered entities to prevent topic repetition
+    // Filter by recently covered entities to prevent topic repetition
     const commonWordsForTweets = new Set(["The", "But", "And", "Shows", "This", "That", "Example", "Data", "in", "of", "for", "to", "at", "on"]);
     const blockedEntities = new Set<string>();
     recentPatterns.forEach(p => {
@@ -75,49 +72,72 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
       console.log(`[Context] ✅ No recent entities to block. Proceeding with ${freshHeadlines.length} headlines.`);
     }
 
+    // 4. Separate RSS for deep enrichment; non-RSS as lightweight
+    const rssHeadlinesOnly = freshHeadlines.filter(h => h.sourceType === 'rss');
+    console.log(`[Context] 📄 ${rssHeadlinesOnly.length} RSS articles available for deep enrichment.`);
 
-    // 4. Enrich the top N fresh articles to get deep context
-    const headlinesToEnrich = freshHeadlines.slice(0, GENERATION_CONFIG.personas.patternSpotter.headlinesToAnalyze);
-    if (headlinesToEnrich.length === 0) throw new Error('No fresh headlines available for enrichment.');
+    let enrichedArticles: Awaited<ReturnType<typeof enrichArticles>>[number][] = [];
+    if (rssHeadlinesOnly.length > 0) {
+      const headlinesToEnrich = rssHeadlinesOnly.slice(0, headlinesInPrompt);
+      enrichedArticles = await enrichArticles(
+        headlinesToEnrich,
+        GENERATION_CONFIG.enrichment.maxConcurrent
+      );
+      console.log(`[Context] 🔄 Enriched ${enrichedArticles.length} RSS articles.`);
+    } else {
+      console.warn(`[Context] ⚠️ No RSS sources for enrichment. Relying on lightweight headlines.`);
+    }
 
-    const enrichedArticles = await enrichArticles(
-      headlinesToEnrich,
-      GENERATION_CONFIG.enrichment.maxConcurrent
-    );
+    // Filter for successfully enriched RSS articles
+    const successfulEnrichedArticles = enrichedArticles.filter(a => a.fullText && a.fullText.length > 50);
+    console.log(`[Context] ✅ ${successfulEnrichedArticles.length}/${enrichedArticles.length} RSS articles successfully enriched.`);
 
-    // 5. Filter for successfully enriched articles...
-    const successfulArticles = enrichedArticles.filter(a => a.fullText && a.fullText.length > 200);
-    if (successfulArticles.length === 0) throw new Error('No articles could be successfully enriched.');
+    // Create lightweight articles from non-RSS sources (use description as proxy for fullText)
+    const lightweightArticles = freshHeadlines
+      .filter(h => h.sourceType !== 'rss')
+      .slice(0, 5)  // Limit to avoid prompt bloat
+      .map(h => ({
+        ...h,
+        fullText: h.description || h.headline,  // Fallback to description or headline
+        entities: [],  // No entities for lightweight
+        keyMetrics: '',  // No metrics for lightweight
+      } as EnrichedArticle));  // Type assertion; align with EnrichedArticle if possible
 
-    console.log(`[Context] ✅ Final context: ${successfulArticles.length} enriched articles ready for AI.`);
+    // Combine: Prioritize enriched RSS, append lightweight
+    const allArticles = [...successfulEnrichedArticles, ...lightweightArticles];
+    if (allArticles.length === 0) {
+      console.error('No viable articles after source separation.');
+      return null;
+    }
 
-    // 6. Create a structured, self-contained JSON representation for EACH article.
-    const articlesForPrompt = successfulArticles.map((article, idx) => ({
+    console.log(`[Context] ✅ Final context: ${allArticles.length} articles ready for AI (enriched: ${successfulEnrichedArticles.length}, lightweight: ${lightweightArticles.length}).`);
+
+    // 5. Create a structured, self-contained JSON representation for EACH article.
+    const articlesForPrompt = allArticles.map((article, idx) => ({
       index: idx + 1,
       headline: article.headline,
       url: article.url, // URL must be included for source parsing
-      keyMetrics: article.keyMetrics || article.fullText?.substring(0, 1500) || '',
-      entities: article.entities
+      keyMetrics: article.keyMetrics || '',
+      entities: article.entities || []
     }));
     
     const articlesJson = articlesForPrompt.map(
       (a) => `### ARTICLE ${a.index}\n${JSON.stringify(a, null, 2)}\n### END ARTICLE ${a.index}`
     ).join('\n\n');
-    
 
-    // 7. MODIFIED: Get recent tweet text from the data we already fetched
-    const recentContent = recentPatterns.map(p => p.text);
+    // 6. Get recent tweet text from the data we already fetched
+    const recentContent = recentPatterns.map(p => typeof p === 'string' ? p : p.text);
 
     return {
-      articles: successfulArticles,
-      sourceMetadata: successfulArticles.map((article, idx) => ({
+      articles: allArticles,
+      sourceMetadata: allArticles.map((article, idx) => ({
         index: idx + 1,
         url: article.url,
         headline: article.headline
       })),
-      articlesJson: articlesJson, 
-      totalHeadlines: successfulArticles.length,
-      recentContent, // Pass the recent content
+      articlesJson, 
+      totalHeadlines: allArticles.length,
+      recentContent,
       usedSourceUrls,
     };
   } catch (error) {

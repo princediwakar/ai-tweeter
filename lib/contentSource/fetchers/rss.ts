@@ -83,7 +83,7 @@ export async function fetchHeadlinesOnly(limit = 20): Promise<HeadlineWithSource
       new Map(headlines.map((item) => [item.headline, item])).values()
     );
     console.log(`[Content Source] ✅ Fetched ${uniqueHeadlines.length} unique headlines`);
-    return uniqueHeadlines.slice(0, limit);
+    return uniqueHeadlines.slice(0, limit).map(h => ({ ...h, sourceType: 'rss' as const }));
   } catch (error) {
     console.error('[Content Source] ❌ Failed to fetch headlines:', error);
     return [];

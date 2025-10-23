@@ -1,4 +1,3 @@
-
 // lib/generation/articleEnricher.ts
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { Readability } from '@mozilla/readability';
@@ -38,13 +37,14 @@ function extractKeyMetrics(fullText: string): string {
     const hasNumbers = /\d+[,.]?\d*/.test(p);
     const hasMetrics =
       p.includes('%') ||
-      /\b(Rs|₹|crore|Cr|lakh|million|billion|mn|bn)\b/i.test(p) ||
+      /\b(Rs|₹|$|crore|Cr|lakh|million|billion|mn|bn)\b/i.test(p) ||
       /\b(growth|revenue|profit|funding|valuation|GMV|YTD|YoY|QoQ)\b/i.test(p);
     return hasNumbers && hasMetrics && p.length > 50;
   });
   // Return the top 3 most relevant paragraphs, joined together.
   return metricParagraphs.slice(0, 3).join('\n\n');
 }
+
 /**
  * Detects if article is behind paywall
  */
@@ -71,13 +71,6 @@ function detectPaywall(text: string): boolean {
  * @param options Configuration for extraction (e.g., words to ignore).
  * @returns An array of unique entities found.
  */
-/**
- * [REUSABLE UTILITY] Extracts potential entities (like company or people names) from a string.
- * It looks for capitalized words, including multi-word names, and can be configured.
- * @param text The text to parse.
- * @param options Configuration for extraction (e.g., words to ignore).
- * @returns An array of unique entities found.
- */
 export function extractEntities(text: string, options: ExtractEntitiesOptions = {}): string[] {
 	const { ignoreWords = new Set<string>(), minLength = 3 } = options;
 	const entities = new Set<string>();
@@ -92,6 +85,7 @@ export function extractEntities(text: string, options: ExtractEntitiesOptions = 
 	}
 	return Array.from(entities);
 }
+
 /**
  * Fetches and enriches a single article by extracting metadata
  */
@@ -173,7 +167,7 @@ export async function enrichArticle(
     // Clear old cache entries after 1 hour
     setTimeout(() => articleCache.delete(url), CACHE_TTL);
 
-    console.log(`📰 ✅ Enriched: ${entities.length} entities, ${keyMetrics.length} chars of metrics`);
+    console.log(`📰 ✅ Enriched: ${entities.length} entities, ${keyMetrics ? keyMetrics.length : 0} chars of metrics`);
     return enrichedResult;
 
   } catch (error) {
@@ -237,4 +231,3 @@ export function clearArticleCache(): void {
   articleCache.clear();
   console.log('🗑️ Article cache cleared');
 }
-

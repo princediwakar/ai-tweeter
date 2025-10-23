@@ -32,7 +32,7 @@ const PERSONA_CONFIG = {
   satirist: {
     headlinesToFetch: 20,
     headlinesInPrompt: 8,
-    tweetTextCharLimit: 240, // Hard limit for small accounts
+    tweetTextCharLimit: 140, // Hard limit for small accounts
     idealCharRange: { min: 140, max: 240 }, // Sweet spot for engagement
     imageFormatTweetTextLimit: 100, // Shorter hooks for image tweets
     imageContentCharLimit: 240,
@@ -51,12 +51,13 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
+    headlinesInPrompt: 8,
     tweetTextCharLimit: 200, // Allow multi-line format for clarity and save rate
     idealCharRange: { min: 100, max: 120 }, // 3-line structure with breathing room
-    subredditsToFetch: 0,
-    postsPerSubreddit: 0,
-    twitterHandlesToFetch: 0,
-    postsPerTwitterHandle: 0,
+    subredditsToFetch: 1,
+    postsPerSubreddit: 30,
+    twitterHandlesToFetch: 3,
+    postsPerTwitterHandle: 5,
     imageProbability: 0,
     imageFormatTweetTextLimit: 100,
     imageContentCharLimit: 200,
@@ -64,8 +65,9 @@ const PERSONA_CONFIG = {
     feeds: {
       business: [
       // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
-      'https://inc42.com/buzz/feed/',
+      // 'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
+      // 'https://ehandbook.com/rss'
       // 'https://www.techcircle.in/rss/technology/'
       // 'https://www.livemint.com/rss/technology',
       // 'https://techcrunch.com/category/apps/feed/',
@@ -74,10 +76,12 @@ const PERSONA_CONFIG = {
       reddit: [
         // 'developersIndia',
         // 'ArtificialInteligence'
+        // 'LifeProTips'
+        // 'YouShouldKnow'
       ],
   
       twitter: [
-        // '@aviralbhat'
+        // '@princediwakar25',
       ],
     
     },

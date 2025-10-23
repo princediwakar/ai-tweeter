@@ -4,7 +4,7 @@
  */
 
 import { GENERATION_CONFIG } from '../../generation/config';
-import { getRecentSatiristData } from '../../db'; // UPDATED: Use comprehensive function
+import { getRecentSatiristData } from '../../db';
 import { enrichArticles } from '../../generation/articleEnricher';
 import { fetchFromRssFeeds } from '../fetchers';
 import type { SatiristContext } from '../types';
@@ -12,6 +12,7 @@ import type { SatiristContext } from '../types';
 /**
  * Builds structured context for Satirist persona
  * Returns EnrichedArticle[] with source metadata and recent content for deduplication
+ * ✨ MODIFIED: Now creates a pre-formatted `articlesJson` field to prevent cross-contamination.
  */
 export async function getSatiristContext(accountId?: string): Promise<SatiristContext | null> {
   console.log('[Content Source] 🧐 Satirist selected. Activating Deep Dive with full article fetching...');
@@ -33,7 +34,7 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
     );
     console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for satirist`);
 
-    // ✨ NEW: Comprehensive deduplication using last 5 tweets
+    // Comprehensive deduplication using last 5 tweets
     let usedContent: string[] = [];
     let usedSourceUrls: string[] = [];
     
@@ -82,20 +83,31 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
       headline: article.headline
     }));
 
+    // ✨ NEW: Create the sandboxed JSON string here, just like PatternSpotter
+    // This is the "sealed envelope" that prevents cross-wiring.
+    const articlesJson = successfulArticles.map((article, idx) => {
+      const articleData = {
+        index: idx + 1,
+        headline: article.headline,
+        url: article.url,
+        fullText: article.fullText, // Pass the full text
+        entities: article.entities
+      };
+      // Wrap it in the "sealed envelope"
+      return `### ARTICLE ${idx + 1}\n${JSON.stringify(articleData, null, 2)}\n### END ARTICLE ${idx + 1}`;
+    }).join('\n\n');
+
+
     return {
       articles: successfulArticles,
       sourceMetadata,
       headlinesInPrompt: successfulArticles.length, // Actual count after filtering
       recentContent: usedContent, // Include for prompt context
-      usedSourceUrls // Include for reference
+      usedSourceUrls, // Include for reference
+      articlesJson // ✨ NEW: Pass the pre-formatted, safe-to-use string
     };
   } catch (error) {
     console.error('[Content Source] ❌ Context failure for satirist:', error);
     return null;
   }
 }
-
-// ============================================
-// NEW: Database helper function
-// Add this to your db.ts file
-// ============================================

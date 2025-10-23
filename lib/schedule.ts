@@ -113,10 +113,10 @@ const princePostingPattern: DailySchedule = {
  */
 const princeLinkedInPostingPattern: DailySchedule = {
   0: {}, // Sunday
-  1: { 9: ['satirist'] }, // Monday - week starter insight
-  2: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
+  1: { 9: ['pattern_spotter'] }, // Monday - week starter insight
+  2: { 10: ['pattern_spotter'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
   3: { 10: ['pattern_spotter'] }, // Wednesday - mid-week insight
-  4: { 10: ['satirist'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
+  4: { 10: ['pattern_spotter'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
   5: { 9: ['pattern_spotter'] }, // Friday - week closer insight
   6: {}, // Saturday
 };

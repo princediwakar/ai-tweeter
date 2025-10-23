@@ -21,7 +21,8 @@ export async function fetchFromTwitter(twitterHandles: string[]): Promise<Headli
     return results.slice(0, GENERATION_CONFIG.personas.patternSpotter.postsPerTwitterHandle).map(item => ({
       headline: `[Twitter Post from ${handle}] ${item.headline}`,
       url: item.url,
-      description: item.description
+      description: item.description,
+      sourceType: 'twitter' as const
     }));
   });
 

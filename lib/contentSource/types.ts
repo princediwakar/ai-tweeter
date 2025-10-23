@@ -15,6 +15,7 @@ export interface HeadlineWithSource {
   headline: string;
   url: string;
   description?: string;
+  sourceType?: 'rss' | 'reddit' | 'twitter'
 }
 
 /**
@@ -54,6 +55,7 @@ export interface SatiristContext {
     url: string; 
     headline: string 
   }>;
+  articlesJson?: string;
   headlinesInPrompt: number;
   recentContent?: string[];      // NEW: Recent tweet content for deduplication
   usedSourceUrls?: string[];     // NEW: Recently used source URLs

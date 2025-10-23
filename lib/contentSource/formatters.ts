@@ -15,39 +15,11 @@ import type {
 
 /**
  * Formats Satirist context into a prompt string
+ * ✨ FIXED: This now passes the pre-formatted `articlesJson` string directly.
+ * This mimics the PatternSpotter logic and prevents cross-contamination.
  */
 export function formatSatiristContext(ctx: SatiristContext): string {
-  const sections: string[] = [
-    'ENRICHED NEWS BRIEFING FOR SATIRICAL ANALYSIS',
-    '-------------------------------------------',
-    ''
-  ];
-
-  ctx.articles.forEach((article, idx) => {
-    const num = idx + 1;
-    sections.push(`${num}. ${article.headline}`);
-
-    if (article.description) {
-      sections.push(`   Summary: ${article.description}`);
-    }
-
-    if (article.fullText) {
-      const excerpt = article.fullText.substring(0, 500);
-      sections.push(`   Full Article Excerpt: ${excerpt}...`);
-    }
-
-    if (article.entities.length > 0) {
-      sections.push(`   Key Entities: ${article.entities.join(', ')}`);
-    }
-
-    sections.push(`   [SOURCE_${num}]: ${article.url}`);
-    sections.push('');
-  });
-
-  sections.push('-------------------------------------------');
-  sections.push(`Select ONE headline (1-${ctx.headlinesInPrompt}). Analyze deeply. Create a satirical tweet with hard data.`);
-
-  return sections.join('\n');
+  return ctx.articlesJson || '';
 }
 
 
@@ -153,9 +125,9 @@ export function formatEnglishVocabBuilderContext(ctx: EnglishVocabBuilderContext
 export function formatPersonaContext(persona: string, ctx: PersonaContext): string {
   switch (persona) {
     case 'satirist':
+      // ✨ FIXED: This now correctly uses the new (simpler) formatter
       return formatSatiristContext(ctx as SatiristContext);
     case 'pattern_spotter':
-      // ✨ FIXED: This now correctly uses the new (simpler) formatter
       return formatPatternSpotterContext(ctx as PatternSpotterContext);
     case 'business_storyteller':
       return formatBusinessStorytellerContext(ctx as BusinessStorytellerContext);

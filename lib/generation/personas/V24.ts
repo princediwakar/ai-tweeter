@@ -222,10 +222,3 @@ Final voice: **The Strategic Storyteller.** Your tweet is a clean, **CONCISE (< 
     return prompt;
   }
 }
-
-
-
-
-
-
-

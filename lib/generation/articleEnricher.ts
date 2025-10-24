@@ -18,15 +18,59 @@ export interface EnrichedArticle {
   url: string;
   description?: string;
   fullText?: string; // Article body text
-  keyMetrics?: string; // NEW: Extracted metric-heavy paragraphs
+  keyMetrics?: string; // Extracted metric-heavy paragraphs
   entities: string[]; // Company/person names mentioned
-  cached?: boolean; // NEW: Flag for cached results
+  cached?: boolean; // Flag for cached results
 }
 
 interface ExtractEntitiesOptions {
 	ignoreWords?: Set<string>;
 	minLength?: number;
 }
+
+/**
+ * --- NEW (V5 FIX) ---
+ * Cleans raw text from Readability to remove common junk/boilerplate
+ * that confuses the AI (e.g., newsletter popups, privacy policies).
+ */
+function cleanArticleText(text: string): string {
+  if (!text) return '';
+  
+  const paragraphs = text.split(/\n\n+/);
+
+  // Regex to match common junk patterns, case-insensitive
+  const junkPattern = /^(subscribe|newsletter|privacy|cookie|related|follow us|also read|log in|sign up|advertisement|share this|terms of use|all rights reserved)/i;
+  // Regex to match bylines or metadata lines
+  const metaPattern = /^(By |Updated: |Published: |Read more: |Edited by:)/i;
+
+  const cleanedParagraphs = paragraphs.filter(p => {
+    const trimmed = p.trim();
+    if (trimmed.length === 0) return false;
+
+    // 1. Check for specific junk patterns
+    if (junkPattern.test(trimmed) || metaPattern.test(trimmed)) {
+      return false;
+    }
+
+    // 2. Check for "list-like" junk (e.g., "Related Links" section)
+    if (trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
+      return false;
+    }
+
+    // 3. Check for short, "floating" lines that aren't full sentences
+    // (e.g., "Advertisement" or "Source: Inc42")
+    const wordCount = trimmed.split(/\s+/).length;
+    if (wordCount < 5 && !/[.!?]$/.test(trimmed)) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  // Re-join, normalize whitespace, and trim
+  return cleanedParagraphs.join('\n\n').replace(/\s+\n/g, '\n').trim();
+}
+
 
 /**
  * Extracts the most data-heavy paragraphs from the article text to focus the AI's analysis.
@@ -41,7 +85,9 @@ function extractKeyMetrics(fullText: string): string {
       /\b(growth|revenue|profit|funding|valuation|GMV|YTD|YoY|QoQ)\b/i.test(p);
     return hasNumbers && hasMetrics && p.length > 50;
   });
-  // Return the top 3 most relevant paragraphs, joined together.
+
+  // --- MODIFIED (V5 FIX) ---
+  // Re-enabled the return line.
   return metricParagraphs.slice(0, 3).join('\n\n');
 }
 
@@ -66,10 +112,6 @@ function detectPaywall(text: string): boolean {
 
 /**
  * [REUSABLE UTILITY] Extracts potential entities (like company or people names) from a string.
- * It looks for capitalized words, including multi-word names, and can be configured.
- * @param text The text to parse.
- * @param options Configuration for extraction (e.g., words to ignore).
- * @returns An array of unique entities found.
  */
 export function extractEntities(text: string, options: ExtractEntitiesOptions = {}): string[] {
 	const { ignoreWords = new Set<string>(), minLength = 3 } = options;
@@ -134,21 +176,24 @@ export async function enrichArticle(
       return baseResult;
     }
 
-    const fullText = article.textContent;
+    // --- MODIFIED (V5 FIX) ---
+    // Clean the raw text from Readability *before* any other processing.
+    const rawText = article.textContent;
+    const fullText = cleanArticleText(rawText);
     
     // Check for paywall
-    if (detectPaywall(fullText)) {
+    if (detectPaywall(fullText) || detectPaywall(rawText)) { // Check both raw and cleaned
       console.warn(`📰 Article appears paywalled: ${url}`);
       return baseResult;
     }
     
-    // Check minimum length
+    // Check minimum length on *cleaned* text
     if (fullText.length < 200) {
-      console.warn(`📰 Article too short (${fullText.length} chars): ${url}`);
+      console.warn(`📰 Article too short after cleaning (${fullText.length} chars): ${url}`);
       return baseResult;
     }
 
-    // Extract entities and key metrics
+    // Extract entities and key metrics from the *cleaned* text
     const entities = extractEntities(fullText);
     const keyMetrics = extractKeyMetrics(fullText);
 
@@ -157,7 +202,9 @@ export async function enrichArticle(
       url,
       description,
       fullText: fullText.substring(0, GENERATION_CONFIG.enrichment.fullTextLimit || 8000),
-      keyMetrics: keyMetrics || fullText.substring(0, 1000), // Fallback to first 1000 chars
+      // --- MODIFIED (V5 FIX) ---
+      // Do not fallback to fullText. If keyMetrics is empty, it should be empty.
+      keyMetrics: keyMetrics,
       entities,
     };
 
@@ -167,7 +214,7 @@ export async function enrichArticle(
     // Clear old cache entries after 1 hour
     setTimeout(() => articleCache.delete(url), CACHE_TTL);
 
-    console.log(`📰 ✅ Enriched: ${entities.length} entities, ${keyMetrics ? keyMetrics.length : 0} chars of metrics`);
+    console.log(`📰 ✅ Enriched: ${entities.length} entities, ${keyMetrics.length} chars of metrics`);
     return enrichedResult;
 
   } catch (error) {

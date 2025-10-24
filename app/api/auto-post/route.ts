@@ -1,4 +1,3 @@
-// app/api/auto-post/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { 
   getReadyTweetsByAccount, 
@@ -36,7 +35,7 @@ async function fetchImageFromUrl(imageUrl: string): Promise<Buffer | null> {
 }
 
 /**
- * Checks if a tweet is ready for posting, including image status validation
+ * Checks if a tweet is ready for posting based on image status.
  */
 function isTweetReadyForPosting(tweet: Tweet): boolean {
   // If no image is expected, tweet is ready
@@ -49,8 +48,46 @@ function isTweetReadyForPosting(tweet: Tweet): boolean {
 }
 
 /**
+ * Calculates the final content of a tweet, including hashtags.
+ */
+function getFullTweetContent(tweet: Tweet): string {
+  return tweet.hashtags?.length > 0 
+    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}` 
+    : tweet.content;
+}
+
+/**
+ * Checks if a tweet is ready AND valid for posting (e.g., under character limit).
+ */
+function isTweetValidForPosting(tweet: Tweet): boolean {
+  // 1. Check if image status is ok
+  const ready = isTweetReadyForPosting(tweet);
+  if (!ready) {
+    // This state is normal (e.g., image pending), so no need to log verbosely
+    return false;
+  }
+  
+  // 2. Check length
+  const fullContent = getFullTweetContent(tweet);
+  if (fullContent.length > 280) {
+    logger.info(`📋 Skipping tweet ${tweet.id}: too long (${fullContent.length} > 280 chars).`, 'auto-post');
+    return false;
+  }
+  
+  // 3. Check for empty content
+  if (fullContent.trim().length === 0) {
+    logger.info(`📋 Skipping tweet ${tweet.id}: content is empty.`, 'auto-post');
+    return false;
+  }
+
+  return true;
+}
+
+
+/**
  * Handles posting a single tweet. It posts with an image if image_url is present,
- * otherwise posts as a text-only tweet. On-the-fly image generation is removed.
+ * otherwise posts as a text-only tweet.
+ * *Assumes tweet has already been validated for length and readiness.*
  */
 async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
   const credentials = {
@@ -60,10 +97,8 @@ async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
     accessSecret: account.twitter_access_token_secret,
   };
 
-  // Combine content and hashtags for the final tweet text.
-  const fullContent = tweet.hashtags?.length > 0 
-    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}` 
-    : tweet.content;
+  // Get the final, validated content
+  const fullContent = getFullTweetContent(tweet);
 
   // If an image_url exists and image processing is complete, post with image
   if (tweet.image_url && tweet.image_status === 'completed') {
@@ -122,11 +157,13 @@ export async function GET(request: NextRequest) {
       try {
         const readyTweets = await getReadyTweetsByAccount(account.id);
         const accountScheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
+        
+        // Filter for persona AND validity (readiness + length)
         const scheduledTweets = readyTweets
           .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
-          .filter(tweet => isTweetReadyForPosting(tweet));
+          .filter(tweet => isTweetValidForPosting(tweet)); // <-- UPDATED
 
-        logger.info(`📝 Found ${scheduledTweets.length} scheduled tweets for ${account.name}`, 'auto-post');
+        logger.info(`📝 Found ${scheduledTweets.length} valid, scheduled tweets (<= 280 chars) for ${account.name}`, 'auto-post');
 
         for (const tweet of scheduledTweets) {
           try {
@@ -149,6 +186,7 @@ export async function GET(request: NextRequest) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             logger.error(`❌ ${account.name}: Failed to post tweet ${tweet.id}: ${errorMsg}`, 'auto-post', error as Error);
             
+            // Only mark as failed if it's a posting error, not a validation error (which is now filtered)
             const failedTweet: Tweet = { ...tweet, status: 'failed', error_message: errorMsg };
             await saveTweet(failedTweet);
             totalErrors++;
@@ -249,14 +287,22 @@ export async function POST(request: NextRequest) {
             totalErrors++;
             logger.error(`❌ ${account.name}: Failed to post thread: ${threadResult.error}`, 'auto-post');
           }
-          continue;
+          // Whether thread posted or failed, we skip single tweet posting for this run
+          continue; 
         }
 
+        // If no thread was found or posted, look for a single tweet
         const readyTweets = await getReadyTweetsByAccount(account.id);
-        const scheduledTweet = readyTweets.find(t => scheduledPersonas.includes(t.persona) && t.content_type === 'single_tweet');
+        
+        // Find a tweet that matches persona, is a single tweet, AND is valid (ready + <= 280 chars)
+        const scheduledTweet = readyTweets.find(t => 
+          scheduledPersonas.includes(t.persona) && 
+          t.content_type === 'single_tweet' &&
+          isTweetValidForPosting(t) // <-- UPDATED
+        );
 
         if (scheduledTweet) {
-          logger.info(`📤 ${account.name}: No threads ready. Posting single tweet...`, 'auto-post');
+          logger.info(`📤 ${account.name}: No threads ready. Posting valid single tweet (<= 280 chars)...`, 'auto-post');
           try {
             const result = await postSingleTweet(scheduledTweet, account);
             const updatedTweet: Tweet = {
@@ -276,7 +322,7 @@ export async function POST(request: NextRequest) {
               totalErrors++;
           }
         } else {
-          logger.info(`📋 ${account.name}: No ready content found.`, 'auto-post');
+          logger.info(`📋 ${account.name}: No ready threads or valid single tweets (<= 280 chars) found.`, 'auto-post');
         }
       } catch(error) {
         logger.error(`❌ Failed to process account ${account.name}`, 'auto-post', error as Error);

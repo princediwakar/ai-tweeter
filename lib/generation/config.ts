@@ -66,18 +66,18 @@ const PERSONA_CONFIG = {
       business: [
       // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       // 'https://inc42.com/buzz/feed/',
-      'https://yourstory.com/feed',
+      // 'https://yourstory.com/feed',
+      // 'https://feeds.feedburner.com/tubefilter'
       // 'https://ehandbook.com/rss'
-      // 'https://www.techcircle.in/rss/technology/'
+      // 'https://www.techcircle.in/rss/technology/',
       // 'https://www.livemint.com/rss/technology',
-      // 'https://techcrunch.com/category/apps/feed/',
-      // 'https://techcrunch.com/category/startups/feed',
+      // 'https://techcrunch.com/category/startups/feed'
       ],
       reddit: [
         // 'developersIndia',
-        // 'ArtificialInteligence'
-        // 'LifeProTips'
-        // 'YouShouldKnow'
+        'ArtificialInteligence',
+        'LifeProTips',
+        'YouShouldKnow'
       ],
   
       twitter: [

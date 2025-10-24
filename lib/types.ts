@@ -97,6 +97,7 @@ export interface EnhancedTweet {
   cardData?: CardData; // Card data for async image generation (vocab or satirist)
   sourceUrl?: string;
   selectedHeadlineNumber?: number; // Track which headline was used (satirist persona)
+  reaasoning?: Record<string, string>;
 }
 
 export interface VocabularyCard {

@@ -50,7 +50,7 @@ async function saveDebugOutput(data: { content: string | string[]; persona: stri
     
     // Escape any double quotes within the content to keep the format valid
     const sanitizedContent = contentString.replace(/"/g, '\\"');
-
+    
     // Format the output line as per your requested pattern
     const sourceInfo = data.source ? `\nsource: "${data.source}"` : '';
     const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;

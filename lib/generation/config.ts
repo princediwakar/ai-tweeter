@@ -18,9 +18,9 @@ const FUNCTIONAL_CONFIG = {
     batchDelay: 1000,
   },
   ai: {
-    model: 'deepseek-chat',
-    temperature: 0.9,
-    maxTokens: 500,
+    model: 'deepseek-reasoner',
+    temperature: 0.8,
+    maxTokens: 2000,
   },
   batch: {
     defaultSize: 1,
@@ -39,7 +39,7 @@ const PERSONA_CONFIG = {
     imageProbability: 0.1,
     deduplicationDays: 5,
     feeds: [
-      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       // 'https://economictimes.indiatimes.com/tech/funding/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
@@ -51,23 +51,23 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
-    headlinesInPrompt: 8,
+    headlinesInPrompt: 3,
     tweetTextCharLimit: 200, // Allow multi-line format for clarity and save rate
     idealCharRange: { min: 100, max: 120 }, // 3-line structure with breathing room
     subredditsToFetch: 1,
-    postsPerSubreddit: 30,
-    twitterHandlesToFetch: 3,
-    postsPerTwitterHandle: 5,
+    postsPerSubreddit: 3,
+    twitterHandlesToFetch: 1,
+    postsPerTwitterHandle: 3,
     imageProbability: 0,
     imageFormatTweetTextLimit: 100,
     imageContentCharLimit: 200,
     deduplicationDays: 5,
     feeds: {
       business: [
-      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
-      // 'https://inc42.com/buzz/feed/',
-      // 'https://yourstory.com/feed',
-      // 'https://feeds.feedburner.com/tubefilter'
+      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      'https://inc42.com/buzz/feed/',
+      'https://yourstory.com/feed',
+      'https://www.tubefilter.com/feed/'      
       // 'https://ehandbook.com/rss'
       // 'https://www.techcircle.in/rss/technology/',
       // 'https://www.livemint.com/rss/technology',
@@ -76,8 +76,8 @@ const PERSONA_CONFIG = {
       reddit: [
         // 'developersIndia',
         'ArtificialInteligence',
-        'LifeProTips',
-        'YouShouldKnow'
+        // 'LifeProTips',
+        // 'YouShouldKnow'
       ],
   
       twitter: [

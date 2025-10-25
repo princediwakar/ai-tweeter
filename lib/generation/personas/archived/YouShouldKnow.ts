@@ -1,8 +1,8 @@
 // Version 29 (The "Universal YSK Fact Sharer" Refinement)
 // lib/generation/personas/patternSpotter.ts
-import { BasePersonaGenerator } from "./base";
-import type { TweetGenerationConfig, GenerationContext } from "../types";
-import { GENERATION_CONFIG } from "../config";
+import { BasePersonaGenerator } from "../base";
+import type { TweetGenerationConfig, GenerationContext } from "../../types";
+import { GENERATION_CONFIG } from "../../config";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(

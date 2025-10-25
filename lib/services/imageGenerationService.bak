@@ -1,0 +1,204 @@
+// lib/services/imageGenerationService.ts
+
+import {
+  createCanvas,
+  loadImage,
+  CanvasRenderingContext2D,
+  registerFont,
+} from "canvas";
+import path from "path";
+
+// --- MODIFIED: Import PatternSpotterCard type ---
+import { ImageConfig, CardData, PatternSpotterCard, VocabularyCard } from "../types";
+
+import { accountService } from "@/lib/accountService";
+import {
+  configureCloudinary,
+  uploadToCloudinary,
+} from "../utils/cloudinaryUtils";
+import { fetchUnsplashImage } from "../utils/unsplashUtils";
+import {
+  getSafeFont,
+  wordWrap,
+  fitTextOnCanvas,
+} from "../utils/canvasUtils";
+
+// --- Persona-Specific Generators ---
+import { generateVocabularyCardImage } from "./vocabularyGenerator";
+import {
+  generateSatiristImage,
+  calculateTotalTextHeight,
+  renderMixedLine,
+} from "./satiristGenerator";
+
+// --- MODIFIED: Import new Gemini service ---
+import { generateImageFromDirective } from "./geminiImageService.bak";
+// --- DELETED: Old canvas generator no longer needed ---
+// import { generatePatternSpotterImage } from './patternSpotterGenerator';
+
+// Register Poppins fonts (for canvas generators)
+const fontsPath = path.join(process.cwd(), "public", "fonts");
+registerFont(path.join(fontsPath, "Poppins-Regular.ttf"), {
+  family: "Poppins",
+  weight: "normal",
+});
+registerFont(path.join(fontsPath, "Poppins-Bold.ttf"), {
+  family: "Poppins",
+  weight: "bold",
+});
+
+export const TWITTER_IMAGE_CONFIG: ImageConfig = {
+  enabled: true,
+  unsplashQuery: "white background",
+  dimensions: {
+    width: 1200,
+    height: 675,
+  },
+  textStyle: {
+    wordSize: 90,
+    meaningSize: 40,
+    exampleSize: 30,
+    wordColor: "#1A1A1A",
+    meaningColor: "#333333",
+    exampleColor: "#555555",
+    fontFamily: "Poppins",
+    backgroundColor: "",
+    backgroundOpacity: 0,
+  },
+};
+
+/**
+ * Orchestrator function.
+ * Generates an image for a specific persona and uploads it to Cloudinary.
+ */
+export async function generatePersonaImage(
+  cardData: CardData | string | null, // Accept string as well
+  personaKey: string,
+  accountId?: string,
+  config?: ImageConfig,
+): Promise<string | null> {
+  if (!accountId) {
+    console.error(
+      "⚠️ Cannot generate image: account ID is required for Cloudinary configuration.",
+    );
+    return null;
+  }
+
+  try {
+    const account = await accountService.getAccount(accountId);
+    if (!account) {
+      throw new Error(`Account not found: ${accountId}`);
+    }
+
+    // --- CardData Parsing ---
+    let parsedCardData: CardData | null = null;
+    if (typeof cardData === "string") {
+      try {
+        parsedCardData = JSON.parse(cardData);
+      } catch (e) {
+        console.error(
+          "❌ Failed to parse cardData JSON string in generatePersonaImage:",
+          cardData,
+          e,
+        );
+        return null; // Exit if JSON is invalid
+      }
+    } else {
+      parsedCardData = cardData;
+    }
+
+    if (!parsedCardData) {
+      console.warn("⚠️ Cannot generate image: card data is null or invalid.");
+      return null;
+    }
+    // --- End Parsing ---
+
+    let imageBuffer: Buffer;
+    let publicId: string;
+
+    // --- Persona-Based Routing ---
+
+    if (personaKey === "english_vocab_builder") {
+      // 1. VOCAB BUILDER (Canvas)
+      // Type guard using 'word' property
+      if (!("word" in parsedCardData)) {
+        console.warn(
+          "⚠️ Cannot generate image: vocabulary card data is missing or invalid.",
+        );
+        return null;
+      }
+      imageBuffer = await generateVocabularyCardImage(
+        parsedCardData as VocabularyCard, // Cast to specific type
+        config,
+      );
+      publicId = `vocab_${parsedCardData.word
+        .replace(/[^\w]/g, "_")
+        .substring(0, 20)}`;
+    } else if (personaKey === "satirist") {
+      // 2. SATIRIST (Canvas)
+      // Type guard using 'imageContent' property
+      if (
+        parsedCardData.type !== "satirist_insight" ||
+        !parsedCardData.imageContent
+      ) {
+        console.warn(
+          "⚠️ Cannot generate satirist image: 'imageContent' is missing from card data.",
+        );
+        return null;
+      }
+      imageBuffer = await generateSatiristImage(parsedCardData.imageContent);
+      publicId = `satirist_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(7)}`;
+    } else if (personaKey === "pattern_spotter") {
+      // 3. PATTERN SPOTTER (Gemini AI)
+      // Type guard using 'imageGenerationDirective' property
+      if (
+        parsedCardData.type !== "pattern_spotter_insight" ||
+        !parsedCardData.imageGenerationDirective
+      ) {
+        console.warn(
+          "⚠️ Cannot generate pattern_spotter image: 'imageGenerationDirective' is missing from card data.",
+        );
+        return null;
+      }
+      // Call the new Gemini service
+      imageBuffer = await generateImageFromDirective(
+        parsedCardData as PatternSpotterCard, // Cast to specific type
+      );
+      publicId = `pattern_gemini_${Date.now()}_${Math.random()
+        .toString(36)
+        .substring(7)}`;
+    } else {
+      console.warn(`⚠️ No image generator found for persona: ${personaKey}`);
+      return null; // Persona doesn't support images
+    }
+
+    // --- Upload to Cloudinary ---
+    const cloudinaryUrl = await uploadToCloudinary(
+      imageBuffer,
+      publicId,
+      account,
+    );
+    return cloudinaryUrl;
+  } catch (error) {
+    console.error("❌ Failed to generate and upload image:", error);
+    return null;
+  }
+}
+
+// --- Utility Exports ---
+// Export canvas utils needed by other generators (e.g., satiristGenerator)
+export {
+  createCanvas,
+  loadImage,
+  CanvasRenderingContext2D,
+  configureCloudinary,
+  uploadToCloudinary,
+  fetchUnsplashImage,
+  getSafeFont,
+  wordWrap,
+  fitTextOnCanvas,
+  calculateTotalTextHeight,
+  renderMixedLine,
+};

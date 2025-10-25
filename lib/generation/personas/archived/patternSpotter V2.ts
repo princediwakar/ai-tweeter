@@ -1,7 +1,7 @@
 // lib/generation/personas/patternSpotter.ts
-import { BasePersonaGenerator } from './base';
-import type { TweetGenerationConfig, GenerationContext } from '../types';
-import { extractEntities } from '../articleEnricher';
+import { BasePersonaGenerator } from '../base';
+import type { TweetGenerationConfig, GenerationContext } from '../../types';
+import { extractEntities } from '../../articleEnricher';
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
     generatePrompt(

@@ -17,6 +17,7 @@ function normalizeUrl(url: string): string {
         // Remove query parameters and hash, keep only protocol, host, and path
         return `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`.replace(/\/$/, ''); // Remove trailing slash
     } catch (e) {
+      console.error('some error', e)
         // Fallback for invalid URLs: remove query string
         return url.split('?')[0].split('#')[0].replace(/\/$/, '');
     }
@@ -166,8 +167,8 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
       headline: article.headline,
       url: article.url,
       content: article.fullText, 
-      keyMetrics: article.keyMetrics || '',
-      entities: article.entities || [], // Use extracted entities if available
+      // keyMetrics: article.keyMetrics || '',
+      // entities: article.entities || [], // Use extracted entities if available
     }));
     
     // Format as delimited blocks
@@ -176,7 +177,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     ).join('\n\n'); 
 
     // --- STEP 9: Prepare Final Context Object ---
-    const recentContent = recentPatterns.map(p => typeof p === 'string' ? p : p.text);
+    // const recentContent = recentPatterns.map(p => typeof p === 'string' ? p : p.text);
 
     return {
       articles: finalArticlesForPrompt, // The actual article objects
@@ -187,8 +188,8 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
       })),
       articlesJson, // The formatted string for the AI prompt
       totalHeadlines: finalArticlesForPrompt.length, // Actual count passed to AI
-      recentContent, // Pass recent tweet text for AI context (optional)
-      usedSourceUrls, // Return used URLs for logging/reference
+      // recentContent, // Pass recent tweet text for AI context (optional)
+      // usedSourceUrls, // Return used URLs for logging/reference
     };
   } catch (error) {
     console.error('[Context] ❌ Context failure for Pattern Spotter:', error);

@@ -23,6 +23,6 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.d.ts", "lib/contentSource.bak", "lib/generation/personas/patternSpotter.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/**/*.d.ts", "lib/contentSource.bak", "lib/generation/personas/patternSpotter.ts", "lib/services/geminiImageService.bak", "lib/services/imageGenerationService.bak"],
   "exclude": ["node_modules"]
 }

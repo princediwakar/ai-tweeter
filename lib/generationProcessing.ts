@@ -407,11 +407,11 @@ import {
       // --- MODIFIED: Handle reasoning with optional chaining ---
       if (persona === "pattern_spotter") {
         if (data.reasoning) {
-          if (typeof data.reasoning !== "object") {
-            throw new Error(
-              "AI response for pattern_spotter has invalid reasoning: must be an object."
-            );
-          }
+          // if (typeof data.reasoning !== "object") {
+          //   throw new Error(
+          //     "AI response for pattern_spotter has invalid reasoning: must be an object."
+          //   );
+          // }
           reasoning = data.reasoning;
           // Validate structure of reasoning using optional chaining
   

@@ -8,6 +8,7 @@ import { CricketStorytellerGenerator } from './generation/personas/cricketStoryt
 import { BasePersonaGenerator } from './generation/personas/base';
 import type { GenerationContext, TweetGenerationConfig } from './generation/types';
 
+
 const deepseekClient = new OpenAI({
   apiKey: process.env.DEEPSEEK_API_KEY,
   baseURL: 'https://api.deepseek.com',
@@ -89,7 +90,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     
     const llmCallStart = performance.now();
     const stream = await deepseekClient.chat.completions.create({
-      model: "deepseek-chat",
+      model: 'deepseek-chat',
       messages: [{ role: "user", content: prompt }],
       temperature: 0.8,
       max_tokens: 2500, // Increased to accommodate longer threads reliably

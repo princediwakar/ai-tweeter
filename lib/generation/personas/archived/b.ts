@@ -1,7 +1,7 @@
 // lib/generation/personas/satirist.ts
-import { BasePersonaGenerator } from './base';
-import type { TweetGenerationConfig, GenerationContext } from '../types';
-import { GENERATION_CONFIG } from '../config';
+import { BasePersonaGenerator } from '../base';
+import type { TweetGenerationConfig, GenerationContext } from '../../types';
+import { GENERATION_CONFIG } from '../../config';
 
 export class SatiristGenerator extends BasePersonaGenerator {
   generatePrompt(

@@ -1,9 +1,9 @@
 // lib/generation/personas/patternSpotter.ts
 
-import { BasePersonaGenerator } from "./base";
-import type { TweetGenerationConfig, GenerationContext } from "../types";
-import { extractEntities } from "../articleEnricher";
-import { GENERATION_CONFIG } from "../config";
+import { BasePersonaGenerator } from "../base";
+import type { TweetGenerationConfig, GenerationContext } from "../../types";
+import { extractEntities } from "../../articleEnricher";
+import { GENERATION_CONFIG } from "../../config";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -20,8 +20,7 @@ export class PatternSpotterGenerator extends BasePersonaGenerator {
 
     // --- 2. CONFIG & MARKERS ---
     const { timeMarker, tokenMarker } = markers;
-    const totalHeadlines =
-      GENERATION_CONFIG.personas.patternSpotter.headlinesInPrompt;
+    
     const format = config.patternSpotterFormat || "text-only";
     const isImageFormat = format === "image";
 

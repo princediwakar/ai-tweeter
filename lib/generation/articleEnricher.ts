@@ -94,19 +94,51 @@ function extractKeyMetrics(fullText: string): string {
 /**
  * Detects if article is behind paywall
  */
+/**
+ * Detects indicators of a paywall, registration wall, or newsletter gate in a text.
+ * * @param text The text content to analyze (e.g., from a webpage).
+ * @returns boolean True if a paywall indicator is found, false otherwise.
+ */
 function detectPaywall(text: string): boolean {
   const paywallIndicators = [
+    // === Hard Paywalls (Paid Subscription) ===
     'subscribe to read',
     'premium members only',
-    'sign in to continue',
     'this article is for subscribers',
-    'become a member to',
     'subscription required',
     'exclusive to subscribers',
-    'register to read'
+    'become a member to',
+    'support our journalism',
+    'start your free trial', // Often precedes a paid subscription
+    'unlock this article',
+    'get full access',
+    'unlimited access',
+    'digital subscription',
+    'you\'ve reached your free article limit',
+    'to read the full story',
+    'powered by reader support',
+
+    // === Registration Walls (Free or Paid Account) ===
+    'sign in to continue',
+    'register to read',
+    'create an account to continue',
+    'log in to read',
+    'please log in to continue',
+    'continue reading, please log in',
+    'create a free account',
+
+    // === Newsletter / Email Gates (Soft Paywall) ===
+    'enter your email to read',
+    'sign up to unlock',
+    'unlock with your email',
+    'sign up to continue reading',
+    'join our newsletter to read',
+    'complete your registration to read',
+    'before you go...' // Often used in modals that block content
   ];
   
   const lowerText = text.toLowerCase();
+  
   return paywallIndicators.some(indicator => lowerText.includes(indicator));
 }
 

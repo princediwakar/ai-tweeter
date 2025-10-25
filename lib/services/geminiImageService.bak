@@ -1,0 +1,99 @@
+// lib/services/geminiImageService.ts
+
+import {
+  GoogleGenerativeAI,
+  GenerationConfig,
+} from "@google/generative-ai";
+import { PatternSpotterCard } from "../types"; // Adjust path as needed
+
+// Get API key from environment variables
+const apiKey = process.env.GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.warn(
+    "⚠️ Missing GEMINI_API_KEY env var. Image generation will fail.",
+  );
+}
+
+// Initialize the correct client (from @google/generative-ai)
+const genAI = new GoogleGenerativeAI(apiKey || "");
+
+// We use the new model name from your screenshot
+const IMAGE_MODEL = "gemini-2.5-flash-image"; // Or the exact model name
+
+/**
+ * Generates an image using the Google AI Studio (Gemini) API.
+ *
+ * @param cardData The PatternSpotterCard containing the imageGenerationDirective.
+ * @returns A Promise<Buffer> containing the generated PNG image.
+ */
+export async function generateImageFromDirective(
+  cardData: PatternSpotterCard,
+): Promise<Buffer> {
+  const { imageGenerationDirective } = cardData;
+  console.log(`[GeminiImageSvc] Generating image with AI Studio...`);
+  console.log(`[GeminiImageSvc] Model: ${IMAGE_MODEL}`);
+
+  let prompt = imageGenerationDirective;
+
+  // Add style hints to the prompt (same as before)
+  if (prompt.match(/bar chart|graph|diagram/i)) {
+    prompt = `A professional, clean, minimalist, vector art style ${prompt}`;
+  } else if (prompt.match(/quote card|text on/i)) {
+    prompt = `A high-contrast, bold, typographic image: ${prompt}`;
+  }
+  // Add aspect ratio
+  prompt += ", 16:9 aspect ratio.";
+
+  console.log(`[GeminiImageSvc] Final Prompt: ${prompt}`);
+
+  try {
+    // --- THIS IS THE FIX ---
+
+    // 1. Define the config
+    const generationConfig: GenerationConfig = {
+      candidateCount: 1,
+    };
+
+    // 2. Pass the config when you get the model
+    const model = genAI.getGenerativeModel({
+      model: IMAGE_MODEL,
+      generationConfig: generationConfig, // <-- Config goes here
+    });
+
+    // 3. Now, generateContent just takes the prompt
+    const result = await model.generateContent(prompt);
+
+    // --- END FIX ---
+
+    const response = result.response;
+    const candidates = response.candidates;
+
+    // Check for valid response
+    if (
+      !candidates ||
+      candidates.length === 0 ||
+      !candidates[0].content ||
+      !candidates[0].content.parts ||
+      !candidates[0].content.parts[0].inlineData ||
+      !candidates[0].content.parts[0].inlineData.data
+    ) {
+      throw new Error(
+        "AI Studio (Gemini) returned an invalid or empty response structure.",
+      );
+    }
+
+    // Get the base64 image data
+    const imageBase64 = candidates[0].content.parts[0].inlineData.data;
+
+    // Decode the base64 string into a Buffer
+    const imageBuffer = Buffer.from(imageBase64, "base64");
+
+    console.log(`[GeminiImageSvc] SUCCESS: Image generated via AI Studio.`);
+    return imageBuffer;
+  } catch (error) {
+    console.error(`[GeminiImageSvc] FAILED to generate image:`, error);
+    // Rethrow to be caught by the orchestrator (generatePersonaImage)
+    throw error;
+  }
+}

@@ -1,91 +1,47 @@
-V9
+pattern_spotter: "Keshav Reddy calls his AI 'Application AI' — not foundation models. Building for India means localizing tech to how people actually live."
+source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/people-want-an-ai-tool-that-listens-understands-acts-keshav-reddy/articleshow/124857210.cms"
 
-pattern_spotter: "Apna cut employee costs 5% but boosted marketing and business development spending 10-12%. They're trimming people to fund customer acquisition—not actually fixing the business."
-source: "https://inc42.com/buzz/apna-narrows-fy25-loss-to-inr-50-cr-even-as-revenue-dips/"
+pattern_spotter: "India approved $660M in electronics manufacturing projects. The supply chain is quietly rewiring itself."
+source: "https://inc42.com/buzz/projects-worth-inr-5500-cr-approved-under-electronics-manufacturing-scheme/"
 
-pattern_spotter: "Mondelez spent $40M on an AI tool to cut marketing costs 30-50%, but won't put human likenesses in ads after Coke's AI people were ridiculed. They're automating everything except the risk of looking fake."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/oreo-maker-mondelez-to-use-new-generative-ai-tool-to-slash-marketing-costs/articleshow/124800086.cms"
+pattern_spotter: "Indonesia's AI market growing 30% annually to $2.4B. The new resource extraction doesn't need mines."
+source: "https://www.reddit.com/r/ArtificialInteligence/comments/1ohoxnw/its_not_just_rich_countries_techs_trilliondollar/"
 
-pattern_spotter: "OkCredit cut marketing 83% and grew revenue 64%. They proved you don't need ads when you solve real pain."
-source: "https://yourstory.com/2025/10/lightspeed-backed-okcredits-fy25-loss-narrows-to-rs-23-cr-revenue-climbs-63"
+pattern_spotter: "Paytm now lets NRIs use UPI with international numbers. The digital rupee follows Indians everywhere."
+source: "https://yourstory.com/2025/10/paytm-expands-upi-payments-access-to-nris-across-12-countries"
 
-pattern_spotter: "TwitchCon staff threw out VTuber gifts from fans. The platform that monetizes parasocial relationships can't handle the physical evidence of them."
-source: "https://www.tubefilter.com/2025/10/24/roundup-twitchcon-vtuber-chipotle-boorito-chatgpt-brainrot/"
-
-pattern_spotter: "Investors using the dotcom playbook: ride the AI bubble, flip out before the peak, recycle profits into next-in-line stocks. They're not betting against AI—they're timing the phases to avoid the crash."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/investors-use-dotcom-era-playbook-to-dodge-ai-bubble-risks/articleshow/124799868.cms"
-
-pattern_spotter: "AMUL's chairman is running Bharat Taxi. This isn't about fair wages—it's co-op institutions capturing the gig economy."
-source: "https://inc42.com/buzz/ola-uber-rival-centre-to-begin-piloting-bharat-taxi-next-month/"
+pattern_spotter: "The 'AI in content creation' market will hit $24.2B by 2034. The tools are scaling, but the creativity still needs a human touch."
+source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/creative-canvas-gets-a-strong-ai-brush-stroke/articleshow/124856496.cms"
 
 
 
-V12
-pattern_spotter: "TwitchCon staff threw out VTuber fan gifts. They monetize parasocial relationships but can't handle the physical evidence."
-source: "https://www.tubefilter.com/2025/10/24/roundup-twitchcon-vtuber-chipotle-boorito-chatgpt-brainrot/"
+pattern_spotter: "ID Fresh's profit surged 10X on deferred tax gains. The tax code quietly becoming a growth engine."
+source: "https://yourstory.com/2025/10/id-fresh-foods-revenue-tops-rs-680-cr-profit-surges-10x-on-deferred-tax-gains"
 
-pattern_spotter: "Apna cut employee costs 5% but increased marketing 10% and business development 12%. They're trimming staff while spending more to chase growth that isn't coming."
-source: "https://inc42.com/buzz/apna-narrows-fy25-loss-to-inr-50-cr-even-as-revenue-dips/"
+pattern_spotter: "Foxconn investing $1.37B in AI compute. Every revolution needs its factory."
+source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/foxconn-to-invest-up-to-1-37-billion-in-ai-compute-cluster-supercomputing-centre/articleshow/124863426.cms"
 
-pattern_spotter: "Mondelez spent $40M on AI marketing but won't use human likenesses after watching Coke get mocked. They're automating everything except the risk of looking fake."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/oreo-maker-mondelez-to-use-new-generative-ai-tool-to-slash-marketing-costs/articleshow/124800086.cms"
+pattern_spotter: "AI images look lifeless because they lack human presence. The pixels are perfect, but the soul is missing."
+source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/how-to-make-ai-images-that-dont-look-like-ai-images/articleshow/124864135.cms"
 
-pattern_spotter: "Investors are using the dotcom playbook—flipping out of Nvidia before the peak and into 'next-in-line' stocks like uranium and robotics. They're not betting against AI, they're timing the bubble to profit before it bursts."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/investors-use-dotcom-era-playbook-to-dodge-ai-bubble-risks/articleshow/124799868.cms"
+pattern_spotter: "Only 5% of AI projects deliver measurable gains. The other 95%? Still searching for their business model."
+source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/big-tech-to-report-earnings-under-specter-of-ai-bubble/articleshow/124863981.cms"
 
-pattern_spotter: "Furlenco's parent cut employee costs 36% and finance costs 42% while doubling assets to Rs 461 crore. They're not 'leaning' operations—they're shifting from people to property."
-source: "https://yourstory.com/2025/10/furlenco-parent-house-of-kieraya-rs-3-cr-profit-fy25-leaner-operations"
+pattern_spotter: "SatSure's geospatial pipeline froze mid-run. The future of AI isn't intelligence—it's infrastructure."
+source: "https://yourstory.com/2025/10/techsparks-2025-scaling-earth-intelligence-geospatial-ai-satsure"
 
-pattern_spotter: "AMUL's chairman is running Bharat Taxi. This isn't about fair wages—it's co-op institutions capturing the gig economy."
-source: "https://inc42.com/buzz/ola-uber-rival-centre-to-begin-piloting-bharat-taxi-next-month/"
+pattern_spotter: "Zerodha adding WhatsApp trading as backup. The future of finance runs on the same platforms as family group chats."
+source: "https://yourstory.com/2025/10/zerodha-to-launch-us-stock-investing-revamp-trading-nithin-kamath"
 
+pattern_spotter: "Google calls itself an AI company all along. The future looks a lot like the past."
+source: "https://www.reddit.com/r/ArtificialInteligence/comments/1ohha2e/google_will_win/"
 
-V12.1
-pattern_spotter: "TwitchCon staff threw out VTuber fan gifts. They monetize parasocial relationships but can't handle the physical evidence."
-source: "https://www.tubefilter.com/2025/10/24/roundup-twitchcon-vtuber-chipotle-boorito-chatgpt-brainrot/"
+pattern_spotter: "India approved 7 projects to make PCBs domestically. Importing less while exporting more."
+source: "https://inc42.com/buzz/projects-worth-inr-5500-cr-approved-under-electronics-manufacturing-scheme/"
 
-pattern_spotter: "Apna cut employee costs 5% but spent 10% more on marketing and 12% more on business development. They're trimming people to fund growth theater while revenue actually fell."
-source: "https://inc42.com/buzz/apna-narrows-fy25-loss-to-inr-50-cr-even-as-revenue-dips/"
+pattern_spotter: "We360.ai raised $2M from Bhopal. The next SaaS hubs aren't where you'd expect."
+source: "https://yourstory.com/2025/10/we360ai-raises-2m-led-by-gsf-to-scale-ai-agents"
 
-pattern_spotter: "Mondelez spent $40M on AI but won't use human likenesses after watching Coke get mocked. They're automating everything except the risk of looking fake."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/oreo-maker-mondelez-to-use-new-generative-ai-tool-to-slash-marketing-costs/articleshow/124800086.cms"
-
-pattern_spotter: "Investors using dotcom playbook to 'dodge AI bubble risks' are buying uranium and Taiwanese chip boxes. They're not avoiding the bubble—they're just betting the gold rush will make prospectors buy more shovels."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/investors-use-dotcom-era-playbook-to-dodge-ai-bubble-risks/articleshow/124799868.cms"
-
-pattern_spotter: "Marseille Web Fest gave its top prize to an Iranian series about women under 'stringent legal restrictions'—while its organizer Imago Production is running PIXEL.IA, a conference on generative AI storytelling. They're celebrating creative freedom while building tools that could automate it."
-source: "https://www.tubefilter.com/2025/10/23/marseille-web-fest-2025-winners/"
-
-pattern_spotter: "AMUL's chairman is running Bharat Taxi. This isn't about fair wages—it's co-op institutions capturing the gig economy."
-source: "https://inc42.com/buzz/ola-uber-rival-centre-to-begin-piloting-bharat-taxi-next-month/"
-
-pattern_spotter: "Furlenco's parent posts Rs 3 Cr profit after 'leaner operations.' They cut costs to profitability—not by growing demand, but by shrinking the business to what survives."
-source: "https://yourstory.com/2025/10/furlenco-parent-house-of-kieraya-rs-3-cr-profit-fy25-leaner-operations"
-
-pattern_spotter: "Executives are firing people based on AI hype, not AI performance. They're using technology as cover for bonus-driven layoffs."
-source: "https://www.reddit.com/r/ArtificialInteligence/comments/1ofk081/the_greatest_threat_to_human_job_loss_isnt_ai/"
-
-
-
-
-pattern_spotter: "TwitchCon staff threw out VTuber fan gifts. They monetize parasocial relationships but can't handle the physical evidence."
-source: "https://www.tubefilter.com/2025/10/24/roundup-twitchcon-vtuber-chipotle-boorito-chatgpt-brainrot/"
-
-pattern_spotter: "Mondelez spent $40M on AI but won't use human likenesses after Coke got mocked for fake-looking people. They're automating everything except the risk of looking fake."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/oreo-maker-mondelez-to-use-new-generative-ai-tool-to-slash-marketing-costs/articleshow/124800086.cms"
-
-pattern_spotter: "Hedge funds rode the dotcom bubble by selling internet stocks before the peak and buying others—beating the market by 4.5% per quarter from 1998-2000. They're doing it again with AI. This isn't avoiding risk—it's profiting from the bubble they claim to fear."
-source: "https://economictimes.indiatimes.com/tech/artificial-intelligence/investors-use-dotcom-era-playbook-to-dodge-ai-bubble-risks/articleshow/124799868.cms"
-
-pattern_spotter: "Deepinder Goyal launches $25M 'science' fund while Zomato's delivery workers earn $3-5 per hour. This isn't about biology—it's billionaires funding pet projects while the people who built their wealth struggle."
-source: "https://yourstory.com/2025/10/deepinder-goyal-25m-self-funded-research-initiatives"
-
-pattern_spotter: "AMUL's chairman is running Bharat Taxi. This isn't about fair wages—it's co-op institutions capturing the gig economy."
-source: "https://inc42.com/buzz/ola-uber-rival-centre-to-begin-piloting-bharat-taxi-next-month/"
-
-pattern_spotter: "Marseille Web Fest held panels on generative AI while giving its top prize to a series about women resisting legal restrictions in Tehran. They're embracing AI tools while celebrating human resistance to systems."
-source: "https://www.tubefilter.com/2025/10/23/marseille-web-fest-2025-winners/"
-
-pattern_spotter: "Executives set AI cost-savings targets before AI delivered anything. They're firing people to hit bonus metrics, not because AI actually works."
-source: "https://www.reddit.com/r/ArtificialInteligence/comments/1ofk081/the_greatest_threat_to_human_job_loss_isnt_ai/"
+pattern_spotter: "Paytm now lets NRIs pay in India with foreign numbers. Every diaspora becomes a domestic market."
+source: "https://inc42.com/buzz/paytm-rolls-out-upi-access-for-nris-in-12-countries/"
 

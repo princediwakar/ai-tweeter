@@ -5,14 +5,17 @@
 
 import { GENERATION_CONFIG } from '../../generation/config';
 import { getRecentSatiristData } from '../../db';
-import { enrichArticles } from '../../generation/articleEnricher';
+// --- MODIFIED: Import extractEntities ---
+import { enrichArticles, extractEntities } from '../../generation/articleEnricher';
 import { fetchFromRssFeeds } from '../fetchers';
 import type { SatiristContext } from '../types';
+import { RecentPattern } from '@/lib/generation';
 
 /**
  * Builds structured context for Satirist persona
  * Returns EnrichedArticle[] with source metadata and recent content for deduplication
  * ✨ MODIFIED: Now creates a pre-formatted `articlesJson` field to prevent cross-contamination.
+ * ✨ MODIFIED: Added entity-based pre-filtering for deduplication.
  */
 export async function getSatiristContext(accountId?: string): Promise<SatiristContext | null> {
   console.log('[Content Source] 🧐 Satirist selected. Activating Deep Dive with full article fetching...');
@@ -35,11 +38,14 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
     console.log(`[Content Source] Found ${uniqueHeadlines.length} unique headlines for satirist`);
 
     // Comprehensive deduplication using last 5 tweets
+    // --- MODIFIED: Store the full 'patterns' array ---
     let usedContent: string[] = [];
     let usedSourceUrls: string[] = [];
+    let patterns: RecentPattern[] = []; // Store RecentPattern objects
     
     if (accountId) {
       const recentData = await getRecentSatiristData(accountId, 5);
+      patterns = recentData.patterns; // Keep the full pattern objects
       usedContent = recentData.patterns.map(p => p.text);
       usedSourceUrls = recentData.usedSourceUrls;
       
@@ -51,8 +57,57 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
     const filteredHeadlines = uniqueHeadlines.filter(h => !usedSourceUrls.includes(h.url));
     console.log(`[Content Source] ${filteredHeadlines.length} fresh headlines after filtering used sources`);
 
-    // Use filtered headlines, or fall back to unique if all were filtered
-    const headlinesToUse = filteredHeadlines.length > 0 ? filteredHeadlines : uniqueHeadlines;
+    // --- NEW: STEP 5: Filter by Recently Covered Entities (ported from PatternSpotter) ---
+    const commonWordsForSatirist = new Set([
+        "The", "But", "And", "Shows", "This", "That", "Example", "Data", 
+        "It's", "They're", "Now", "New", "Key", "Big", "Major", "Their", 
+        "Its", "Has", "Had", "VC", "Fund", "Startup", "Company", "Platform", 
+        "App", "Tech", "CEO", "Founder",
+        "a", "an", "the", "in", "on", "at", "to", "for", "of" 
+    ]);
+    const blockedEntities = new Set<string>();
+
+    if (patterns.length > 0) {
+        patterns.forEach(p => {
+            const text = p.text;
+            // Extract company from "Company:" pattern (from satirist prompt)
+            const match = text.match(/^([a-zA-Z0-9\s&'-]+):/);
+            if (match && match[1]) {
+                blockedEntities.add(match[1].trim().toLowerCase());
+            }
+            
+            // Extract other entities
+            const entities = extractEntities(text, {
+                ignoreWords: commonWordsForSatirist,
+                minLength: 3,
+            });
+            entities.forEach((entity) => {
+                blockedEntities.add(entity.trim().toLowerCase());
+            });
+        });
+    }
+
+    let freshHeadlinesByEntity = filteredHeadlines; // Start with URL-filtered list
+    if (blockedEntities.size > 0) {
+      console.log(`[Content Source] 🚫 Filtering by ${blockedEntities.size} recent entities: ${Array.from(blockedEntities).slice(0, 5).join(', ')}...`);
+      freshHeadlinesByEntity = filteredHeadlines.filter(h => {
+          const headlineLower = h.headline.toLowerCase();
+          // Check if any blocked entity is present in the new headline
+          return !Array.from(blockedEntities).some(entity => headlineLower.includes(entity));
+      });
+      console.log(`[Content Source] 🚫 Filtered by Entity: ${freshHeadlinesByEntity.length} headlines remain (removed ${filteredHeadlines.length - freshHeadlinesByEntity.length}).`);
+    } else {
+      console.log(`[Content Source] ✅ No recent entities to block. Proceeding with ${freshHeadlinesByEntity.length} headlines.`);
+    }
+    
+    if (freshHeadlinesByEntity.length === 0) {
+        console.warn('[Content Source] ⚠️ No headlines remain after entity filtering. Falling back to URL-filtered list.');
+    }
+    // --- END NEW STEP ---
+
+    // --- MODIFIED: Use the doubly-filtered list ---
+    // Use filtered headlines, or fall back to URL-filtered list if entity filter was too aggressive
+    const headlinesToUse = freshHeadlinesByEntity.length > 0 ? freshHeadlinesByEntity : filteredHeadlines;
     
     // Take only what we need for the prompt
     const selectedHeadlines = headlinesToUse.slice(0, headlinesInPrompt);

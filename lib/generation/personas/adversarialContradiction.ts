@@ -1,6 +1,8 @@
+// Adversarial Contradiction
+// lib/generation/personas/patternSpotter.ts
 import { TweetGenerationConfig } from "@/lib/types";
-import { BasePersonaGenerator } from "../base";
-import { GenerationContext } from "../../types";
+import { BasePersonaGenerator } from "./base";
+import { GenerationContext } from "../types";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -119,7 +121,7 @@ Based on your adversarial thinking, write THREE structurally different versions:
 Start with the concrete evidence, then say what it means.
 Pattern: "[Specific detail]. [What this actually reveals]."
 
-Example: "AMUL's chairman is running Bharat Taxi. This isn't about fair wages—it's co-op institutions capturing the gig economy."
+Example: "AMUL's chairman is running Bharat Taxi. Is it about fair wages or co-op institutions capturing the gig economy?"
 
 **VERSION 2: LEAD WITH THE CONTRADICTION**
 Start with what people think, contrast with what's real.
@@ -131,7 +133,7 @@ Example: "Everyone thinks TikTok wants Gen Z. They just licensed The Beatles to 
 Start with what this means, then give the proof.
 Pattern: "[What's actually happening]. [Specific evidence]."
 
-Example: "We're not funding AI breakthroughs—we're funding incremental improvements on a 2017 architecture."
+Example: "Are we funding AI breakthroughs or just incremental improvements on a 2017 architecture."
 
 <three_versions>
 Version 1 (detail-first): 

@@ -952,7 +952,7 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
 
 export async function getRecentSatiristData(
   accountId: string,
-  limit: number = 7
+  limit: number = 10
 ): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
   try {
     const result = await sql`
@@ -994,7 +994,7 @@ export async function getRecentSatiristData(
 
 export async function getRecentPatternData(
   accountId: string,
-  limit: number = 5
+  limit: number = 10
 ): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
   try {
     // Fetch both the content for thematic deduplication and the source_url for strict avoidance.

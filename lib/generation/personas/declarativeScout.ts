@@ -1,9 +1,9 @@
-// Version 3
+// Declarative Scout
 // lib/generation/personas/patternSpotter.ts
-import { BasePersonaGenerator } from "../base";
-import type { TweetGenerationConfig, GenerationContext } from "../../types";
-import { extractEntities } from "../../articleEnricher";
-import { GENERATION_CONFIG } from "../../config";
+import { BasePersonaGenerator } from "./base";
+import type { TweetGenerationConfig, GenerationContext } from "../types";
+import { extractEntities } from "../articleEnricher";
+import { GENERATION_CONFIG } from "../config";
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(
     config: TweetGenerationConfig,
@@ -227,10 +227,3 @@ Final voice: **The Declarative Scout.** Your tweet is a clean, flowing, and high
     return prompt;
   }
 }
-
-
-
-
-
-
-

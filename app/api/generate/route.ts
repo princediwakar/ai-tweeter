@@ -52,9 +52,9 @@ async function saveDebugOutput(data: { content: string | string[]; persona: stri
     const sanitizedContent = contentString.replace(/"/g, '\\"');
     
     // Format the output line as per your requested pattern
-    const sourceInfo = data.source ? `\nsource: "${data.source}"` : '';
-    const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;
-    // const lineToAppend = `"${sanitizedContent}"\n\n`;
+    // const sourceInfo = data.source ? `\nsource: "${data.source}"` : '';
+    // const lineToAppend = `${data.persona}: "${sanitizedContent}"${sourceInfo}\n\n`;
+    const lineToAppend = `"${sanitizedContent}"\n\n`;
 
     await fs.appendFile(filePath, lineToAppend, 'utf-8');
     logger.info(`[Debug] Appended generation output to ${filePath}`, 'save-debug-output');

@@ -363,12 +363,12 @@ import {
           `🔍 [${persona}] Used headline #${data.selectedHeadlineNumber} as primary source`
         );
   
-        // New: Log the reasoning block if it exists (for debugging)
-        if (data.reasoning) {
-          console.log(
-            `🧠 [${persona}] AI Reasoning: ${JSON.stringify(data.reasoning)}`
-          );
-        }
+        // // New: Log the reasoning block if it exists (for debugging)
+        // if (data.reasoning) {
+        //   console.log(
+        //     `🧠 [${persona}] AI Output: ${JSON.stringify(data.reasoning)}`
+        //   );
+        // }
   
         // CRITICAL: Check for imageContent and create the card
         if (data.imageContent) {
@@ -406,18 +406,18 @@ import {
       let reasoning: Record<string, string> | undefined;
       // --- MODIFIED: Handle reasoning with optional chaining ---
       if (persona === "pattern_spotter") {
-        if (data.reasoning) {
+        if (data) {
           // if (typeof data.reasoning !== "object") {
           //   throw new Error(
           //     "AI response for pattern_spotter has invalid reasoning: must be an object."
           //   );
           // }
-          reasoning = data.reasoning;
+          // reasoning = data.reasoning;
           // Validate structure of reasoning using optional chaining
   
           console.log(
-            `🧠 [PatternSpotter] Extracted reasoning: ${JSON.stringify(
-              reasoning,
+            `🧠 [PatternSpotter] Extracted data: ${JSON.stringify(
+              data,
               null,
               2
             )}`

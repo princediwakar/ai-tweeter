@@ -50,7 +50,7 @@ const PERSONA_CONFIG = {
   },
 
   patternSpotter: {
-    headlinesToAnalyze: 20,
+    headlinesToAnalyze: 30,
     headlinesInPrompt: 1, // ✅ Good - you're doing single article
     tweetTextCharLimit: 240, // CHANGE: Increased from 200
     idealCharRange: { min: 220, max: 240 }, // CHANGE: Updated range
@@ -67,7 +67,7 @@ const PERSONA_CONFIG = {
       // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
-      // 'https://www.tubefilter.com/feed/'      
+      // 'https://www.tubefilter.com/feed/',      
       // 'https://ehandbook.com/rss'
       // 'https://www.techcircle.in/rss/technology/',
       // 'https://www.livemint.com/rss/technology',

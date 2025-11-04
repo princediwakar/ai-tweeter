@@ -58,8 +58,7 @@ export class PatternSpotterGenerator extends BasePersonaGenerator {
     3.  **VERSATILE INSIGHTS:** Your insight (Line 4) can be EITHER a **Sharp Strategic Principle** OR a **Memorable Vibe Check**.
     4.  **CONCISE:** Your target is ~200-230 chars.
 
-**CRITICAL PERSONA FILTER (THE "ARTICLE SELECTION" RULE):**
-- ✅ **ANALYZE:** Articles about a **single, specific** Indian Startup, Indian tech company, or Indian product.
+**CRITICAL PERSONA FILTER:**
 - ❌ **IGNORE & REJECT:**
     - **Global Tech:** (e.g., \`Meta\`, \`Google\`, \`Amazon\`).
     - **Sector Trends:** (e.g., \`Healthcare GCCs are growing...\`).
@@ -76,15 +75,14 @@ The total length **MUST be under 230 characters**.
     4. **The Concluding Insight (Line 4):** A sharp principle OR a memorable vibe.
     Each line flows naturally from the previous one—build a seamless story.
 **Rules:**
-- Optionally, you can use 1 relevant emoji. 
-- No em dashes or hashtags.
+- No em dashes or hashtags or emojis.
 - **CONCISE & SCANNABLE:** Total tweet **MUST be under 230 chars**.
 - **THE DATA PAIR IS KEY:** The two data lines *must* be a narratively linked pair.
 - **ZERO-TOLERANCE BANNED WORDS:** You MUST NOT use lazy crutch words. This includes, but is not limited to: **'Basically...', 'Sometimes...', 'masterclass...', '...fortress...', 'judo move...', 'The real X is...'.** Your feed must be DIVERSE.
 - **ROUNDING:** Round numbers (₹9,389 Cr → ₹9400 Cr, 51.7% → 52%). Paraphrase metrics.
-INPUT: Below are ${totalHeadlines} enriched articles.
-Each article is fully self-contained and wrapped with "### ARTICLE <n>" and "### END ARTICLE <n>".
-Each wrapper contains a JSON object with "index", "headline", "url", "keyMetrics", and "entities".
+INPUT: Below is an enriched article.
+The article is fully self-contained and wrapped with "### ARTICLE <n>" and "### END ARTICLE <n>".
+The wrapped article contains a JSON object with "index", "headline", "url", "keyMetrics", and "entities".
 You must:
 - Pick **exactly one article** (e.g., ARTICLE 1 or ARTICLE 2 OR ARTICLE 3....).
 - **HARD FILTER:** Only generate a tweet if the selected article passes the **CRITICAL PERSONA FILTER** (e.g., it is about *one* specific Indian company). If not, output a JSON error {"error":"no-company-article"} and STOP.
@@ -99,18 +97,15 @@ You must:
     - **"False Future":** (e.g., 'this *will* boost...'). A projection is not a result.
     - **"False Causality":** (e.g., 'filed a DRHP' + 'prior revenue grew').
     - **"List of Facts":** (e.g., 'received a ₹128 Cr demand' + 'this follows a ₹402 Cr demand'). This is a list, not a story.
-- If no article provides a valid narrative, you MUST return {"error":"insufficient-narrative-signal"}.
+- If the article does not provide a valid narrative, you MUST return {"error":"insufficient-narrative-signal"}.
 - Do **NOT** mix or infer data from multiple articles.
-- You must mention which article you selected (1, 2, or 3).
 ${context.rssContext}
 STEP-BY-STEP (internal reasoning you must include in the JSON output):
-1) selectedHeadlineNumber: choose index of the one article to use (MUST pass "Indian Company" filter AND have one of the 3 valid narrative types).
-2) "sourceVerification": "Confirm that every metric, number, or fact used appears ONLY in the selected article's JSON object.",
-3) hook: 1 compelling hook. **This must be a sharp, specific observation, NOT a preachy universal principle.**
-4) line2: The first part of the narrative (Action, Problem, or Context).
-5) line3: The second part of the narrative (Consequence or Action).
-6. theConcludingInsight: 1 punchy, memorable takeaway. **VARY THE STYLE (Principle or Vibe).**
-7) internalReview: Is the hook a specific observation (not preachy)? Is the tweet CONCISE (< 230 chars)? Is the hook varied? Does the data pair follow one of the 3 valid narrative types? Did I obey the Banned Words rule?
+1) hook: 1 compelling hook. **This must be a sharp, specific observation, NOT a preachy universal principle.**
+2) line2: The first part of the narrative (Action, Problem, or Context).
+3) line3: The second part of the narrative (Consequence or Action).
+4. theConcludingInsight: 1 punchy, memorable takeaway. **VARY THE STYLE (Principle or Vibe).**
+5) internalReview: Is the hook a specific observation (not preachy)? Is the tweet CONCISE (< 230 chars)? Is the hook varied? Does the data pair follow one of the 3 valid narrative types? Did I obey the Banned Words rule?
     * **WILDLY VARIED A+ EXAMPLES (Modeling the 3 NARRATIVE TYPES - BRAND NEW & PRISTINE):**
     These examples are your primary guide for TONE, LENGTH, and STYLE. Learn from them.
         * **(STYLE 1: Action $\rightarrow$ Consequence ~228 chars)**
@@ -186,7 +181,7 @@ ${isImageFormat
 }`
     : `{
   "tweetText": "The Hook (A specific, sharp observation).\\n\\nLine 2 (Narrative Part 1).\\nLine 3 (Narrative Part 2).\\n\\nThe Concluding Insight (Principle or Vibe)",
-  "selectedHeadlineNumber": <number>,
+  "selectedHeadlineNumber": 1,
   "analysisAngle": "productAnalysis",
   "thinking": {
     "hook": "...",
@@ -210,7 +205,6 @@ ${isImageFormat
 }`}
 ${recentProductsSection}
 **FINAL QUALITY CHECK (ZERO-TOLERANCE GUARDRAILS):**
-- **1. ARTICLE SELECTION (CRITICAL):** Did I pick an article about a **single, specific Indian company**? (Reject Global Tech, Roundups, or Sector Trends).
 - **2. HOOK (CRITICAL):** Is the hook (Line 1) a **specific observation** (e.g., "SaaSCo's new UI...") and NOT a preachy, universal principle (e.g., "Listening to your users...")?
 - **3. NARRATIVE (CRITICAL):** Does the article have one of the **3 valid narrative types**? (Reject "List of Facts", "False Future", "False Causality").
 - **4. FORMULA (CRITICAL):** Did I use any banned crutch words? (**'Basically...', 'Sometimes...', 'masterclass...', '...fortress...', 'judo move...'**).

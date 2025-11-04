@@ -89,7 +89,7 @@ export async function generateTweet(
     }
 
     const response = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+      model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,
       max_tokens: GENERATION_CONFIG.ai.maxTokens,
@@ -335,10 +335,10 @@ export async function generateEngagementReply(
       `[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${engagementPersona.displayName}`
     );
     const response = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+      model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: GENERATION_CONFIG.ai.temperature,
+      max_tokens: GENERATION_CONFIG.ai.maxTokens,
     });
     const replyText = response.choices[0].message.content;
 

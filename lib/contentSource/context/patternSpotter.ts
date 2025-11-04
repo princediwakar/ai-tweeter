@@ -9,19 +9,9 @@ import type { PatternSpotterContext, HeadlineWithSource } from '../types';
 import { RecentPattern } from '@/lib/generation';
 // Import the validator
 import { ArticleValidator, ValidatableArticle } from './articleValidator'; 
+import { normalizeUrl } from '@/lib/utils';
 
-// --- HELPER FUNCTION FOR URL NORMALIZATION ---
-function normalizeUrl(url: string): string {
-    try {
-        const parsedUrl = new URL(url);
-        // Remove query parameters and hash, keep only protocol, host, and path
-        return `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`.replace(/\/$/, ''); // Remove trailing slash
-    } catch (e) {
-      console.error('some error', e)
-        // Fallback for invalid URLs: remove query string
-        return url.split('?')[0].split('#')[0].replace(/\/$/, '');
-    }
-}
+
 
 export async function getPatternSpotterContext(accountId?: string): Promise<PatternSpotterContext | null> {
   console.log('[Context] 🔍 Pattern Spotter: Fetching and filtering articles...');
@@ -59,6 +49,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     const normalizedUsedUrls = new Set(usedSourceUrls.map(normalizeUrl));
     const freshHeadlinesByUrl = uniqueHeadlines.filter(h => !normalizedUsedUrls.has(normalizeUrl(h.url)));
     console.log(`[Context] 🚫 Filtered by URL: ${freshHeadlinesByUrl.length} headlines remain (removed ${uniqueHeadlines.length - freshHeadlinesByUrl.length}).`);
+
     if (freshHeadlinesByUrl.length === 0) {
         console.warn('[Context] ⚠️ No headlines remain after URL filtering.');
         return null;
@@ -67,9 +58,11 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     // --- STEP 5: Filter by Recently Covered Entities ---
     const commonWordsForTweets = new Set([
         "The", "But", "And", "Shows", "This", "That", "Example", "Data", 
-        "With", "From", "How", "Why", "What", "When", "Where", "Now",
-        "New", "Key", "Big", "Major", "Their", "Its", "Has", "Had",
-        "VC", "Fund", "Startup", "Company", "Platform", "App", "Tech",
+        "With", "From", "How", "Why", "What", "When", "Where", "Now","How",
+        "New", "Key", "Big", "Major", "Their", "They", "Its", "Has", "Had","Indian",
+        "VC", "Fund", "Startup", "Company", "Platform", "App", "Tech", "Technology", 
+        "AI", "India", "Global", "CAC", "LTV", "DAU", "Active", "Users","People",
+        "early", "impossible", "historical", "Payment", "Established", "Technical", "Market", "Unit",
         // Add common English words if needed
         "a", "an", "the", "in", "on", "at", "to", "for", "of" 
     ]);
@@ -87,7 +80,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
 
     let freshHeadlinesByEntity = freshHeadlinesByUrl; // Start with URL-filtered list
     if (blockedEntities.size > 0) {
-      console.log(`[Context] 🚫 Filtering by ${blockedEntities.size} recent entities: ${Array.from(blockedEntities).slice(0, 5).join(', ')}...`);
+      console.log(`[Context] 🚫 Filtering by ${blockedEntities.size} recent entities: ${Array.from(blockedEntities).slice(0, 8).join(', ')}...`);
       freshHeadlinesByEntity = freshHeadlinesByUrl.filter(h => {
           const headlineLower = h.headline.toLowerCase();
           // Check if any blocked entity is present in the new headline

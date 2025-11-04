@@ -54,8 +54,6 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
     }
 
     // Filter out headlines from recently used source URLs
-    const filteredHeadlines = uniqueHeadlines.filter(h => !usedSourceUrls.includes(h.url));
-    console.log(`[Content Source] ${filteredHeadlines.length} fresh headlines after filtering used sources`);
 
     // --- NEW: STEP 5: Filter by Recently Covered Entities (ported from PatternSpotter) ---
     const commonWordsForSatirist = new Set([
@@ -87,15 +85,15 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
         });
     }
 
-    let freshHeadlinesByEntity = filteredHeadlines; // Start with URL-filtered list
+    let freshHeadlinesByEntity = uniqueHeadlines; // Start with URL-filtered list
     if (blockedEntities.size > 0) {
       console.log(`[Content Source] 🚫 Filtering by ${blockedEntities.size} recent entities: ${Array.from(blockedEntities).slice(0, 5).join(', ')}...`);
-      freshHeadlinesByEntity = filteredHeadlines.filter(h => {
+      freshHeadlinesByEntity = uniqueHeadlines.filter(h => {
           const headlineLower = h.headline.toLowerCase();
           // Check if any blocked entity is present in the new headline
           return !Array.from(blockedEntities).some(entity => headlineLower.includes(entity));
       });
-      console.log(`[Content Source] 🚫 Filtered by Entity: ${freshHeadlinesByEntity.length} headlines remain (removed ${filteredHeadlines.length - freshHeadlinesByEntity.length}).`);
+      console.log(`[Content Source] 🚫 Filtered by Entity: ${freshHeadlinesByEntity.length} headlines remain (removed ${uniqueHeadlines.length - freshHeadlinesByEntity.length}).`);
     } else {
       console.log(`[Content Source] ✅ No recent entities to block. Proceeding with ${freshHeadlinesByEntity.length} headlines.`);
     }
@@ -107,7 +105,7 @@ export async function getSatiristContext(accountId?: string): Promise<SatiristCo
 
     // --- MODIFIED: Use the doubly-filtered list ---
     // Use filtered headlines, or fall back to URL-filtered list if entity filter was too aggressive
-    const headlinesToUse = freshHeadlinesByEntity.length > 0 ? freshHeadlinesByEntity : filteredHeadlines;
+    const headlinesToUse = freshHeadlinesByEntity.length > 0 ? freshHeadlinesByEntity : uniqueHeadlines;
     
     // Take only what we need for the prompt
     const selectedHeadlines = headlinesToUse.slice(0, headlinesInPrompt);

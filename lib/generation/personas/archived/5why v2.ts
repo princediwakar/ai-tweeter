@@ -206,11 +206,11 @@ FLOW CHECK
 
 CRITICAL FAILURE CHECK
 
-If you read all the articles and none contain a clear, non-obvious business mechanism (e.g., they are just news reports, funding announcements, or vague cultural pieces):
+If you read the article and none contain a clear, non-obvious business mechanism (e.g., they are just news reports, funding announcements, or vague cultural pieces):
 
 **Do not return JSON.**
 **Return only the following text and nothing else:**
-ERROR: No clear, non-obvious business mechanism found in the provided articles.
+ERROR: No clear, non-obvious business mechanism found in the provided article.
 
 ----
 

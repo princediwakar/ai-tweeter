@@ -18,8 +18,8 @@ const FUNCTIONAL_CONFIG = {
     batchDelay: 1000,
   },
   ai: {
-    model: 'deepseek-reasoner',
-    temperature: 0.8,
+    model: 'deepseek-chat',
+    temperature: 0.9,
     maxTokens: 2000,
   },
   batch: {
@@ -51,20 +51,20 @@ const PERSONA_CONFIG = {
 
   patternSpotter: {
     headlinesToAnalyze: 20,
-    headlinesInPrompt: 3,
-    tweetTextCharLimit: 200, // Allow multi-line format for clarity and save rate
-    idealCharRange: { min: 100, max: 120 }, // 3-line structure with breathing room
+    headlinesInPrompt: 1, // ✅ Good - you're doing single article
+    tweetTextCharLimit: 240, // CHANGE: Increased from 200
+    idealCharRange: { min: 220, max: 240 }, // CHANGE: Updated range
     subredditsToFetch: 1,
     postsPerSubreddit: 3,
-    twitterHandlesToFetch: 1,
-    postsPerTwitterHandle: 3,
+    twitterHandlesToFetch: 0,
+    postsPerTwitterHandle: 0,
     imageProbability: 0,
-    imageFormatTweetTextLimit: 100,
-    imageContentCharLimit: 200,
+    imageFormatTweetTextLimit: 120, // CHANGE: Increased from 100
+    imageContentCharLimit: 240, // CHANGE: Increased from 200
     deduplicationDays: 5,
     feeds: {
       business: [
-      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
       // 'https://www.tubefilter.com/feed/'      
@@ -75,7 +75,7 @@ const PERSONA_CONFIG = {
       ],
       reddit: [
         // 'developersIndia',
-        'ArtificialInteligence',
+        // 'ArtificialInteligence',
         // 'LifeProTips',
         // 'YouShouldKnow'
       ],

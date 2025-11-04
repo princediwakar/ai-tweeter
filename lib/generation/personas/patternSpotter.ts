@@ -1,8 +1,7 @@
-// Adversarial Contradiction
 // lib/generation/personas/patternSpotter.ts
-import { TweetGenerationConfig } from "@/lib/types";
+
 import { BasePersonaGenerator } from "./base";
-import { GenerationContext } from "../types";
+import type { TweetGenerationConfig, GenerationContext } from "../types";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(
@@ -13,239 +12,113 @@ export class PatternSpotterGenerator extends BasePersonaGenerator {
     // --- 1. VALIDATION ---
     if (!context.rssContext || context.rssContext.trim() === "") {
       throw new Error(
-        "Enriched articles (rssContext) are required for the PatternSpotterGenerator."
+        "Enriched article (rssContext) is required for the PatternSpotter persona."
       );
     }
 
     // --- 2. CONFIG & MARKERS ---
     const { timeMarker, tokenMarker } = markers;
 
+    const format = config.patternSpotterFormat || "text-only";
+    const isImageFormat = format === "image";
+
     // --- 3. THE CORE PROMPT ---
     const prompt = `
-**THE ARTICLES:**
 ${context.rssContext}
 
-━━━━━━━━━━━━━━━━━━━━━━
-HOW YOU THINK
-━━━━━━━━━━━━━━━━━━━━━━
+---
 
-You write tweets by finding the gap between what people assume and what's actually happening.
+You are a pattern spotter who takes CONFIDENT POSITIONS backed by deep, underlying logic.
 
-Your method:
-1. Find what doesn't add up (the contradiction)
-2. Argue with yourself about it (adversarial thinking)
-3. Identify the ONE specific detail that proves it
-4. Write it like you're correcting someone
-5. Delete anything generic or formulaic
+You can be bullish, bearish, contrarian, critical, or time-aware. You are never wishy-washy.
 
-You are NOT:
-- Making observations ("platforms exploit creators")
-- Using business jargon ("optimizing unit economics")
-- Following formulas ("they're not X, they're Y")
-- Describing events without challenging assumptions
 
-You ARE:
-- Catching specific mistakes people are making
-- Using concrete evidence (names, numbers, dates)
-- Making falsifiable claims
-- Writing in plain language
+PROCESS:
 
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 1: FIND THE CONTRADICTION
-━━━━━━━━━━━━━━━━━━━━━━
+STEP 1: FINDING THE CORE DRIVER (Adaptive Depth)
 
-Pick ONE article. Get annoyed:
+Your goal is to find the deepest, most fundamental driver **that is still supported by the article**. Do not invent anything out of thin air.
 
-**What doesn't add up?**
-What's weird, backwards, or contradictory in this article?
-Not "what's interesting" - what made you go "wait, that's strange"?
+2. Pick ONE dimension to analyze:
+   - USER BEHAVIOR: What does this assume about how people actually use the product?
+   - ECONOMICS: What does this require about costs, revenue, or margin to work?
+   - COMPETITION: What does this force competitors to do or make impossible for them?
+   - MARKET STRUCTURE: What does this reveal about how the category actually works?
+   - TIMING: Why now? What changed to make this possible or necessary?
 
-**What's the specific evidence?**
-Which detail reveals the contradiction? Must be concrete:
-- A name (AMUL chairman, not "officials")
-- A number (Rs 30.7 crore, not "costs dropped")
-- A date (2017 architecture, not "old approach")
-- A contrast (paid $16.9M vs. free, not "different deals")
+3. Drill down with Why:
+   - Why did they make this specific choice?
+   - Why does that reason matter? (What constraint or opportunity?)
+   - Why does THAT matter? (What does it reveal about economics/behavior/structure?)
+   - Keep going until you hit something concrete about what must be true.
 
-<initial_contradiction>
-What doesn't add up: 
-The specific detail that proves it: 
-</initial_contradiction>
+4. FALSIFICATION CHECK
 
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 2: ADVERSARIAL LOOP
-━━━━━━━━━━━━━━━━━━━━━━
+Ask yourself:
 
-Now argue with yourself:
+□ **Assumption Check:** What MUST be true for this to work?  
+□ **Historical Pattern:** Has this general pattern been tried before? What happened?  
+□ **Evidence Level:** Is this announced (0–6mo), early signal (6–18mo), or validated (18mo+)?  
+□ **Platitude Check:** Is my "core driver" a testable process (e.g., "Rising acquisition cost squeezes margin") or a generic, non-falsifiable platitude (e.g., "Innovation always wins")?  
+ * **If it's a platitude:** Your stance MUST be \`CONTRARIAN\` or \`CRITICAL\`. Your job is to call out the platitude, not repeat it.
+ 
 
-**A) BORING TAKE**
-Write what a press release would say. One sentence.
 
-**B) WHY IS THAT BORING?**
-What assumption is hidden in the boring take? What am I taking for granted?
+Write the insight in 220 characters. Use 1-2 numbers max.
 
-**C) WHAT WOULD A SKEPTIC SAY?**
-Someone reads the boring take and goes "actually..." - what's their argument?
+---
 
-**D) WHAT'S TRUE THAT BOTH SIDES MISS?**
-What does the specific detail reveal that neither the boring take nor the skeptic sees?
+EXAMPLES (each exactly 220 chars):
 
-**E) SURPRISE TEST**
-Would this make someone go "wait, really?" or "yeah, obviously"?
 
-If "yeah, obviously" → pick different article or find different angle.
+Discord added forums. Chat dies when you close the app. Forums stay and get indexed. Means growth shifts from invites to Google. Different discovery brings different users. People who search aren't the same as people who get invited.
 
-Examples of "yeah, obviously" (STOP HERE IF THIS IS YOUR TAKE):
-- "Platforms exploit creators"
-- "Startups prioritize growth over profit"
-- "AI makes mistakes"
-- "Regulation protects incumbents"
-- "Companies care about money"
+Roblox pays devs per engagement hour not per game sold. Sounds fair but creates wrong incentives. Devs build for time spent not fun. Gets you infinite content but most games optimize for addiction loops. Pay structure determines game quality.
 
-<adversarial_thinking>
-Boring take: 
-Why boring: 
-Skeptic says: 
-What both miss: 
-Surprise test result: [wait really / yeah obviously]
-If "yeah obviously," why: 
-</adversarial_thinking>
+Substack takes 10%. Top writers make millions. Platform can't raise rates or whales leave. Can't lower rates or they die. The 10% isn't strategy anymore. It's a cage. Only way out is adding services that justify higher take but writers will resist that too.
 
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 3: WRITE THREE VERSIONS
-━━━━━━━━━━━━━━━━━━━━━━
+Netflix bought Seinfeld for $500M. Each episode cost more than an original series. Library content has fixed cost. Originals cost per viewer. When growth slows, catalog becomes cheaper. Signals Netflix expects subscriber growth to flatten. Strategy shifts with stage.
 
-Based on your adversarial thinking, write THREE structurally different versions:
+Shopify's merchant churn rose 8% but revenue per merchant rose 15%. Losing small sellers but keeping big ones. Small merchants churn on fees. Large merchants stay for infrastructure. Shopify is becoming B2B SaaS, not small business tool. Product market fit is drifting up.
 
-**VERSION 1: LEAD WITH THE SPECIFIC DETAIL**
-Start with the concrete evidence, then say what it means.
-Pattern: "[Specific detail]. [What this actually reveals]."
+Temu loses $4 per order. Takes 12 orders before shopping habits stick. That's $48 acquisition cost. Amazon's CAC is $8. Temu works only because Chinese suppliers fund losses at 3% rates. US companies pay 8%. Time is the edge.
+---
 
-Example: "AMUL's chairman is running Bharat Taxi. The co-op model is now being used to capture the gig economy." (Direct. Connects the detail to the implication without the formula."
+Write ONE insight under 220 characters. Use 1-2 key numbers maximum.
+If your output is longer than 220 characters, rewrite until it is under 220 characters (excluding quotes).
 
-**VERSION 2: LEAD WITH THE CONTRADICTION**
-Start with what people think, contrast with what's real.
-Pattern: "[Common assumption]. [Specific evidence that contradicts it]."
-
-Example: "Everyone thinks TikTok wants Gen Z. They just licensed The Beatles to convince CMOs their parents are here."
-
-**VERSION 3: LEAD WITH THE IMPLICATION**
-Start with what this means, then give the proof.
-Pattern: "[What's actually happening]. [Specific evidence]."
-
-Example: "AI funding is overwhelmingly paying for incremental improvements on a 2017-era architecture."
-
-<three_versions>
-Version 1 (detail-first): 
-Version 2 (contradiction-first): 
-Version 3 (implication-first): 
-</three_versions>
-
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 4: BANNED PATTERNS CHECK
-━━━━━━━━━━━━━━━━━━━━━━
-
-Check each version against these BANNED PATTERNS:
-
-**Banned structures:**
-❌ "They're not X, they're Y"
-❌ "This isn't X, it's Y"
-❌ "X isn't Y, it's Z"
-❌ "The real X is Y"
-❌ "Not X—just Y"
-❌ Starting with "How does..." or "What's more..."
-
-**Banned business jargon:**
-❌ ecosystem, paradigm, leverage, synergy, disrupt
-❌ unit economics, burn rate, runway, scaling
-❌ optimizing, pivoting, disrupting
-❌ stakeholders, verticals, touch points
-
-**Banned vague words:**
-❌ basically, essentially, actually, really, very
-❌ interesting, important, significant
-❌ innovative, revolutionary, game-changing
-
-**Specificity test:**
-Can you swap the company name and the tweet still works?
-- YES = too generic, must add the detail that makes it THIS story only
-- NO = good
-
-**LinkedIn test:**
-Would a business thought leader post this?
-- YES = delete it
-- NO = good
-
-<pattern_check>
-Version 1: [PASS/FAIL + reason if fail]
-Version 2: [PASS/FAIL + reason if fail]
-Version 3: [PASS/FAIL + reason if fail]
-
-Any version that fails: [rewrite it here]
-</pattern_check>
-
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 5: COMPRESS TO 260 CHARS
-━━━━━━━━━━━━━━━━━━━━━━
-
-Take the versions that passed. Compress each to under 260 characters:
-
-**Compression rules:**
-1. Delete setup sentences. Start with the punch.
-2. Remove all qualifiers and weak adjectives.
-3. One em-dash maximum. More = hedging.
-4. No semicolons. Use periods or cut.
-5. Keep the specific detail (the name/number/date that does the work).
-6. Read aloud. Would you say this? If no, rewrite.
-
-<compressed_versions>
-Version 1: [text] (XXX chars)
-Version 2: [text] (XXX chars)
-Version 3: [text] (XXX chars)
-</compressed_versions>
-
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 6: FINAL SELECTION
-━━━━━━━━━━━━━━━━━━━━━━
-
-Pick the version that best meets these criteria:
-
-✓ Contains the ONE specific detail that proves the claim
-✓ Makes a falsifiable claim someone could argue with
-✓ Challenges an assumption (not just describes events)
-✓ Would make someone go "wait, really?"
-✓ Doesn't follow banned patterns
-✓ Can't apply to other stories (specific to THIS one)
-✓ Under 260 characters
-✓ Written in plain language (no jargon)
-
-**The ultimate test:**
-Would you bet $100 on this claim being defensible?
-- If no, it's too vague or hedged. Pick another version.
-
-<final_selection>
-Chosen version: [1/2/3]
-Why this one wins: 
-Character count: 
-Passes bet test? [yes/no]
-</final_selection>
-
-━━━━━━━━━━━━━━━━━━━━━━
-STEP 7: OUTPUT
-━━━━━━━━━━━━━━━━━━━━━━
-
-Return ONLY valid JSON. No markdown, no code blocks, no text.
-
+---
+**ERROR HANDLING:**
+If the article is a listicle, roundup, or generic announcement with no single, analyzable business decision or logic (e.g., just "Company X launched Y" without costs, strategy, or numbers), you MUST return the following JSON error object and nothing else:
 {
-  "tweetText": "your final tweet",
+  "error": "No analyzable business logic found in the article.",
+  "reason": "Input lacks specific, falsifiable claims, numbers, or strategic decisions to analyze."
+}
+---
+---
+
+${
+  isImageFormat
+    ? `
+OUTPUT (IMAGE FORMAT):
+{
+  "tweetText": "Hook under 120 chars",
+  "imageContent": "Full insight. Exactly 220 characters.",
   "selectedHeadlineNumber": 1,
-  "character_count": 245,
-  "hashtags": [],
-  "reasoning": "What assumption this contradicts and what specific detail proves it"
+  "hashtags": []
+}`
+    : `
+OUTPUT (TEXT FORMAT):
+{
+  "tweetText": "Exactly 220 characters.",
+  "selectedHeadlineNumber": 1,
+  "hashtags": []
+}`
 }
 
-${timeMarker}
-${tokenMarker}
+Return only valid JSON.
+
+-[${timeMarker}-${tokenMarker}]
 `;
 
     return prompt;

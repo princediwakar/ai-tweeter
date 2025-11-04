@@ -56,3 +56,19 @@ export function formatOptimalTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   return formatForUserDisplay(dateObj) + ' IST';
 }
+
+
+/**
+ * Normalizes a URL to its canonical form for deduplication.
+ * Removes query parameters, hash fragments, and trailing slashes.
+ */
+export function normalizeUrl(url: string): string {
+  try {
+      const parsedUrl = new URL(url);
+      // Keep only protocol, host, and path
+      return `${parsedUrl.protocol}//${parsedUrl.host}${parsedUrl.pathname}`.replace(/\/$/, ''); // Remove trailing slash
+  } catch (e) {
+      // Fallback for invalid URLs: remove query string and hash
+      return url.split('?')[0].split('#')[0].replace(/\/$/, '');
+  }
+}

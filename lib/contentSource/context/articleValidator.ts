@@ -79,7 +79,7 @@ export interface ValidatableArticle {
         { pattern: /\bET Startup Awards\b/i, category: 'Event Coverage' },
     
         // === Leadership / Fluff (Still junk) ===
-        { pattern: /\bappoints\b/i, category: 'Leadership/Fluff' },
+        { pattern: /\bappoints\b/i, category: 'Leadership/Fluff' },
         { pattern: /\b(ceo|cfo|cto|coo)\s+resigns/i, category: 'Leadership/Fluff' },
         { pattern: /\b(named|names)\s+(ceo|cfo|cto|coo)/i, category: 'Leadership/Fluff' },
         { pattern: /\bjoins\s+board/i, category: 'Leadership/Fluff' },
@@ -87,7 +87,19 @@ export interface ValidatableArticle {
         { pattern: /\b(survey|report)\s+(finds|reveals|says)/i, category: 'Fluff/PR' },
         { pattern: /\banniversary/i, category: 'Fluff/PR' },
         { pattern: /\b(wins|awarded)\s+an\s+award/i, category: 'Fluff/PR' },
-        
+        // === NEW: Weekly summary junk ===
+        { pattern: /(updates|developments)\s+(of\s+the|this)\s+week/i, category: 'Fluff/PR' },
+        { pattern: /daily\s+roundup\b/i, category: 'Daily/Roundup' },
+        { pattern: /latest\s+news\b/i, category: 'Latest/News' },
+        { pattern: /other\s+news\b/i, category: 'Other/News' },
+        { pattern: /funding\s+news\b/i, category: 'Roundup' },
+        { pattern: /Startup\s+news\s+and\s+updates\b/i, category: 'Startup News' },
+        { pattern: /\bStartup news and updates\b/i, category: 'Startup News' },
+        { pattern: /\bdaily roundup\b/i, category: 'Daily Roundup' },
+        { pattern: /\bfunding news\b/i, category: 'Funding News' },
+        { pattern: /\bother news\b/i, category: 'Other News' },
+
+    
         // === VC Fund News (Still junk - about the VC, not the startup) ===
         { pattern: /\bvc\s+fund/i, category: 'VC Fund News' },
         { pattern: /\bfund\s+launches/i, category: 'VC Fund News' },
@@ -235,12 +247,12 @@ export interface ValidatableArticle {
               // Escape special chars for regex in the loop
               const escapedKey = key.replace(/[$]/g, '\\$').replace(/ /g, '\\s+');
               const regex = new RegExp(`\\b${escapedKey}\\b`, 'gi');
-               const matches = (content.match(regex) || []).length;
-               score += matches * value;
+              const matches = (content.match(regex) || []).length;
+              score += matches * value;
             }
     
             // Give a small boost to RSS sources as they are higher signal
-            if (article.sourceType === 'rss') {
+           if (article.sourceType === 'rss') {
               score += 1;
             }
             
@@ -258,7 +270,7 @@ export interface ValidatableArticle {
           .filter(a => a.score > 0)
           .sort((a, b) => b.score - a.score); // Sort by highest score
     
-       const rejectedArticles = scoredArticles.filter(a => a.score <= 0);
+        const rejectedArticles = scoredArticles.filter(a => a.score <= 0);
     
         // --- Aggregated Logging Block ---
         if (rejectedArticles.length > 0) {
@@ -268,7 +280,7 @@ export interface ValidatableArticle {
           const rejectionExamples = new Map<string, string[]>(); // Map to hold examples
     
           for (const article of rejectedArticles) {
-            const reason = article.rejectionReason || 'Unknown Reason';
+           const reason = article.rejectionReason || 'Unknown Reason';
             const count = rejectionCounts.get(reason) || 0;
             rejectionCounts.set(reason, count + 1);
     
@@ -285,7 +297,7 @@ export interface ValidatableArticle {
     
           for (const [reason, count] of sortedReasons) {
             console.log(`  - [${count}x] ${reason}`);
-            // Log the examples
+             // Log the examples
             const examples = rejectionExamples.get(reason) || [];
             for (const headline of examples) {
               console.log(`     L Example: "${headline}"`);
@@ -294,7 +306,7 @@ export interface ValidatableArticle {
         }
         // --- End Logging Block ---
     
-        console.log(`[ArticleValidator] 🛡️ Validated ${articles.length} headlines. Found ${validArticles.length} valid candidates.`);
+       console.log(`[ArticleValidator] 🛡️ Validated ${articles.length} headlines. Found ${validArticles.length} valid candidates.`);
         
         if (validArticles.length > 0) {
           console.log(`[ArticleValidator] 🏆 Top candidate: "${validArticles[0].headline}" (Score: ${validArticles[0].score})`);

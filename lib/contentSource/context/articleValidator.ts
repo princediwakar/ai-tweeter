@@ -76,6 +76,7 @@ export interface ValidatableArticle {
         { pattern: /\bTechSparks\b/i, category: 'Event Coverage' },
         { pattern: /\bTiEcon\b/i, category: 'Event Coverage' },
         { pattern: /\bGCC Summit\b/i, category: 'Event Coverage' },
+        { pattern: /\bET Startup Awards\b/i, category: 'Event Coverage' },
     
         // === Leadership / Fluff (Still junk) ===
         { pattern: /\bappoints\b/i, category: 'Leadership/Fluff' },

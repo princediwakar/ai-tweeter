@@ -62,7 +62,7 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
         "New", "Key", "Big", "Major", "Their", "They", "Its", "Has", "Had","Indian",
         "VC", "Fund", "Startup", "Company", "Platform", "App", "Tech", "Technology", 
         "AI", "India", "Global", "CAC", "LTV", "DAU", "Active", "Users","People",
-        "early", "impossible", "historical", "Payment", "Established", "Technical", "Market", "Unit",
+        "early", "impossible", "historical", "Payment", "Established", "Technical", "Market", "Unit", "Bharat", "India",
         // Add common English words if needed
         "a", "an", "the", "in", "on", "at", "to", "for", "of" 
     ]);

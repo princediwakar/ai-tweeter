@@ -64,10 +64,10 @@ const PERSONA_CONFIG = {
     deduplicationDays: 5,
     feeds: {
       business: [
-      // 'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
       'https://inc42.com/buzz/feed/',
       'https://yourstory.com/feed',
-      // 'https://www.tubefilter.com/feed/',      
+      'https://www.tubefilter.com/feed/',      
       // 'https://ehandbook.com/rss'
       // 'https://www.techcircle.in/rss/technology/',
       // 'https://www.livemint.com/rss/technology',

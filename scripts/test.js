@@ -12,7 +12,7 @@
  *   node scripts/test.js --account gibbi    # Generate for @gibbi_ai only
  *   node scripts/test.js --account prince   # Generate for @princediwakar25 only
  *   node scripts/test.js --type thread      # Generate threads only
- *   node scripts/test.js --type tweet    # Generate single tweets only
+ *   node scripts/test.js --type single_tweet    # Generate single tweets only
  *   node scripts/test.js --count 5          # Generate 5 pieces of content
  */
 
@@ -57,7 +57,8 @@ function parseArgs() {
   const options = {
     account: null,
     type: null,
-    count: 1
+    count: 1,
+    all: false
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -73,6 +74,9 @@ function parseArgs() {
       case '--count':
         options.count = parseInt(args[i + 1]) || 1;
         i++;
+        break;
+      case '--all':
+        options.all = true;
         break;
       case '--help':
       case '-h':
@@ -96,6 +100,8 @@ OPTIONS:
   --account <gibbi|prince>    Generate for specific account only
   --type <thread|single_tweet>       Generate specific content type only
   --count <number>            Number of content pieces to generate (default: 1)
+
+  --all                       Test all account/type/persona combinations
   --help, -h                  Show this help message
 
 EXAMPLES:
@@ -103,7 +109,9 @@ EXAMPLES:
   node scripts/test.js --account gibbi        # @gibbi_ai only
   node scripts/test.js --account prince       # @princediwakar25 only
   node scripts/test.js --type thread          # Threads only
+
   node scripts/test.js --count 3              # Generate 3 pieces
+  node scripts/test.js --all                  # Test all combinations
 
 ACCOUNTS:
   gibbi  → @gibbi_ai (English vocab + images)
@@ -315,19 +323,53 @@ async function main() {
 
     const results = [];
 
-    for (let i = 0; i < options.count; i++) {
-      if (options.count > 1) {
-        console.log(`\n--- Generation ${i + 1}/${options.count} ---`);
+    if (options.all) {
+      console.log('🚀 Running comprehensive test of ALL combinations...');
+      
+      const scenarios = [
+        { account: 'gibbi', type: 'single_tweet', persona: 'english_vocab_builder' },
+        { account: 'prince', type: 'single_tweet', persona: 'satirist' },
+        { account: 'prince', type: 'single_tweet', persona: 'pattern_spotter' },
+        { account: 'prince', type: 'thread', persona: 'business_storyteller' },
+        { account: 'prince', type: 'thread', persona: 'cricket_storyteller' }
+      ];
+
+      for (let i = 0; i < scenarios.length; i++) {
+        const scenario = scenarios[i];
+        console.log(`\n--- Scenario ${i + 1}/${scenarios.length} ---`);
+        
+        // Mock the selection object
+        const selection = {
+          account: scenario.account,
+          accountConfig: CONFIG.accounts[scenario.account],
+          contentType: scenario.type,
+          persona: scenario.persona
+        };
+
+        const result = await generateContent(selection);
+        results.push(result);
+
+        if (i < scenarios.length - 1) {
+          console.log('\n⏳ Waiting 2 seconds before next generation...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
 
-      const selection = selectRandomGeneration(options);
-      const result = await generateContent(selection);
-      results.push(result);
+    } else {
+      for (let i = 0; i < options.count; i++) {
+        if (options.count > 1) {
+          console.log(`\n--- Generation ${i + 1}/${options.count} ---`);
+        }
 
-      // Add delay between requests to avoid rate limiting
-      if (i < options.count - 1) {
-        console.log('\n⏳ Waiting 2 seconds before next generation...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        const selection = selectRandomGeneration(options);
+        const result = await generateContent(selection);
+        results.push(result);
+
+        // Add delay between requests to avoid rate limiting
+        if (i < options.count - 1) {
+          console.log('\n⏳ Waiting 2 seconds before next generation...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
       }
     }
 

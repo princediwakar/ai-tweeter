@@ -1,8 +1,8 @@
 // Adversarial Contradiction
 // lib/generation/personas/patternSpotter.ts
 import { TweetGenerationConfig } from "@/lib/types";
-import { BasePersonaGenerator } from "./base";
-import { GenerationContext } from "../types";
+import { BasePersonaGenerator } from "../base";
+import { GenerationContext } from "../../types";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(

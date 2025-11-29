@@ -1,8 +1,8 @@
 // lib/generation/personas/patternSpotter.ts
 // PatternSpotter prompt — balance of simplicity, variety, and decision-level intelligence
 
-import { BasePersonaGenerator } from "./base";
-import type { TweetGenerationConfig, GenerationContext } from "../types";
+import { BasePersonaGenerator } from "../base";
+import type { TweetGenerationConfig, GenerationContext } from "../../types";
 
 export class PatternSpotterGenerator extends BasePersonaGenerator {
   generatePrompt(

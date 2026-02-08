@@ -26,10 +26,22 @@ import {
   getRecentVocabularyWords,
 } from "./db";
 
-const deepseekClient = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com",
-});
+// Lazy initialization of the client
+let deepseekClientInstance: OpenAI | null = null;
+
+function getDeepseekClient(): OpenAI {
+  if (!deepseekClientInstance) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY is not defined in environment variables");
+    }
+    deepseekClientInstance = new OpenAI({
+      apiKey,
+      baseURL: "https://api.deepseek.com",
+    });
+  }
+  return deepseekClientInstance;
+}
 
 // --- MODIFIED ---
 // generateTweetPrompt function has been moved to lib/generationProcessing.ts
@@ -88,7 +100,7 @@ export async function generateTweet(
       }
     }
 
-    const response = await deepseekClient.chat.completions.create({
+    const response = await getDeepseekClient().chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,
@@ -334,7 +346,7 @@ export async function generateEngagementReply(
     console.log(
       `[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${engagementPersona.displayName}`
     );
-    const response = await deepseekClient.chat.completions.create({
+    const response = await getDeepseekClient().chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,

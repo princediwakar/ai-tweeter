@@ -1,5 +1,4 @@
 // lib/personas.ts
-import { accountService } from './accountService';
 
 // Represents a topic/subcategory in the persona hierarchy
 export interface PersonaTopic {
@@ -103,24 +102,8 @@ export function getAllowedPersonasForHandle(twitterHandle: string): string[] {
   return ACCOUNT_PERSONA_MAPPING[cleanHandle] || [];
 }
 
-export async function getAllowedPersonasForAccount(accountId: string): Promise<string[]> {
-  try {
-    const account = await accountService.getAccount(accountId);
-    if (!account) return [];
-    return getAllowedPersonasForHandle(account.twitter_handle);
-  } catch (error) {
-    console.error(`Failed to get account for ID ${accountId}:`, error);
-    return [];
-  }
-}
-
 export function isPersonaAllowedForHandle(personaKey: string, twitterHandle: string): boolean {
   const allowedPersonas = getAllowedPersonasForHandle(twitterHandle);
-  return allowedPersonas.includes(personaKey);
-}
-
-export async function isPersonaAllowedForAccount(personaKey: string, accountId: string): Promise<boolean> {
-  const allowedPersonas = await getAllowedPersonasForAccount(accountId);
   return allowedPersonas.includes(personaKey);
 }
 
@@ -138,12 +121,6 @@ export function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: s
   const persona = getPersonaByKey(randomKey);
   if (!persona) throw new Error(`Persona not found: ${randomKey}`);
   return persona;
-}
-
-export async function getRandomPersonaForAccount(accountId: string, personaKeys?: string[]): Promise<PersonaConfig> {
-  const account = await accountService.getAccount(accountId);
-  if (!account) throw new Error(`Account not found: ${accountId}`);
-  return getRandomPersonaForHandle(account.twitter_handle, personaKeys);
 }
 
 export function getAllPersonas(): PersonaConfig[] {

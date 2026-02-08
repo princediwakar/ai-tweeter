@@ -10,10 +10,22 @@ import type { GenerationContext, TweetGenerationConfig } from './generation/type
 import { GENERATION_CONFIG } from './generation/config';
 
 
-const deepseekClient = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com',
-});
+// Lazy initialization of the client
+let deepseekClientInstance: OpenAI | null = null;
+
+function getDeepseekClient(): OpenAI {
+  if (!deepseekClientInstance) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY is not defined in environment variables");
+    }
+    deepseekClientInstance = new OpenAI({
+      apiKey,
+      baseURL: "https://api.deepseek.com",
+    });
+  }
+  return deepseekClientInstance;
+}
 
 // --- TYPE DEFINITIONS ---
 
@@ -90,7 +102,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     logger.info(`[Thread:${callId}] Sending thread generation request to DeepSeek (prompt length: ${prompt.length} chars)`, 'thread-llm-call');
     
     const llmCallStart = performance.now();
-    const stream = await deepseekClient.chat.completions.create({
+    const stream = await getDeepseekClient().chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,

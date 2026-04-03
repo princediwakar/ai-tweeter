@@ -7,7 +7,7 @@
 2.  **Persona-Driven Content:** Content generation is tied to specific personas defined in `lib/personas.ts`. Output must match the persona's tone, style, and structure.
 3.  **Guarantee Variety:** Use topic shuffling and variation markers to ensure unique content in batches and across time.
 
-**Tech Stack:** Next.js 15 (App Router), TypeScript, Neon DB, Twitter API v2, DeepSeek API
+**Tech Stack:** Next.js 16 (App Router, Turbopack), TypeScript, Neon DB, Twitter API v2, DeepSeek API, LinkedIn API
 
 ---
 
@@ -30,7 +30,8 @@
 **Core Services:**
 * `lib/personas.ts` - Persona definitions with account mapping:
   - `gibbi_ai` → English Vocab Builder
-  - `princediwakar25` → **Pattern Spotter (active)**, Satirist (paused), Business/Cricket Storytellers
+  - `princediwakar25` → **Pattern Spotter (active)**, Satirist (paused), Business/Cricket Storytellers, **LinkedIn Analyst**
+  - LinkedIn has separate `linkedinAnalyst` persona with article enrichment pipeline
 * `lib/schedule.ts` - Generation & posting schedules (IST-based, timezone-aware)
 * `lib/db.ts` - Database layer (accounts, tweets, threads)
 * `lib/types.ts` - TypeScript interfaces (Account, Tweet, Thread, VocabularyCard)
@@ -42,12 +43,14 @@
   - `personas/patternSpotter/laneSelector.ts` - Lane rotation logic to avoid repetition
   - `personas/englishVocabBuilder.ts` - Educational vocab content (Gibbi account)
   - `personas/satirist.ts` - Data-driven satirical analysis (paused, may return as weekly feature)
+  - `personas/linkedinAnalyst.ts` - LinkedIn-specific persona with 600-2500 char articles, article enrichment
   - `personas/businessStoryteller.ts` - Indian business narratives (threads, inactive)
   - `personas/cricketStoryteller.ts` - Cricket human stories (threads, inactive)
   - `articleEnricher.ts` - Two-step article enrichment (used by Satirist when active)
 * `lib/contentSource/` - **Per-account context fetching** (not group search)
   - `context/patternSpotter.ts` - Fetches 20 headlines from RSS + filters financial noise + deduplicates by source URL
   - `context/satirist.ts` - Fetches + enriches articles with full text + Twitter handles
+  - `context/linkedinAnalyst.ts` - LinkedIn-specific context with article enrichment and entity deduplication
   - `fetchers/` - RSS, Reddit, Twitter content fetchers
   - `formatters/` - Persona-specific context formatting
 * `lib/generationService.ts` - Main AI orchestration
@@ -58,7 +61,8 @@
 * `lib/twitter.ts` - Twitter API integration
 * `lib/instantThreadService.ts` - Thread posting with 5min intervals
 * `app/api/generate/route.ts` - Content generation endpoint
-* `app/api/auto-post/route.ts` - Automated posting endpoint
+* `app/api/auto-post/route.ts` - Automated Twitter posting endpoint
+* `app/api/auto-post-linkedin/route.ts` - Separate LinkedIn posting endpoint with OAuth token refresh
 
 **Engagement System (Multi-Account):**
 * `lib/engagement/personas.ts` - Engagement AI personas:
@@ -74,7 +78,7 @@
 
 **Database Schema (Neon):**
 * `accounts` - Multi-account credentials, personas, branding
-* `tweets` - Content with threading support (thread_id, sequence, parent, source_url)
+* `tweets` - Content with threading support (thread_id, sequence, parent, source_url, linkedin_id for cross-posting)
 * `threads` - Thread metadata (status, progress tracking)
 * `engagement_log` - Engagement history with rate limiting (account_id, target, reply)
 * **Full schema:** `docs/DATABASE_SCHEMA.md` | **Project ID:** `round-sun-88150229`
@@ -121,6 +125,28 @@ The satirist persona uses a sophisticated two-step enrichment process (more API-
 
 **Reason for Pause:** Enrichment pipeline has more failure points (paywalls, JS-heavy sites, timeouts) and uses more API calls. Pattern Spotter is more reliable for consistent 5x/week output.
 
+### 🔗 LinkedIn-Twitter Separation Architecture
+
+**LinkedIn-Specific Components:**
+- **Persona**: `linkedinAnalyst` with 600-2500 character articles, conversational tone, no hashtags
+- **Content Pipeline**: Article enrichment similar to Satirist (fetches full articles, extracts entities)
+- **Posting Endpoint**: Separate `/api/auto-post-linkedin` with OAuth token refresh
+- **Scheduling**: Independent schedule checking functions (`getScheduledPersonasForLinkedInPosting`)
+- **Database Tracking**: `linkedin_id` field in tweets table, cross-posting status management
+- **OAuth Flow**: LinkedIn OAuth 2.0 implementation (hardcoded to @princediwakar25, needs generalization)
+
+**Separation Points:**
+1. **Generation**: LinkedIn uses separate persona class and context builder
+2. **Posting**: Independent API endpoint with LinkedIn-specific formatting (removes @ symbols)
+3. **Scheduling**: Different schedule for LinkedIn (8x/week vs Twitter's 5x/week)
+4. **Content Rules**: Different character limits, formatting, and style guidelines
+5. **Error Handling**: LinkedIn errors don't affect Twitter posting and vice versa
+
+**Cross-Posting Logic:**
+- Tweets can be Twitter-only, LinkedIn-only, or cross-posted
+- Status updates to `posted` only when both `twitter_id` AND `linkedin_id` exist
+- Content adaptation: removes @ symbols for LinkedIn, handles hashtags differently
+
 ## Key Constraints
 
 * **API Separation:** `/api/generate` creates content → DB. `/api/auto-post` reads DB → Twitter. Don't mix.
@@ -149,7 +175,7 @@ The satirist persona uses a sophisticated two-step enrichment process (more API-
 **Engagement 7x/day (IST):**
 - 9am, 10am, 11am, 1pm, 7pm, 8pm, 9pm
 
-**LinkedIn Posting:** 8x/week (mornings + afternoons, Pattern Spotter + Satirist mix)
+**LinkedIn Posting:** 8x/week (mornings + afternoons, LinkedIn Analyst persona with article enrichment)
 
 ### 🤝 Multi-Account Engagement System
 

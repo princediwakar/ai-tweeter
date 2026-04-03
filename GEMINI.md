@@ -1,20 +1,20 @@
-# Multi-Account AI Twitter Bot with Threading System 🚀
+# Multi-Account AI Twitter & LinkedIn Bot with Threading System 🚀
 
-**⚡ PRODUCTION-READY** - A scalable Next.js application that supports unlimited Twitter accounts with AI-powered content generation, featuring account isolation, custom personas, automated posting, and a complete threading system for engaging storytelling.
+**⚡ PRODUCTION-READY** - A scalable Next.js application that supports unlimited Twitter and LinkedIn accounts with AI-powered content generation, featuring account isolation, custom personas, automated posting, and a complete threading system for engaging storytelling.
 
-> **🎯 MISSION**: Production-grade multi-account Twitter automation system supporting educational content (@gibbi_ai), personal branding with deep storytelling (@princediwakar25), and unlimited additional accounts with complete data isolation and custom configurations.
+> **🎯 MISSION**: Production-grade multi-account Twitter and LinkedIn automation system supporting educational content (@gibbi_ai), personal branding with deep storytelling (@princediwakar25), and unlimited additional accounts with complete data isolation and custom configurations.
 
 ## Project Overview
 
-This is an AI-powered multi-account Twitter automation system built with Next.js 15, TypeScript, and Tailwind CSS. The app supports unlimited Twitter accounts with complete isolation, custom AI personas, configurable posting schedules, and account-specific content strategies. A key feature is the advanced threading system that allows for creating and posting tweet threads with proper reply-chain management, enabling rich narrative content.
+This is an AI-powered multi-account Twitter and LinkedIn automation system built with Next.js 16, TypeScript, and Tailwind CSS. The app supports unlimited Twitter accounts with complete isolation, custom AI personas, configurable posting schedules, and account-specific content strategies. A key feature is the advanced threading system that allows for creating and posting tweet threads with proper reply-chain management, enabling rich narrative content.
 
 ## Tech Stack
 
-  - **Framework**: Next.js 15 (App Router)
+  - **Framework**: Next.js 16 (App Router, Turbopack)
   - **Language**: TypeScript 
   - **Styling**: Tailwind CSS + shadcn/ui components
   - **AI**: OpenAI API (configurable to use DeepSeek)
-  - **Social Media**: Twitter API v2 with OAuth 1.0a
+  - **Social Media**: Twitter API v2 with OAuth 1.0a, LinkedIn API with OAuth 2.0
   - **Scheduling**: External cron service for automated posting (5-minute frequency)
   - **Data Storage**: Neon PostgreSQL database
   - **Multi-Account**: Account isolation with encrypted credential storage
@@ -29,6 +29,7 @@ This is an AI-powered multi-account Twitter automation system built with Next.js
   - **Custom Personas**: Each account can have its own set of AI personas with unique characteristics.
   - **Isolated Data**: Complete separation of tweets, threads, schedules, and configurations per account.
   - **Individual Rate Limiting**: Per-account posting limits and error handling.
+  - **LinkedIn-Twitter Separation**: Independent generation pipelines, posting endpoints, and scheduling for each platform.
 
 ### 🧵 Complete Threading System
 
@@ -46,20 +47,21 @@ This is an AI-powered multi-account Twitter automation system built with Next.js
   - **Personal Account (@princediwakar25)**:
       - **Business Storyteller** 📈: Creates compelling threads about Indian business stories.
       - **Satirist** 😏: Posts single tweets with humor and satire about startup/business culture.
+      - **LinkedIn Analyst** 🔗: Posts 600-2500 character articles on LinkedIn with article enrichment.
   - **Extensible Design**: Easy addition of new personas and account types.
 
 ### ⚡ AI Content Generation Engine
 
   - **Account-Specific Generation**: Custom prompts and styles per account.
   - **Dynamic Hashtag Systems**: Account-specific hashtag strategies.
-  - **Content Type Variety**: Threads, single tweets, educational, professional, and satirical content.
+  - **Content Type Variety**: Threads, single tweets, educational, professional, satirical content, and LinkedIn articles.
   - **Quality Scoring**: AI-powered content quality assessment.
   - **Template-Based Prompts**: Configurable prompt templates per persona.
 
 ### 🕒 Advanced Scheduling & Automation
 
   - **Multi-Account Processing**: Simultaneous handling of all active accounts.
-  - **Custom Schedules**: Account-specific posting times and frequencies.
+  - **Custom Schedules**: Account-specific posting times and frequencies, with separate LinkedIn scheduling (8x/week).
   - **Smart Distribution**: Intelligent persona rotation and content variety.
   - **Error Recovery**: Individual account failure handling without affecting others.
   - **Account Health Checks**: Automated credential validation and account status monitoring.

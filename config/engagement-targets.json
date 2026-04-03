@@ -53,7 +53,7 @@
       "min_hours_between_same_target": 1
     }
   },
-  "@gandhi_wisdom_": {
+  "@IndusValleyAI": {
     "priority_targets": [
       {
         "username": "@princediwakar25",
@@ -106,7 +106,7 @@
         "tier": 2
       }
     ],
-    "engagement_persona": "gandhi",
+    "engagement_persona": "indusValley",
     "rules": {
       "max_engagements_per_day": 3,
       "min_hours_between_same_target": 1

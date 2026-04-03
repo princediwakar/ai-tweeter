@@ -113,10 +113,11 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
 
     // --- STEP 7: Enrich the Top Valid Candidates ---
     // Take the best candidates identified by the validator for enrichment
-    const headlinesToEnrich = validCandidates.slice(0, headlinesInPrompt);
+    // Try to enrich more than we need (up to 4) because some enrichments might fail
+    const headlinesToTryEnriching = validCandidates.slice(0, Math.max(headlinesInPrompt, 4));
     
-    const rssToEnrich = headlinesToEnrich.filter(h => h.sourceType === 'rss') as HeadlineWithSource[];
-    const lightweightHeadlines = headlinesToEnrich.filter(h => h.sourceType !== 'rss');
+    const rssToEnrich = headlinesToTryEnriching.filter(h => h.sourceType === 'rss') as HeadlineWithSource[];
+    const lightweightHeadlines = headlinesToTryEnriching.filter(h => h.sourceType !== 'rss');
 
     let successfulEnrichedArticles: EnrichedArticle[] = [];
     if (rssToEnrich.length > 0) {
@@ -146,7 +147,11 @@ export async function getPatternSpotterContext(accountId?: string): Promise<Patt
     } as EnrichedArticle)); // Cast necessary for consistent type
 
     // Combine: Prioritize enriched RSS, append lightweight
-    const finalArticlesForPrompt = [...successfulEnrichedArticles, ...lightweightArticles];
+    let finalArticlesForPrompt = [...successfulEnrichedArticles, ...lightweightArticles];
+    
+    // Slice to exactly the amount we want to send to the prompt
+    finalArticlesForPrompt = finalArticlesForPrompt.slice(0, headlinesInPrompt);
+    
     if (finalArticlesForPrompt.length === 0) {
       console.error('[Context] ❌ No viable articles after enrichment/lightweight processing.');
       return null;

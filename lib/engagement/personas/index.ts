@@ -1,13 +1,13 @@
 // lib/engagement/personas/index.ts
 
 import { EngagementPersonaPrompt } from './types';
-import { gandhi } from './gandhi';
+import { indusValley } from './indus_valley';
 import { theCatalyst } from './the_catalyst';
 
 // Registry of all available engagement personas
 export const ENGAGEMENT_PERSONAS: Record<string, EngagementPersonaPrompt> = {
   the_catalyst: theCatalyst,
-  gandhi: gandhi,
+  indusValley: indusValley,
 };
 
 /**

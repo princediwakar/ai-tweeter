@@ -33,6 +33,10 @@ const CONFIG = {
     prince: {
       handle: '@princediwakar25', 
       description: 'Business Thought Leader Engagement'
+    },
+    indusvalley: {
+      handle: '@IndusValleyAI',
+      description: 'Indus Valley Context AI Engagement'
     }
   }
 };
@@ -80,7 +84,7 @@ USAGE:
   node scripts/test-engagement.js [options]
 
 OPTIONS:
-  --account <prince>    Test a specific account (default: prince)
+  --account <prince|indusvalley>    Test a specific account (default: prince)
   --count <number>      Number of times to run the check (default: 1)
   --debug               Bypass the schedule check for immediate testing
   --help, -h            Show this help message

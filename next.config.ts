@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
     serverComponentsExternalPackages: ['xml2js'],
   },
   
+  // Set the Turbopack root to help Next.js find the correct workspace root
+  turbopack: {
+    root: './',
+  },
+  
   // Environment variables that should be available on the client side
   env: {
     NODE_ENV: process.env.NODE_ENV || 'development',
@@ -38,8 +43,5 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   
-  // ESLint configuration
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
+  // ESLint is now handled via standard CLI, so the 'eslint' block is removed.
 };

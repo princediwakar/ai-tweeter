@@ -89,7 +89,7 @@ export async function generateTweet(
     let actualHeadlineCount: number | undefined;
     if (rssContext) {
       // ✨ MODIFIED: Both personas now use the same "### ARTICLE" format
-      if (persona.key === "satirist" || persona.key === "pattern_spotter") {
+      if (persona.key === "satirist" || persona.key === "pattern_spotter" || persona.key === "linkedin_analyst") {
         const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
         actualHeadlineCount = headlineMatches
           ? headlineMatches.length
@@ -205,7 +205,7 @@ export async function generateBatchTweets(
   // ✨ MODIFIED: Check for both personas
   if (
     config.account_id &&
-    (config.persona === "pattern_spotter" || config.persona === "satirist")
+    (config.persona === "pattern_spotter" || config.persona === "satirist" || config.persona === "linkedin_analyst")
   ) {
     let recentData;
     if (config.persona === "pattern_spotter") {
@@ -247,13 +247,10 @@ export async function generateBatchTweets(
     if (result) {
       tweets.push(result);
 
-      // Track vocab words
       if (
         result.persona === "english_vocab_builder" &&
         result.cardData &&
-        result.cardData.type !== "satirist_insight" &&
-        result.cardData.type !== "pattern_spotter_insight" &&
-        result.cardData.word
+        "word" in result.cardData
       ) {
         const newWord = result.cardData.word.toLowerCase();
         generatedWords.push(newWord);
@@ -262,7 +259,8 @@ export async function generateBatchTweets(
       // Track headline numbers (for satirist AND pattern_spotter)
       if (
         (result.persona === "satirist" ||
-          result.persona === "pattern_spotter") &&
+          result.persona === "pattern_spotter" ||
+          result.persona === "linkedin_analyst") &&
         result.selectedHeadlineNumber
       ) {
         usedHeadlines.push(result.selectedHeadlineNumber);

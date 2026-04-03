@@ -4,6 +4,7 @@ import { SatiristGenerator } from './satirist';
 import { BusinessStorytellerGenerator } from './businessStoryteller';
 import { CricketStorytellerGenerator } from './cricketStoryteller';
 import { PatternSpotterGenerator } from './patternSpotter';
+import { LinkedinAnalystGenerator } from './linkedinAnalyst';
 import type { PersonaGenerator } from './base';
 
 export const PERSONA_GENERATORS: Record<string, PersonaGenerator> = {
@@ -11,7 +12,8 @@ export const PERSONA_GENERATORS: Record<string, PersonaGenerator> = {
   'satirist': new SatiristGenerator(),
   'business_storyteller': new BusinessStorytellerGenerator(),
   'cricket_storyteller': new CricketStorytellerGenerator(),
-  'pattern_spotter': new PatternSpotterGenerator()
+  'pattern_spotter': new PatternSpotterGenerator(),
+  'linkedin_analyst': new LinkedinAnalystGenerator()
 };
 
 export function getPersonaGenerator(personaKey: string): PersonaGenerator | undefined {
@@ -24,3 +26,4 @@ export * from './satirist';
 export * from './businessStoryteller';
 export * from './cricketStoryteller';
 export * from './patternSpotter';
+export * from './linkedinAnalyst';

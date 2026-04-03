@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
 
         // In debug mode, provide default persona if none scheduled
         if (debugMode && scheduledPersonas.length === 0) {
-          scheduledPersonas = ['satirist', 'pattern_spotter'];
-          logger.info(`🔍 [LinkedIn] Debug mode: Using default persona 'satirist' or 'pattern_spotter' for ${account.name}`, 'auto-post-linkedin');
+          scheduledPersonas = ['linkedin_analyst'];
+          logger.info(`🔍 [LinkedIn] Debug mode: Using default persona 'linkedin_analyst' for ${account.name}`, 'auto-post-linkedin');
         }
 
         if (scheduledPersonas.length === 0) {
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           ORDER BY created_at ASC
         `;
 
-        // Filter by scheduled personas (satirist, pattern_spotter)
+        // Filter by scheduled personas (linkedin_analyst, satirist, pattern_spotter)
         const eligibleTweets = result.rows.filter(tweet =>
           scheduledPersonas.includes(tweet.persona)
         );
@@ -165,11 +165,15 @@ export async function GET(request: NextRequest) {
           );
 
           // Update tweet with LinkedIn ID
+          // For linkedin_analyst persona, mark as 'posted' since these are LinkedIn-only
+          // For other personas (cross-posted from Twitter), only mark 'posted' if already on Twitter
           await sql`
             UPDATE tweets
             SET
               linkedin_id = ${linkedinResult.id},
+              posted_at = COALESCE(posted_at, NOW()),
               status = CASE
+                WHEN persona = 'linkedin_analyst' THEN 'posted'
                 WHEN twitter_id IS NOT NULL THEN 'posted'
                 ELSE status
               END

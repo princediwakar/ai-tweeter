@@ -103,6 +103,15 @@ export interface EnglishVocabBuilderContext {
   topic: string;
 }
 
+export interface LinkedinAnalystContext {
+  articles: EnrichedArticle[];
+  sourceMetadata: SourceMetadata[];
+  articlesJson?: string;
+  headlinesInPrompt: number;
+  recentContent?: string[];
+  usedSourceUrls?: string[];
+}
+
 /**
  * Union type for all persona contexts
  */
@@ -111,7 +120,8 @@ export type PersonaContext =
   | PatternSpotterContext
   | BusinessStorytellerContext
   | CricketStorytellerContext
-  | EnglishVocabBuilderContext;
+  | EnglishVocabBuilderContext
+  | LinkedinAnalystContext;
 
 // ─────────────────────────────────────────────
 // 🔧 Cache & Utilities

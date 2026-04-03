@@ -10,7 +10,8 @@ import {
   getPatternSpotterContext,
   getBusinessStorytellerContext,
   getCricketStorytellerContext,
-  getEnglishVocabBuilderContext
+  getEnglishVocabBuilderContext,
+  getLinkedinAnalystContext
 } from './context';
 import { formatPersonaContext } from './formatters';
 import type { PersonaContext } from './types';
@@ -44,6 +45,9 @@ async function getStructuredContext(
 
     case 'english_vocab_builder':
       return getEnglishVocabBuilderContext(topic);
+
+    case 'linkedin_analyst':
+      return getLinkedinAnalystContext(accountId);
 
     default:
       console.log(`[Content Source] ⚠️ No handler found for persona: ${persona}`);
@@ -85,6 +89,7 @@ export type {
   BusinessStorytellerContext,
   CricketStorytellerContext,
   EnglishVocabBuilderContext,
+  LinkedinAnalystContext,
   PersonaContext
 } from './types';
 

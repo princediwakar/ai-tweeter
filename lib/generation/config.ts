@@ -111,6 +111,26 @@ const PERSONA_CONFIG = {
       'https://sports.ndtv.com/rss/cricket',
     ],
   },
+  linkedinAnalyst: {
+    headlinesToAnalyze: 10,
+    headlinesInPrompt: 3,
+    tweetTextCharLimit: 2500, // LinkedIn allows up to 3000 chars
+    idealCharRange: { min: 800, max: 2000 }, // Long-form mini-case study
+    imageProbability: 0.1, // Adjust as needed
+    imageFormatTweetTextLimit: 120,
+    imageContentCharLimit: 240,
+    deduplicationDays: 7,
+    batchSize: 1,
+    feeds: {
+      business: [
+        'https://inc42.com/buzz/feed/',
+        'https://yourstory.com/feed',
+        'https://economictimes.indiatimes.com/tech/startups/rssfeeds/13357270.cms',
+      ],
+      reddit: [],
+      twitter: [],
+    },
+  },
 };
 
 

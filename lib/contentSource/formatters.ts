@@ -10,6 +10,7 @@ import type {
   BusinessStorytellerContext,
   CricketStorytellerContext,
   EnglishVocabBuilderContext,
+  LinkedinAnalystContext,
   PersonaContext
 } from './types';
 
@@ -32,6 +33,13 @@ export function formatSatiristContext(ctx: SatiristContext): string {
 export function formatPatternSpotterContext(ctx: PatternSpotterContext): string {
   // The articlesJson field is now pre-formatted in getPatternSpotterContext
   // to include the "### ARTICLE <n>" wrappers. We just return it.
+  return ctx.articlesJson || '';
+}
+
+/**
+ * Formats Linkedin Analyst context into a prompt string
+ */
+export function formatLinkedinAnalystContext(ctx: LinkedinAnalystContext): string {
   return ctx.articlesJson || '';
 }
 
@@ -135,6 +143,8 @@ export function formatPersonaContext(persona: string, ctx: PersonaContext): stri
       return formatCricketStorytellerContext(ctx as CricketStorytellerContext);
     case 'english_vocab_builder':
       return formatEnglishVocabBuilderContext(ctx as EnglishVocabBuilderContext);
+    case 'linkedin_analyst':
+      return formatLinkedinAnalystContext(ctx as LinkedinAnalystContext);
     default:
       return '';
   }

@@ -4,6 +4,7 @@ import {
   PERSONAS, 
   getAllowedPersonasForHandle, 
   getPersonaByKey, 
+  getRandomPersonaForHandle,
   PersonaConfig 
 } from './personas';
 

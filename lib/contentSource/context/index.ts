@@ -8,3 +8,4 @@ export { getPatternSpotterContext } from './patternSpotter';
 export { getBusinessStorytellerContext } from './businessStoryteller';
 export { getCricketStorytellerContext } from './cricketStoryteller';
 export { getEnglishVocabBuilderContext } from './englishVocabBuilder';
+export { getLinkedinAnalystContext } from './linkedinAnalyst';

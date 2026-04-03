@@ -69,6 +69,16 @@ export const PATTERN_SPOTTER: PersonaConfig = {
   },
 };
 
+export const LINKEDIN_ANALYST: PersonaConfig = {
+  key: 'linkedin_analyst',
+  displayName: 'LinkedIn Analyst 📊',
+  description: 'Creates meaningful, long-form content on AI, products, startups, data, trends, and mini-case studies specifically for LinkedIn.',
+  content_types: ['single_tweet'],
+  image_generation: {
+    enabled: true
+  },
+};
+
 
 export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better type safety
   SATIRIST,
@@ -76,6 +86,7 @@ export const PERSONAS: readonly PersonaConfig[] = [ // Added readonly for better
   BUSINESS_STORYTELLER,
   CRICKET_STORYTELLER,
   VOCABULARY_BUILDER,
+  LINKEDIN_ANALYST,
 ];
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
@@ -93,7 +104,7 @@ export function selectPersonaByWeight(): PersonaConfig {
 
 const ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
   'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller'],
+  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller', 'linkedin_analyst'],
 };
 
 export function getAllowedPersonasForHandle(twitterHandle: string): string[] {

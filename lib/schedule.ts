@@ -73,11 +73,11 @@ const princeGenerationPattern: DailySchedule = {
   // Pattern Spotter 5x/week: Sustainable quality over volume
   // Generate 1-2 hours before posting to allow review/editing
   0: {}, // Sunday - rest
-  1: { 9: ['pattern_spotter'] }, // Monday - morning insight 
-  2: { 13: ['pattern_spotter'] }, // Tuesday - afternoon insight 
-  3: { 9: ['pattern_spotter'] }, // Wednesday - morning insight 
-  4: { 13: ['pattern_spotter'] }, // Thursday - afternoon insight 
-  5: { 9: ['pattern_spotter'] }, // Friday - morning insight 
+  1: { 8: ['linkedin_analyst'], 9: ['pattern_spotter'] }, // Monday
+  2: { 8: ['linkedin_analyst'], 12: ['linkedin_analyst'], 13: ['pattern_spotter'] }, // Tuesday 
+  3: { 8: ['linkedin_analyst'], 9: ['pattern_spotter'] }, // Wednesday
+  4: { 8: ['linkedin_analyst'], 12: ['linkedin_analyst'], 13: ['pattern_spotter'] }, // Thursday 
+  5: { 8: ['linkedin_analyst'], 9: ['pattern_spotter'] }, // Friday
   6: {}, // Saturday - rest
 };
 // Total: 5 tweets/week (pattern_spotter only) - focus on lane variety & engagement
@@ -113,11 +113,11 @@ const princePostingPattern: DailySchedule = {
  */
 const princeLinkedInPostingPattern: DailySchedule = {
   0: {}, // Sunday
-  1: { 9: ['pattern_spotter'] }, // Monday - week starter insight
-  2: { 9: ['pattern_spotter'], 14: ['pattern_spotter'] }, // Tuesday - double down (peak day)
-  3: { 9: ['pattern_spotter'] }, // Wednesday - mid-week insight
-  4: { 9: ['pattern_spotter'], 14: ['pattern_spotter'] }, // Thursday - double down (peak day)
-  5: { 9: ['pattern_spotter'] }, // Friday - week closer insight
+  1: { 9: ['linkedin_analyst'] }, // Monday - week starter insight
+  2: { 9: ['linkedin_analyst'], 14: ['linkedin_analyst'] }, // Tuesday - double down (peak day)
+  3: { 9: ['linkedin_analyst'] }, // Wednesday - mid-week insight
+  4: { 9: ['linkedin_analyst'], 14: ['linkedin_analyst'] }, // Thursday - double down (peak day)
+  5: { 9: ['linkedin_analyst'] }, // Friday - week closer insight
   6: {}, // Saturday
 };
 // Total: 8 posts/week (5 pattern_spotter, 3 satirist)
@@ -144,7 +144,7 @@ const princeEngagementPattern: HourlySchedule = {
 // ============================================================================
 // GANDHI ACCOUNT ENGAGEMENT SCHEDULE
 // ============================================================================
-const gandhiEngagementPattern: HourlySchedule = {
+const indusValleyEngagementPattern: HourlySchedule = {
   // Focus: Engage with leaders, activists, and news about social issues
   // Goal: Share wisdom, promote peace and ethical thinking
   // Time budget: 20-25 min per session
@@ -162,14 +162,14 @@ const gandhiEngagementPattern: HourlySchedule = {
 const TWITTER_HANDLE_MAPPING: Record<string, string> = {
   '@gibbi_ai': 'gibbi_account',
   '@princediwakar25': 'prince_account',
-  '@gandhi_wisdom_': 'gandhi_account',
+  '@IndusValleyAI': 'indus_valley_account',
 };
 
 // Reverse mapping - from schedule keys to twitter handles
 const SCHEDULE_KEY_TO_HANDLE: Record<string, string> = {
   'gibbi_account': '@gibbi_ai',
   'prince_account': '@princediwakar25',
-  'gandhi_account': '@gandhi_wisdom_',
+  'indus_valley_account': '@IndusValleyAI',
 };
 
 /**
@@ -220,18 +220,18 @@ const ACCOUNT_SCHEDULES: Record<string, AccountSchedules> = {
     linkedin_posting: princeLinkedInPostingPattern,
   },
 
-  gandhi_account: {
-    // Gandhi account is engagement-only (no content generation/posting)
+  indus_valley_account: {
+    // Indus Valley account is engagement-only (no content generation/posting)
     generation: {}, // No content generation
     posting: {}, // No content posting
     engagement: {
-      0: gandhiEngagementPattern, // Sunday
-      1: gandhiEngagementPattern, // Monday
-      2: gandhiEngagementPattern, // Tuesday
-      3: gandhiEngagementPattern, // Wednesday
-      4: gandhiEngagementPattern, // Thursday
-      5: gandhiEngagementPattern, // Friday
-      6: gandhiEngagementPattern, // Saturday
+      0: indusValleyEngagementPattern, // Sunday
+      1: indusValleyEngagementPattern, // Monday
+      2: indusValleyEngagementPattern, // Tuesday
+      3: indusValleyEngagementPattern, // Wednesday
+      4: indusValleyEngagementPattern, // Thursday
+      5: indusValleyEngagementPattern, // Friday
+      6: indusValleyEngagementPattern, // Saturday
     },
   }
 };
@@ -460,7 +460,7 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     if (twitterHandle === '@gibbi_ai') {
       personas = ['english_vocab_builder'];
     } else if (twitterHandle === '@princediwakar25') {
-      personas = ['business_storyteller', 'cricket_storyteller', 'satirist', 'pattern_spotter'];
+      personas = ['business_storyteller', 'cricket_storyteller', 'satirist', 'pattern_spotter', 'linkedin_analyst'];
     }
   }
 
@@ -472,6 +472,8 @@ export function getGenerationBatchInfo(twitterHandle: string, date: Date = new D
     if (personas.length === 1 && personas[0] === 'satirist') {
       batchSize = 1;
     } else if (personas.length === 1 && personas[0] === 'pattern_spotter') {
+      batchSize = 1;
+    } else if (personas.length === 1 && personas[0] === 'linkedin_analyst') {
       batchSize = 1;
     } else if (personas.length === 1 && (personas[0] === THREAD_A || personas[0] === THREAD_B)) {
       batchSize = 1; // Only one thread template per generation run

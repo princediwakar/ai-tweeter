@@ -120,10 +120,15 @@ export interface PatternSpotterCard {
   type: 'pattern_spotter_insight';
   imageContent: string;
 }
+
+export interface LinkedinAnalystCard {
+  type: 'linkedin_analyst_insight';
+  imageContent: string;
+}
 // --- END NEW ---
 
 // --- MODIFIED ---
-export type CardData = VocabularyCard | SatiristCard | PatternSpotterCard;
+export type CardData = VocabularyCard | SatiristCard | PatternSpotterCard | LinkedinAnalystCard;
 // --- END MODIFIED ---
 
 export interface TweetJob {

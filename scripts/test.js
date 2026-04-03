@@ -44,7 +44,7 @@ const CONFIG = {
     },
     prince: {
       handle: '@princediwakar25', 
-      personas: ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller'],
+      personas: ['satirist', 'pattern_spotter'],
       contentTypes: [ 'single_tweet', 'thread'],
       description: 'Business/cricket storytelling threads + satirical tweets'
     }
@@ -57,6 +57,7 @@ function parseArgs() {
   const options = {
     account: null,
     type: null,
+    persona: null,
     count: 1,
     all: false
   };
@@ -69,6 +70,10 @@ function parseArgs() {
         break;
       case '--type':
         options.type = args[i + 1];
+        i++;
+        break;
+      case '--persona':
+        options.persona = args[i + 1];
         i++;
         break;
       case '--count':
@@ -99,6 +104,7 @@ USAGE:
 OPTIONS:
   --account <gibbi|prince>    Generate for specific account only
   --type <thread|single_tweet>       Generate specific content type only
+  --persona <persona_key>     Override the persona to use
   --count <number>            Number of content pieces to generate (default: 1)
 
   --all                       Test all account/type/persona combinations
@@ -232,6 +238,11 @@ function selectRandomGeneration(options) {
   if (selectedAccount === 'prince' && contentType === 'thread') {
     const threadPersonas = ['business_storyteller', 'cricket_storyteller'];
     persona = randomChoice(threadPersonas);
+  }
+
+  // Override with user selection if provided
+  if (options.persona) {
+    persona = options.persona;
   }
 
   return {

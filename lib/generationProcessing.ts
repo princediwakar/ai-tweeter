@@ -43,7 +43,8 @@ import {
       }
     }
   
-    const useRSSSources = shouldUseRSSSources(account);
+    const useRSSSources = shouldUseRSSSources(account) || 
+      ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller', 'linkedin_analyst'].includes(config.persona ?? "");
     console.log(
       `📰 RSS sources ${useRSSSources ? "enabled" : "disabled"} for account: ${
         account?.name || "unknown"
@@ -230,7 +231,7 @@ import {
       // ✨ MODIFIED: Satirist and PatternSpotter now use the *exact same* parsing logic.
       if (
         rssContext &&
-        (persona === "satirist" || persona === "pattern_spotter")
+        (persona === "satirist" || persona === "pattern_spotter" || persona === "linkedin_analyst")
       ) {
         if (data.selectedHeadlineNumber) {
           const headlineNumber = data.selectedHeadlineNumber;
@@ -321,8 +322,8 @@ import {
         }
       }
   
-      // ✨ MODIFIED: Satirist and PatternSpotter parsing logic is now combined
-      else if (persona === "satirist" || persona === "pattern_spotter") {
+      // ✨ MODIFIED: Satirist, PatternSpotter and LinkedinAnalyst parsing logic is now combined
+      else if (persona === "satirist" || persona === "pattern_spotter" || persona === "linkedin_analyst") {
         if (!data.tweetText) {
           throw new Error(
             `AI response for ${persona} missing required field: tweetText.`
@@ -344,6 +345,8 @@ import {
           actualHeadlineCount ||
           (persona === "satirist"
             ? GENERATION_CONFIG.personas.satirist.headlinesInPrompt
+            : persona === "linkedin_analyst"
+            ? GENERATION_CONFIG.personas.linkedinAnalyst.headlinesInPrompt
             : GENERATION_CONFIG.personas.patternSpotter.headlinesToAnalyze);
   
         if (
@@ -377,6 +380,11 @@ import {
               type: "satirist_insight",
               imageContent: data.imageContent,
             } satisfies SatiristCard;
+          } else if (persona === "linkedin_analyst") {
+            cardData = {
+              type: "linkedin_analyst_insight",
+              imageContent: data.imageContent,
+            };
           } else {
             cardData = {
               type: "pattern_spotter_insight",
@@ -398,8 +406,8 @@ import {
       // ========================================
       const ctaString = data.gibbiCTA ? "\n\n" + data.gibbiCTA : "";
       const totalLength = tweetContent.length + ctaString.length;
-  
-      if (totalLength > 280) {
+
+      if (persona !== "linkedin_analyst" && totalLength > 280) {
         console.error("Generated tweet exceeds 280 characters");
       }
   
@@ -435,7 +443,7 @@ import {
         content: tweetContent,
         // ✨ FIXED: Ensure hashtags are an empty array for pattern_spotter AND satirist
         hashtags:
-          persona === "pattern_spotter" || persona === "satirist"
+          persona === "pattern_spotter" || persona === "satirist" || persona === "linkedin_analyst"
             ? []
             : data.hashtags || [],
         persona: persona,
@@ -449,7 +457,7 @@ import {
       // STEP 5: Final validation - source URL required for certain personas (softened for light context)
       // ========================================
       if (
-        (persona === "satirist" || persona === "pattern_spotter") &&
+        (persona === "satirist" || persona === "pattern_spotter" || persona === "linkedin_analyst") &&
         !sourceUrl
       ) {
         if (!rssContext || rssContext.length < 100) {

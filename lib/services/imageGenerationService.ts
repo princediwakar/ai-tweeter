@@ -83,7 +83,7 @@ export async function generatePersonaImage(
     // Use 'parsedCardData' from here on
     if (personaKey === 'english_vocab_builder') {
       // The type guard ensures 'word' exists for vocab.
-      if (parsedCardData.type === 'satirist_insight' || parsedCardData.type === 'pattern_spotter_insight' || !parsedCardData.word) {
+      if (parsedCardData.type === 'satirist_insight' || parsedCardData.type === 'pattern_spotter_insight' || parsedCardData.type === 'linkedin_analyst_insight' || !('word' in parsedCardData) || !parsedCardData.word) {
         console.warn("⚠️ Cannot generate image: vocabulary card data is missing or invalid.");
         return null;
       }

@@ -30,7 +30,8 @@ function getDeepseekClient(): OpenAI {
 // --- TYPE DEFINITIONS ---
 
 export interface ThreadGenerationConfig {
-  account_id: string;
+  connected_account_id: string;
+  account_id?: string; // Deprecated - use connected_account_id
   persona: string;
   rssContext?: string;
 }
@@ -68,10 +69,11 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
   const callId = Math.random().toString(36).substring(2, 8); 
 
   try {
-    logger.info(`[Thread:${callId}] Starting thread generation for account: ${config.account_id}, persona: ${config.persona}`, 'thread-start');
+    const accountId = config.connected_account_id || config.account_id;
+    logger.info(`[Thread:${callId}] Starting thread generation for account: ${accountId}, persona: ${config.persona}`, 'thread-start');
     
-    const account = await accountService.getAccount(config.account_id);
-    if (!account) throw new Error(`Account not found: ${config.account_id}`);
+    const account = await accountService.getAccount(accountId!) as any;
+    if (!account) throw new Error(`Account not found: ${accountId}`);
     
     // --- DYNAMIC PERSONA PROMPT GENERATION (FIX) ---
     // We instantiate the correct persona generator class to get the right prompt.
@@ -134,7 +136,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
             logger.info(`[Thread:${callId}] Parsed metadata: "${metadata.title}"`, 'thread-stream-parse');
             
             threadId = await createThread({
-              account_id: config.account_id,
+              connected_account_id: config.connected_account_id || config.account_id!,
               title: metadata.title,
               persona: config.persona,
               total_tweets: 0,
@@ -145,6 +147,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
           } else if (data.type === 'tweet' && metadata && threadId) {
             const tweet: Tweet = {
               id: generateTweetId(),
+              connected_account_id: config.connected_account_id || config.account_id!,
               account_id: config.account_id,
               content: data.content,
               hashtags: metadata.hashtags.map(tag => `#${tag.replace(/^#+/, '').trim()}`).filter(Boolean),
@@ -212,15 +215,15 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
  * Get thread generation eligibility for account
  */
 export function canGenerateThreads(account: Account): boolean {
-  const handle = account.twitter_handle.toLowerCase();
-  
-  const excludedHandles = ['@gibbi_ai', 'gibbi_ai'];
-  if (excludedHandles.includes(handle) || excludedHandles.includes(handle.replace('@', ''))) {
-    return false;
+  // Use branding config if available, otherwise default based on persona support
+  if (account.branding?.supports_threads !== undefined) {
+    return account.branding.supports_threads;
   }
   
-  const allowedHandles = ['@princediwakar25', 'princediwakar25'];
-  return allowedHandles.includes(handle) || allowedHandles.includes(handle.replace('@', ''));
+  // Default: allow threads if account has thread-capable personas
+  const threadPersonas = ['business_storyteller', 'cricket_storyteller'];
+  const hasThreadPersona = account.personas?.some(p => threadPersonas.includes(p));
+  return hasThreadPersona || false;
 }
 
 const threadGenerationService = {

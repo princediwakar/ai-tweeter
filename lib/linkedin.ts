@@ -1,5 +1,7 @@
 // lib/linkedin.ts
 // LinkedIn API implementation using OAuth 2.0
+import crypto from 'crypto';
+import { platformSettings } from './platformSettings';
 
 export interface LinkedInCredentials {
   accessToken: string;
@@ -34,16 +36,26 @@ interface LinkedInProfileResponse {
  */
 function getRedirectUri(): string {
   if (process.env.NODE_ENV === 'production') {
-    return 'https://aitweeter.vercel.app/auth/linkedin';
+    return 'https://aitweeter.vercel.app/auth/linkedin/callback';
   }
-  return 'http://localhost:3000/auth/linkedin';
+  return 'http://localhost:3000/auth/linkedin/callback';
 }
 
 /**
  * Get LinkedIn OAuth authorization URL
  */
-export function getLinkedInAuthUrl(state: string): string {
-  const clientId = process.env.LINKEDIN_CLIENT_ID;
+export async function getLinkedInAuthUrl(state: string): Promise<string> {
+  let clientId = process.env.LINKEDIN_CLIENT_ID;
+  
+  if (!clientId) {
+    try {
+      const creds = await platformSettings.getLinkedInCredentials();
+      clientId = creds.client_id;
+    } catch (e) {
+      // Fallback
+    }
+  }
+
   const redirectUri = getRedirectUri();
 
   if (!clientId) {
@@ -62,6 +74,18 @@ export function getLinkedInAuthUrl(state: string): string {
 }
 
 /**
+ * Generate OAuth initiation URL for LinkedIn OAuth 2.0 flow
+ */
+export async function initiateLinkedInOAuth(accountId: string): Promise<{ authUrl: string; state: string }> {
+  // Create state parameter: "accountId:${accountId}:${randomNonce}"
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const state = `accountId:${accountId}:${nonce}`;
+
+  const authUrl = await getLinkedInAuthUrl(state);
+  return { authUrl, state };
+}
+
+/**
  * Exchange authorization code for access token
  */
 export async function exchangeCodeForToken(code: string): Promise<{
@@ -69,8 +93,19 @@ export async function exchangeCodeForToken(code: string): Promise<{
   refreshToken: string;
   expiresAt: Date;
 }> {
-  const clientId = process.env.LINKEDIN_CLIENT_ID;
-  const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+  let clientId = process.env.LINKEDIN_CLIENT_ID;
+  let clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    try {
+      const creds = await platformSettings.getLinkedInCredentials();
+      clientId = creds.client_id;
+      clientSecret = creds.client_secret;
+    } catch (e) {
+      // Fallback
+    }
+  }
+
   const redirectUri = getRedirectUri();
 
   if (!clientId || !clientSecret) {

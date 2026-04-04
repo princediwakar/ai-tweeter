@@ -11,9 +11,8 @@ import {
     CardData,
     SatiristCard,
     PatternSpotterCard,
-    Account,
   } from "./types";
-  import { accountService } from "./accountService";
+  import { accountService, type Account } from "./accountService";
   import { getDynamicContext } from "./contentSource";
   import {
     generateVariationMarkers,
@@ -32,10 +31,10 @@ import {
     const markers = generateVariationMarkers();
     const { time_marker: timeMarker, token_marker: tokenMarker } = markers;
   
-    let account: Account | null = null;
+    let account: any = null;
   
-    if (config.account_id && config.account_id !== "fallback") {
-      account = await accountService.getAccount(config.account_id);
+    if (config.connected_account_id && config.connected_account_id !== "fallback") {
+      account = await accountService.getAccount(config.connected_account_id);
       if (account) {
         console.log(
           `🎯 Account context: ${account.name} (${account.twitter_handle})`
@@ -62,7 +61,7 @@ import {
         rssContext = await getDynamicContext(
           config.persona,
           config.topic || "",
-          config.account_id
+          config.connected_account_id
         );
         console.log(
           `📰 (Single Fetch) Fetched RSS context for ${config.persona}: ${
@@ -81,12 +80,12 @@ import {
     let persona: PersonaConfig | undefined;
   
     if (config.persona) {
-      if (config.account_id && config.account_id !== "fallback" && account) {
+      if (config.connected_account_id && config.connected_account_id !== "fallback" && account) {
         if (!isPersonaAllowedForHandle(config.persona, account.twitter_handle)) {
           console.warn(
             `⚠️  Persona ${config.persona} not allowed for handle @${account.twitter_handle}, using allowed persona instead`
           );
-          persona = getRandomPersonaForHandle(account.twitter_handle);
+          persona = await getRandomPersonaForHandle(account.twitter_handle);
           console.log(`🔒 Using handle-allowed persona: ${persona.displayName}`);
         } else {
           persona = getPersonaByKey(config.persona);
@@ -107,9 +106,9 @@ import {
     }
   
     if (!persona) {
-      if (config.account_id && config.account_id !== "fallback" && account) {
+      if (config.connected_account_id && config.connected_account_id !== "fallback" && account) {
         try {
-          persona = getRandomPersonaForHandle(account.twitter_handle);
+          persona = await getRandomPersonaForHandle(account.twitter_handle);
           console.log(
             `🔒 Using handle-allowed random persona: ${persona.displayName} for @${account.twitter_handle}`
           );

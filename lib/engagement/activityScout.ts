@@ -123,10 +123,10 @@ export async function scoutAndFetch(
   }
   
   const credentials = {
-    apiKey: account.twitter_api_key,
-    apiSecret: account.twitter_api_secret,
-    accessToken: account.twitter_access_token,
-    accessSecret: account.twitter_access_token_secret,
+    apiKey: account.twitter_api_key || '',
+    apiSecret: account.twitter_api_secret || '',
+    accessToken: account.twitter_access_token || '',
+    accessSecret: account.twitter_access_token_secret || '',
   };
   
   const lookbackDate = new Date(Date.now() - qualityFilters.lookback_minutes * 60 * 1000).toISOString();

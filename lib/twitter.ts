@@ -1,6 +1,9 @@
 // lib/twitter.ts
 // Simple Twitter API implementation using fetch and OAuth 1.0a
 import crypto from 'crypto';
+import { refreshAccessToken, shouldRefreshToken } from './twitter-oauth';
+import type { AccountWithCredentials } from './types';
+import { decrypt } from './connectedAccounts';
 export interface TweetV2 {
   id: string;
   text: string;
@@ -14,11 +17,96 @@ export interface TweetV2 {
   };
 }
 
-interface TwitterCredentials {
-  apiKey: string;
-  apiSecret: string;
-  accessToken: string;
-  accessSecret: string;
+export interface TwitterCredentials {
+  // OAuth 1.0a credentials (legacy)
+  apiKey?: string;
+  apiSecret?: string;
+  accessToken?: string;
+  accessSecret?: string;
+  // OAuth 2.0 user context token (preferred for posting)
+  oauth2AccessToken?: string;
+  oauth2RefreshToken?: string;
+  oauth2ExpiresAt?: Date;
+}
+
+/**
+ * Build TwitterCredentials from an account, preferring OAuth 2.0 tokens if enabled.
+ */
+export function buildTwitterCredentialsFromAccount(account: AccountWithCredentials): TwitterCredentials {
+  const credentials: TwitterCredentials = {
+    apiKey: account.twitter_api_key || '',
+    apiSecret: account.twitter_api_secret || '',
+    accessToken: account.twitter_access_token || '',
+    accessSecret: account.twitter_access_token_secret || '',
+  };
+
+  // Add OAuth 2.0 tokens if available (New SaaS Schema)
+  // The connectedAccountsService already decrypts these into access_token/refresh_token
+  const saasAccessToken = (account as any).access_token;
+  const saasRefreshToken = (account as any).refresh_token;
+  
+  if (saasAccessToken) {
+    credentials.oauth2AccessToken = saasAccessToken;
+    if (saasRefreshToken) {
+      credentials.oauth2RefreshToken = saasRefreshToken;
+    }
+    credentials.oauth2ExpiresAt = (account as any).token_expires_at || (account as any).twitter_oauth2_token_expires_at;
+  } 
+  // Fallback to legacy schema if needed
+  else if ((account as any).twitter_oauth2_enabled && (account as any).twitter_oauth2_access_token) {
+    credentials.oauth2AccessToken = (account as any).twitter_oauth2_access_token;
+    credentials.oauth2RefreshToken = (account as any).twitter_oauth2_refresh_token;
+    credentials.oauth2ExpiresAt = (account as any).twitter_oauth2_token_expires_at;
+  }
+
+  return credentials;
+}
+
+/**
+ * Check if Twitter OAuth 2.0 credentials are available and valid.
+ */
+export function hasValidTwitterOAuth2(credentials: TwitterCredentials): boolean {
+  return !!(
+    credentials.oauth2AccessToken &&
+    credentials.oauth2ExpiresAt &&
+    credentials.oauth2ExpiresAt > new Date()
+  );
+}
+
+/**
+ * Refresh Twitter OAuth 2.0 token if needed and update account.
+ * Returns updated credentials (or original if not needed/possible).
+ */
+export async function refreshTwitterCredentialsIfNeeded(
+  account: AccountWithCredentials,
+  credentials: TwitterCredentials
+): Promise<TwitterCredentials> {
+  // Only refresh OAuth 2.0 tokens
+  if (!credentials.oauth2RefreshToken || !credentials.oauth2ExpiresAt) {
+    return credentials;
+  }
+
+  if (shouldRefreshToken(credentials.oauth2ExpiresAt)) {
+    try {
+      const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(
+        credentials.oauth2RefreshToken
+      );
+
+      // Update account in database (caller should handle this)
+      // Return updated credentials with new tokens
+      return {
+        ...credentials,
+        oauth2AccessToken: accessToken,
+        oauth2RefreshToken: refreshToken,
+        oauth2ExpiresAt: expiresAt,
+      };
+    } catch (error) {
+      console.error('Failed to refresh Twitter OAuth 2.0 token:', error);
+      // Return original credentials; posting may fail but we don't break existing flow
+    }
+  }
+
+  return credentials;
 }
 
 
@@ -27,16 +115,23 @@ interface TwitterCredentials {
 // Cache for the bearer token to avoid requesting it every time
 let appBearerTokenCache: string | null = null;
 
-async function getAppBearerToken(credentials: { apiKey: string, apiSecret: string }): Promise<string> {
+async function getAppBearerToken(credentials: { apiKey?: string, apiSecret?: string }): Promise<string> {
   if (appBearerTokenCache) {
     return appBearerTokenCache;
+  }
+
+  const apiKey = credentials.apiKey || '';
+  const apiSecret = credentials.apiSecret || '';
+  
+  if (!apiKey || !apiSecret) {
+    throw new Error('API key and secret required for bearer token');
   }
 
   const endpoint = 'https://api.twitter.com/oauth2/token';
   
   // Create Basic Auth header required for this specific request
-  const key = encodeURIComponent(credentials.apiKey);
-  const secret = encodeURIComponent(credentials.apiSecret);
+  const key = encodeURIComponent(apiKey);
+  const secret = encodeURIComponent(apiSecret);
   const authString = Buffer.from(`${key}:${secret}`).toString('base64');
   const authHeader = `Basic ${authString}`;
 
@@ -246,7 +341,7 @@ function generateOAuthSignature(
   const baseString = `${method.toUpperCase()}&${encodeURIComponent(url)}&${encodeURIComponent(paramString)}`;
   
   // Create signing key
-  const signingKey = `${encodeURIComponent(credentials.apiSecret)}&${encodeURIComponent(credentials.accessSecret)}`;
+  const signingKey = `${encodeURIComponent(credentials.apiSecret || '')}&${encodeURIComponent(credentials.accessSecret || '')}`;
   
   // Generate signature
   const signature = crypto
@@ -264,8 +359,8 @@ function createOAuthHeader(
   credentials: TwitterCredentials
 ): string {
   const oauthParams: Record<string, string> = {
-    oauth_consumer_key: credentials.apiKey,
-    oauth_token: credentials.accessToken,
+    oauth_consumer_key: credentials.apiKey || '',
+    oauth_token: credentials.accessToken || '',
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
     oauth_nonce: crypto.randomBytes(16).toString('hex'),
@@ -284,6 +379,19 @@ function createOAuthHeader(
   return authHeader;
 }
 
+function createAuthHeader(
+  method: string,
+  url: string,
+  credentials: TwitterCredentials
+): string {
+  // Prefer OAuth 2.0 user token if available
+  if (credentials.oauth2AccessToken) {
+    return `Bearer ${credentials.oauth2AccessToken}`;
+  }
+  // Fall back to OAuth 1.0a
+  return createOAuthHeader(method, url, {}, credentials);
+}
+
 export async function postReplyTweet(content: string, replyToTweetId: string, credentials: TwitterCredentials, retryCount = 0): Promise<{ data: { id: string; text: string } }> {
   const maxRetries = 3;
   const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff
@@ -292,7 +400,7 @@ export async function postReplyTweet(content: string, replyToTweetId: string, cr
     const url = 'https://api.twitter.com/2/tweets';
     const method = 'POST';
 
-    const authHeader = createOAuthHeader(method, url, {}, credentials);
+    const authHeader = createAuthHeader(method, url, credentials);
 
     const response = await fetch(url, {
       method,
@@ -401,8 +509,8 @@ export async function postTweet(content: string, credentials: TwitterCredentials
   try {
     const url = 'https://api.twitter.com/2/tweets';
     const method = 'POST';
-    
-    const authHeader = createOAuthHeader(method, url, {}, credentials);
+
+    const authHeader = createAuthHeader(method, url, credentials);
     
     const response = await fetch(url, {
       method,
@@ -499,10 +607,10 @@ export async function postTweetWithImage(
     
     // Create Twitter client
     const client = new TwitterApi({
-      appKey: credentials.apiKey,
-      appSecret: credentials.apiSecret,
-      accessToken: credentials.accessToken,
-      accessSecret: credentials.accessSecret,
+      appKey: credentials.apiKey || '',
+      appSecret: credentials.apiSecret || '',
+      accessToken: credentials.accessToken || '',
+      accessSecret: credentials.accessSecret || '',
     });
 
     // Upload image using v1.1 API
@@ -553,7 +661,8 @@ export async function validateTwitterCredentials(credentials: TwitterCredentials
     const url = 'https://api.twitter.com/2/users/me';
     const method = 'GET';
     
-    const authHeader = createOAuthHeader(method, url, {}, credentials);
+    // createAuthHeader handles both OAuth 1.0a and 2.0
+    const authHeader = createAuthHeader(method, url, credentials);
     
     const response = await fetch(url, {
       method,

@@ -4,10 +4,11 @@ import { Tweet } from './types';
 import { saveTweet, getThreadTweet, Thread, updateThreadAfterPosting } from './db';
 
 interface TwitterCredentials {
-  apiKey: string;
-  apiSecret: string;
-  accessToken: string;
-  accessSecret: string;
+  apiKey?: string;
+  apiSecret?: string;
+  accessToken?: string;
+  accessSecret?: string;
+  oauth2AccessToken?: string;
 }
 
 export interface ThreadPostResult {
@@ -33,10 +34,10 @@ export async function postCompleteThread(
     
     // Initialize Twitter API client
     const client = new TwitterApi({
-      appKey: credentials.apiKey,
-      appSecret: credentials.apiSecret,
-      accessToken: credentials.accessToken,
-      accessSecret: credentials.accessSecret,
+      appKey: credentials.apiKey || '',
+      appSecret: credentials.apiSecret || '',
+      accessToken: credentials.accessToken || '',
+      accessSecret: credentials.accessSecret || '',
     });
 
     // Get all tweets for the thread in sequence order

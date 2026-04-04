@@ -58,26 +58,26 @@ export async function generateTweet(
   try {
     if (
       config.persona === "satirist" &&
-      config.account_id &&
+      config.connected_account_id &&
       !config.recentPatterns
     ) {
       console.log(
-        `[Single Tweet] Fetching recent satirist data for account ${config.account_id}...`
+        `[Single Tweet] Fetching recent satirist data for account ${config.connected_account_id}...`
       );
-      const recentData = await getRecentSatiristData(config.account_id, 5);
+      const recentData = await getRecentSatiristData(config.connected_account_id, 5);
       config.recentPatterns = recentData.patterns;
       config.usedSourceUrls = recentData.usedSourceUrls;
     }
 
     if (
       config.persona === "pattern_spotter" &&
-      config.account_id &&
+      config.connected_account_id &&
       !config.recentPatterns
     ) {
       console.log(
-        `[Single Tweet] Fetching recent pattern data for account ${config.account_id}...`
+        `[Single Tweet] Fetching recent pattern data for account ${config.connected_account_id}...`
       );
-      const recentData = await getRecentPatternData(config.account_id, 5);
+      const recentData = await getRecentPatternData(config.connected_account_id, 5);
       config.recentPatterns = recentData.patterns;
       config.usedSourceUrls = recentData.usedSourceUrls;
     }
@@ -192,8 +192,8 @@ export async function generateBatchTweets(
   const usedHeadlines: number[] = [];
 
   let recentWords: string[] = [];
-  if (config.account_id && config.persona === "english_vocab_builder") {
-    recentWords = await getRecentVocabularyWords(config.account_id);
+  if (config.connected_account_id && config.persona === "english_vocab_builder") {
+    recentWords = await getRecentVocabularyWords(config.connected_account_id);
     console.log(
       `📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`
     );
@@ -204,14 +204,14 @@ export async function generateBatchTweets(
 
   // ✨ MODIFIED: Check for both personas
   if (
-    config.account_id &&
+    config.connected_account_id &&
     (config.persona === "pattern_spotter" || config.persona === "satirist" || config.persona === "linkedin_analyst")
   ) {
     let recentData;
     if (config.persona === "pattern_spotter") {
-      recentData = await getRecentPatternData(config.account_id, 5);
+      recentData = await getRecentPatternData(config.connected_account_id, 5);
     } else {
-      recentData = await getRecentSatiristData(config.account_id, 5);
+      recentData = await getRecentSatiristData(config.connected_account_id, 5);
     }
     recentPatterns = recentData.patterns;
     usedSourceUrls = recentData.usedSourceUrls;

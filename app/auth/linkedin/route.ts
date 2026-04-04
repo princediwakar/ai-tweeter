@@ -33,11 +33,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // TODO: Validate state parameter to prevent CSRF attacks
-    // You should store the state in a session/cookie when initiating OAuth
-    // and verify it matches here
-    if (!state) {
+    // Validate state parameter and extract account ID
+    // State format: "accountId:${accountId}:${randomNonce}"
+    let accountId: string | null = null;
+    if (state) {
+      try {
+        const stateParts = state.split(':');
+        if (stateParts.length >= 2 && stateParts[0] === 'accountId') {
+          accountId = stateParts[1];
+        }
+      } catch (error) {
+        console.error('Failed to parse state parameter:', error);
+      }
+    } else {
       console.warn('LinkedIn OAuth: state parameter missing (CSRF protection disabled)');
+    }
+
+    if (!accountId) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid state parameter: account ID not found' },
+        { status: 400 }
+      );
     }
 
     console.log('📝 Exchanging LinkedIn authorization code for tokens...');
@@ -52,14 +68,11 @@ export async function GET(request: NextRequest) {
     console.log(`👤 User: ${profile.name || profile.sub}`);
     console.log(`🆔 LinkedIn ID: ${profile.sub}`);
 
-    // Update the account with LinkedIn credentials
-    // Note: LinkedIn profile is 'princediwakar' but we use Twitter handle to find account
-    const twitterHandle = '@princediwakar25';
-
-    const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+    // Get the account by ID
+    const account = await accountService.getAccount(accountId);
     if (!account) {
       return NextResponse.json(
-        { success: false, error: `Account not found for Twitter handle: @${twitterHandle}` },
+        { success: false, error: `Account not found: ${accountId}` },
         { status: 404 }
       );
     }

@@ -6,8 +6,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-space);
+  --font-display: var(--font-anton);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,79 +38,93 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --radius: 0px;
+  --background: oklch(0.98 0.01 65); /* slightly warm off-white */
+  --foreground: oklch(0.15 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.15 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  
+  --primary: oklch(0.65 0.25 35); /* Neon Orange */
+  --primary-foreground: oklch(0.98 0 0);
+  
+  --secondary: oklch(0.9 0.2 135); /* Cyber Chartreuse */
+  --secondary-foreground: oklch(0.15 0 0);
+  
+  --muted: oklch(0.9 0 0);
+  --muted-foreground: oklch(0.4 0 0);
+  --accent: oklch(0.15 0 0); /* Pure black accent */
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.5 0.2 20);
+  --border: oklch(0.15 0 0); /* Harsh dark borders */
+  --input: oklch(0.15 0 0);
+  --ring: oklch(0.65 0.25 35); /* Neon orange focus ring */
+  
+  --chart-1: oklch(0.65 0.25 35);
+  --chart-2: oklch(0.9 0.2 135);
+  --chart-3: oklch(0.5 0.2 260);
+  --chart-4: oklch(0.7 0.15 80);
+  --chart-5: oklch(0.8 0.15 110);
+  
+  --sidebar: oklch(0.15 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.65 0.25 35);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.9 0.2 135);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.25 0 0);
+  --sidebar-ring: oklch(0.65 0.25 35);
+
+  --font-outfit: 'Outfit', sans-serif;
+  --font-anton: 'Anton', sans-serif;
+  --font-space: 'Space Mono', monospace;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.1 0 0); /* almost pure black */
+  --foreground: oklch(0.98 0 0); /* pure white */
+  --card: oklch(0.12 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.12 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  
+  --primary: oklch(0.7 0.23 35); /* Bright neon orange */
+  --primary-foreground: oklch(0.1 0 0);
+  
+  --secondary: oklch(0.85 0.2 135); /* Brighter cyber chartreuse */
+  --secondary-foreground: oklch(0.1 0 0);
+  
+  --muted: oklch(0.2 0 0);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.85 0.2 135); /* Pure white accent */
+  --accent-foreground: oklch(0.1 0 0);
+  --destructive: oklch(0.6 0.25 20);
+  --border: oklch(0.4 0 0);
+  --input: oklch(0.4 0 0);
+  --ring: oklch(0.7 0.23 35);
+
+  --chart-1: oklch(0.7 0.23 35);
+  --chart-2: oklch(0.85 0.2 135);
+  --chart-3: oklch(0.6 0.2 260);
+  --chart-4: oklch(0.8 0.2 80);
+  --chart-5: oklch(0.8 0.15 110);
+  
+  --sidebar: oklch(0.1 0 0);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.7 0.23 35);
+  --sidebar-primary-foreground: oklch(0.1 0 0);
+  --sidebar-accent: oklch(0.85 0.2 135);
+  --sidebar-accent-foreground: oklch(0.1 0 0);
+  --sidebar-border: oklch(0.2 0 0);
+  --sidebar-ring: oklch(0.7 0.23 35);
 }
 
 @layer base {
@@ -117,6 +132,449 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    background-image: 
+      radial-gradient(oklch(0.3 0 0) 1px, transparent 1px),
+      linear-gradient(180deg, transparent 0%, oklch(0.05 0.15 35 / 0.03) 100%);
+    background-size: 20px 20px, 100% 100%;
+    background-attachment: fixed;
+  }
+  .dark body {
+    background-image: 
+      radial-gradient(oklch(0.2 0 0) 1px, transparent 1px),
+      linear-gradient(180deg, transparent 0%, oklch(0.65 0.2 35 / 0.05) 50%, transparent 100%);
+    background-size: 30px 30px, 100% 100%;
+  }
+}
+
+@layer utilities {
+  /* ============ AI-ERA MAGICAL EFFECTS ============ */
+  
+  /* Floating animation for AI elements */
+  @keyframes ai-float {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    25% { transform: translateY(-8px) scale(1.02); }
+    50% { transform: translateY(-4px) scale(0.99); }
+    75% { transform: translateY(-10px) scale(1.01); }
+  }
+  
+  @keyframes ai-pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 20px oklch(0.7 0.23 35 / 0.3), 
+                  0 0 40px oklch(0.7 0.23 35 / 0.1);
+    }
+    50% { 
+      box-shadow: 0 0 30px oklch(0.7 0.23 35 / 0.5), 
+                  0 0 60px oklch(0.7 0.23 35 / 0.2),
+                  0 0 80px oklch(0.85 0.2 135 / 0.1);
+    }
+  }
+  
+  @keyframes ai-shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  
+  @keyframes neural-network {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(1.05); }
+  }
+  
+  @keyframes data-stream {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 0% 100%; }
+  }
+  
+  @keyframes hologram-flicker {
+    0%, 100% { opacity: 1; }
+    92% { opacity: 1; }
+    93% { opacity: 0.8; }
+    94% { opacity: 1; }
+    96% { opacity: 0.9; }
+    97% { opacity: 1; }
+  }
+  
+  /* Glass morphism for AI cards */
+  .glass-ai {
+    background: linear-gradient(
+      135deg,
+      oklch(0.15 0 0 / 0.6) 0%,
+      oklch(0.1 0 0 / 0.4) 100%
+    );
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid oklch(0.3 0 0 / 0.3);
+    box-shadow: 
+      0 8px 32px oklch(0 0 0 / 0.3),
+      inset 0 1px 0 oklch(1 0 0 / 0.05);
+  }
+  
+  /* Holographic gradient */
+  .holo-gradient {
+    background: linear-gradient(
+      135deg,
+      oklch(0.65 0.25 35) 0%,
+      oklch(0.85 0.2 135) 25%,
+      oklch(0.7 0.2 260) 50%,
+      oklch(0.85 0.2 135) 75%,
+      oklch(0.65 0.25 35) 100%
+    );
+    background-size: 400% 400%;
+  }
+  
+  /* AI floating element */
+  .ai-floating {
+    animation: ai-float 6s ease-in-out infinite;
+  }
+  
+  /* AI glowing pulse */
+  .ai-glow-pulse {
+    animation: ai-pulse-glow 3s ease-in-out infinite;
+  }
+  
+  /* Shimmer effect */
+  .ai-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      oklch(1 0 0 / 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: ai-shimmer 2s linear infinite;
+  }
+  
+  /* Neural network background */
+  .neural-bg {
+    animation: neural-network 8s ease-in-out infinite;
+  }
+  
+  /* Data stream effect */
+  .data-stream {
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      oklch(0.65 0.25 35 / 0.05) 50%,
+      transparent 100%
+    );
+    background-size: 100% 200%;
+    animation: data-stream 3s linear infinite;
+  }
+  
+  /* Holographic flicker */
+  .hologram {
+    animation: hologram-flicker 4s linear infinite;
+  }
+  
+  /* Glowing border */
+  .glow-border {
+    position: relative;
+  }
+  
+  .glow-border::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(45deg, oklch(0.65 0.25 35), oklch(0.85 0.2 135), oklch(0.65 0.25 35));
+    background-size: 400% 400%;
+    animation: ai-shimmer 3s linear infinite;
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .glow-border:hover::before {
+    opacity: 1;
+  }
+  
+  /* ============ ENHANCED BRUTALIST SHADOWS ============ */
+  /* ============ ENHANCED BRUTALIST SHADOWS ============ */
+  
+  /* Magical button hover effect */
+  .magical-hover {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .magical-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(1 0 0 / 0.15),
+      transparent
+    );
+    transition: left 0.5s ease;
+  }
+  
+  .magical-hover:hover::before {
+    left: 100%;
+  }
+  
+  /* AI sparkle effect */
+  .sparkle-container {
+    position: relative;
+  }
+  
+  .sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: oklch(0.85 0.2 135);
+    border-radius: 50%;
+    animation: sparkle-fade 1.5s ease-out infinite;
+  }
+  
+  @keyframes sparkle-fade {
+    0% { transform: scale(0) translateY(0); opacity: 1; }
+    100% { transform: scale(2) translateY(-20px); opacity: 0; }
+  }
+  
+  /* Gradient text with shimmer */
+  .gradient-text-shimmer {
+    background: linear-gradient(
+      90deg,
+      oklch(0.65 0.25 35) 0%,
+      oklch(0.85 0.2 135) 25%,
+      oklch(0.65 0.25 35) 50%,
+      oklch(0.85 0.2 135) 75%,
+      oklch(0.65 0.25 35) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer-text 3s linear infinite;
+  }
+  
+  @keyframes shimmer-text {
+    to { background-position: 200% center; }
+  }
+  
+  /* Orb glow effect */
+  .orb-glow {
+    position: relative;
+  }
+  
+  .orb-glow::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: radial-gradient(
+      circle at center,
+      oklch(0.65 0.25 35 / 0.3) 0%,
+      transparent 70%
+    );
+    pointer-events: none;
+    animation: orb-pulse 4s ease-in-out infinite;
+  }
+  
+  @keyframes orb-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+  }
+  
+  /* Scan line effect */
+  .scan-lines {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .scan-lines::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      oklch(0 0 0 / 0.02) 2px,
+      oklch(0 0 0 / 0.02) 4px
+    );
+    pointer-events: none;
+  }
+  
+  /* Loading state shimmer */
+  .loading-shimmer {
+    background: linear-gradient(
+      90deg,
+      oklch(0.2 0 0) 0%,
+      oklch(0.3 0 0) 50%,
+      oklch(0.2 0 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer-loading 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  /* Enhanced brutalist shadows - more aggressive */
+  .brutal-shadow {
+    box-shadow: 6px 6px 0px 0px var(--foreground);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+
+  .brutal-shadow:hover {
+    transform: translate(3px, 3px);
+    box-shadow: 3px 3px 0px 0px var(--foreground);
+  }
+
+  .brutal-shadow:active {
+    transform: translate(6px, 6px);
+    box-shadow: 0px 0px 0px 0px var(--foreground);
+  }
+
+  .brutal-shadow-sm {
+    box-shadow: 3px 3px 0px 0px var(--foreground);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+
+  .brutal-shadow-sm:hover {
+    transform: translate(1.5px, 1.5px);
+    box-shadow: 1.5px 1.5px 0px 0px var(--foreground);
+  }
+
+  .brutal-shadow-sm:active {
+    transform: translate(3px, 3px);
+    box-shadow: 0px 0px 0px 0px var(--foreground);
+  }
+
+  /* New brutalist shadow variants */
+  .brutal-shadow-lg {
+    box-shadow: 8px 8px 0px 0px var(--foreground);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+
+  .brutal-shadow-lg:hover {
+    transform: translate(4px, 4px);
+    box-shadow: 4px 4px 0px 0px var(--foreground);
+  }
+
+  .brutal-shadow-lg:active {
+    transform: translate(8px, 8px);
+    box-shadow: 0px 0px 0px 0px var(--foreground);
+  }
+
+  /* Cyber-brutalist border utilities */
+  .border-brutal {
+    border-width: 3px;
+    border-style: solid;
+  }
+
+  .border-brutal-lg {
+    border-width: 4px;
+    border-style: solid;
+  }
+
+  .border-brutal-xl {
+    border-width: 6px;
+    border-style: solid;
+  }
+
+  /* Typography utilities for cyber-brutalist aesthetic */
+  .font-display-brutal {
+    font-family: var(--font-anton);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+  }
+
+  .font-mono-brutal {
+    font-family: var(--font-space);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  /* Grid pattern overlays */
+  .grid-overlay {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: -1px -1px;
+  }
+
+  .grid-overlay-dense {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 10px 10px;
+    background-position: -1px -1px;
+  }
+
+  /* Cyber glow effects */
+  .cyber-glow {
+    filter: drop-shadow(0 0 4px var(--primary));
+  }
+
+  .cyber-glow-lg {
+    filter: drop-shadow(0 0 8px var(--primary));
+  }
+
+  /* Brutalist container styles */
+  .container-brutal {
+    border: 3px solid var(--border);
+    background: var(--background);
+    position: relative;
+  }
+
+  .container-brutal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      45deg,
+      transparent 0%,
+      var(--primary) 1%,
+      transparent 2%,
+      transparent 98%,
+      var(--secondary) 99%,
+      transparent 100%
+    );
+    pointer-events: none;
+    opacity: 0.1;
+  }
+
+  /* Status indicators */
+  .status-brutal {
+    padding: 2px 8px;
+    border: 2px solid var(--border);
+    font-family: var(--font-space);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .status-brutal-connected {
+    background-color: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+
+  .status-brutal-disconnected {
+    background-color: var(--destructive);
+    color: white;
+  }
+
+  .status-brutal-pending {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
   }
 }

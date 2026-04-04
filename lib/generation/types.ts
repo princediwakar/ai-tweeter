@@ -12,7 +12,8 @@ export interface VariationMarkers {
 
 // UPDATED: Added recentPatterns with proper typing
 export interface TweetGenerationConfig {
-  account_id?: string;
+  connected_account_id?: string;
+  account_id?: string; // Deprecated - use connected_account_id
   persona?: string;
   category?: string;
   topic?: string;

@@ -53,7 +53,7 @@ export async function generatePersonaImage(
   }
 
   try {
-    const account = await accountService.getAccount(accountId);
+    const account = await accountService.getAccount(accountId) as any;
     if (!account) {
       throw new Error(`Account not found: ${accountId}`);
     }

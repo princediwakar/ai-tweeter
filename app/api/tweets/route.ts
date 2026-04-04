@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const accountId = searchParams.get('account_id'); // Multi-account support
+    const accountId = searchParams.get('connected_account_id') || searchParams.get('account_id'); // Multi-account support
     
     // Validate pagination parameters
     if (page < 1 || limit < 1 || limit > 100) {
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       let shouldGenerateThread = false;
       
       if (accountId && threadPersonas.includes(personaKey)) {
-        const account = await accountService.getAccount(accountId);
+        const account = await accountService.getAccount(accountId) as any;
         if (account && canGenerateThreads(account)) {
           // Generate thread for supported storytelling personas
           shouldGenerateThread = true;
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         console.log(`🧵 Generating thread for ${personaKey}`);
         
         const threadResult = await generateThread({
-          account_id: accountId,
+          connected_account_id: accountId,
           persona: personaKey,
         });
         
@@ -110,8 +110,9 @@ export async function POST(request: Request) {
         }
         
         const tweet = {
-          id: generateTweetId(),
-          account_id: accountId || 'fallback',
+          id: crypto.randomUUID(),
+          connected_account_id: accountId || 'fallback',
+          account_id: accountId,
           content: generatedTweet.content,
           hashtags: generatedTweet.hashtags,
           persona: generatedTweet.persona,
@@ -178,7 +179,8 @@ export async function POST(request: Request) {
         for (const generatedTweet of generatedTweets) {
           const tweet = {
             id: generateTweetId(),
-            account_id: accountId || 'fallback',
+            connected_account_id: accountId || 'fallback',
+            account_id: accountId,
             content: generatedTweet.content,
             hashtags: generatedTweet.hashtags,
             persona: generatedTweet.persona,

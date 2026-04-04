@@ -20,7 +20,7 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
 
   protected addGibbiCTA(basePrompt: string, account: Account | null): string {
     if (account) {
-      const isGibbiAccount = account.twitter_handle.includes('gibbi') || account.name.toLowerCase().includes('gibbi');
+      const isGibbiAccount = account.twitter_handle.includes('gibbi') || (account.name && account.name.toLowerCase().includes('gibbi'));
       if (isGibbiAccount && Math.random() < GENERATION_CONFIG.personas.englishVocabBuilder.ctaProbability) {
         return basePrompt + `\n\nIMPORTANT: Include a natural Gibbi AI mention like "Practice more English at gibbi.vercel.app" or "Improve your skills at gibbi.vercel.app" - keep it helpful and non-promotional.`;
       }

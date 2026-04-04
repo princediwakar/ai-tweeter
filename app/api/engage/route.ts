@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 3. Get Account (with decrypted credentials) and Engagement Config
-  const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+  const account = await accountService.getAccountByTwitterHandle(twitterHandle) as any;
   if (!account) {
     console.error(`[Engage API] Failed: Account not found for handle: ${twitterHandle}`);
     return NextResponse.json({ error: `Account not found for handle: ${twitterHandle}` }, { status: 404 });
@@ -128,10 +128,10 @@ export async function GET(request: NextRequest) {
 
   // 10. Post Reply
   const credentials = {
-    apiKey: account.twitter_api_key,
-    apiSecret: account.twitter_api_secret,
-    accessToken: account.twitter_access_token,
-    accessSecret: account.twitter_access_token_secret,
+    apiKey: account.twitter_api_key || '',
+    apiSecret: account.twitter_api_secret || '',
+    accessToken: account.twitter_access_token || '',
+    accessSecret: account.twitter_access_token_secret || '',
   };
   const replyResult = await postReplyTweet(replyText, tweetToEngage.id, credentials);
   const replyTweetId = replyResult.data.id;
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
 
   // 11. Log to Database
   await logEngagement({
-    account_id: account.id,
+    connected_account_id: account.id,
     target_username: targetUsername,
     target_tweet_id: tweetToEngage.id,
     target_tweet_text: tweetToEngage.text,

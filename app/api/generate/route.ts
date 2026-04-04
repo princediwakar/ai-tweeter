@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const accountId = searchParams.get('account_id');
+    const accountId = searchParams.get('connected_account_id') || searchParams.get('account_id');
     const twitterHandle = searchParams.get('twitter_handle');
     const debugMode = searchParams.get('debug') === 'true';
     const personaOverride = searchParams.get('persona');
@@ -123,7 +123,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced', { timestamp: new Date().toISOString() });
 
   // --- Initial Setup & Account Check ---
-  const account = await accountService.getAccount(accountId);
+  const account = await accountService.getAccount(accountId) as any;
   if (!account) {
     return NextResponse.json({
       success: false,
@@ -131,11 +131,11 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     }, { status: 404 });
   }
 
-  const batchInfo = getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
+  const batchInfo = await getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
 
   // ... (Persona Override and Skip Logic remains the same)
   if (debugMode && personaOverride) {
-    batchInfo.personas = [personaOverride];
+    batchInfo.generation_personas = [personaOverride];
     logger.info(`[Enhanced:${callId}] Debug mode: overriding persona to ${personaOverride}`, 'generate-debug');
   }
 
@@ -170,8 +170,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
   logger.info(`[Enhanced:${callId}] DB read time: ${((performance.now() - dbReadStart) / 1000).toFixed(2)}s. Pending tweets: ${pendingTweets.length}`, 'generate-timing');
 
-  const maxPipelineSize = account.twitter_handle.includes('gibbi') ? 8 : 30;
-  const supportsThreading = canGenerateThreads(account);
+  const maxPipelineSize = account.branding?.max_pipeline_size || (account.twitter_handle.includes('gibbi') ? 8 : 30);
+  const supportsThreading = account.branding?.supports_threads ?? canGenerateThreads(account);
 
   if (pendingTweets.length >= maxPipelineSize) {
     logger.info(`[Enhanced:${callId}] Generation skipped: pipeline full. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
@@ -187,10 +187,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     });
   }
 
-  let targetBatchSize = Math.min(batchInfo.batch_size, maxPipelineSize - pendingTweets.length);
+  let targetBatchSize = Math.min(batchInfo.batch_size || 5, maxPipelineSize - pendingTweets.length);
 
   // For threading personas, only generate one thread per call  
-  const selectedPersonaKey = batchInfo.personas[0];
+  const selectedPersonaKey = batchInfo.generation_personas[0];
   const persona = getPersonaByKey(selectedPersonaKey);
   const isThreadingPersona = supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey);
   const shouldGenerateThreads = isThreadingPersona && persona?.content_types?.includes('thread');
@@ -234,7 +234,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
       // Generate thread with the fetched context
       const threadResult = await generateThread({
-        account_id: accountId,
+        connected_account_id: accountId,
         persona: selectedPersonaKey,
         rssContext: rssContext // Pass the fetched context
       });

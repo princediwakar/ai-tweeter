@@ -3,16 +3,22 @@ import { toast } from 'sonner';
 
 import { formatForUserDisplay, toDateTimeLocal } from '@/lib/utils';
 import { Tweet, GenerateFormState, Persona, Account } from '@/types/dashboard';
-import { personas } from '@/lib/personas';
-import { getAllPersonas } from '@/lib/personas';
-
-// Use centralized persona configuration directly
 
 const BULK_GENERATION_CONFIG = {
   count: 5,
   includeHashtags: true,
   useTrendingTopics: false,
 };
+
+interface DbPersona {
+  id: string;
+  name: string;
+  description: string;
+  base_persona: string;
+  min_length: number;
+  max_length: number;
+  is_active: boolean;
+}
 
 // Helper function to parse dates from API response
 function parseTweetDates(tweets: Tweet[]): Tweet[] {
@@ -35,10 +41,10 @@ export function useTweetDashboard() {
   // Removed scheduler state - assuming always running
   const [hasHydrated, setHasHydrated] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
-  const [personasList, setPersonasList] = useState<Persona[]>(personas); // Initialize directly with centralized personas
+  const [personasList, setPersonasList] = useState<Persona[]>([]); // Loaded from DB per account
   const [generateForm, setGenerateForm] = useState<GenerateFormState>({
     account_id: '', // Will be set when accounts are loaded
-    persona: personas[0]?.id || '', // Set default persona immediately
+    persona: '', // Will be set when personas are loaded
     includeHashtags: true,
     useTrendingTopics: false,
     customPrompt: '',
@@ -57,46 +63,50 @@ export function useTweetDashboard() {
   // Track if component is mounted to prevent updates after unmount
   const [isMounted, setIsMounted] = useState(false);
 
-  // All accounts can use all personas - no classification needed
+  // Function to fetch personas from DB for selected account
+  const fetchPersonasForAccount = useCallback(async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/accounts/${accountId}/personas`);
+      if (response.ok) {
+        const data = await response.json();
+        const dbPersonas: DbPersona[] = data.personas || [];
+        
+        // Convert DB personas to frontend format
+        const formattedPersonas: Persona[] = dbPersonas
+          .filter(p => p.is_active)
+          .map(p => ({
+            id: p.base_persona || p.id,
+            name: p.name,
+            emoji: p.name.includes('Vocabulary') ? '🏆' : 
+                   p.name.includes('Business') ? '📈' : 
+                   p.name.includes('Cricket') ? '🏏' :
+                   p.name.includes('Signal') ? '💡' :
+                   p.name.includes('Pattern') ? '🔍' :
+                   p.name.includes('LinkedIn') ? '📊' : '🗣️',
+            description: p.description,
+          }));
+        
+        if (formattedPersonas.length > 0) {
+          setPersonasList(formattedPersonas);
+          // Update selected persona to first available if current one is not allowed
+          const currentPersonaAllowed = formattedPersonas.some(p => p.id === generateForm.persona);
+          if (!currentPersonaAllowed) {
+            setGenerateForm(prev => ({ 
+              ...prev, 
+              persona: formattedPersonas[0].id 
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching personas:', error);
+    }
+  }, [generateForm.persona]);
 
   // Function to update personas based on selected account
   const updatePersonasForAccount = useCallback((accountId: string) => {
-    const selectedAccountData = accounts.find(acc => acc.id === accountId);
-    if (selectedAccountData) {
-      console.log(`🎭 Loading all personas for ${selectedAccountData.name}`);
-      
-      // Get all available personas (account-agnostic)
-      const filteredPersonaConfigs = getAllPersonas();
-      
-      // Convert to frontend format
-      const filteredPersonas = filteredPersonaConfigs.map(p => ({
-        id: p.key,
-        name: p.displayName,
-        emoji: p.displayName.includes('🏆') ? '🏆' : 
-               p.displayName.includes('📚') ? '📚' : 
-               p.displayName.includes('💡') ? '💡' :
-               p.displayName.includes('🚀') ? '🚀' :
-               p.displayName.includes('💻') ? '💻' : '🗣️',
-        description: p.description,
-      }));
-      
-      setPersonasList(filteredPersonas);
-      
-      // Update selected persona to first available if current one is not allowed
-      if (filteredPersonas.length > 0) {
-        const currentPersonaAllowed = filteredPersonas.some(p => p.id === generateForm.persona);
-        if (!currentPersonaAllowed) {
-          setGenerateForm(prev => ({ 
-            ...prev, 
-            persona: filteredPersonas[0].id 
-          }));
-        }
-      }
-    } else {
-      // No account selected or fallback - show all personas
-      setPersonasList(personas);
-    }
-  }, [accounts, generateForm.persona]);
+    fetchPersonasForAccount(accountId);
+  }, [fetchPersonasForAccount]);
 
   // API Functions
   const fetchAccounts = useCallback(async () => {
@@ -113,27 +123,36 @@ export function useTweetDashboard() {
             setSelectedAccount(firstActiveAccount.id);
             setGenerateForm(prev => ({ ...prev, account_id: firstActiveAccount.id }));
             // Update personas for the selected account with the new accounts data
-            console.log(`🎭 Loading all personas for ${firstActiveAccount.name}`);
+            console.log(`🎭 Loading personas for ${firstActiveAccount.name}`);
             
-            const filteredPersonaConfigs = getAllPersonas();
-            const filteredPersonas = filteredPersonaConfigs.map(p => ({
-              id: p.key,
-              name: p.displayName,
-              emoji: p.displayName.includes('🏆') ? '🏆' : 
-                     p.displayName.includes('📚') ? '📚' : 
-                     p.displayName.includes('💡') ? '💡' :
-                     p.displayName.includes('🚀') ? '🚀' :
-                     p.displayName.includes('💻') ? '💻' : '🗣️',
-              description: p.description,
-            }));
-            
-            setPersonasList(filteredPersonas);
-            if (filteredPersonas.length > 0) {
-              setGenerateForm(prev => ({ 
-                ...prev, 
-                account_id: firstActiveAccount.id,
-                persona: filteredPersonas[0].id 
-              }));
+            // Fetch personas from DB for this account
+            const personasResponse = await fetch(`/api/accounts/${firstActiveAccount.id}/personas`);
+            if (personasResponse.ok) {
+              const personasData = await personasResponse.json();
+              const dbPersonas: DbPersona[] = personasData.personas || [];
+              
+              const formattedPersonas = dbPersonas
+                .filter(p => p.is_active)
+                .map(p => ({
+                  id: p.base_persona || p.id,
+                  name: p.name,
+                  emoji: p.name.includes('Vocabulary') ? '🏆' : 
+                         p.name.includes('Business') ? '📈' : 
+                         p.name.includes('Cricket') ? '🏏' :
+                         p.name.includes('Signal') ? '💡' :
+                         p.name.includes('Pattern') ? '🔍' :
+                         p.name.includes('LinkedIn') ? '📊' : '🗣️',
+                  description: p.description,
+                }));
+              
+              setPersonasList(formattedPersonas);
+              if (formattedPersonas.length > 0) {
+                setGenerateForm(prev => ({ 
+                  ...prev, 
+                  account_id: firstActiveAccount.id,
+                  persona: formattedPersonas[0].id 
+                }));
+              }
             }
           }
         }

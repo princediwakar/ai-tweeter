@@ -14,7 +14,13 @@ import {
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import { postTweet, postTweetWithImage } from '@/lib/twitter';
-import { AccountWithCredentials, Tweet } from '@/lib/types';
+import { refreshAccessToken } from '@/lib/twitter-oauth';
+import type { Tweet } from '@/lib/types';
+import { ConnectedAccount, getConnectedAccountByAccountId, updateConnectedAccountToken } from '@/lib/connectedAccounts';
+import { shouldRefreshToken } from '@/lib/twitter-oauth';
+import { platformSettings } from '@/lib/platformSettings';
+
+type AccountWithCredentials = ConnectedAccount;
 
 
 /**
@@ -63,7 +69,6 @@ function isTweetValidForPosting(tweet: Tweet): boolean {
   // 1. Check if image status is ok
   const ready = isTweetReadyForPosting(tweet);
   if (!ready) {
-    // This state is normal (e.g., image pending), so no need to log verbosely
     return false;
   }
   
@@ -83,24 +88,32 @@ function isTweetValidForPosting(tweet: Tweet): boolean {
   return true;
 }
 
+/**
+ * Get Twitter credentials for posting.
+ * Currently uses account credentials (OAuth 1.0a) as primary
+ * TODO: Update to use connected_accounts (OAuth 2.0) when Twitter API supports it for threads
+ */
+async function getTwitterCredentialsForAccount(account: AccountWithCredentials) {
+  // For now, always use account credentials (OAuth 1.0a)
+  // TODO: Support OAuth 2.0 user tokens for single tweets
+  return {
+    apiKey: account.twitter_api_key || '',
+    apiSecret: account.twitter_api_secret || '',
+    accessToken: account.twitter_access_token || '',
+    accessSecret: account.twitter_access_token_secret || '',
+  };
+}
+
 
 /**
  * Handles posting a single tweet. It posts with an image if image_url is present,
  * otherwise posts as a text-only tweet.
- * *Assumes tweet has already been validated for length and readiness.*
  */
 async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
-  const credentials = {
-    apiKey: account.twitter_api_key,
-    apiSecret: account.twitter_api_secret,
-    accessToken: account.twitter_access_token,
-    accessSecret: account.twitter_access_token_secret,
-  };
+  const credentials = await getTwitterCredentialsForAccount(account);
 
-  // Get the final, validated content
   const fullContent = getFullTweetContent(tweet);
 
-  // If an image_url exists and image processing is complete, post with image
   if (tweet.image_url && tweet.image_status === 'completed') {
     logger.info(`🖼️ ${account.name}: Tweet has completed image. Fetching from: ${tweet.image_url}`, 'auto-post');
     try {
@@ -118,7 +131,6 @@ async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
     logger.info(`⚠️ ${account.name}: Image generation failed, posting as text-only tweet.`, 'auto-post');
   }
 
-  // Fallback for text-only tweets or if image fetching failed.
   logger.info(`📝 ${account.name}: Posting as a text-only tweet.`, 'auto-post');
   return await postTweet(fullContent, credentials);
 }
@@ -158,10 +170,9 @@ export async function GET(request: NextRequest) {
         const readyTweets = await getReadyTweetsByAccount(account.id);
         const accountScheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
         
-        // Filter for persona AND validity (readiness + length)
         const scheduledTweets = readyTweets
           .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
-          .filter(tweet => isTweetValidForPosting(tweet)); // <-- UPDATED
+          .filter(tweet => isTweetValidForPosting(tweet));
 
         logger.info(`📝 Found ${scheduledTweets.length} valid, scheduled tweets (<= 280 chars) for ${account.name}`, 'auto-post');
 
@@ -186,7 +197,6 @@ export async function GET(request: NextRequest) {
             const errorMsg = error instanceof Error ? error.message : String(error);
             logger.error(`❌ ${account.name}: Failed to post tweet ${tweet.id}: ${errorMsg}`, 'auto-post', error as Error);
             
-            // Only mark as failed if it's a posting error, not a validation error (which is now filtered)
             const failedTweet: Tweet = { ...tweet, status: 'failed', error_message: errorMsg };
             await saveTweet(failedTweet);
             totalErrors++;
@@ -265,12 +275,7 @@ export async function POST(request: NextRequest) {
 
         if (scheduledThread) {
           logger.info(`🚀 ${account.name}: Posting thread "${scheduledThread.title}"`, 'auto-post');
-          const credentials = {
-            apiKey: account.twitter_api_key,
-            apiSecret: account.twitter_api_secret,
-            accessToken: account.twitter_access_token,
-            accessSecret: account.twitter_access_token_secret,
-          };
+          const credentials = await getTwitterCredentialsForAccount(account);
 
           const threadResult = await postCompleteThread(
             scheduledThread.id,
@@ -287,18 +292,15 @@ export async function POST(request: NextRequest) {
             totalErrors++;
             logger.error(`❌ ${account.name}: Failed to post thread: ${threadResult.error}`, 'auto-post');
           }
-          // Whether thread posted or failed, we skip single tweet posting for this run
           continue; 
         }
 
-        // If no thread was found or posted, look for a single tweet
         const readyTweets = await getReadyTweetsByAccount(account.id);
         
-        // Find a tweet that matches persona, is a single tweet, AND is valid (ready + <= 280 chars)
         const scheduledTweet = readyTweets.find(t => 
           scheduledPersonas.includes(t.persona) && 
           t.content_type === 'single_tweet' &&
-          isTweetValidForPosting(t) // <-- UPDATED
+          isTweetValidForPosting(t)
         );
 
         if (scheduledTweet) {

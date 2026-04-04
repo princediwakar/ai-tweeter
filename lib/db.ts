@@ -1,4 +1,5 @@
 import { sql } from '@vercel/postgres';
+import type { QueryResult, QueryResultRow } from '@vercel/postgres';
 import type { Tweet } from './types';
 import { GENERATION_CONFIG } from './generation/config';
 import type { RecentPattern } from './generation/types';
@@ -8,11 +9,82 @@ const inMemoryTweets: Tweet[] = [];
 // Use real database connection
 const USE_IN_MEMORY = false; // Use PostgreSQL database
 
+/**
+ * Universal SQL wrapper with retry logic for transient database connection errors.
+ * Primarily handles 'ENOTFOUND api.c-2...aws.neon.tech' and 'Control plane request failed'.
+ */
+export async function sqlWithRetry<T extends QueryResultRow>(
+  strings: TemplateStringsArray,
+  ...values: any[]
+): Promise<QueryResult<T>> {
+  let retries = 3;
+  let delay = 1000;
+
+  while (retries > 0) {
+    try {
+      return await (sql as any)(strings, ...values);
+    } catch (error: any) {
+      retries--;
+      const isTransient = 
+        error.message?.includes('ENOTFOUND') || 
+        error.message?.includes('Control plane') ||
+        error.message?.includes('fetch failed') ||
+        error.message?.includes('ETIMEDOUT') ||
+        error.message?.includes('ECONNRESET');
+
+      if (retries === 0 || !isTransient) {
+        console.error('❌ Database query permanently failed:', error);
+        throw error;
+      }
+
+      console.warn(`⚠️ Transient DB error (${error.message}). Retrying in ${delay}ms... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error('Unreachable: SQL query failed without throwing.');
+}
+
+/**
+ * Parameterized query version of sqlWithRetry
+ */
+sqlWithRetry.query = async function<T extends QueryResultRow>(
+  query: string,
+  values?: any[]
+): Promise<QueryResult<T>> {
+  let retries = 3;
+  let delay = 1000;
+
+  while (retries > 0) {
+    try {
+      return await sql.query<T>(query, values);
+    } catch (error: any) {
+      retries--;
+      const isTransient = 
+        error.message?.includes('ENOTFOUND') || 
+        error.message?.includes('Control plane') ||
+        error.message?.includes('fetch failed') ||
+        error.message?.includes('ETIMEDOUT') ||
+        error.message?.includes('ECONNRESET');
+
+      if (retries === 0 || !isTransient) {
+        console.error('❌ Database direct query permanently failed:', error);
+        throw error;
+      }
+
+      console.warn(`⚠️ Transient DB direct query error (${error.message}). Retrying in ${delay}ms... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
+  }
+  throw new Error('Unreachable: SQL direct query failed without throwing.');
+};
+
 
 // Thread interface for threading system
 export interface Thread {
   id: string;
-  account_id: string;
+  connected_account_id: string;
   title: string;
   persona: string;
   total_tweets: number;
@@ -31,14 +103,14 @@ export interface Thread {
 // Updated tweet functions to support account filtering
 export async function getAllTweets(): Promise<Tweet[]> {
   try {
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT * FROM tweets
       ORDER BY created_at DESC
     `;
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -71,15 +143,15 @@ export async function getAllTweets(): Promise<Tweet[]> {
 
 export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
   try {
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT * FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
       ORDER BY created_at DESC
     `;
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -120,12 +192,12 @@ function sleep(ms: number) {
 export async function createThread(data: Omit<Thread, 'id' | 'current_tweet' | 'created_at'>): Promise<string> {
   const threadId = crypto.randomUUID();
   
-  await sql`
+  await sqlWithRetry`
     INSERT INTO threads (
-      id, account_id, title, persona, total_tweets,
+      id, connected_account_id, title, persona, total_tweets,
       current_tweet, parent_tweet_id, status, story_category, created_at
     ) VALUES (
-      ${threadId}, ${data.account_id}, ${data.title}, ${data.persona}, ${data.total_tweets},
+      ${threadId}, ${data.connected_account_id}, ${data.title}, ${data.persona}, ${data.total_tweets},
       0, null, ${data.status}, ${data.story_category}, NOW()
     )
   `;
@@ -168,15 +240,15 @@ export async function createThreadWithRetry(
 
 export async function saveTweet(tweet: Tweet): Promise<void> {
   try {
-    await sql`
+    await sqlWithRetry`
       INSERT INTO tweets (
-        id, account_id, content, hashtags, persona, status, created_at, 
+        id, connected_account_id, content, hashtags, persona, status, created_at, 
         posted_at, twitter_id, twitter_url, error_message, image_url, 
         thread_id, thread_sequence, parent_twitter_id, content_type, 
         image_status, card_data, source_url
       ) VALUES (
         ${tweet.id},
-        ${tweet.account_id},
+        ${tweet.connected_account_id},
         ${tweet.content},
         ${JSON.stringify(tweet.hashtags)},
         ${tweet.persona},
@@ -192,16 +264,12 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         ${tweet.parent_twitter_id || null},
         ${tweet.content_type || 'single_tweet'},
         ${tweet.image_status || 'none'},
-        
-        -- <<< THIS IS THE FIX ---
         ${tweet.card_data || null}, 
-        -- >>> END OF FIX ---
-        
         ${tweet.source_url || null}
       )
       ON CONFLICT (id) 
       DO UPDATE SET
-        account_id = EXCLUDED.account_id,
+        connected_account_id = EXCLUDED.connected_account_id,
         content = EXCLUDED.content,
         hashtags = EXCLUDED.hashtags,
         persona = EXCLUDED.persona,
@@ -233,7 +301,7 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
 
 export async function getReadyTweets(): Promise<Tweet[]> {
   try {
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT * FROM tweets
       WHERE status = 'ready'
       ORDER BY created_at ASC
@@ -241,7 +309,7 @@ export async function getReadyTweets(): Promise<Tweet[]> {
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -272,15 +340,15 @@ export async function getReadyTweets(): Promise<Tweet[]> {
 
 export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[]> {
   try {
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT * FROM tweets
-      WHERE status = 'ready' AND account_id = ${accountId}
+      WHERE status = 'ready' AND connected_account_id = ${accountId}
       ORDER BY created_at ASC
     `;
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -322,7 +390,7 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
 }> {
   if (USE_IN_MEMORY) {
     const filteredTweets = params.accountId 
-      ? inMemoryTweets.filter(t => t.account_id === params.accountId)
+      ? inMemoryTweets.filter(t => t.connected_account_id === params.accountId)
       : inMemoryTweets;
     
     const total = filteredTweets.length;
@@ -349,19 +417,19 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
     
     // Get total count with optional account filtering
     const countResult = params.accountId 
-      ? await sql`SELECT COUNT(*) as count FROM tweets WHERE account_id = ${params.accountId}`
-      : await sql`SELECT COUNT(*) as count FROM tweets`;
+      ? await sqlWithRetry`SELECT COUNT(*) as count FROM tweets WHERE connected_account_id = ${params.accountId}`
+      : await sqlWithRetry`SELECT COUNT(*) as count FROM tweets`;
     const total = parseInt(countResult.rows[0].count);
     
     // Get paginated data with optional account filtering
     const result = params.accountId 
-      ? await sql`
+      ? await sqlWithRetry`
           SELECT * FROM tweets
-          WHERE account_id = ${params.accountId}
+          WHERE connected_account_id = ${params.accountId}
           ORDER BY created_at DESC
           LIMIT ${params.limit} OFFSET ${offset}
         `
-      : await sql`
+      : await sqlWithRetry`
           SELECT * FROM tweets
           ORDER BY created_at DESC
           LIMIT ${params.limit} OFFSET ${offset}
@@ -369,7 +437,7 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
     
     const tweets: Tweet[] = result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -422,7 +490,7 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
 
 export async function deleteTweet(id: string): Promise<void> {
   try {
-    await sql`DELETE FROM tweets WHERE id = ${id}`;
+    await sqlWithRetry`DELETE FROM tweets WHERE id = ${id}`;
     console.log(`[Neon] Deleted tweet ${id}`);
   } catch (error) {
     console.error('[Neon] Error deleting tweet:', error);
@@ -457,9 +525,9 @@ export function generateTweetId(): string {
 
 export async function getActiveThreadForPosting(accountId: string): Promise<Thread | null> {
   try {
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT * FROM threads
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND status = 'posting'
       LIMIT 1
     `;
@@ -469,7 +537,7 @@ export async function getActiveThreadForPosting(accountId: string): Promise<Thre
     const row = result.rows[0];
     return {
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       title: row.title,
       persona: row.persona,
       total_tweets: row.total_tweets,
@@ -489,7 +557,7 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
   try {
     const result = await sql`
       SELECT * FROM threads
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND status = 'ready'
       ORDER BY created_at ASC
       LIMIT 5
@@ -497,7 +565,7 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       title: row.title,
       persona: row.persona,
       total_tweets: row.total_tweets,
@@ -642,7 +710,7 @@ export async function getThreadTweet(threadId: string, sequence: number): Promis
     const row = result.rows[0];
     return {
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -679,7 +747,7 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
     const row = result.rows[0];
     return {
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -704,7 +772,7 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
 export async function getTweetsWithPendingImages(limit: number = 5, accountId?: string): Promise<Tweet[]> {
   if (USE_IN_MEMORY) {
     return inMemoryTweets
-      .filter(t => (t.image_status === 'pending' || t.image_status === 'failed') && (!accountId || t.account_id === accountId))
+      .filter(t => (t.image_status === 'pending' || t.image_status === 'failed') && (!accountId || t.connected_account_id === accountId))
       .slice(0, limit)
       .map(t => ({ ...t }));
   }
@@ -713,7 +781,7 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
     const result = accountId 
       ? await sql`
           SELECT * FROM tweets
-          WHERE (image_status = 'pending' OR image_status = 'failed') AND account_id = ${accountId}
+          WHERE (image_status = 'pending' OR image_status = 'failed') AND connected_account_id = ${accountId}
           ORDER BY created_at ASC
           LIMIT ${limit}
         `
@@ -726,7 +794,7 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
     
     return result.rows.map(row => ({
       id: row.id,
-      account_id: row.account_id,
+      connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
@@ -803,7 +871,7 @@ export async function updateTweetImage(
 
 export interface EngagementLog {
   id: string;
-  account_id: string;
+  connected_account_id: string;
   target_username: string;
   target_tweet_id: string;
   target_tweet_text?: string;
@@ -824,11 +892,11 @@ export async function logEngagement(engagement: Omit<EngagementLog, 'id' | 'enga
   try {
     await sql`
       INSERT INTO engagement_log (
-        account_id, target_username, target_tweet_id, target_tweet_text,
+        connected_account_id, target_username, target_tweet_id, target_tweet_text,
         reply_tweet_id, reply_text, discovery_method, target_tweet_age_minutes,
         target_tweet_likes, target_tweet_retweets, tier
       ) VALUES (
-        ${engagement.account_id},
+        ${engagement.connected_account_id},
         ${engagement.target_username},
         ${engagement.target_tweet_id},
         ${engagement.target_tweet_text},
@@ -841,7 +909,7 @@ export async function logEngagement(engagement: Omit<EngagementLog, 'id' | 'enga
         ${engagement.tier} -- Add the tier here
       )
     `;
-    console.log(`[Neon] Logged engagement for account ${engagement.account_id} with tweet ${engagement.target_tweet_id} (Tier ${engagement.tier})`);
+    console.log(`[Neon] Logged engagement for account ${engagement.connected_account_id} with tweet ${engagement.target_tweet_id} (Tier ${engagement.tier})`);
   } catch (error){
     console.error('[Neon] Error logging engagement:', error);
     // Do not throw, as logging failure should not break the main flow
@@ -857,7 +925,7 @@ export async function getDailyEngagementCount(accountId: string): Promise<number
     const result = await sql`
       SELECT COUNT(*)
       FROM engagement_log
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND DATE(engaged_at) = CURRENT_DATE
     `;
     return parseInt(result.rows[0].count, 10);
@@ -875,7 +943,7 @@ export async function getLastEngagementForTarget(accountId: string, targetUserna
     const result = await sql`
       SELECT engaged_at
       FROM engagement_log
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND target_username = ${targetUsername}
       ORDER BY engaged_at DESC
       LIMIT 1
@@ -895,7 +963,7 @@ export async function hasEngagedWithTweet(accountId: string, tweetId: string): P
     const result = await sql`
       SELECT 1
       FROM engagement_log
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND target_tweet_id = ${tweetId}
       LIMIT 1
     `;
@@ -915,7 +983,7 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
     const result = await sql`
       SELECT DISTINCT card_data
       FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND persona = 'english_vocab_builder'
         AND card_data IS NOT NULL
         AND created_at > NOW() - INTERVAL '${days} days'
@@ -958,7 +1026,7 @@ export async function getRecentSatiristData(
     const result = await sql`
       SELECT content, source_url, created_at
       FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND content IS NOT NULL
       ORDER BY created_at DESC
       LIMIT ${limit}
@@ -1001,7 +1069,7 @@ export async function getRecentPatternData(
     const result = await sql`
       SELECT content, source_url, created_at
       FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND content IS NOT NULL
       ORDER BY created_at DESC
       LIMIT ${limit}
@@ -1046,7 +1114,7 @@ export async function getRecentBusinessStorytellerSources(accountId: string, day
     const result = await sql`
       SELECT DISTINCT source_url
       FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND persona IN ('satirist', 'pattern_spotter', 'business_storyteller')
         AND source_url IS NOT NULL
         AND created_at > ${cutoffDate.toISOString()}
@@ -1078,7 +1146,7 @@ export async function getRecentCricketStorytellerSources(accountId: string, days
     const result = await sql`
       SELECT DISTINCT source_url
       FROM tweets
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
         AND persona = 'cricket_storyteller'
         AND source_url IS NOT NULL
         AND created_at > ${cutoffDate.toISOString()}

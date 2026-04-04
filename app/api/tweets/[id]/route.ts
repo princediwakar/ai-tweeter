@@ -55,16 +55,20 @@ export async function PUT(
     if (action === 'post') {
       try {
         // Get account credentials for posting
-        const account = await accountService.getAccount(tweet.account_id);
+        const accountId = tweet.connected_account_id || tweet.account_id;
+        if (!accountId) {
+          return NextResponse.json({ error: 'No account linked to this tweet' }, { status: 400 });
+        }
+        const account = await accountService.getAccount(accountId);
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
 
         const credentials = {
-          apiKey: account.twitter_api_key,
-          apiSecret: account.twitter_api_secret,
-          accessToken: account.twitter_access_token,
-          accessSecret: account.twitter_access_token_secret
+          apiKey: account.twitter_api_key || '',
+          apiSecret: account.twitter_api_secret || '',
+          accessToken: account.twitter_access_token || '',
+          accessSecret: account.twitter_access_token_secret || ''
         };
 
         const result = await postTweet(tweet.content, credentials);

@@ -1,0 +1,99 @@
+import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
+import type { UserPersona } from '@/lib/types';
+
+export function usePersonas() {
+  const [personas, setPersonas] = useState<UserPersona[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPersonas = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/personas');
+      if (!response.ok) throw new Error('Failed to fetch personas');
+      const data = await response.json();
+      setPersonas(data.personas || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPersonas();
+  }, [fetchPersonas]);
+
+  const createPersona = useCallback(async (data: {
+    name: string;
+    description?: string;
+    base_persona?: string;
+    min_length?: number;
+    max_length?: number;
+    tone?: string;
+    topics?: string[];
+  }) => {
+    try {
+      const response = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to create persona');
+      }
+      
+      const result = await response.json();
+      toast.success('Persona created!');
+      await fetchPersonas();
+      return result.persona;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create');
+      throw err;
+    }
+  }, [fetchPersonas]);
+
+  const updatePersona = useCallback(async (id: string, data: Partial<UserPersona>) => {
+    try {
+      const response = await fetch('/api/personas', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...data }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to update');
+      toast.success('Persona updated');
+      await fetchPersonas();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
+    }
+  }, [fetchPersonas]);
+
+  const deletePersona = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/personas?id=${id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete');
+      toast.success('Persona deleted');
+      await fetchPersonas();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  }, [fetchPersonas]);
+
+  const activePersonas = personas.filter(p => p.is_active);
+
+  return {
+    personas,
+    activePersonas,
+    loading,
+    error,
+    fetchPersonas,
+    createPersona,
+    updatePersona,
+    deletePersona,
+  };
+}

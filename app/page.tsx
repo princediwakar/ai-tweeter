@@ -1,9 +1,10 @@
 import TweetDashboard from '@/components/TweetDashboard';
+import NavigationLayout from '@/components/NavigationLayout';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <NavigationLayout>
       <TweetDashboard />
-    </div>
+    </NavigationLayout>
   );
 }

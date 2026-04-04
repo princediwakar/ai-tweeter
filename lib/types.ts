@@ -1,15 +1,40 @@
 // lib/types.ts
 
 // Core Account and User Types
+export interface User {
+  id: string;
+  name: string | null;
+  email: string;
+  email_verified: Date | null;
+  image: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface Session {
+  id: string;
+  user_id: string;
+  expires: Date;
+  session_token: string;
+  created_at: Date;
+}
+
+export interface UserAccount {
+  user_id: string;
+  account_id: string;
+  role: 'owner' | 'editor' | 'viewer';
+  created_at: Date;
+}
+
 export interface Account {
   id: string;
-  name: string;
+  name: string | null;
   twitter_handle: string;
   status: 'active' | 'inactive' | 'suspended';
-  twitter_api_key_encrypted: string;
-  twitter_api_secret_encrypted: string;
-  twitter_access_token_encrypted: string;
-  twitter_access_token_secret_encrypted: string;
+  twitter_api_key_encrypted?: string;
+  twitter_api_secret_encrypted?: string;
+  twitter_access_token_encrypted?: string;
+  twitter_access_token_secret_encrypted?: string;
   cloudinary_cloud_name_encrypted?: string;
   cloudinary_api_key_encrypted?: string;
   cloudinary_api_secret_encrypted?: string;
@@ -20,6 +45,17 @@ export interface Account {
   linkedin_org_id?: string;
   linkedin_enabled?: boolean;
   linkedin_token_expires_at?: Date;
+  // Twitter OAuth 2.0 credentials
+  twitter_oauth2_access_token_encrypted?: string;
+  twitter_oauth2_refresh_token_encrypted?: string;
+  twitter_oauth2_user_id?: string;
+  twitter_oauth2_enabled?: boolean;
+  twitter_oauth2_token_expires_at?: Date;
+  // Twitter OAuth 2.0 Client Credentials
+  twitter_oauth2_client_id_encrypted?: string;
+  twitter_oauth2_client_secret_encrypted?: string;
+  // SaaS multi-tenancy
+  owner_id?: string;
   personas: string[];
   branding: {
     theme: string;
@@ -27,6 +63,8 @@ export interface Account {
     tone: string;
     cta_frequency?: number;
     cta_message?: string;
+    max_pipeline_size?: number;
+    supports_threads?: boolean;
   };
   created_at: Date;
   updated_at: Date;
@@ -34,16 +72,22 @@ export interface Account {
 
 // Extended account with decrypted credentials for internal use
 export interface AccountWithCredentials extends Account {
-  twitter_api_key: string;
-  twitter_api_secret: string;
-  twitter_access_token: string;
-  twitter_access_token_secret: string;
+  twitter_api_key?: string;
+  twitter_api_secret?: string;
+  twitter_access_token?: string;
+  twitter_access_token_secret?: string;
   cloudinary_cloud_name?: string;
   cloudinary_api_key?: string;
   cloudinary_api_secret?: string;
   // Decrypted LinkedIn credentials
   linkedin_access_token?: string;
   linkedin_refresh_token?: string;
+  // Decrypted Twitter OAuth 2.0 credentials
+  twitter_oauth2_access_token?: string;
+  twitter_oauth2_refresh_token?: string;
+  // Decrypted Twitter OAuth 2.0 Client Credentials
+  twitter_oauth2_client_id?: string;
+  twitter_oauth2_client_secret?: string;
 }
 
 export interface Persona {
@@ -56,7 +100,8 @@ export interface Persona {
 // Tweet and Content Types
 export interface Tweet {
   id: string;
-  account_id: string;
+  connected_account_id: string;
+  account_id?: string; // Deprecated - use connected_account_id
   content: string;
   hashtags: string[];
   persona: string;
@@ -161,7 +206,8 @@ export interface VariationMarkers {
 }
 
 export interface TweetGenerationConfig {
-  account_id?: string; // Multi-account support
+  connected_account_id?: string; // Multi-account support (use connected_accounts table)
+  account_id?: string; // Deprecated - use connected_account_id
   persona?: string;
   category?: string;
   topic?: string;
@@ -225,4 +271,62 @@ export interface GenerationResult {
   tweet?: EnhancedTweet;
   jobId?: string;
   error?: string;
+}
+
+// =============================================================================
+// SaaS Platform Types
+// =============================================================================
+
+export interface ConnectedAccount {
+  id: string;
+  user_id: string;
+  platform: 'twitter' | 'linkedin';
+  account_username: string;
+  account_name?: string;
+  platform_user_id?: string;
+  is_active: boolean;
+  connected_at: Date;
+  last_used_at?: Date;
+}
+
+export interface UserPersona {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  base_persona?: string;
+  config: Record<string, unknown>;
+  min_length: number;
+  max_length: number;
+  tone?: string;
+  topics?: string[];
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface UserSchedule {
+  id: string;
+  user_id: string;
+  connected_account_id: string;
+  name: string;
+  description?: string;
+  persona_id?: string;
+  cron_expression: string;
+  timezone: string;
+  use_trending: boolean;
+  include_hashtags: boolean;
+  bulk_count: number;
+  is_active: boolean;
+  last_run_at?: Date;
+  next_run_at?: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface PlatformSettings {
+  id: string;
+  setting_key: string;
+  is_active: boolean;
+  cloud_name?: string;
 }

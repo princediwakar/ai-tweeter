@@ -1,6 +1,7 @@
 // app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { accountService } from '@/lib/accountService';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 /**
  * Enhanced Multi-Account Management API
@@ -10,25 +11,37 @@ import { accountService } from '@/lib/accountService';
 
 /**
  * GET /api/accounts
- * Retrieve all active accounts with enhanced metadata (credentials excluded for security)
+ * Retrieve all active accounts for the current user with enhanced metadata (credentials excluded for security)
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const accounts = await accountService.getAllAccounts();
+    // Get current user ID
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get accounts accessible by this user
+    const accounts = await accountService.getAccountsByUserId(userId);
     
     // Return enhanced account information without sensitive credentials
     const safeAccounts = accounts.map(account => ({
       id: account.id,
       name: account.name,
-      twitter_handle: account.twitter_handle,
+      platform: account.platform || 'twitter',
+      account_username: account.account_username || (account as any).twitter_handle,
+      twitter_handle: account.account_username || (account as any).twitter_handle,
       status: account.status,
       personas: account.personas || [],
       branding: account.branding,
       created_at: account.created_at,
       updated_at: account.updated_at,
+      profile_image_url: account.profile_image_url,
       // Health indicators without exposing credentials
-      credentials_configured: !!(account.twitter_api_key_encrypted && account.twitter_api_secret_encrypted && 
-                                account.twitter_access_token_encrypted && account.twitter_access_token_secret_encrypted),
+      credentials_configured: !!(account.access_token || (account as any).twitter_access_token),
       persona_count: account.personas?.length || 0
     }));
 
@@ -53,25 +66,30 @@ export async function GET() {
 /**
  * POST /api/accounts
  * Create a new Twitter account with enhanced validation and encryption
+ * Automatically assigns the account to the current user as owner
  */
 export async function POST(request: NextRequest) {
   try {
+    // Get current user ID
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     
     // Validate required fields
-    const requiredFields = [
-      'id', 'name', 'twitter_handle', 
-      'twitter_api_key', 'twitter_api_secret', 
-      'twitter_access_token', 'twitter_access_token_secret'
-    ];
-    
-    const missingFields = requiredFields.filter(field => !body[field]);
-    if (missingFields.length > 0) {
+    if (!body.id || !body.name || !body.twitter_handle) {
       return NextResponse.json({
         success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`
+        error: 'Missing required fields: id, name, twitter_handle'
       }, { status: 400 });
     }
+    
+    // Credentials are optional - accounts can be created first and connected later via OAuth
 
     // Normalize Twitter handle format
     let twitterHandle = body.twitter_handle.toString().trim();
@@ -82,6 +100,7 @@ export async function POST(request: NextRequest) {
     // Set up account data with enhanced branding configuration
     const accountData = {
       id: body.id,
+      user_id: userId,
       name: body.name,
       twitter_handle: twitterHandle,
       status: (body.status || 'active') as 'active' | 'inactive' | 'suspended',
@@ -89,6 +108,8 @@ export async function POST(request: NextRequest) {
       twitter_api_secret: body.twitter_api_secret,
       twitter_access_token: body.twitter_access_token,
       twitter_access_token_secret: body.twitter_access_token_secret,
+      twitter_oauth2_client_id: body.twitter_oauth2_client_id,
+      twitter_oauth2_client_secret: body.twitter_oauth2_client_secret,
       personas: body.personas || [],
       branding: {
         theme: body.branding?.theme || 'professional',
@@ -101,7 +122,10 @@ export async function POST(request: NextRequest) {
 
     // Create account with built-in validation
     const account = await accountService.createAccount(accountData);
-    
+
+    // Set the current user as the owner of this account
+    await accountService.setAccountOwner(account.id, userId);
+
     // Return safe account data (no credentials)
     const safeAccount = {
       id: account.id,

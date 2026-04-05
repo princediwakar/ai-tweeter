@@ -20,6 +20,7 @@ export interface Schedule {
   should_post: boolean;
   generation_personas: string[];
   posting_personas: string[];
+  batch_size?: number;
 }
 
 export async function getGenerationBatchInfo(
@@ -33,6 +34,7 @@ export async function getGenerationBatchInfo(
       should_post: true,
       generation_personas: ['satirist'],
       posting_personas: ['satirist'],
+      batch_size: 5,
     };
   }
 
@@ -43,6 +45,7 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
+      batch_size: 5,
     };
   }
 
@@ -53,6 +56,7 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
+      batch_size: 5,
     };
   }
 
@@ -73,15 +77,18 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
+      batch_size: 5,
     };
   }
 
   const personas = account.personas || [];
+  const scheduleConfig = activeSchedule.schedule_config as Record<string, unknown> || {};
   return {
     should_generate: true,
     should_post: true,
     generation_personas: personas,
     posting_personas: personas,
+    batch_size: typeof scheduleConfig.batch_size === 'number' ? scheduleConfig.batch_size : undefined,
   };
 }
 

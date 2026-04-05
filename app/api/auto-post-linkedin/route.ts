@@ -59,7 +59,7 @@ async function processLinkedInJob(job: { id: string; account_id: string }): Prom
 
   const result = await sql<Tweet>`
     SELECT * FROM tweets
-    WHERE account_id = ${account.id}
+    WHERE connected_account_id = ${account.id}
     AND status IN ('ready', 'posted')
     AND linkedin_id IS NULL
     AND content_type = 'single_tweet'

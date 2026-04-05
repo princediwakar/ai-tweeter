@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Schedule, CreateScheduleInput } from '@/lib/scheduleService';
 import { Persona } from '@/lib/personaService';
-import { Clock, Calendar, Zap, Sparkles, X, Check } from 'lucide-react';
+import { Clock, Calendar, Zap, Sparkles, X, Check, Edit } from 'lucide-react';
 
 const DAYS = [
   { value: 0, label: 'Sun' },
@@ -464,7 +464,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
                     onClick={() => handleEdit(schedule)}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    <Sparkles className="w-4 h-4" />
+                    <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteClick(schedule.id)}

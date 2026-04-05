@@ -244,7 +244,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
             <div className="flex items-center gap-2">
               {getPlatformBadge(currentAccount.platform)}
               <span className="text-sm text-gray-500">
-                {currentAccount.account_name || `@${currentAccount.account_username}`}
+                {currentAccount.account_name || (currentAccount.platform === 'linkedin' ? 'LinkedIn' : 'Twitter')}
               </span>
             </div>
           )}

@@ -78,7 +78,7 @@ export function PresenceController({
       <div className="flex flex-col">
         <span className="text-[10px] uppercase tracking-widest text-white/30 font-bold">Current Presence</span>
         <span className="text-sm font-medium text-white/90">
-          {selectedAccount ? `@${selectedAccount.account_username}` : 'No Active Presence'}
+          {selectedAccount ? `${selectedAccount.account_name || selectedAccount.account_username} (${selectedAccount.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})` : 'No Active Presence'}
         </span>
       </div>
     </div>

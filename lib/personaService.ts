@@ -58,6 +58,12 @@ class PersonaService {
   async createPersona(input: CreatePersonaInput): Promise<Persona> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+    
+    const tone = input.tone || null;
+    let topics = null;
+    if (input.topics?.length) {
+      topics = `{${input.topics.join(',')}}`;
+    }
 
     const result = await sql`
       INSERT INTO personas (
@@ -69,7 +75,7 @@ class PersonaService {
         ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
         ${JSON.stringify(input.config || {})}::jsonb,
         ${input.min_length ?? 200}, ${input.max_length ?? 280},
-        ${input.tone || undefined}, ${input.topics ? JSON.stringify(input.topics) : undefined},
+        ${tone}, ${topics},
         ${input.is_active ?? true}, ${input.is_default ?? false},
         ${now}, ${now}
       )
@@ -118,7 +124,7 @@ class PersonaService {
     }
     if (input.topics !== undefined) {
       updates.push(`topics = $${paramIndex++}`);
-      values.push(input.topics);
+      values.push(input.topics.length ? `{${input.topics.join(',')}}` : null);
     }
     if (input.is_active !== undefined) {
       updates.push(`is_active = $${paramIndex++}`);
@@ -197,6 +203,15 @@ class PersonaService {
   }
 
   private mapRow(row: Record<string, unknown>): Persona {
+    let topics: string[] | undefined;
+    if (row.topics) {
+      if (Array.isArray(row.topics)) {
+        topics = row.topics as string[];
+      } else if (typeof row.topics === 'string') {
+        topics = row.topics.slice(1, -1).split(',').map(t => t.trim().slice(1, -1));
+      }
+    }
+
     return {
       id: row.id as string,
       connected_account_id: row.connected_account_id as string,
@@ -211,7 +226,7 @@ class PersonaService {
       min_length: row.min_length as number,
       max_length: row.max_length as number,
       tone: row.tone as string | undefined,
-      topics: row.topics as string[] | undefined,
+      topics,
       is_active: row.is_active as boolean,
       is_default: row.is_default as boolean,
       created_at: (row.created_at as Date).toISOString(),

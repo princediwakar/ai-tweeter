@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { accountService } from './accountService';
+import { getCurrentISTHour, getCurrentISTDay } from './utils';
 
 interface ScheduleRow {
   id: string;
@@ -60,8 +61,8 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  const hour = now.getHours();
-  const dayOfWeek = now.getDay();
+  const hour = getCurrentISTHour(now);
+  const dayOfWeek = getCurrentISTDay(now);
   const currentTimeInMinutes = hour * 60;
 
   const activeSchedule = schedules.find((s: ScheduleRow) => {

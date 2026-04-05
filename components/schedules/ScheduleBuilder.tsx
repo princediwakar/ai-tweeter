@@ -6,13 +6,13 @@ import { Persona } from '@/lib/personaService';
 import { Clock, Calendar, Zap, Sparkles, X, Check, Edit } from 'lucide-react';
 
 const DAYS = [
-  { value: 0, label: 'Sun' },
   { value: 1, label: 'Mon' },
   { value: 2, label: 'Tue' },
   { value: 3, label: 'Wed' },
   { value: 4, label: 'Thu' },
   { value: 5, label: 'Fri' },
   { value: 6, label: 'Sat' },
+  { value: 0, label: 'Sun' },
 ];
 
 interface ConnectedAccount {
@@ -41,7 +41,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
     connected_account_id: accountId,
     name: '',
     timezone: 'Asia/Kolkata',
-    days_of_week: [0, 1, 2, 3, 4, 5, 6],
+    days_of_week: [1, 2, 3, 4, 5, 6, 0],
     start_time: 540,
     end_time: 540,
     is_active: true,
@@ -114,7 +114,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
       setFormData({
         connected_account_id: accountId,
         name: '',
-        days_of_week: [0, 1, 2, 3, 4, 5, 6],
+        days_of_week: [1, 2, 3, 4, 5, 6, 0],
         start_time: 540,
         end_time: 540,
         is_active: true,
@@ -256,7 +256,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
               setFormData({
               connected_account_id: accountId,
               name: '',
-              days_of_week: [0, 1, 2, 3, 4, 5, 6],
+              days_of_week: [1, 2, 3, 4, 5, 6, 0],
               start_time: 540,
               end_time: 540,
               is_active: true,

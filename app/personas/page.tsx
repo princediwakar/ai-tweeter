@@ -9,7 +9,7 @@ import { Persona, PersonaSchedule } from '@/components/personas/types';
 import DeleteConfirmDialog from '@/components/personas/DeleteConfirmDialog';
 import ScheduleDialog from '@/components/personas/ScheduleDialog';
 
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function formatScheduleTime(schedule: PersonaSchedule): string {
   const hours = Math.floor(schedule.start_time / 60);
@@ -22,13 +22,13 @@ function formatScheduleTime(schedule: PersonaSchedule): string {
 function formatScheduleDays(schedule: PersonaSchedule): string {
   if (!schedule.days_of_week || schedule.days_of_week.length === 0) return 'No days';
   if (schedule.days_of_week.length === 7) return 'Every day';
-  // Mon=0, Tue=1, ..., Sun=6
-  // Weekdays: Mon-Fri (0-4)
-  const hasMonToFri = [0,1,2,3,4].every(d => schedule.days_of_week.includes(d));
-  const hasSatSun = schedule.days_of_week.includes(5) || schedule.days_of_week.includes(6);
+  // JS getDay(): Sun=0, Mon=1, ..., Sat=6
+  // Weekdays: Mon-Fri (1-5)
+  const hasMonToFri = [1,2,3,4,5].every(d => schedule.days_of_week.includes(d));
+  const hasSatSun = schedule.days_of_week.includes(0) || schedule.days_of_week.includes(6);
   if (schedule.days_of_week.length === 5 && hasMonToFri && !hasSatSun) return 'Weekdays';
-  // Weekends: Sat, Sun (5, 6)
-  if (schedule.days_of_week.length === 2 && schedule.days_of_week.includes(5) && schedule.days_of_week.includes(6)) return 'Weekends';
+  // Weekends: Sat, Sun (0, 6)
+  if (schedule.days_of_week.length === 2 && schedule.days_of_week.includes(0) && schedule.days_of_week.includes(6)) return 'Weekends';
   return schedule.days_of_week.map(d => DAYS[d]).join(', ');
 }
 

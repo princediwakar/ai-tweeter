@@ -21,7 +21,7 @@ export async function GET(
     const { accountId, scheduleId } = await params;
     const account = await accountService.getAccount(accountId);
     
-    if (!account || account.owner_id !== userId) {
+    if (!account || account.user_id !== userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

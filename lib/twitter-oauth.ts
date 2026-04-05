@@ -4,6 +4,10 @@
 import crypto from 'crypto';
 import { platformSettings } from './platformSettings';
 
+const verifierStore = new Map<string, string>();
+
+export { verifierStore };
+
 export interface TwitterTokenResponse {
   access_token: string;
   refresh_token?: string;

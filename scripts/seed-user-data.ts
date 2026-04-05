@@ -8,9 +8,9 @@ async function seedData() {
   const existingUser = await sql`
     SELECT id, email, name FROM users WHERE email = 'princediwakar25@gmail.com'
   `;
-  
+
   let userId: string;
-  
+
   if (existingUser.rows.length > 0) {
     userId = existingUser.rows[0].id;
     console.log(`Found existing user: ${existingUser.rows[0].email} (${userId})`);
@@ -24,170 +24,192 @@ async function seedData() {
     console.log(`Created new user: princediwakar25@gmail.com (${userId})`);
   }
 
-  // 2. Get all existing accounts
-  console.log('\n--- Step 2: Get existing accounts ---');
-  const accounts = await sql`
-    SELECT id, name, twitter_handle FROM accounts WHERE owner_id IS NULL OR owner_id != ${userId}
-  `;
-  console.log(`Found ${accounts.rows.length} accounts to link`);
+  // 2. Get or create connected accounts for the user
+  console.log('\n--- Step 2: Get or create connected accounts ---');
+  const platforms = ['twitter', 'linkedin'];
+  const connectedAccounts = [];
 
-  // 3. Link accounts to user
-  console.log('\n--- Step 3: Link accounts to user ---');
-  for (const account of accounts.rows) {
-    // Check if already linked
-    const existingLink = await sql`
-      SELECT * FROM user_accounts WHERE user_id = ${userId} AND account_id = ${account.id}
+  for (const platform of platforms) {
+    const existingAccount = await sql`
+      SELECT id, account_username, platform FROM connected_accounts
+      WHERE user_id = ${userId} AND platform = ${platform}
     `;
-    
-    if (existingLink.rows.length === 0) {
-      await sql`
-        INSERT INTO user_accounts (user_id, account_id, role, created_at)
-        VALUES (${userId}, ${account.id}, 'owner', NOW())
+
+    if (existingAccount.rows.length > 0) {
+      console.log(`  Found existing ${platform} account: @${existingAccount.rows[0].account_username}`);
+      connectedAccounts.push(existingAccount.rows[0]);
+    } else {
+      // Create a dummy connected account for seeding
+      const username = platform === 'twitter' ? 'test_twitter' : 'test_linkedin';
+      const newAccount = await sql`
+        INSERT INTO connected_accounts (
+          id, user_id, platform, account_username, account_name, platform_user_id,
+          access_token_encrypted, refresh_token_encrypted, token_expires_at,
+          is_active, connected_at, last_used_at
+        ) VALUES (
+          gen_random_uuid(), ${userId}, ${platform}, ${username}, 'Test Account', 'test123',
+          '', '', NULL, true, NOW(), NOW()
+        )
+        RETURNING id, account_username, platform
       `;
-      console.log(`  ✓ Linked account: ${account.name} (@${account.twitter_handle})`);
+      console.log(`  Created new ${platform} account: @${newAccount.rows[0].account_username}`);
+      connectedAccounts.push(newAccount.rows[0]);
     }
-
-    // Update account owner_id
-    await sql`
-      UPDATE accounts SET owner_id = ${userId} WHERE id = ${account.id}
-    `;
   }
 
-  // 4. Seed custom_personas for each account
-  console.log('\n--- Step 4: Seed custom_personas ---');
-  const builtInPersonas = [
+  // 3. Seed personas for each connected account
+  console.log('\n--- Step 3: Seed personas ---');
+
+  // Persona definitions per platform
+  const personaDefinitions = [
     {
-      key: 'satirist',
+      platform: 'twitter',
+      name: 'Pattern Spotter',
+      description: 'Finds non-obvious patterns across multiple news stories.',
+      config: { key: 'pattern_spotter', displayName: 'Pattern Spotter' },
+      min_length: 100,
+      max_length: 280,
+      tone: 'analytical',
+      topics: ['news', 'patterns'],
+      is_default: true
+    },
+    {
+      platform: 'twitter',
       name: 'The Signal Finder',
       description: 'Extracts non-obvious insights from news using specific data and evidence.',
-      base_persona: 'satirist',
+      config: { key: 'satirist', displayName: 'The Signal Finder' },
       min_length: 100,
-      max_length: 280
+      max_length: 280,
+      tone: 'insightful',
+      topics: ['news', 'analysis'],
+      is_default: false
     },
     {
-      key: 'pattern_spotter',
-      name: 'The Pattern Spotter',
-      description: 'Finds non-obvious patterns across multiple news stories.',
-      base_persona: 'pattern_spotter',
-      min_length: 100,
-      max_length: 280
-    },
-    {
-      key: 'business_storyteller',
-      name: 'Business Storyteller',
-      description: 'Compelling Indian business stories with emotional depth and strategic insights.',
-      base_persona: 'business_storyteller',
+      platform: 'linkedin',
+      name: 'Business Analyst',
+      description: 'Creates meaningful, long-form content on AI, products, startups, trends.',
+      config: { key: 'linkedin_analyst', displayName: 'Business Analyst' },
       min_length: 600,
-      max_length: 2500
-    },
-    {
-      key: 'cricket_storyteller',
-      name: 'Cricket Storyteller',
-      description: 'Human stories with cricket as the backdrop - exploring character and life lessons.',
-      base_persona: 'cricket_storyteller',
-      min_length: 600,
-      max_length: 2500
-    },
-    {
-      key: 'english_vocab_builder',
-      name: 'Vocabulary Builder',
-      description: 'Master new words, meanings, and usage in engaging ways.',
-      base_persona: 'english_vocab_builder',
-      min_length: 50,
-      max_length: 280
-    },
-    {
-      key: 'linkedin_analyst',
-      name: 'LinkedIn Analyst',
-      description: 'Creates meaningful, long-form content on AI, products, startups, and trends.',
-      base_persona: 'linkedin_analyst',
-      min_length: 600,
-      max_length: 2500
+      max_length: 2500,
+      tone: 'professional',
+      topics: ['AI', 'business', 'startups'],
+      is_default: true
     }
   ];
 
-  for (const account of accounts.rows) {
+  for (const account of connectedAccounts) {
     // Check if personas already exist for this account
     const existingPersonas = await sql`
-      SELECT id FROM custom_personas WHERE account_id = ${account.id}
+      SELECT id FROM personas WHERE connected_account_id = ${account.id}
     `;
 
-    if (existingPersonas.rows.length === 0) {
-      for (const persona of builtInPersonas) {
-        await sql`
-          INSERT INTO custom_personas (
-            id, account_id, name, description, base_persona, min_length, max_length, is_active, created_at, updated_at
-          ) VALUES (
-            gen_random_uuid(),
-            ${account.id},
-            ${persona.name},
-            ${persona.description},
-            ${persona.base_persona},
-            ${persona.min_length},
-            ${persona.max_length},
-            true,
-            NOW(),
-            NOW()
-          )
-        `;
-      }
-      console.log(`  ✓ Seeded ${builtInPersonas.length} personas for ${account.name}`);
-    } else {
-      console.log(`  - Skipped ${account.name} (personas already exist)`);
+    if (existingPersonas.rows.length > 0) {
+      console.log(`  Skipping personas for account @${account.account_username} (already exist)`);
+      continue;
     }
-  }
 
-  // 5. Seed default schedules for each account
-  console.log('\n--- Step 5: Seed account_schedules ---');
-  
-  for (const account of accounts.rows) {
-    // Check if schedules already exist
-    const existingSchedules = await sql`
-      SELECT id FROM account_schedules WHERE account_id = ${account.id}
-    `;
+    const accountPersonas = personaDefinitions.filter(p => p.platform === account.platform);
+    let defaultCreated = false;
 
-    if (existingSchedules.rows.length === 0) {
-      // Create a default active schedule
+    for (const personaDef of accountPersonas) {
+      const topicsArray = personaDef.topics ? `{${personaDef.topics.join(',')}}` : '{}';
       await sql`
-        INSERT INTO account_schedules (
-          id, account_id, name, timezone, schedule_config, days_of_week, 
-          start_time, end_time, is_active, max_posts_per_day, created_at, updated_at
+        INSERT INTO personas (
+          id, connected_account_id, name, description, rss_sources, config,
+          min_length, max_length, tone, topics, is_active, is_default,
+          created_at, updated_at
         ) VALUES (
           gen_random_uuid(),
           ${account.id},
-          'Default Schedule',
-          'Asia/Kolkata',
-          '{}',
-          '{0,1,2,3,4,5,6}',
-          480,  -- 8:00 AM = 8*60 = 480
-          1260, -- 9:00 PM = 21*60 = 1260
+          ${personaDef.name},
+          ${personaDef.description},
+          '[]'::jsonb,
+          ${JSON.stringify(personaDef.config)}::jsonb,
+          ${personaDef.min_length},
+          ${personaDef.max_length},
+          ${personaDef.tone},
+          ${topicsArray}::text[],
           true,
-          10,
+          ${personaDef.is_default},
           NOW(),
           NOW()
         )
       `;
-      console.log(`  ✓ Seeded default schedule for ${account.name}`);
-    } else {
-      console.log(`  - Skipped ${account.name} (schedules already exist)`);
+      if (personaDef.is_default) {
+        defaultCreated = true;
+      }
+    }
+    console.log(`  Seeded ${accountPersonas.length} personas for @${account.account_username} (${account.platform})`);
+    if (defaultCreated) {
+      console.log(`    - Default persona created`);
     }
   }
 
-  // 6. Verify
+  // 4. Seed default schedules for each account
+  console.log('\n--- Step 4: Seed schedules ---');
+
+  for (const account of connectedAccounts) {
+    // Check if schedules already exist
+    const existingSchedules = await sql`
+      SELECT id FROM schedules WHERE connected_account_id = ${account.id}
+    `;
+
+    if (existingSchedules.rows.length > 0) {
+      console.log(`  Skipping schedules for account @${account.account_username} (already exist)`);
+      continue;
+    }
+
+    // Get default persona for this account
+    const defaultPersona = await sql`
+      SELECT id FROM personas
+      WHERE connected_account_id = ${account.id} AND is_default = true
+      LIMIT 1
+    `;
+
+    const personaId = defaultPersona.rows[0]?.id || null;
+
+    await sql`
+      INSERT INTO schedules (
+        id, user_id, connected_account_id, name, description, persona_id,
+        cron_expression, timezone, use_trending, include_hashtags, bulk_count,
+        is_active, last_run_at, next_run_at, created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(),
+        ${userId},
+        ${account.id},
+        'Default Schedule',
+        'Automatically generated schedule',
+        ${personaId},
+        '0 * * * *',
+        'UTC',
+        false,
+        true,
+        1,
+        true,
+        NULL,
+        NULL,
+        NOW(),
+        NOW()
+      )
+    `;
+    console.log(`  Seeded default schedule for @${account.account_username}`);
+  }
+
+  // 5. Verification
   console.log('\n--- Verification ---');
   const verification = await sql`
-    SELECT 
+    SELECT
       (SELECT COUNT(*) FROM users WHERE email = 'princediwakar25@gmail.com') as user_count,
-      (SELECT COUNT(*) FROM accounts WHERE owner_id = ${userId}) as account_count,
-      (SELECT COUNT(*) FROM custom_personas) as persona_count,
-      (SELECT COUNT(*) FROM account_schedules) as schedule_count
+      (SELECT COUNT(*) FROM connected_accounts WHERE user_id = ${userId}) as account_count,
+      (SELECT COUNT(*) FROM personas WHERE connected_account_id IN (SELECT id FROM connected_accounts WHERE user_id = ${userId})) as persona_count,
+      (SELECT COUNT(*) FROM schedules WHERE user_id = ${userId}) as schedule_count
   `;
-  
+
   console.log(`
     Users with email princediwakar25@gmail.com: ${verification.rows[0].user_count}
-    Accounts owned by user: ${verification.rows[0].account_count}
-    Total custom_personas: ${verification.rows[0].persona_count}
-    Total account_schedules: ${verification.rows[0].schedule_count}
+    Connected accounts owned by user: ${verification.rows[0].account_count}
+    Total personas: ${verification.rows[0].persona_count}
+    Total schedules: ${verification.rows[0].schedule_count}
   `);
 
   console.log('\n✅ Seed completed successfully!');

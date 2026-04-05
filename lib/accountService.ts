@@ -45,7 +45,17 @@ export const accountService = {
     personas?: string[];
     branding?: Record<string, unknown>;
   }): Promise<ConnectedAccount> {
-    return connectedAccountsService.create(data);
+    return connectedAccountsService.create({
+      id: data.id,
+      user_id: data.user_id,
+      platform: 'twitter',
+      account_username: data.twitter_handle.replace(/^@/, ''),
+      account_name: data.name,
+      name: data.name,
+      status: data.status || 'active',
+      personas: data.personas,
+      branding: data.branding,
+    });
   },
 
   async updateAccount(id: string, data: Partial<{

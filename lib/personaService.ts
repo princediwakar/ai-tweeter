@@ -1,31 +1,223 @@
+import { sql } from '@vercel/postgres';
 
-import { accountService } from './accountService';
-import { 
-  PERSONAS, 
-  getAllowedPersonasForHandle, 
-  getPersonaByKey, 
-  getRandomPersonaForHandle,
-  PersonaConfig 
-} from './personas';
+export interface Persona {
+  id: string;
+  connected_account_id: string;
+  name: string;
+  description: string;
+  rss_sources: string[];
+  config: Record<string, unknown>;
+  min_length: number;
+  max_length: number;
+  tone?: string;
+  topics?: string[];
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
-export async function getAllowedPersonasForAccount(accountId: string): Promise<string[]> {
-  try {
-    const account = await accountService.getAccount(accountId);
-    if (!account) return [];
-    return getAllowedPersonasForHandle(account.twitter_handle);
-  } catch (error) {
-    console.error(`Failed to get account for ID ${accountId}:`, error);
-    return [];
+export interface CreatePersonaInput {
+  connected_account_id: string;
+  name: string;
+  description?: string;
+  rss_sources?: string[];
+  config?: Record<string, unknown>;
+  min_length?: number;
+  max_length?: number;
+  tone?: string;
+  topics?: string[];
+  is_active?: boolean;
+  is_default?: boolean;
+}
+
+export interface UpdatePersonaInput extends Partial<CreatePersonaInput> {
+  id: string;
+}
+
+class PersonaService {
+  async getPersonasByAccount(accountId: string): Promise<Persona[]> {
+    const result = await sql`
+      SELECT * FROM personas
+      WHERE connected_account_id = ${accountId}
+      ORDER BY created_at DESC
+    `;
+
+    return result.rows.map(this.mapRow);
+  }
+
+  async getPersona(id: string): Promise<Persona | null> {
+    const result = await sql`
+      SELECT * FROM personas
+      WHERE id = ${id}
+    `;
+
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async createPersona(input: CreatePersonaInput): Promise<Persona> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    const result = await sql`
+      INSERT INTO personas (
+        id, connected_account_id, name, description, rss_sources, config,
+        min_length, max_length, tone, topics, is_active, is_default,
+        created_at, updated_at
+      ) VALUES (
+        ${id}, ${input.connected_account_id}, ${input.name},
+        ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
+        ${JSON.stringify(input.config || {})}::jsonb,
+        ${input.min_length ?? 200}, ${input.max_length ?? 280},
+        ${input.tone || undefined}, ${input.topics ? JSON.stringify(input.topics) : undefined},
+        ${input.is_active ?? true}, ${input.is_default ?? false},
+        ${now}, ${now}
+      )
+      RETURNING *
+    `;
+
+    return this.mapRow(result.rows[0]);
+  }
+
+  async updatePersona(input: UpdatePersonaInput): Promise<Persona | null> {
+    const updates: string[] = [];
+    const values: (string | number | boolean | string[] | null)[] = [];
+    let paramIndex = 1;
+
+    if (input.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(input.name);
+    }
+    if (input.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(input.description);
+    }
+    if (input.connected_account_id !== undefined) {
+      updates.push(`connected_account_id = $${paramIndex++}`);
+      values.push(input.connected_account_id);
+    }
+    if (input.rss_sources !== undefined) {
+      updates.push(`rss_sources = $${paramIndex++}`);
+      values.push(JSON.stringify(input.rss_sources));
+    }
+    if (input.config !== undefined) {
+      updates.push(`config = $${paramIndex++}`);
+      values.push(JSON.stringify(input.config));
+    }
+    if (input.min_length !== undefined) {
+      updates.push(`min_length = $${paramIndex++}`);
+      values.push(input.min_length);
+    }
+    if (input.max_length !== undefined) {
+      updates.push(`max_length = $${paramIndex++}`);
+      values.push(input.max_length);
+    }
+    if (input.tone !== undefined) {
+      updates.push(`tone = $${paramIndex++}`);
+      values.push(input.tone);
+    }
+    if (input.topics !== undefined) {
+      updates.push(`topics = $${paramIndex++}`);
+      values.push(input.topics);
+    }
+    if (input.is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(input.is_active);
+    }
+    if (input.is_default !== undefined) {
+      updates.push(`is_default = $${paramIndex++}`);
+      values.push(input.is_default);
+    }
+
+    if (updates.length === 0) {
+      return this.getPersona(input.id);
+    }
+
+    updates.push(`updated_at = $${paramIndex++}`);
+    values.push(new Date().toISOString());
+    values.push(input.id);
+
+    const query = `
+      UPDATE personas
+      SET ${updates.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await sql.query(query, values);
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async deletePersona(id: string): Promise<void> {
+    await sql`DELETE FROM personas WHERE id = ${id}`;
+  }
+
+  async getActivePersonasForAccount(accountId: string): Promise<Persona[]> {
+    const result = await sql`
+      SELECT * FROM personas
+      WHERE connected_account_id = ${accountId} AND is_active = true
+      ORDER BY created_at DESC
+    `;
+
+    return result.rows.map(this.mapRow);
+  }
+
+  async getDefaultPersonaForAccount(accountId: string): Promise<Persona | null> {
+    const result = await sql`
+      SELECT * FROM personas
+      WHERE connected_account_id = ${accountId} AND is_default = true
+      LIMIT 1
+    `;
+
+    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+  }
+
+  async addRssSource(personaId: string, rssUrl: string): Promise<Persona | null> {
+    const persona = await this.getPersona(personaId);
+    if (!persona) return null;
+
+    const updatedSources = Array.from(new Set([...persona.rss_sources, rssUrl]));
+
+    return this.updatePersona({
+      id: personaId,
+      rss_sources: updatedSources
+    });
+  }
+
+  async removeRssSource(personaId: string, rssUrl: string): Promise<Persona | null> {
+    const persona = await this.getPersona(personaId);
+    if (!persona) return null;
+
+    const updatedSources = persona.rss_sources.filter(url => url !== rssUrl);
+
+    return this.updatePersona({
+      id: personaId,
+      rss_sources: updatedSources
+    });
+  }
+
+  private mapRow(row: Record<string, unknown>): Persona {
+    return {
+      id: row.id as string,
+      connected_account_id: row.connected_account_id as string,
+      name: row.name as string,
+      description: row.description as string,
+      rss_sources: Array.isArray(row.rss_sources)
+        ? row.rss_sources
+        : (typeof row.rss_sources === 'string' ? JSON.parse(row.rss_sources) : []),
+      config: typeof row.config === 'string'
+        ? JSON.parse(row.config)
+        : row.config as Record<string, unknown>,
+      min_length: row.min_length as number,
+      max_length: row.max_length as number,
+      tone: row.tone as string | undefined,
+      topics: row.topics as string[] | undefined,
+      is_active: row.is_active as boolean,
+      is_default: row.is_default as boolean,
+      created_at: (row.created_at as Date).toISOString(),
+      updated_at: (row.updated_at as Date).toISOString(),
+    };
   }
 }
 
-export async function isPersonaAllowedForAccount(personaKey: string, accountId: string): Promise<boolean> {
-  const allowedPersonas = await getAllowedPersonasForAccount(accountId);
-  return allowedPersonas.includes(personaKey);
-}
-
-export async function getRandomPersonaForAccount(accountId: string, personaKeys?: string[]): Promise<PersonaConfig> {
-  const account = await accountService.getAccount(accountId);
-  if (!account) throw new Error(`Account not found: ${accountId}`);
-  return getRandomPersonaForHandle(account.twitter_handle, personaKeys);
-}
+export const personaService = new PersonaService();

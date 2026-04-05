@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Check if token needs refresh
-        if (account.linkedin_refresh_token && shouldRefreshToken(account.linkedin_token_expires_at)) {
+        if (account.linkedin_refresh_token && account.linkedin_token_expires_at && shouldRefreshToken(new Date(account.linkedin_token_expires_at))) {
           logger.info(`🔄 ${account.name}: Refreshing LinkedIn token`, 'auto-post-linkedin');
           try {
             const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
             // Update account object for current use
             account.linkedin_access_token = accessToken;
             account.linkedin_refresh_token = refreshToken;
-            account.linkedin_token_expires_at = expiresAt;
+            account.linkedin_token_expires_at = expiresAt.toISOString();
 
             logger.info(`✅ ${account.name}: LinkedIn token refreshed`, 'auto-post-linkedin');
           } catch (error) {
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         const linkedinCredentials: LinkedInCredentials = {
           accessToken: account.linkedin_access_token!,
           refreshToken: account.linkedin_refresh_token,
-          expiresAt: account.linkedin_token_expires_at,
+          expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
           userId: account.linkedin_user_id,
           orgId: account.linkedin_org_id,
         };

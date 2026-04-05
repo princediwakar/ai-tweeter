@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 import { scheduleService } from '@/lib/scheduleService';
 import { getUserIdFromRequest } from '@/lib/auth';
-import { accountService } from '@/lib/accountService';
 
-/**
- * @deprecated Use /api/schedules instead (new SaaS API)
- * This endpoint is for backward compatibility with the old account-based system.
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ accountId: string }> }
@@ -18,9 +14,13 @@ export async function GET(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.owner_id !== userId) {
+
+    const accountResult = await sql`
+      SELECT id FROM connected_accounts 
+      WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+
+    if (accountResult.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -43,16 +43,20 @@ export async function POST(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.owner_id !== userId) {
+
+    const accountResult = await sql`
+      SELECT id FROM connected_accounts 
+      WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+
+    if (accountResult.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
     const schedule = await scheduleService.createSchedule({
       ...body,
-      account_id: accountId,
+      connected_account_id: accountId,
     });
 
     return NextResponse.json({ schedule }, { status: 201 });

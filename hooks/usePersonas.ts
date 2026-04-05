@@ -28,12 +28,16 @@ export function usePersonas() {
 
   const createPersona = useCallback(async (data: {
     name: string;
+    connected_account_id: string;
     description?: string;
-    base_persona?: string;
+    rss_sources?: string[];
+    config?: Record<string, unknown>;
     min_length?: number;
     max_length?: number;
     tone?: string;
     topics?: string[];
+    is_active?: boolean;
+    is_default?: boolean;
   }) => {
     try {
       const response = await fetch('/api/personas', {

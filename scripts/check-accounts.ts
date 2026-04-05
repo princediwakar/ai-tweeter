@@ -11,7 +11,7 @@ async function run() {
     const rows = result.rows;
     console.log(`Total DB Rows Found: ${rows.length}`);
     
-    rows.forEach(row => {
+    rows.forEach((row: any) => {
       console.log(`- [${row.platform.toUpperCase()}] ${row.account_username} (ID: ${row.id})`);
       console.log(`  Access Token Enc: ${!!row.access_token_encrypted ? 'YES' : 'NO'}`);
       console.log(`  Refresh Token Enc: ${!!row.refresh_token_encrypted ? 'YES' : 'NO'}`);

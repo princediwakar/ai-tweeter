@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { customPersonaService } from '@/lib/customPersonaService';
+import { personaService } from '@/lib/personaService';
 import { getUserIdFromRequest } from '@/lib/auth';
-import { accountService } from '@/lib/accountService';
+import { sql } from '@vercel/postgres';
 
 interface RouteParams {
   accountId: string;
   personaId: string;
 }
 
+/**
+ * @deprecated Use /api/personas instead (new SaaS API)
+ * This endpoint is for backward compatibility with the old account-based system.
+ * The accountId parameter is treated as connected_account_id.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<RouteParams> }
@@ -19,13 +24,16 @@ export async function GET(
     }
 
     const { accountId, personaId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.owner_id !== userId) {
+
+    // Verify that the connected account belongs to the user
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+    if (accountCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const persona = await customPersonaService.getPersona(personaId);
+    const persona = await personaService.getPersona(personaId);
     if (!persona || persona.connected_account_id !== accountId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
@@ -48,19 +56,22 @@ export async function PATCH(
     }
 
     const { accountId, personaId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.user_id !== userId) {
+
+    // Verify that the connected account belongs to the user
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+    if (accountCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const persona = await customPersonaService.getPersona(personaId);
+    const persona = await personaService.getPersona(personaId);
     if (!persona || persona.connected_account_id !== accountId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
     const body = await request.json();
-    const updated = await customPersonaService.updatePersona({
+    const updated = await personaService.updatePersona({
       id: personaId,
       ...body,
     });
@@ -83,18 +94,21 @@ export async function DELETE(
     }
 
     const { accountId, personaId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.user_id !== userId) {
+
+    // Verify that the connected account belongs to the user
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+    if (accountCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const persona = await customPersonaService.getPersona(personaId);
+    const persona = await personaService.getPersona(personaId);
     if (!persona || persona.connected_account_id !== accountId) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    await customPersonaService.deletePersona(personaId);
+    await personaService.deletePersona(personaId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting persona:', error);

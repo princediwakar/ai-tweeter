@@ -1,24 +1,37 @@
-import { sql } from '@vercel/postgres';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { personaService } from '@/lib/personaService';
+import { sql } from '@vercel/postgres';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get user ID
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    const userId = userResult.rows[0].id;
+    const userId = userResult.rows[0]?.id;
+    if (!userId) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
 
-    const personas = await sql`
-      SELECT id, name, description, base_persona, config, min_length, max_length, tone, topics, is_active, created_at, updated_at
-      FROM personas
-      WHERE user_id = ${userId}
-      ORDER BY created_at DESC
+    // Get connected accounts for the user
+    const connectedAccounts = await sql`
+      SELECT id FROM connected_accounts WHERE user_id = ${userId}
     `;
+    const accountIds: string[] = connectedAccounts.rows.map(row => row.id);
+
+    if (accountIds.length === 0) {
+      return NextResponse.json({ personas: [] });
+    }
+
+    // Fetch personas for these accounts using a different approach
+    const placeholders = accountIds.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `SELECT * FROM personas WHERE connected_account_id IN (${placeholders}) ORDER BY created_at DESC`;
+    const personas = await sql.query(query, accountIds);
 
     return NextResponse.json({ personas: personas.rows });
   } catch (error) {
@@ -35,22 +48,57 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, description, base_persona, config, min_length, max_length, tone, topics } = body;
+    const {
+      connected_account_id,
+      name,
+      description,
+      rss_sources,
+      config,
+      min_length,
+      max_length,
+      tone,
+      topics,
+      is_active,
+      is_default
+    } = body;
 
-    if (!name) {
+    // Sanitize inputs to fit database constraints
+    const sanitizedName = name ? String(name).slice(0, 255) : '';
+    const sanitizedTone = tone ? String(tone).slice(0, 50) : undefined;
+    const sanitizedTopics = Array.isArray(topics) ? topics.map((t: string) => String(t).slice(0, 100)).slice(0, 20) : undefined;
+
+    if (!sanitizedName) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
+    if (!connected_account_id) {
+      return NextResponse.json({ error: 'Connected account ID is required' }, { status: 400 });
+    }
 
+    // Verify that the connected account belongs to the user
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    const userId = userResult.rows[0].id;
-
-    const result = await sql`
-      INSERT INTO personas (user_id, name, description, base_persona, config, min_length, max_length, tone, topics)
-      VALUES (${userId}, ${name}, ${description}, ${base_persona}, ${JSON.stringify(config || {})}, ${min_length || 200}, ${max_length || 280}, ${tone}, ${topics || null})
-      RETURNING id, name, description, base_persona, is_active, created_at
+    const userId = userResult.rows[0]?.id;
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${connected_account_id} AND user_id = ${userId}
     `;
+    if (accountCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Invalid connected account' }, { status: 403 });
+    }
 
-    return NextResponse.json({ success: true, persona: result.rows[0] });
+    const persona = await personaService.createPersona({
+      connected_account_id,
+      name: sanitizedName,
+      description,
+      rss_sources,
+      config,
+      min_length,
+      max_length,
+      tone: sanitizedTone,
+      topics: sanitizedTopics,
+      is_active,
+      is_default
+    });
+
+    return NextResponse.json({ persona }, { status: 201 });
   } catch (error) {
     console.error('Error creating persona:', error);
     return NextResponse.json({ error: 'Failed to create persona' }, { status: 500 });
@@ -65,40 +113,72 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, name, description, base_persona, config, min_length, max_length, tone, topics, is_active } = body;
+    const {
+      id,
+      connected_account_id,
+      name,
+      description,
+      rss_sources,
+      config,
+      min_length,
+      max_length,
+      tone,
+      topics,
+      is_active,
+      is_default
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Persona ID required' }, { status: 400 });
     }
 
+    // Verify the persona belongs to a connected account owned by the user
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    const userId = userResult.rows[0].id;
-
-    const updates: string[] = [];
-    const values: (string | number | boolean | null)[] = [];
-    let paramIndex = 1;
-
-    if (name !== undefined) { updates.push(`name = $${paramIndex++}`); values.push(name); }
-    if (description !== undefined) { updates.push(`description = $${paramIndex++}`); values.push(description); }
-    if (base_persona !== undefined) { updates.push(`base_persona = $${paramIndex++}`); values.push(base_persona); }
-    if (config !== undefined) { updates.push(`config = $${paramIndex++}`); values.push(JSON.stringify(config)); }
-    if (min_length !== undefined) { updates.push(`min_length = $${paramIndex++}`); values.push(min_length); }
-    if (max_length !== undefined) { updates.push(`max_length = $${paramIndex++}`); values.push(max_length); }
-    if (tone !== undefined) { updates.push(`tone = $${paramIndex++}`); values.push(tone); }
-    if (topics !== undefined) { updates.push(`topics = $${paramIndex++}`); values.push(topics); }
-    if (is_active !== undefined) { updates.push(`is_active = $${paramIndex++}`); values.push(is_active); }
-
-    if (updates.length === 0) {
-      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    const userId = userResult.rows[0]?.id;
+    const personaCheck = await sql`
+      SELECT p.id FROM personas p
+      INNER JOIN connected_accounts ca ON p.connected_account_id = ca.id
+      WHERE p.id = ${id} AND ca.user_id = ${userId}
+    `;
+    if (personaCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Persona not found or access denied' }, { status: 403 });
     }
 
-    values.push(id, userId);
-    const result = await sql.query(
-      `UPDATE personas SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex++} AND user_id = $${paramIndex} RETURNING *`,
-      values
-    );
+    // If changing connected_account_id, verify the new account belongs to user
+    if (connected_account_id) {
+      const accountCheck = await sql`
+        SELECT id FROM connected_accounts WHERE id = ${connected_account_id} AND user_id = ${userId}
+      `;
+      if (accountCheck.rows.length === 0) {
+        return NextResponse.json({ error: 'Invalid connected account' }, { status: 403 });
+      }
+    }
 
-    return NextResponse.json({ success: true, persona: result.rows[0] });
+    // Sanitize inputs
+    const sanitizedName = name ? String(name).slice(0, 255) : undefined;
+    const sanitizedTone = tone ? String(tone).slice(0, 50) : undefined;
+    const sanitizedTopics = Array.isArray(topics) ? topics.map((t: string) => String(t).slice(0, 100)).slice(0, 20) : undefined;
+
+    const updatedPersona = await personaService.updatePersona({
+      id,
+      connected_account_id,
+      name: sanitizedName,
+      description,
+      rss_sources,
+      config,
+      min_length,
+      max_length,
+      tone: sanitizedTone,
+      topics: sanitizedTopics,
+      is_active,
+      is_default
+    });
+
+    if (!updatedPersona) {
+      return NextResponse.json({ error: 'Failed to update persona' }, { status: 500 });
+    }
+
+    return NextResponse.json({ persona: updatedPersona });
   } catch (error) {
     console.error('Error updating persona:', error);
     return NextResponse.json({ error: 'Failed to update persona' }, { status: 500 });
@@ -119,10 +199,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Persona ID required' }, { status: 400 });
     }
 
+    // Verify the persona belongs to a connected account owned by the user
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    const userId = userResult.rows[0].id;
+    const userId = userResult.rows[0]?.id;
+    const personaCheck = await sql`
+      SELECT p.id FROM personas p
+      INNER JOIN connected_accounts ca ON p.connected_account_id = ca.id
+      WHERE p.id = ${personaId} AND ca.user_id = ${userId}
+    `;
+    if (personaCheck.rows.length === 0) {
+      return NextResponse.json({ error: 'Persona not found or access denied' }, { status: 403 });
+    }
 
-    await sql`DELETE FROM personas WHERE id = ${personaId} AND user_id = ${userId}`;
+    await personaService.deletePersona(personaId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

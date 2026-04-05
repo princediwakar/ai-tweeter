@@ -30,6 +30,7 @@ export interface Account {
   id: string;
   name: string | null;
   twitter_handle: string;
+  platform?: 'twitter' | 'linkedin';
   status: 'active' | 'inactive' | 'suspended';
   twitter_api_key_encrypted?: string;
   twitter_api_secret_encrypted?: string;
@@ -287,20 +288,25 @@ export interface ConnectedAccount {
   is_active: boolean;
   connected_at: Date;
   last_used_at?: Date;
+  linkedin_enabled?: boolean;
+  linkedin_user_id?: string;
+  linkedin_org_id?: string;
+  linkedin_token_expires_at?: Date;
 }
 
 export interface UserPersona {
   id: string;
-  user_id: string;
+  connected_account_id: string;
   name: string;
   description?: string;
-  base_persona?: string;
   config: Record<string, unknown>;
+  rss_sources?: string[];
   min_length: number;
   max_length: number;
   tone?: string;
   topics?: string[];
   is_active: boolean;
+  is_default: boolean;
   created_at: Date;
   updated_at: Date;
 }

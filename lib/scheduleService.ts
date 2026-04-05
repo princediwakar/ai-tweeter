@@ -12,6 +12,7 @@ export interface Schedule {
   end_time: number;
   is_active: boolean;
   max_posts_per_day: number;
+  persona_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +27,7 @@ export interface CreateScheduleInput {
   end_time?: number;
   is_active?: boolean;
   max_posts_per_day?: number;
+  persona_id?: string;
 }
 
 export interface UpdateScheduleInput extends Partial<CreateScheduleInput> {
@@ -36,7 +38,7 @@ class ScheduleService {
   async getSchedulesByAccount(accountId: string): Promise<Schedule[]> {
     const result = await sql`
       SELECT * FROM account_schedules
-      WHERE account_id = ${accountId}
+      WHERE connected_account_id = ${accountId}
       ORDER BY created_at DESC
     `;
 
@@ -62,13 +64,14 @@ class ScheduleService {
       INSERT INTO account_schedules (
         id, connected_account_id, name, timezone, schedule_config, 
         days_of_week, start_time, end_time, is_active, max_posts_per_day,
-        created_at, updated_at
+        persona_id, created_at, updated_at
       ) VALUES (
         ${id}, ${input.connected_account_id}, ${input.name}, 
         ${input.timezone || 'UTC'}, ${JSON.stringify(input.schedule_config || {})},
         ${daysString}, 
         ${input.start_time ?? 0}, ${input.end_time ?? 1439},
         ${input.is_active ?? true}, ${input.max_posts_per_day ?? 10},
+        ${input.persona_id || null},
         ${now}, ${now}
       )
       RETURNING *
@@ -162,6 +165,7 @@ class ScheduleService {
       end_time: row.end_time as number,
       is_active: row.is_active as boolean,
       max_posts_per_day: row.max_posts_per_day as number,
+      persona_id: row.persona_id as string | undefined,
       created_at: (row.created_at as Date).toISOString(),
       updated_at: (row.updated_at as Date).toISOString(),
     };

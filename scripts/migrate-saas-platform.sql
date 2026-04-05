@@ -57,16 +57,17 @@ ON CONFLICT (setting_key) DO NOTHING;
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS personas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  connected_account_id UUID NOT NULL REFERENCES connected_accounts(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
   description TEXT,
-  base_persona VARCHAR(100), -- 'satirist', 'business_storyteller', etc.
+  rss_sources JSONB DEFAULT '[]'::jsonb,
   config JSONB DEFAULT '{}'::jsonb,
   min_length INTEGER DEFAULT 200,
   max_length INTEGER DEFAULT 280,
   tone VARCHAR(50),
   topics TEXT[],
   is_active BOOLEAN DEFAULT true,
+  is_default BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );

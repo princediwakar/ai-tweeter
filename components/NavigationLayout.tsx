@@ -19,10 +19,10 @@ import {
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: 'Growth', href: '/', icon: Zap },
+  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Personas', href: '/personas', icon: User },
   { name: 'Accounts', href: '/accounts', icon: Users },
   { name: 'Schedules', href: '/schedules', icon: Calendar },
-  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 function UserDropdown() {
@@ -42,42 +42,35 @@ function UserDropdown() {
   return (
     <div className="relative" ref={dropdownRef}>
       <Button
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className="border-2 border-border bg-card text-foreground brutal-shadow-sm hover:bg-accent hover:text-accent-foreground"
+        className="text-gray-500 hover:text-gray-900"
         onClick={() => setOpen(!open)}
       >
         <ChevronDown size={18} />
       </Button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-56 bg-card border-2 border-border brutal-shadow z-50">
-          <div className="p-1 border-b-2 border-border bg-accent">
-            <p className="text-xs font-mono-brutal text-accent-foreground px-3 py-1">
-              USER_CONTROLS
+        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+          <div className="p-3 border-b border-gray-100 bg-gray-50">
+            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+              Management
             </p>
           </div>
           <Link
             href="/settings"
-            className="flex items-center px-4 py-3 text-foreground hover:bg-accent hover:text-accent-foreground border-b border-border transition-all duration-100"
+            className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-gray-100 transition-colors"
             onClick={() => setOpen(false)}
           >
-            <Settings size={18} className="mr-3" />
-            <span className="font-mono-brutal text-sm">SETTINGS</span>
-            <div className="ml-auto w-2 h-2 bg-primary rounded-full"></div>
+            <Settings size={18} className="mr-3 text-gray-400" />
+            <span className="text-sm font-medium">Settings</span>
           </Link>
           <button
-            className="flex items-center w-full px-4 py-3 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all duration-100"
+            className="flex items-center w-full px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
             onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           >
             <LogOut size={18} className="mr-3" />
-            <span className="font-mono-brutal text-sm">SIGN_OUT</span>
-            <div className="ml-auto w-2 h-2 bg-destructive rounded-full cyber-glow"></div>
+            <span className="text-sm font-medium">Sign Out</span>
           </button>
-          <div className="p-2 border-t border-border bg-muted">
-            <p className="text-[10px] font-mono-brutal text-muted-foreground text-center">
-              SESSION_TERMINAL
-            </p>
-          </div>
         </div>
       )}
     </div>
@@ -90,95 +83,84 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   if (!session) {
-    // If not authenticated, render children without sidebar
     return <>{children}</>;
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Mobile sidebar toggle - Brutalist Control */}
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Mobile sidebar toggle */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
           size="icon"
-          className="border-2 border-border bg-card text-foreground brutal-shadow-sm hover:bg-accent hover:text-accent-foreground"
+          className="bg-white border-gray-200 shadow-sm"
           onClick={() => setSidebarOpen(!sidebarOpen)}
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
-        <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cyber-glow"></div>
       </div>
 
-      {/* Sidebar - Brutalist Command Center */}
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 w-72 bg-background text-foreground transform transition-transform lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="h-full flex flex-col container-brutal">
-          {/* Logo/Brand - Cyber-Brutalist Header */}
-          <div className="p-6 border-b-4 border-border bg-accent">
-            <h1 className="text-2xl font-display-brutal tracking-tight text-accent-foreground">
-              AUTO_GROWTH
-            </h1>
-            <p className="text-sm font-mono-brutal text-muted-foreground mt-1">
-              AI THAT WORKS WHILE YOU SLEEP
-            </p>
-            <div className="flex items-center gap-2 mt-3">
-              <div className="w-3 h-3 bg-primary cyber-glow"></div>
-              <div className="w-3 h-3 bg-secondary cyber-glow"></div>
-              <div className="w-3 h-3 bg-destructive cyber-glow"></div>
-              <span className="text-xs font-mono-brutal text-muted-foreground ml-auto">
-                v1.0
-              </span>
+        <div className="h-full flex flex-col">
+          {/* Logo/Brand */}
+          <div className="p-6">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+                <Zap size={20} className="text-white" />
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-gray-900">
+                AutoGrowth
+              </h1>
             </div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4">
+              Platform Main
+            </p>
           </div>
 
-          {/* Navigation - Brutalist Command Interface */}
-          <nav className="flex-1 p-4 space-y-3 grid-overlay-dense">
+          {/* Navigation */}
+          <nav className="flex-1 px-3 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center space-x-4 px-5 py-4 border-2 border-border brutal-shadow-sm transition-all duration-100 ${
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-all ${
                     isActive
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground hover:translate-x-1 hover:-translate-y-1'
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  <item.icon size={22} className={isActive ? 'text-primary-foreground' : ''} />
-                  <span className={`font-mono-brutal text-sm tracking-wide ${isActive ? 'font-bold' : ''}`}>
-                    {item.name.toUpperCase()}
+                  <item.icon size={20} />
+                  <span className="text-sm font-medium">
+                    {item.name}
                   </span>
-                  {isActive && (
-                    <div className="ml-auto w-2 h-2 bg-secondary rounded-full cyber-glow"></div>
-                  )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* User menu - Brutalist Terminal Display */}
-          <div className="p-4 border-t-4 border-border bg-card">
+          {/* User menu */}
+          <div className="p-4 border-t border-gray-100">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 border-2 border-border bg-accent flex items-center justify-center brutal-shadow-sm">
-                  <User size={18} className="text-accent-foreground" />
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                  <User size={18} className="text-gray-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-mono-brutal font-bold truncate text-foreground">
-                    {session.user?.name || 'USER'}
+                  <p className="text-sm font-semibold truncate text-gray-900">
+                    {session.user?.name || 'User'}
                   </p>
-                  <p className="text-xs font-mono-brutal text-muted-foreground truncate mt-1">
-                    {session.user?.email || 'NO_EMAIL_SET'}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <div className="w-2 h-2 bg-primary rounded-full"></div>
-                    <span className="text-[10px] font-mono-brutal text-muted-foreground">
-                      ACTIVE_SESSION
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-[10px] font-medium text-gray-400">
+                      Active Session
                     </span>
                   </div>
                 </div>
@@ -189,15 +171,15 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
         </div>
       </aside>
 
-      {/* Main content - Brutalist Workspace */}
-      <main className="lg:pl-72">
-        <div className="p-6 md:p-8">{children}</div>
+      {/* Main content */}
+      <main className="lg:pl-64 min-h-screen">
+        <div className="p-6 md:p-10">{children}</div>
       </main>
 
-      {/* Overlay for mobile - Brutalist Dimmer */}
+      {/* Overlay for mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-foreground bg-opacity-80 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}

@@ -58,6 +58,12 @@ export interface ConnectedAccount {
   personas?: string[];
   branding?: Record<string, unknown>;
   profile_image_url?: string | null;
+  linkedin_enabled?: boolean;
+  linkedin_user_id?: string;
+  linkedin_org_id?: string;
+  linkedin_token_expires_at?: string;
+  linkedin_access_token?: string;
+  linkedin_refresh_token?: string;
 }
 
 interface ConnectedAccountRow {
@@ -208,7 +214,6 @@ export const connectedAccountsService = {
       )
       ON CONFLICT (user_id, platform, account_username)
       DO UPDATE SET
-        id = EXCLUDED.id,
         account_name = EXCLUDED.account_name,
         name = EXCLUDED.name,
         platform_user_id = EXCLUDED.platform_user_id,

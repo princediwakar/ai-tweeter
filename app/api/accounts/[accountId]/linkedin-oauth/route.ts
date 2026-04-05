@@ -37,7 +37,7 @@ export async function GET(
       orgId: account.linkedin_org_id,
       tokenExpiresAt: account.linkedin_token_expires_at,
       needsRefresh: account.linkedin_token_expires_at
-        ? account.linkedin_token_expires_at < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        ? new Date(account.linkedin_token_expires_at) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         : false,
     };
 
@@ -89,7 +89,7 @@ export async function POST(
     }
 
     // Generate LinkedIn OAuth authorization URL with state parameter
-    const { authUrl, state } = initiateLinkedInOAuth(account.id);
+    const { authUrl, state } = await initiateLinkedInOAuth(account.id);
 
     console.log(`🔗 LinkedIn OAuth initiated for account: ${account.name} (@${account.twitter_handle})`);
     console.log(`📋 State parameter: ${state}`);

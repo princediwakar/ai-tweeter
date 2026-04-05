@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { customPersonaService } from '@/lib/customPersonaService';
+import { personaService } from '@/lib/personaService';
 import { getUserIdFromRequest } from '@/lib/auth';
-import { accountService } from '@/lib/accountService';
+import { sql } from '@vercel/postgres';
 
 /**
  * @deprecated Use /api/personas instead (new SaaS API)
  * This endpoint is for backward compatibility with the old account-based system.
+ * The accountId parameter is treated as connected_account_id.
  */
 export async function GET(
   request: NextRequest,
@@ -18,13 +19,16 @@ export async function GET(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.owner_id !== userId) {
+
+    // Verify that the connected account belongs to the user
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+    if (accountCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const personas = await customPersonaService.getPersonasByAccount(accountId);
+    const personas = await personaService.getPersonasByAccount(accountId);
     return NextResponse.json({ personas });
   } catch (error) {
     console.error('Error fetching personas:', error);
@@ -43,16 +47,19 @@ export async function POST(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.owner_id !== userId) {
+
+    // Verify that the connected account belongs to the user
+    const accountCheck = await sql`
+      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+    if (accountCheck.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
-    const persona = await customPersonaService.createPersona({
+    const persona = await personaService.createPersona({
       ...body,
-      account_id: accountId,
+      connected_account_id: accountId,
     });
 
     return NextResponse.json({ persona }, { status: 201 });

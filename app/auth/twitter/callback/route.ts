@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { exchangeCodeForToken, getTwitterUserProfile } from '@/lib/twitter-oauth';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { platformSettings } from '@/lib/platformSettings';
+import { personaService } from '@/lib/personaService';
 import { sql } from '@vercel/postgres';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Check if this Twitter account is already connected for this user
     const existingConnection = await sql`
-      SELECT account_id FROM connected_accounts 
+      SELECT id FROM connected_accounts
       WHERE user_id = ${userId} AND platform = 'twitter' AND account_username = ${profile.username}
       LIMIT 1
     `;
@@ -88,8 +89,8 @@ export async function GET(request: NextRequest) {
 
     if (existingConnection.rows.length > 0) {
       // Re-connecting an existing account
-      finalAccountId = existingConnection.rows[0].account_id;
-      console.log(`♻️ Found existing connection for @${profile.username}, using account_id: ${finalAccountId}`);
+      finalAccountId = existingConnection.rows[0].id;
+      console.log(`♻️ Found existing connection for @${profile.username}, using id: ${finalAccountId}`);
     } else if (requestedAccountId && requestedAccountId !== 'pending') {
       // Connecting to a specific pre-existing slot
       finalAccountId = requestedAccountId;
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
     // (Ensure this account slot only has one Twitter connection)
     if (finalAccountId && finalAccountId !== 'pending') {
       try {
-        await sql`DELETE FROM connected_accounts WHERE account_id = ${finalAccountId} AND platform = 'twitter' AND account_username != ${profile.username}`;
+        await sql`DELETE FROM connected_accounts WHERE id = ${finalAccountId} AND platform = 'twitter' AND account_username != ${profile.username}`;
       } catch (e) {
         console.warn('⚠️ Non-critical error clearing old connections:', e);
       }
@@ -126,6 +127,38 @@ export async function GET(request: NextRequest) {
       expiresAt,
       profile_image_url: profile.profile_image_url,
     });
+
+    // Create default persona for Twitter accounts (Pattern Spotter)
+    try {
+      // Get the connected account ID
+      const connectedAccount = await sql`
+        SELECT id FROM connected_accounts
+        WHERE user_id = ${userId} AND platform = 'twitter' AND account_username = ${profile.username}
+        LIMIT 1
+      `;
+      if (connectedAccount.rows.length > 0) {
+        const connectedAccountId = connectedAccount.rows[0].id;
+        // Check if default persona already exists
+        const existingDefault = await personaService.getDefaultPersonaForAccount(connectedAccountId);
+        if (!existingDefault) {
+          await personaService.createPersona({
+            connected_account_id: connectedAccountId,
+            name: 'Pattern Spotter',
+            description: 'Finds non-obvious patterns across multiple news stories.',
+            config: { key: 'pattern_spotter' },
+            rss_sources: [],
+            min_length: 200,
+            max_length: 280,
+            is_active: true,
+            is_default: true,
+          });
+          console.log(`✅ Created default Pattern Spotter persona for Twitter account @${profile.username}`);
+        }
+      }
+    } catch (personaError) {
+      console.warn('⚠️ Failed to create default persona:', personaError);
+      // Non-critical error - don't break OAuth flow
+    }
 
     console.log(`✅ Success! Automated connection complete for @${profile.username}`);
     

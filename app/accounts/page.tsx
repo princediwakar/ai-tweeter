@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { 
@@ -32,6 +32,14 @@ interface HealthStatus {
 }
 
 export default function AccountsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading...</div>}>
+      <AccountsContent />
+    </Suspense>
+  );
+}
+
+function AccountsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<Account[]>([]);

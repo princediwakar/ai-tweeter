@@ -46,7 +46,7 @@ export default function PersonasPage() {
               >
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {account.name} (@{account.account_username})
+                    {account.name} (@{account.twitter_handle})
                   </option>
                 ))}
               </select>
@@ -57,7 +57,7 @@ export default function PersonasPage() {
                 <PersonaEditor 
                   accountId={currentAccount.id} 
                   platform={currentAccount.platform as 'twitter' | 'linkedin'}
-                  accountName={currentAccount.name}
+                  accountName={currentAccount.name || undefined}
                 />
               </div>
             )}

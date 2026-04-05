@@ -48,29 +48,26 @@ class PostingJobQueue {
   async createJobsBatch(jobs: CreateJobInput[]): Promise<PostingJob[]> {
     if (jobs.length === 0) return [];
 
-    const values: string[] = [];
-    const placeholders: string[] = [];
     const now = new Date().toISOString();
+    const createdJobs: PostingJob[] = [];
 
-    jobs.forEach((job, index) => {
+    for (const job of jobs) {
       const id = crypto.randomUUID();
-      placeholders.push(`($${index * 8 + 1}, $${index * 8 + 2}, $${index * 8 + 3}, $${index * 8 + 4}, $${index * 8 + 5}, $${index * 8 + 6}, $${index * 8 + 7}, $${index * 8 + 8})`);
-      values.push(
-        id, job.account_id, job.platform, 'pending',
-        (job.batch_index ?? 0).toString(), (job.tweets_count ?? 0).toString(),
-        '0', '3', now, now
-      );
-    });
+      const result = await sql`
+        INSERT INTO posting_jobs (
+          id, account_id, platform, status, batch_index, tweets_count,
+          attempts, max_attempts, created_at, updated_at
+        ) VALUES (
+          ${id}, ${job.account_id}, ${job.platform}, 'pending',
+          ${(job.batch_index ?? 0).toString()}, ${(job.tweets_count ?? 0).toString()},
+          '0', '3', ${now}, ${now}
+        )
+        RETURNING *
+      `;
+      createdJobs.push(this.mapRow(result.rows[0]));
+    }
 
-    const result = await sql`
-      INSERT INTO posting_jobs (
-        id, account_id, platform, status, batch_index, tweets_count,
-        attempts, max_attempts, created_at, updated_at
-      ) VALUES ${sql(placeholders.join(', '))}
-      RETURNING *
-    `;
-
-    return result.rows.map(this.mapRow);
+    return createdJobs;
   }
 
   async getPendingJobs(platform: 'twitter' | 'linkedin', limit: number = BATCH_SIZE): Promise<PostingJob[]> {
@@ -193,16 +190,17 @@ class PostingJobQueue {
 
     if (jobs.length === 0) return 0;
 
-    await sql`
-      INSERT INTO posting_jobs (account_id, platform, status, batch_index, tweets_count, attempts, max_attempts, created_at, updated_at)
-      SELECT * FROM (
-        VALUES 
-          ${jobs.map((_, i) => sql`($${(i * 8)}, $${(i * 8) + 1}, $${(i * 8) + 2}, $${(i * 8) + 3}, $${(i * 8) + 4}, $${(i * 8) + 5}, $${(i * 8) + 6}, $${(i * 8) + 7})`).reduce((acc, val) => sql`${acc}, ${val}`)}
-      ) AS t(account_id, platform, status, batch_index, tweets_count, attempts, max_attempts, created_at, updated_at)
-      ON CONFLICT DO NOTHING
-    `;
+    let inserted = 0;
+    for (const job of jobs) {
+      await sql`
+        INSERT INTO posting_jobs (account_id, platform, status, batch_index, tweets_count, attempts, max_attempts, created_at, updated_at)
+        VALUES (${job.account_id}, ${job.platform}, 'pending', 0, 0, '0', '3', ${now}, ${now})
+        ON CONFLICT DO NOTHING
+      `;
+      inserted++;
+    }
 
-    return jobs.length;
+    return inserted;
   }
 
   private isAccountScheduledForHour(

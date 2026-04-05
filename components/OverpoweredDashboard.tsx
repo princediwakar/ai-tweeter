@@ -21,7 +21,7 @@ export default function OverpoweredDashboard() {
     postTweet,
     deleteTweet,
     switchAccount,
-    refreshAccounts,
+    refreshData,
     getQualityGradeColor,
     formatForUserDisplay,
     personas,
@@ -53,7 +53,7 @@ export default function OverpoweredDashboard() {
               accounts={accounts as any}
               selectedAccount={currentAccount as any}
               onSwitchAccount={switchAccount}
-              onRefresh={refreshAccounts}
+              onRefresh={refreshData}
             />
           </section>
 

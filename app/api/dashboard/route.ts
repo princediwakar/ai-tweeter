@@ -101,7 +101,36 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
     const accountId = searchParams.get('account_id') || null;
 
     // Parallel queries - single round-trip to DB
-    const [accountsResult, personasResult, tweetsResult, totalResult] = await Promise.all([
+    let tweetsResult: { rows: unknown[] };
+    let totalResult: { rows: { count: string }[] };
+
+    if (accountId) {
+      [tweetsResult, totalResult] = await Promise.all([
+        sql<any>`
+          SELECT * FROM tweets
+          WHERE connected_account_id = ${accountId}
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${(page - 1) * limit}
+        `,
+        sql<any>`
+          SELECT COUNT(*) as count FROM tweets
+          WHERE connected_account_id = ${accountId}
+        `
+      ]);
+    } else {
+      [tweetsResult, totalResult] = await Promise.all([
+        sql<any>`
+          SELECT * FROM tweets
+          ORDER BY created_at DESC
+          LIMIT ${limit} OFFSET ${(page - 1) * limit}
+        `,
+        sql<any>`
+          SELECT COUNT(*) as count FROM tweets
+        `
+      ]);
+    }
+
+    const [accountsResult, personasResult] = await Promise.all([
       sql<any>`
         SELECT * FROM connected_accounts 
         WHERE user_id = ${userId}
@@ -112,16 +141,6 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
         INNER JOIN connected_accounts ca ON p.connected_account_id = ca.id
         WHERE ca.user_id = ${userId}
         ORDER BY p.created_at DESC
-      `,
-      sql<any>`
-        SELECT * FROM tweets
-        ${accountId ? sql`WHERE connected_account_id = ${accountId}` : sql``}
-        ORDER BY created_at DESC
-        LIMIT ${limit} OFFSET ${(page - 1) * limit}
-      `,
-      sql<any>`
-        SELECT COUNT(*) as count FROM tweets
-        ${accountId ? sql`WHERE connected_account_id = ${accountId}` : sql``}
       `
     ]);
 

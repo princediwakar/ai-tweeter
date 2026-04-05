@@ -390,6 +390,12 @@ export function useTweetDashboard() {
     await initializeData();
   }, [initializeData]);
 
+  const refreshAccounts = useCallback(async () => {
+    const res = await fetch('/api/accounts');
+    const data = res.ok ? await res.json() : { accounts: [] };
+    setAccounts(data.accounts || []);
+  }, []);
+
   const readyTweets = useMemo(() => tweets.filter(t => t.status === 'ready'), [tweets]);
   const stats = useMemo(() => ({
     ready: readyTweets.length,
@@ -419,6 +425,7 @@ export function useTweetDashboard() {
     shareOnX,
     refreshData,
     switchAccount,
+    refreshAccounts,
     goToPage,
     nextPage,
     prevPage,

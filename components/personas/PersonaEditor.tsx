@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Sparkles, Trash2, Edit2, Check, X } from 'lucide-react';
+import { usePersonas } from '@/hooks/usePersonas';
 
 interface Persona {
   id: string;
@@ -38,6 +39,7 @@ interface EditablePersona {
 
 export default function PersonaEditor(props: PersonaEditorProps) {
   const { accountId, platform = 'twitter', accountName } = props;
+  const { fetchPersonas } = usePersonas();
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   

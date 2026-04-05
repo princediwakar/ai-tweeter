@@ -5,6 +5,16 @@ import { Schedule, CreateScheduleInput } from '@/lib/scheduleService';
 import { Persona } from '@/lib/personaService';
 import { Clock, Calendar, Zap, Sparkles, X, Check } from 'lucide-react';
 
+const DAYS = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+];
+
 interface ConnectedAccount {
   id: string;
   platform: 'twitter' | 'linkedin';
@@ -48,16 +58,30 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
       fetch('/api/connected-accounts').then(r => r.json()),
       fetch(`/api/accounts/${accountId}/personas`).then(r => r.json()),
       fetch(`/api/accounts/${accountId}/schedules`).then(r => r.json())
-    ]).then(([accountsData, personasData, schedulesData]) => {
+    ])
+    .then(([accountsData, personasData, schedulesData]) => {
       setAccounts(accountsData.accounts || []);
       setPersonas(personasData.personas || []);
       setSchedules(schedulesData.schedules || []);
-    }).catch(error => {
+    })
+    .catch(error => {
       console.error('Error fetching data:', error);
-    }).finally(() => {
+    })
+    .finally(() => {
       setLoading(false);
     });
   }, [accountId]);
+
+  const fetchSchedules = (accountId: string) => {
+    fetch(`/api/accounts/${accountId}/schedules`)
+      .then(res => res.json())
+      .then(data => {
+        setSchedules(data.schedules || []);
+      })
+      .catch(error => {
+        console.error('Error fetching schedules:', error);
+      });
+  };
 
   // Reset form when accountId changes
   useEffect(() => {

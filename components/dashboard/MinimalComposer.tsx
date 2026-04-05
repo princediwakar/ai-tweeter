@@ -33,7 +33,7 @@ export function MinimalComposer({
   const hasNoPersonas = personas.length === 0;
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-8">
       {/* Input Area */}
       <div className="relative mb-4">
         <textarea
@@ -147,6 +147,35 @@ export function MinimalComposer({
               </Button>
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function MinimalComposerSkeleton() {
+  return (
+    <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-8">
+      {/* Input Area */}
+      <div className="relative mb-4">
+        <div className="w-full h-32 bg-gray-100 rounded-xl animate-pulse" />
+        
+        {/* Floating selector skeleton */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-white border border-gray-100 p-1 rounded-lg">
+          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
+
+      {/* Control Row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 bg-gray-200 rounded-lg animate-pulse" />
+          <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-20 bg-gray-200 rounded-xl animate-pulse" />
+          <div className="h-10 w-28 bg-gray-300 rounded-xl animate-pulse" />
         </div>
       </div>
     </div>

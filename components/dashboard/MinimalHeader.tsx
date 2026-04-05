@@ -73,7 +73,7 @@ export function MinimalHeader({
 
       {/* Active Personas for Current Account */}
       {activePersonas && activePersonas.length > 0 && (
-        <div className="flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-300">
+        <div className="flex items-center gap-3">
           <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest whitespace-nowrap">Active Personas:</span>
           <div className="flex flex-wrap gap-2">
             {activePersonas.map((p) => (
@@ -88,6 +88,36 @@ export function MinimalHeader({
           </div>
         </div>
       )}
+    </header>
+  );
+}
+
+export function MinimalHeaderSkeleton() {
+  return (
+    <header className="py-4 border-b border-gray-100 mb-8 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className="w-3.5 h-3.5 rounded bg-gray-200 animate-pulse" />
+            <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+          </div>
+          
+          <div className="hidden md:flex items-center gap-4">
+            <div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
+            <div className="h-3 w-12 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </div>
+
+        <div className="h-8 w-8 bg-gray-200 rounded animate-pulse" />
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="h-3 w-20 bg-gray-200 rounded animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+          <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
+        </div>
+      </div>
     </header>
   );
 }

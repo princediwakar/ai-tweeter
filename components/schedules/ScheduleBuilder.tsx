@@ -15,23 +15,15 @@ interface ConnectedAccount {
 
 interface ScheduleBuilderProps {
   accountId: string;
+  onScheduleUpdate?: () => void;
 }
 
-const DAYS = [
-  { value: 0, label: 'Sun' },
-  { value: 1, label: 'Mon' },
-  { value: 2, label: 'Tue' },
-  { value: 3, label: 'Wed' },
-  { value: 4, label: 'Thu' },
-  { value: 5, label: 'Fri' },
-  { value: 6, label: 'Sat' },
-];
-
-export default function ScheduleBuilder({ accountId }: ScheduleBuilderProps) {
+export default function ScheduleBuilder(props: ScheduleBuilderProps) {
+  const { accountId } = props;
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -46,50 +38,31 @@ export default function ScheduleBuilder({ accountId }: ScheduleBuilderProps) {
     persona_id: '',
   });
 
+  // Single parallel data fetch on mount - only fetch if accountId exists
   useEffect(() => {
-    if (accountId) {
-      fetchPersonas(accountId);
-      fetchSchedules(accountId);
-    }
+    if (!accountId) return;
+    
+    setLoading(true);
+    
+    Promise.all([
+      fetch('/api/connected-accounts').then(r => r.json()),
+      fetch(`/api/accounts/${accountId}/personas`).then(r => r.json()),
+      fetch(`/api/accounts/${accountId}/schedules`).then(r => r.json())
+    ]).then(([accountsData, personasData, schedulesData]) => {
+      setAccounts(accountsData.accounts || []);
+      setPersonas(personasData.personas || []);
+      setSchedules(schedulesData.schedules || []);
+    }).catch(error => {
+      console.error('Error fetching data:', error);
+    }).finally(() => {
+      setLoading(false);
+    });
   }, [accountId]);
 
+  // Reset form when accountId changes
   useEffect(() => {
-    fetchAccounts();
-  }, []);
-
-  const fetchAccounts = async () => {
-    try {
-      const res = await fetch('/api/connected-accounts');
-      const data = await res.json();
-      setAccounts(data.accounts || []);
-    } catch (error) {
-      console.error('Error fetching accounts:', error);
-    }
-  };
-
-  const fetchPersonas = async (accountId: string) => {
-    try {
-      const res = await fetch(`/api/accounts/${accountId}/personas`);
-      const data = await res.json();
-      setPersonas(data.personas || []);
-    } catch (error) {
-      console.error('Error fetching personas:', error);
-      setPersonas([]);
-    }
-  };
-
-  const fetchSchedules = async (accountId: string) => {
-    try {
-      const res = await fetch(`/api/accounts/${accountId}/schedules`);
-      const data = await res.json();
-      setSchedules(data.schedules || []);
-    } catch (error) {
-      console.error('Error fetching schedules:', error);
-      setSchedules([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    setFormData(prev => ({ ...prev, connected_account_id: accountId }));
+  }, [accountId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,6 +99,9 @@ export default function ScheduleBuilder({ accountId }: ScheduleBuilderProps) {
       });
 
       fetchSchedules(accountId);
+      if (props.onScheduleUpdate) {
+        props.onScheduleUpdate();
+      }
     } catch (error) {
       console.error('Error saving schedule:', error);
     }

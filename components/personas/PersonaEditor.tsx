@@ -22,6 +22,7 @@ interface PersonaEditorProps {
   accountId: string;
   platform?: string;
   accountName?: string;
+  onPersonaUpdate?: () => void;
 }
 
 interface EditablePersona {
@@ -35,7 +36,8 @@ interface EditablePersona {
   is_active: boolean;
 }
 
-export default function PersonaEditor({ accountId, platform = 'twitter', accountName }: PersonaEditorProps) {
+export default function PersonaEditor(props: PersonaEditorProps) {
+  const { accountId, platform = 'twitter', accountName } = props;
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -62,22 +64,25 @@ export default function PersonaEditor({ accountId, platform = 'twitter', account
   // Delete confirmation state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Single fetch on mount
   useEffect(() => {
-    fetchPersonas();
+    if (!accountId) return;
+    
+    setLoading(true);
+    
+    fetch(`/api/personas`)
+      .then(res => res.json())
+      .then(data => {
+        const filtered = (data.personas || []).filter((p: Persona) => p.connected_account_id === accountId);
+        setPersonas(filtered);
+      })
+      .catch(error => {
+        console.error('Error fetching personas:', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [accountId]);
-
-  const fetchPersonas = async () => {
-    try {
-      const res = await fetch(`/api/personas`);
-      const data = await res.json();
-      const filtered = (data.personas || []).filter((p: Persona) => p.connected_account_id === accountId);
-      setPersonas(filtered);
-    } catch (error) {
-      console.error('Error fetching personas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleGenerate = async () => {
     if (!prompt.trim() || prompt.length < 10 || generationInProgress.current) {
@@ -158,6 +163,9 @@ export default function PersonaEditor({ accountId, platform = 'twitter', account
       setPrompt('');
       setGeneratedPreview(null);
       fetchPersonas();
+      if (props.onPersonaUpdate) {
+        props.onPersonaUpdate();
+      }
     } catch (error) {
       console.error('Error saving persona:', error);
       alert('Failed to save persona');
@@ -366,7 +374,13 @@ export default function PersonaEditor({ accountId, platform = 'twitter', account
   );
 
   if (loading) {
-    return <div className="p-4 text-gray-500">Loading personas...</div>;
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="w-8 h-8 border-2 border-indigo-500/20 rounded-full relative">
+          <div className="absolute inset-0 border-t-2 border-indigo-500 rounded-full animate-spin" />
+        </div>
+      </div>
+    );
   }
 
   return (

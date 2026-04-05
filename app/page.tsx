@@ -1,3 +1,5 @@
+'use client';
+
 import MinimalDashboard from '@/components/dashboard/MinimalDashboard';
 import NavigationLayout from '@/components/NavigationLayout';
 

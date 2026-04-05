@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import { formatForUserDisplay, toDateTimeLocal } from '@/lib/utils';
 import { Tweet, GenerateFormState, Persona, Account } from '@/types/dashboard';
-import { Persona as DatabasePersona } from '@/lib/personaService';
 
 const BULK_GENERATION_CONFIG = {
   count: 5,
@@ -11,8 +10,6 @@ const BULK_GENERATION_CONFIG = {
   useTrendingTopics: false,
 };
 
-
-// Helper function to parse dates from API response
 function parseTweetDates(tweets: Tweet[]): Tweet[] {
   return tweets.map(tweet => ({
     ...tweet,
@@ -21,28 +18,35 @@ function parseTweetDates(tweets: Tweet[]): Tweet[] {
   }));
 }
 
+function getPersonaEmoji(name: string): string {
+  if (name.includes('Vocabulary')) return '🏆';
+  if (name.includes('Business')) return '📈';
+  if (name.includes('Cricket')) return '🏏';
+  if (name.includes('Signal')) return '💡';
+  if (name.includes('Pattern')) return '🔍';
+  if (name.includes('LinkedIn')) return '📊';
+  return '🗣️';
+}
+
 export function useTweetDashboard() {
-  // State
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [latestTweet, setLatestTweet] = useState<Tweet | null>(null);
   const [selectedTweets, setSelectedTweets] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  // Multi-account state
+  const [initialLoading, setInitialLoading] = useState(true);
+  
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
-  // Removed scheduler state - assuming always running
-  const [hasHydrated, setHasHydrated] = useState(false);
   const [showHistory, setShowHistory] = useState(true);
-  const [personasList, setPersonasList] = useState<Persona[]>([]); // Loaded from DB per account
+  const [personasList, setPersonasList] = useState<Persona[]>([]);
   const [generateForm, setGenerateForm] = useState<GenerateFormState>({
-    account_id: '', // Will be set when accounts are loaded
-    persona: '', // Will be set when personas are loaded
+    account_id: '',
+    persona: '',
     includeHashtags: true,
     useTrendingTopics: false,
     customPrompt: '',
   });
 
-  // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -52,160 +56,125 @@ export function useTweetDashboard() {
     hasPrev: false,
   });
 
-  // Track if component is mounted to prevent updates after unmount
-  const [isMounted, setIsMounted] = useState(false);
-
-  // Function to fetch personas from DB for selected account
-  const fetchPersonasForAccount = useCallback(async (accountId: string) => {
-    console.log('Fetching personas for account:', accountId);
+  // Single parallel data fetch - fixes the multiple loading states issue
+  const initializeData = useCallback(async () => {
+    setInitialLoading(true);
+    setLoading(true);
+    
     try {
-      const response = await fetch('/api/personas');
-      if (response.ok) {
-        const data = await response.json();
-        console.log('API response personas:', data.personas?.length);
-        const dbPersonas: DatabasePersona[] = ((data.personas || []) as DatabasePersona[]).filter((p) => p.connected_account_id === accountId);
-        console.log('Filtered personas for account:', dbPersonas.length);
+      // Parallel fetch - single round trip for all initial data
+      const [accountsRes, personasRes] = await Promise.all([
+        fetch('/api/accounts'),
+        fetch('/api/personas')
+      ]);
+      
+      const accountsData = accountsRes.ok ? await accountsRes.json() : { accounts: [] };
+      const personasData = personasRes.ok ? await personasRes.json() : { personas: [] };
+      
+      const newAccounts = accountsData.accounts || [];
+      setAccounts(newAccounts);
+      
+      // Set default account
+      if (newAccounts.length > 0 && !selectedAccount) {
+        const firstActive = newAccounts.find((acc: Account) => acc.status === 'active') || newAccounts[0];
+        setSelectedAccount(firstActive.id);
+        setGenerateForm(prev => ({ ...prev, account_id: firstActive.id }));
         
-        // Convert DB personas to frontend format
-        const formattedPersonas: Persona[] = dbPersonas
-          .filter(p => p.is_active)
-          .map(p => ({
+        // Filter personas for this account
+        const accountPersonas = (personasData.personas || [])
+          .filter((p: any) => p.connected_account_id === firstActive.id && p.is_active)
+          .map((p: any) => ({
             id: p.id,
             name: p.name,
-            emoji: p.name.includes('Vocabulary') ? '🏆' : 
-                   p.name.includes('Business') ? '📈' : 
-                   p.name.includes('Cricket') ? '🏏' :
-                   p.name.includes('Signal') ? '💡' :
-                   p.name.includes('Pattern') ? '🔍' :
-                   p.name.includes('LinkedIn') ? '📊' : '🗣️',
+            emoji: getPersonaEmoji(p.name),
             description: p.description || '',
           }));
         
-        console.log('Formatted personas:', formattedPersonas.length);
-        setPersonasList(formattedPersonas);
-        // Update selected persona to first available if current one is not allowed
-        const currentPersonaAllowed = formattedPersonas.some(p => p.id === generateForm.persona);
-        if (!currentPersonaAllowed && formattedPersonas.length > 0) {
-          setGenerateForm(prev => ({ 
-            ...prev, 
-            persona: formattedPersonas[0].id 
-          }));
+        setPersonasList(accountPersonas);
+        if (accountPersonas.length > 0) {
+          setGenerateForm(prev => ({ ...prev, persona: accountPersonas[0].id }));
         }
       }
+      
+      // Fetch tweets with account filter
+      const tweetsRes = await fetch('/api/tweets?page=1&limit=10');
+      if (tweetsRes.ok) {
+        const tweetsData = await tweetsRes.json();
+        const parsedTweets = parseTweetDates(tweetsData.data || []);
+        setTweets(parsedTweets);
+        
+        if (parsedTweets.length > 0) {
+          const sorted = [...parsedTweets].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setLatestTweet(sorted[0]);
+        }
+        
+        setPagination({
+          page: tweetsData.page || 1,
+          limit: tweetsData.limit || 10,
+          total: tweetsData.total || 0,
+          totalPages: tweetsData.totalPages || 0,
+          hasNext: tweetsData.hasNext || false,
+          hasPrev: tweetsData.hasPrev || false,
+        });
+      }
     } catch (error) {
-      console.error('Error fetching personas:', error);
+      console.error('Failed to initialize data:', error);
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
     }
+  }, [selectedAccount]);
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeData();
   }, []);
 
-  // Function to update personas based on selected account
-  const updatePersonasForAccount = useCallback((accountId: string) => {
-    fetchPersonasForAccount(accountId);
-  }, [fetchPersonasForAccount]);
-
-  // API Functions
-  const fetchAccounts = useCallback(async () => {
-    try {
-      const response = await fetch('/api/accounts');
-      if (response.ok) {
-        const data = await response.json();
-        if (isMounted) {
-          const newAccounts = data.accounts || [];
-          setAccounts(newAccounts);
-          // Set default account if none selected
-          if (!selectedAccount && newAccounts.length > 0) {
-            const firstActiveAccount = newAccounts.find((acc: Account) => acc.status === 'active') || newAccounts[0];
-            setSelectedAccount(firstActiveAccount.id);
-            setGenerateForm(prev => ({ ...prev, account_id: firstActiveAccount.id }));
-            // Update personas for the selected account with the new accounts data
-            console.log(`🎭 Loading personas for ${firstActiveAccount.name}`);
-            
-            // Fetch personas from DB for this account
-            const personasResponse = await fetch('/api/personas');
-            if (personasResponse.ok) {
-              const personasData = await personasResponse.json();
-              const dbPersonas: DatabasePersona[] = ((personasData.personas || []) as DatabasePersona[]).filter((p) => p.connected_account_id === firstActiveAccount.id);
-              
-              const formattedPersonas = dbPersonas
-                .filter(p => p.is_active)
-                .map(p => ({
-                  id: p.id,
-                  name: p.name,
-                  emoji: p.name.includes('Vocabulary') ? '🏆' : 
-                         p.name.includes('Business') ? '📈' : 
-                         p.name.includes('Cricket') ? '🏏' :
-                         p.name.includes('Signal') ? '💡' :
-                         p.name.includes('Pattern') ? '🔍' :
-                         p.name.includes('LinkedIn') ? '📊' : '🗣️',
-                  description: p.description || '',
-                }));
-              
-              setPersonasList(formattedPersonas);
-              if (formattedPersonas.length > 0) {
-                setGenerateForm(prev => ({ 
-                  ...prev, 
-                  account_id: firstActiveAccount.id,
-                  persona: formattedPersonas[0].id 
-                }));
-              }
-            }
-          }
-        }
-      } else {
-        console.warn('Failed to fetch accounts:', response.status);
-      }
-    } catch (error) {
-      console.warn('Failed to fetch accounts:', error);
-    }
-  }, [isMounted, selectedAccount]);
-
   const fetchTweets = useCallback(async (page = 1, limit = 10, accountId?: string) => {
+    setLoading(true);
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
       
-      // Add account filter if specified or if a default account is selected
       const accountFilter = accountId || selectedAccount;
       if (accountFilter) {
         queryParams.append('account_id', accountFilter);
       }
 
       const response = await fetch(`/api/tweets?${queryParams}`);
+      
       if (response.ok) {
         const data = await response.json();
+        const parsedTweets = parseTweetDates(data.data || []);
+        setTweets(parsedTweets);
         
-        // Only update state if component is still mounted
-        if (isMounted) {
-          setTweets(parseTweetDates(data.data || []));
-          setPagination({
-            page: data.page || 1,
-            limit: data.limit || 10,
-            total: data.total || 0,
-            totalPages: data.totalPages || 0,
-            hasNext: data.hasNext || false,
-            hasPrev: data.hasPrev || false,
-          });
-          
-          // Set the latest tweet to the most recently created one from current page
-          if (data.data && data.data.length > 0) {
-            const latest = data.data.sort((a: Tweet, b: Tweet) => 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            )[0];
-            setLatestTweet(latest);
-          }
+        if (parsedTweets.length > 0) {
+          const sorted = [...parsedTweets].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setLatestTweet(sorted[0]);
         }
-      } else {
-        console.warn('Failed to fetch tweets:', response.status);
-        // Only show toast for user-initiated actions, not polling
+        
+        setPagination({
+          page: data.page || 1,
+          limit: data.limit || 10,
+          total: data.total || 0,
+          totalPages: data.totalPages || 0,
+          hasNext: data.hasNext || false,
+          hasPrev: data.hasPrev || false,
+        });
       }
     } catch (error) {
       console.warn('Failed to fetch tweets:', error);
-      // Only show toast for user-initiated actions, not polling
+    } finally {
+      setLoading(false);
     }
-  }, [isMounted, selectedAccount]);
+  }, [selectedAccount]);
 
-  // Pagination navigation functions
   const goToPage = useCallback(async (page: number) => {
     if (page >= 1 && page <= pagination.totalPages) {
       await fetchTweets(page, pagination.limit);
@@ -225,10 +194,8 @@ export function useTweetDashboard() {
   }, [pagination.hasPrev, pagination.page, pagination.limit, fetchTweets]);
 
   const changePageSize = useCallback(async (newLimit: number) => {
-    await fetchTweets(1, newLimit); // Reset to first page when changing page size
+    await fetchTweets(1, newLimit);
   }, [fetchTweets]);
-
-  // Removed auto-scheduler stats functionality
 
   const generateTweet = useCallback(async () => {
     if (loading) return;
@@ -259,7 +226,6 @@ export function useTweetDashboard() {
       setLoading(false);
     }
   }, [loading, generateForm, fetchTweets]);
-
 
   const bulkGenerateTweets = useCallback(async () => {
     if (loading) return;
@@ -322,7 +288,6 @@ export function useTweetDashboard() {
         await fetchTweets();
       } else {
         const errorData = await response.json();
-        console.error('Delete error:', errorData);
         toast.error(errorData.error || 'Failed to delete tweet');
       }
     } catch (error) {
@@ -331,8 +296,6 @@ export function useTweetDashboard() {
     }
   }, [fetchTweets]);
 
-
-
   const deleteSelectedTweets = useCallback(async () => {
     try {
       if (selectedTweets.length === 0) {
@@ -340,7 +303,6 @@ export function useTweetDashboard() {
         return;
       }
 
-      // Use bulk deletion API for better performance
       const response = await fetch('/api/tweets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -354,7 +316,7 @@ export function useTweetDashboard() {
         const result = await response.json();
         setSelectedTweets([]);
         toast.success(`Deleted ${result.deletedCount} tweets!`);
-        await fetchTweets(); // Refresh the list
+        await fetchTweets();
       } else {
         const error = await response.json();
         throw new Error(error.error || 'Failed to delete tweets');
@@ -365,15 +327,12 @@ export function useTweetDashboard() {
     }
   }, [selectedTweets, fetchTweets]);
 
-  // Removed toggleAutoScheduler - assuming always running
-
   const shareOnX = useCallback((tweet: Tweet) => {
     const tweetText = `${tweet.content}${tweet.hashtags.length > 0 ? ' ' + tweet.hashtags.map(tag => `${tag}`).join(' ') : ''}`;
     const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
     window.open(twitterUrl, '_blank');
   }, []);
 
-  // Utility functions
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'posted': return 'bg-green-900 text-green-200';
@@ -394,126 +353,61 @@ export function useTweetDashboard() {
     }
   };
 
-  // Account management functions
-  const switchAccount = useCallback((accountId: string) => {
+  const switchAccount = useCallback(async (accountId: string) => {
     setSelectedAccount(accountId);
     setGenerateForm(prev => ({ ...prev, account_id: accountId }));
-    // Update personas for the selected account
-    updatePersonasForAccount(accountId);
-    // Refresh tweets for the new account
-    fetchTweets(1, pagination.limit, accountId);
-  }, [pagination.limit, fetchTweets, updatePersonasForAccount]);
-
-  const refreshAccounts = useCallback(async () => {
-    await fetchAccounts();
-  }, [fetchAccounts]);
-
-  // Effects
-  useEffect(() => {
-    setIsMounted(true);
-    setHasHydrated(true);
-    return () => setIsMounted(false);
-  }, []);
-
-  useEffect(() => {
-    // Initial data fetch - load accounts first, then tweets
-    if (isMounted) {
-      const initializeData = async () => {
-        // Fetch accounts first
-        try {
-          const response = await fetch('/api/accounts');
-          if (response.ok) {
-            const data = await response.json();
-            setAccounts(data.accounts || []);
-            
-            // Set default account if none selected
-            if (!selectedAccount && data.accounts.length > 0) {
-              const firstActiveAccount = data.accounts.find((acc: Account) => acc.status === 'active') || data.accounts[0];
-              setSelectedAccount(firstActiveAccount.id);
-              setGenerateForm(prev => ({ ...prev, account_id: firstActiveAccount.id }));
-              // Fetch personas for the default account
-              fetchPersonasForAccount(firstActiveAccount.id);
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to fetch accounts:', error);
+    
+    // Fetch personas for new account
+    try {
+      const response = await fetch('/api/personas');
+      if (response.ok) {
+        const data = await response.json();
+        const accountPersonas = (data.personas || [])
+          .filter((p: any) => p.connected_account_id === accountId && p.is_active)
+          .map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            emoji: getPersonaEmoji(p.name),
+            description: p.description || '',
+          }));
+        
+        setPersonasList(accountPersonas);
+        if (accountPersonas.length > 0) {
+          setGenerateForm(prev => ({ ...prev, persona: accountPersonas[0].id }));
+        } else {
+          setGenerateForm(prev => ({ ...prev, persona: '' }));
         }
-
-        // Then fetch tweets
-        try {
-          const queryParams = new URLSearchParams({
-            page: '1',
-            limit: '10',
-          });
-          
-          const response = await fetch(`/api/tweets?${queryParams}`);
-          if (response.ok) {
-            const data = await response.json();
-            setTweets(parseTweetDates(data.data || []));
-            setPagination({
-              page: data.page || 1,
-              limit: data.limit || 10,
-              total: data.total || 0,
-              totalPages: data.totalPages || 0,
-              hasNext: data.hasNext || false,
-              hasPrev: data.hasPrev || false,
-            });
-            
-            if (data.data && data.data.length > 0) {
-              const latest = data.data.sort((a: Tweet, b: Tweet) => 
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-              )[0];
-              setLatestTweet(latest);
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to fetch tweets:', error);
-        }
-      };
-      
-      initializeData();
+      }
+    } catch (error) {
+      console.error('Failed to fetch personas:', error);
     }
-  }, [isMounted, fetchPersonasForAccount]); // Only run when isMounted is true
+    
+    // Fetch tweets for new account
+    await fetchTweets(1, pagination.limit, accountId);
+  }, [pagination.limit, fetchTweets]);
 
-  // Effect to refresh tweets when account changes
-  useEffect(() => {
-    if (selectedAccount && isMounted) {
-      fetchTweets(1, pagination.limit, selectedAccount);
-    }
-  }, [selectedAccount, pagination.limit, fetchTweets, isMounted]);
-
-
-  // Manual refresh function
   const refreshData = useCallback(async () => {
-    await fetchAccounts();
-    await fetchTweets();
-  }, [fetchAccounts, fetchTweets]);
+    await initializeData();
+  }, [initializeData]);
 
-  // Computed values
-  const readyTweets = tweets.filter(t => t.status === 'ready');
-
-  const stats = {
+  const readyTweets = useMemo(() => tweets.filter(t => t.status === 'ready'), [tweets]);
+  const stats = useMemo(() => ({
     ready: readyTweets.length,
     posted: tweets.filter(t => t.status === 'posted').length,
-  };
+  }), [readyTweets, tweets]);
 
   return {
-    // State
     tweets,
     latestTweet,
     selectedTweets,
     loading,
+    initialLoading,
     showHistory,
     generateForm,
     pagination,
     stats,
-    hasHydrated,
-    
-    // Multi-account state
     accounts,
     selectedAccount,
-    
-    // Actions
     setSelectedTweets,
     setShowHistory,
     setGenerateForm,
@@ -524,24 +418,15 @@ export function useTweetDashboard() {
     deleteSelectedTweets,
     shareOnX,
     refreshData,
-    
-    // Account actions
     switchAccount,
-    refreshAccounts,
-    
-    // Pagination actions
     goToPage,
     nextPage,
     prevPage,
     changePageSize,
-    
-    // Utilities
     getStatusBadgeColor,
     getQualityGradeColor,
     formatForUserDisplay,
     toDateTimeLocal,
-    
-    // Constants
     personas: personasList,
     BULK_GENERATION_CONFIG,
   };

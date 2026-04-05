@@ -22,8 +22,8 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Multi-Account Twitter Bot",
-  description: "AI-powered multi-account Twitter automation system with custom personas and content generation",
+  title: "AutoInfluencer Bot",
+  description: "AI-powered multi-account Twitter & LinkedIn automation system with custom personas and content generation",
 };
 
 export default function RootLayout({

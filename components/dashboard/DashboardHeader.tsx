@@ -26,7 +26,7 @@ export function DashboardHeader({
                 MULTI-ACCOUNT_TWITTER_BOT
               </h1>
               <p className="text-muted-foreground font-mono-brutal text-sm mt-1">
-                AI-POWERED MULTI-ACCOUNT TWITTER AUTOMATION SYSTEM
+                AI-POWERED MULTI-ACCOUNT TWITTER & LINKEDIN AUTOMATION SYSTEM
               </p>
             </div>
           </div>

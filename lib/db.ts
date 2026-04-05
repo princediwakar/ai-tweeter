@@ -101,11 +101,12 @@ export interface Thread {
 
 // Tweet management functions
 // Updated tweet functions to support account filtering
-export async function getAllTweets(): Promise<Tweet[]> {
+export async function getAllTweets(limit: number = 100): Promise<Tweet[]> {
   try {
     const result = await sqlWithRetry`
       SELECT * FROM tweets
       ORDER BY created_at DESC
+      LIMIT ${limit}
     `;
     
     return result.rows.map(row => ({
@@ -978,9 +979,7 @@ export async function hasEngagedWithTweet(accountId: string, tweetId: string): P
 
 export async function getRecentVocabularyWords(accountId: string, days: number = GENERATION_CONFIG.personas.englishVocabBuilder.deduplicationDays): Promise<string[]> {
   try {
-    const { sql } = await import('@vercel/postgres');
-
-    const result = await sql`
+    const result = await sqlWithRetry`
       SELECT DISTINCT card_data
       FROM tweets
       WHERE connected_account_id = ${accountId}

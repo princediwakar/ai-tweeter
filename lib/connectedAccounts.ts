@@ -4,6 +4,36 @@ import { sqlWithRetry } from './db';
 
 const ENCRYPTION_KEY = process.env.NEXTAUTH_SECRET || process.env.ENCRYPTION_KEY || 'default';
 
+interface TokenCacheEntry {
+  decrypted: string;
+  expiresAt: number;
+}
+
+const tokenCache = new Map<string, TokenCacheEntry>();
+const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+const MAX_CACHE_SIZE = 100;
+
+function getCachedToken(key: string): string | null {
+  const entry = tokenCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    tokenCache.delete(key);
+    return null;
+  }
+  return entry.decrypted;
+}
+
+function setCachedToken(key: string, decrypted: string): void {
+  if (tokenCache.size >= MAX_CACHE_SIZE) {
+    const firstKey = tokenCache.keys().next().value;
+    if (firstKey) tokenCache.delete(firstKey);
+  }
+  tokenCache.set(key, {
+    decrypted,
+    expiresAt: Date.now() + TOKEN_CACHE_TTL_MS,
+  });
+}
+
 function encrypt(text: string): string {
   const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
   const iv = crypto.randomBytes(16);
@@ -19,6 +49,11 @@ function decrypt(encryptedText: string | null): string {
   try {
     const parts = encryptedText.split(':');
     if (parts.length !== 3) return encryptedText;
+    
+    const cacheKey = `decrypt:${encryptedText.substring(0, 50)}`;
+    const cached = getCachedToken(cacheKey);
+    if (cached) return cached;
+    
     const [ivHex, authTagHex, encrypted] = parts;
     const iv = Buffer.from(ivHex, 'hex');
     const authTag = Buffer.from(authTagHex, 'hex');
@@ -27,6 +62,8 @@ function decrypt(encryptedText: string | null): string {
     decipher.setAuthTag(authTag);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
+    
+    setCachedToken(cacheKey, decrypted);
     return decrypted;
   } catch {
     return encryptedText;

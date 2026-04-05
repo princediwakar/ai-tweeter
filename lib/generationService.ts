@@ -25,22 +25,61 @@ import {
   getRecentSatiristData,
   getRecentVocabularyWords,
 } from "./db";
+import { getEngagementPersona } from "./engagement/personas";
 
-// Lazy initialization of the client
+// Lazy initialization of the client with thread-safe pattern
 let deepseekClientInstance: OpenAI | null = null;
+let clientInitPromise: Promise<OpenAI> | null = null;
 
 function getDeepseekClient(): OpenAI {
-  if (!deepseekClientInstance) {
+  if (deepseekClientInstance) {
+    return deepseekClientInstance;
+  }
+  
+  // If already initializing, wait for that promise
+  if (clientInitPromise) {
+    throw new Error('Client initialization in progress');
+  }
+  
+  clientInitPromise = (async () => {
     const apiKey = process.env.DEEPSEEK_API_KEY;
     if (!apiKey) {
+      clientInitPromise = null;
       throw new Error("DEEPSEEK_API_KEY is not defined in environment variables");
     }
     deepseekClientInstance = new OpenAI({
       apiKey,
       baseURL: "https://api.deepseek.com",
     });
+    clientInitPromise = null;
+    return deepseekClientInstance;
+  })();
+  
+  throw new Error('Client initialization in progress');
+}
+
+// Async version that properly waits for initialization
+async function getDeepseekClientAsync(): Promise<OpenAI> {
+  if (deepseekClientInstance) {
+    return deepseekClientInstance;
   }
-  return deepseekClientInstance;
+  
+  // Prevent multiple initialization attempts
+  if (!clientInitPromise) {
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      throw new Error("DEEPSEEK_API_KEY is not defined in environment variables");
+    }
+    clientInitPromise = (async () => {
+      deepseekClientInstance = new OpenAI({
+        apiKey,
+        baseURL: "https://api.deepseek.com",
+      });
+      return deepseekClientInstance;
+    })();
+  }
+  
+  return clientInitPromise;
 }
 
 // --- MODIFIED ---
@@ -100,7 +139,8 @@ export async function generateTweet(
       }
     }
 
-    const response = await getDeepseekClient().chat.completions.create({
+    const client = await getDeepseekClientAsync();
+    const response = await client.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,
@@ -297,10 +337,9 @@ export async function generateBatchTweets(
       }
     }
 
-    // Small delay between generations to avoid rate limits
-    if (i < count - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+    // Small delay between generations - only add if needed for rate limiting
+    // Removed hardcoded 500ms sleep that was adding ~2s latency per batch of 5
+    // Rate limiting is now handled by the API's natural execution time
   }
 
   console.log(
@@ -322,9 +361,6 @@ export async function generateEngagementReply(
   target: EngagementTarget,
   engagementPersonaKey: string
 ): Promise<string | null> {
-  // Import the engagement persona system
-  const { getEngagementPersona } = await import("./engagement/personas/index");
-
   const engagementPersona = getEngagementPersona(engagementPersonaKey);
   if (!engagementPersona) {
     console.error(
@@ -344,7 +380,8 @@ export async function generateEngagementReply(
     console.log(
       `[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${engagementPersona.displayName}`
     );
-    const response = await getDeepseekClient().chat.completions.create({
+    const client = await getDeepseekClientAsync();
+    const response = await client.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
       messages: [{ role: "user", content: prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,

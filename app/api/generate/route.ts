@@ -16,6 +16,10 @@ import {
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
 import { getPersonaByKey } from '@/lib/personas';
 
+// In-memory request deduplication to prevent overlapping cron jobs
+const inFlightRequests = new Map<string, Promise<any>>();
+const REQUEST_DEDUP_WINDOW_MS = 30 * 1000; // 30 seconds
+
 
 // MODIFIED: Added sourceUrl to the info type
 interface GeneratedTweetInfo {
@@ -116,6 +120,15 @@ export async function GET(request: NextRequest) {
  * ADDED TIMING LOGS
  */
 async function generateForAccountEnhanced(accountId: string, request: NextRequest, debugMode = false, personaOverride?: string | null) {
+  // Request deduplication: prevent same account from being processed twice within window
+  const dedupKey = `generate:${accountId}:${debugMode ? 'debug' : 'prod'}`;
+  const existingRequest = inFlightRequests.get(dedupKey);
+  
+  if (existingRequest && !debugMode) {
+    logger.info(`[DEDUP] Request for account ${accountId} already in flight, returning cached result`, 'generate-dedup');
+    return existingRequest;
+  }
+  
   const startTime = performance.now(); // START
   const nowIST = getCurrentTimeInIST();
   const callId = Math.random().toString(36).substring(2, 8);
@@ -342,58 +355,11 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   const totalContentUnits = generatedTweets.length + generatedThreads.reduce((sum, thread) => sum + thread.total_tweets, 0);
 
-  // --- IMAGE PROCESSING START ---
+  // --- IMAGE PROCESSING REMOVED ---
+  // Images are now processed asynchronously by the /api/process-images cron job
+  // This significantly reduces API response time (was +3-10s, now ~0ms overhead)
   if (imageIsNeeded) {
-    const imageProcessingStart = performance.now(); // START: Image Processing
-    logger.info(`[Enhanced:${callId}] Starting synchronous image processing for account ${accountId}`, 'image-processing');
-
-    try {
-      // Import the image processing logic directly
-      const { getTweetsWithPendingImages, updateTweetImage } = await import('@/lib/db');
-      const { generatePersonaImage } = await import('@/lib/services/imageGenerationService');
-
-      const pendingImageTweets = await getTweetsWithPendingImages(10, accountId);
-
-      if (pendingImageTweets.length > 0) {
-        logger.info(`[Enhanced:${callId}] Found ${pendingImageTweets.length} tweets needing images`, 'image-processing');
-
-        // Process images in parallel but wait for completion
-        const imageProcessingPromises = pendingImageTweets.map(async (tweet) => {
-          const imageCallStart = performance.now();
-          try {
-            await updateTweetImage(tweet.id, undefined, 'processing');
-
-            if (!tweet.card_data) {
-              throw new Error('No card_data found for image generation');
-            }
-
-            const cardData = JSON.parse(tweet.card_data);
-            const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.account_id);
-
-            if (imageUrl) {
-              await updateTweetImage(tweet.id, imageUrl, 'completed');
-              logger.info(`[Enhanced:${callId}] Image completed for tweet ${tweet.id} in ${((performance.now() - imageCallStart) / 1000).toFixed(2)}s.`, 'image-success-timing');
-              return { success: true, tweetId: tweet.id, imageUrl };
-            } else {
-              throw new Error('Image generation returned null');
-            }
-          } catch (error) {
-            const errorMsg = error instanceof Error ? error.message : String(error);
-            await updateTweetImage(tweet.id, undefined, 'failed');
-            logger.error(`[Enhanced:${callId}] Image failed for tweet ${tweet.id} after ${((performance.now() - imageCallStart) / 1000).toFixed(2)}s: ${errorMsg}`, 'image-error', error as Error);
-            return { success: false, tweetId: tweet.id, error: errorMsg };
-          }
-        });
-
-        const imageResults = await Promise.allSettled(imageProcessingPromises);
-        const successful = imageResults.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length;
-        const failed = imageResults.length - successful;
-
-        logger.info(`[Enhanced:${callId}] Total image processing time: ${((performance.now() - imageProcessingStart) / 1000).toFixed(2)}s. ${successful} successful, ${failed} failed`, 'image-processing-timing');
-      }
-    } catch (error) {
-      logger.error(`[Enhanced:${callId}] Failed to process images synchronously`, 'image-processing-error', error as Error);
-    }
+    logger.info(`[Enhanced:${callId}] Queued ${generatedTweets.filter(t => t.needsImage).length} tweets for background image processing`, 'image-queued');
   }
 
   // --- FINAL TIMING AND RESPONSE ---
@@ -423,6 +389,9 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     duration_s: parseFloat(totalDuration), // Add duration to the response
     timestamp: new Date().toISOString()
   };
+
+  // Clean up deduplication key after completion
+  inFlightRequests.delete(dedupKey);
 
   return NextResponse.json(response);
 }

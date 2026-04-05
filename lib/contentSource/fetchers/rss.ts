@@ -1,6 +1,6 @@
 // lib/contentSource/fetchers/rss.ts
 /**
- * Generic RSS feed fetcher
+ * Generic RSS feed fetcher with TTL-based caching
  */
 
 import { parseStringPromise } from 'xml2js';
@@ -10,8 +10,37 @@ import type { HeadlineWithSource, RssItem } from '../types';
 
 const fetchFn = globalThis.fetch;
 
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+const rssCache = new Map<string, CacheEntry<HeadlineWithSource[]>>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
+
+function getCacheKey(feed: string, headlinesPerFeed: number, totalLimit?: number): string {
+  return `${feed}:${headlinesPerFeed}:${totalLimit ?? 'all'}`;
+}
+
+function getCachedOrNull<T>(key: string): T[] | null {
+  const entry = rssCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    rssCache.delete(key);
+    return null;
+  }
+  return entry.data as T[];
+}
+
+function setCache<T>(key: string, data: T): void {
+  rssCache.set(key, {
+    data,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+}
+
 /**
- * Generic RSS fetcher that processes a list of feed URLs.
+ * Generic RSS fetcher that processes a list of feed URLs with caching.
  * @param feeds - Array of RSS feed URLs to fetch.
  * @param headlinesPerFeed - Number of headlines to retrieve from each feed.
  * @param totalLimit - Optional maximum number of headlines to return in total.
@@ -22,6 +51,14 @@ export async function fetchFromRssFeeds(
   headlinesPerFeed: number,
   totalLimit?: number
 ): Promise<HeadlineWithSource[]> {
+  const cacheKey = getCacheKey(feeds.join(','), headlinesPerFeed, totalLimit);
+  const cached = getCachedOrNull<HeadlineWithSource>(cacheKey);
+  
+  if (cached) {
+    console.log(`[Content Source] 📰 Cache hit for RSS feeds (${cached.length} headlines)`);
+    return cached;
+  }
+
   const userAgent = getRandomUserAgent();
 
   const fetchPromises = feeds.map(async (feed) => {
@@ -56,9 +93,14 @@ export async function fetchFromRssFeeds(
   });
 
   const results = await Promise.all(fetchPromises);
-  const allHeadlines = results.flat().sort(() => 0.5 - Math.random()); // Shuffle for variety
-  console.log(`[Content Source] 📰 Fetched ${allHeadlines.length} headlines from ${feeds.length} RSS feeds`);
-  return totalLimit ? allHeadlines.slice(0, totalLimit) : allHeadlines;
+  const allHeadlines = results.flat().sort(() => 0.5 - Math.random());
+  
+  const limited = totalLimit ? allHeadlines.slice(0, totalLimit) : allHeadlines;
+  
+  setCache(cacheKey, limited);
+  console.log(`[Content Source] 📰 Fetched and cached ${limited.length} headlines from ${feeds.length} RSS feeds`);
+  
+  return limited;
 }
 
 /**

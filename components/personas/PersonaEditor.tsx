@@ -314,11 +314,17 @@ export default function PersonaEditor(props: PersonaEditorProps) {
           />
         </div>
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Topics (comma separated)</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Topics (comma separated or Enter)</label>
           <input
             type="text"
             value={data.topics.join(', ')}
-            onChange={(e) => onChange({ ...data, topics: e.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+            onChange={(e) => onChange({ ...data, topics: e.target.value.split(/[,\n]/).map(t => t.trim()).filter(Boolean) })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.blur();
+              }
+            }}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
             placeholder="AI, startups, productivity"
           />
@@ -355,6 +361,19 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         <textarea
           value={data.rss_sources.join('\n')}
           onChange={(e) => onChange({ ...data, rss_sources: e.target.value.split('\n').filter(line => line.trim()) })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              const textarea = e.currentTarget;
+              const cursorPos = textarea.selectionStart;
+              const value = textarea.value;
+              const newValue = value.slice(0, cursorPos) + '\n' + value.slice(cursorPos);
+              onChange({ ...data, rss_sources: newValue.split('\n').filter(line => line.trim()) });
+              setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = cursorPos + 1;
+              }, 0);
+            }
+          }}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none font-mono text-sm"
           rows={4}
           placeholder="https://example.com/feed.xml"

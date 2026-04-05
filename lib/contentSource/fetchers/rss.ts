@@ -22,17 +22,17 @@ function getCacheKey(feed: string, headlinesPerFeed: number, totalLimit?: number
   return `${feed}:${headlinesPerFeed}:${totalLimit ?? 'all'}`;
 }
 
-function getCachedOrNull<T>(key: string): T[] | null {
+function getCachedOrNull(key: string): HeadlineWithSource[] | null {
   const entry = rssCache.get(key);
   if (!entry) return null;
   if (Date.now() > entry.expiresAt) {
     rssCache.delete(key);
     return null;
   }
-  return entry.data as T[];
+  return entry.data;
 }
 
-function setCache<T>(key: string, data: T): void {
+function setCache(key: string, data: HeadlineWithSource[]): void {
   rssCache.set(key, {
     data,
     expiresAt: Date.now() + CACHE_TTL_MS,
@@ -52,7 +52,7 @@ export async function fetchFromRssFeeds(
   totalLimit?: number
 ): Promise<HeadlineWithSource[]> {
   const cacheKey = getCacheKey(feeds.join(','), headlinesPerFeed, totalLimit);
-  const cached = getCachedOrNull<HeadlineWithSource>(cacheKey);
+  const cached = getCachedOrNull(cacheKey);
   
   if (cached) {
     console.log(`[Content Source] 📰 Cache hit for RSS feeds (${cached.length} headlines)`);

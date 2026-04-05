@@ -359,7 +359,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   // Images are now processed asynchronously by the /api/process-images cron job
   // This significantly reduces API response time (was +3-10s, now ~0ms overhead)
   if (imageIsNeeded) {
-    logger.info(`[Enhanced:${callId}] Queued ${generatedTweets.filter(t => t.needsImage).length} tweets for background image processing`, 'image-queued');
+    logger.info(`[Enhanced:${callId}] Queued ${targetBatchSize} tweets for background image processing`, 'image-queued');
   }
 
   // --- FINAL TIMING AND RESPONSE ---

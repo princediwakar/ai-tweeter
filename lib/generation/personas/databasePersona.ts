@@ -53,7 +53,7 @@ STRUCTURAL ARCHETYPES (ROTATION)
 ━━━━━━━━━━━━━━━━━━━━━━
 Choose ONE of these formats to execute based on the data:
 
-${dna.structural_archetypes.map((arch: { name: string; description: string; example: string }, i: number) => `
+${(dna.structural_archetypes || []).map((arch: { name: string; description: string; example: string }, i: number) => `
 **Format ${i + 1}: ${arch.name}**
 - Description: ${arch.description}
 - Example: "${arch.example}"
@@ -88,7 +88,7 @@ OUTPUT CONSTRUCTION
 ━━━━━━━━━━━━━━━━━━━━━━
 FINAL VALIDATION CHECKLIST
 ━━━━━━━━━━━━━━━━━━━━━━
-${dna.validation_checklist.map((item: string) => `□ ${item}`).join('\n')}
+${(dna.validation_checklist || []).map((item: string) => `□ ${item}`).join('\n')}
 `;
     }
 

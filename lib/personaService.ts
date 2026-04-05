@@ -41,6 +41,28 @@ class PersonaService {
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
+  private mergeWithDefaultDna(config: any = {}): PersonaConfigDNA {
+    const defaults: PersonaConfigDNA = {
+      identity_context: 'You are an AI assistant designed to post engaging content.',
+      source_logic: 'Use the provided source material to create insightful posts.',
+      voice_dna: 'Clear, concise, and professional.',
+      anti_patterns: 'Avoid generic excitement and corporate jargon.',
+      structural_archetypes: [
+        {
+          name: 'General Narrative',
+          description: 'A standard post format.',
+          example: 'Here is an interesting insight from today: [Summary].'
+        }
+      ],
+      validation_checklist: ['Is it accurate?', 'Is it engaging?'],
+      image_probability: 0,
+      headlines_to_fetch: 10,
+      headlines_in_prompt: 5
+    };
+
+    return { ...defaults, ...config };
+  }
+
   async createPersona(input: CreatePersonaInput): Promise<Persona> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -59,7 +81,7 @@ class PersonaService {
       ) VALUES (
         ${id}, ${input.connected_account_id}, ${input.name},
         ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
-        ${JSON.stringify(input.config || {})}::jsonb,
+        ${JSON.stringify(this.mergeWithDefaultDna(input.config || {}))}::jsonb,
         ${input.min_length ?? 200}, ${input.max_length ?? 280},
         ${tone}, ${topics},
         ${input.is_active ?? true}, ${input.is_default ?? false},
@@ -94,7 +116,7 @@ class PersonaService {
     }
     if (input.config !== undefined) {
       updates.push(`config = $${paramIndex++}`);
-      values.push(JSON.stringify(input.config));
+      values.push(JSON.stringify(this.mergeWithDefaultDna(input.config)));
     }
     if (input.min_length !== undefined) {
       updates.push(`min_length = $${paramIndex++}`);

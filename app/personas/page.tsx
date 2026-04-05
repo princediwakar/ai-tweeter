@@ -225,7 +225,7 @@ export default function PersonasPage() {
                     <div key={account.id} className="space-y-3 pl-4">
                       <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
                         <span className="font-medium text-gray-900">{account.name}</span>
-                        <span className="text-sm text-gray-500">@{account.twitter_handle}</span>
+                        <span className="text-sm text-gray-500 capitalize">{account.platform}</span>
                       </div>
                       <PersonaListByAccount 
                         personas={accountPersonas}

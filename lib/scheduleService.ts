@@ -80,7 +80,7 @@ class ScheduleService {
 
   async updateSchedule(input: UpdateScheduleInput): Promise<Schedule | null> {
     const updates: string[] = [];
-    const values: (string | number | boolean)[] = [];
+    const values: (string | number | boolean | null)[] = [];
     let paramIndex = 1;
 
     if (input.name !== undefined) {
@@ -113,7 +113,7 @@ class ScheduleService {
     }
     if (input.persona_id !== undefined) {
       updates.push(`persona_id = $${paramIndex++}`);
-      values.push(input.persona_id || null);
+      values.push(input.persona_id);
     }
 
     if (updates.length === 0) {

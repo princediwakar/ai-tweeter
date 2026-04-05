@@ -31,9 +31,38 @@ export async function GET(request: NextRequest) {
     // Fetch personas for these accounts using a different approach
     const placeholders = accountIds.map((_, i) => `$${i + 1}`).join(', ');
     const query = `SELECT * FROM personas WHERE connected_account_id IN (${placeholders}) ORDER BY created_at DESC`;
-    const personas = await sql.query(query, accountIds);
+    const personaRows = await sql.query(query, accountIds);
 
-    return NextResponse.json({ personas: personas.rows });
+    // Fetch schedules for each account
+    const scheduleQuery = `SELECT * FROM account_schedules WHERE connected_account_id IN (${placeholders})`;
+    const scheduleRows = await sql.query(scheduleQuery, accountIds);
+    
+    // Map schedules by persona_id (array for multiple schedules)
+    const scheduleMap = new Map<string, typeof scheduleRows.rows[0][]>();
+    scheduleRows.rows.forEach((row: typeof scheduleRows.rows[0]) => {
+      if (row.persona_id) {
+        if (!scheduleMap.has(row.persona_id)) {
+          scheduleMap.set(row.persona_id, []);
+        }
+        scheduleMap.get(row.persona_id)!.push(row);
+      }
+    });
+
+    // Attach schedules to each persona
+    const personas = personaRows.rows.map((row: typeof personaRows.rows[0]) => {
+      const scheduleList = scheduleMap.get(row.id) || [];
+      return {
+        ...row,
+        schedules: scheduleList.map((schedule: typeof scheduleRows.rows[0]) => ({
+          id: schedule.id,
+          days_of_week: schedule.days_of_week,
+          start_time: schedule.start_time,
+          is_active: schedule.is_active,
+        })),
+      };
+    });
+
+    return NextResponse.json({ personas });
   } catch (error) {
     console.error('Error fetching personas:', error);
     return NextResponse.json({ error: 'Failed to fetch personas' }, { status: 500 });

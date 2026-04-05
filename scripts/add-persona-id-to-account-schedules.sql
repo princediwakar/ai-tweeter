@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS account_schedules (
   start_time INTEGER DEFAULT 0,
   end_time INTEGER DEFAULT 1439,
   is_active BOOLEAN DEFAULT true,
-  max_posts_per_day INTEGER DEFAULT 10,
   persona_id UUID REFERENCES personas(id) ON DELETE SET NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
@@ -26,6 +25,17 @@ BEGIN
     WHERE table_name = 'account_schedules' AND column_name = 'persona_id'
   ) THEN
     ALTER TABLE account_schedules ADD COLUMN persona_id UUID REFERENCES personas(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- Remove max_posts_per_day column if it exists
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'account_schedules' AND column_name = 'max_posts_per_day'
+  ) THEN
+    ALTER TABLE account_schedules DROP COLUMN max_posts_per_day;
   END IF;
 END $$;
 

@@ -91,11 +91,19 @@ export interface AccountWithCredentials extends Account {
   twitter_oauth2_client_secret?: string;
 }
 
+export interface PersonaSchedule {
+  id: string;
+  days_of_week: number[];
+  start_time: number;
+  is_active: boolean;
+}
+
 export interface Persona {
   id: string;
   name: string;
   description: string;
   emoji: string;
+  schedules?: PersonaSchedule[];
 }
 
 // Tweet and Content Types

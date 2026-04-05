@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation';
 import {
   Home,
   Users,
-  Calendar,
   Settings,
   LogOut,
   User,
@@ -22,7 +21,6 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Personas', href: '/personas', icon: User },
   { name: 'Accounts', href: '/accounts', icon: Users },
-  { name: 'Schedules', href: '/schedules', icon: Calendar },
 ];
 
 function UserDropdown() {

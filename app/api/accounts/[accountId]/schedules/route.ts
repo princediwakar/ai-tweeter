@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { scheduleService } from '@/lib/scheduleService';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+async function getUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return null;
+  const result = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+  return result.rows[0]?.id || null;
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const userId = userResult.rows[0].id;
 
     const { accountId } = await params;
 
@@ -37,10 +51,16 @@ export async function POST(
   { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    const userId = userResult.rows[0].id;
 
     const { accountId } = await params;
 

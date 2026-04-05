@@ -11,7 +11,6 @@ export interface Schedule {
   start_time: number;
   end_time: number;
   is_active: boolean;
-  max_posts_per_day: number;
   persona_id?: string;
   created_at: string;
   updated_at: string;
@@ -26,7 +25,6 @@ export interface CreateScheduleInput {
   start_time?: number;
   end_time?: number;
   is_active?: boolean;
-  max_posts_per_day?: number;
   persona_id?: string;
 }
 
@@ -63,14 +61,14 @@ class ScheduleService {
     const result = await sql`
       INSERT INTO account_schedules (
         id, connected_account_id, name, timezone, schedule_config, 
-        days_of_week, start_time, end_time, is_active, max_posts_per_day,
+        days_of_week, start_time, end_time, is_active,
         persona_id, created_at, updated_at
       ) VALUES (
         ${id}, ${input.connected_account_id}, ${input.name}, 
         ${input.timezone || 'UTC'}, ${JSON.stringify(input.schedule_config || {})},
         ${daysString}, 
         ${input.start_time ?? 0}, ${input.end_time ?? 1439},
-        ${input.is_active ?? true}, ${input.max_posts_per_day ?? 10},
+        ${input.is_active ?? true},
         ${input.persona_id || null},
         ${now}, ${now}
       )
@@ -113,9 +111,9 @@ class ScheduleService {
       updates.push(`is_active = $${paramIndex++}`);
       values.push(input.is_active);
     }
-    if (input.max_posts_per_day !== undefined) {
-      updates.push(`max_posts_per_day = $${paramIndex++}`);
-      values.push(input.max_posts_per_day);
+    if (input.persona_id !== undefined) {
+      updates.push(`persona_id = $${paramIndex++}`);
+      values.push(input.persona_id || null);
     }
 
     if (updates.length === 0) {
@@ -164,7 +162,6 @@ class ScheduleService {
       start_time: row.start_time as number,
       end_time: row.end_time as number,
       is_active: row.is_active as boolean,
-      max_posts_per_day: row.max_posts_per_day as number,
       persona_id: row.persona_id as string | undefined,
       created_at: (row.created_at as Date).toISOString(),
       updated_at: (row.updated_at as Date).toISOString(),

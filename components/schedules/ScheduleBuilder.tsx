@@ -45,7 +45,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
     start_time: 540,
     end_time: 540,
     is_active: true,
-    max_posts_per_day: 1,
     persona_id: '',
   });
 
@@ -119,7 +118,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
         start_time: 540,
         end_time: 540,
         is_active: true,
-        max_posts_per_day: 1,
         persona_id: '',
       });
 
@@ -141,7 +139,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
       start_time: schedule.start_time,
       end_time: schedule.end_time,
       is_active: schedule.is_active,
-      max_posts_per_day: schedule.max_posts_per_day,
       persona_id: schedule.persona_id || '',
     });
     setEditingId(schedule.id);
@@ -263,7 +260,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
               start_time: 540,
               end_time: 540,
               is_active: true,
-              max_posts_per_day: 1,
               persona_id: personas[0]?.id || '',
             });
           }}

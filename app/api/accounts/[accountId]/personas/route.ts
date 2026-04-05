@@ -29,7 +29,35 @@ export async function GET(
     }
 
     const personas = await personaService.getPersonasByAccount(accountId);
-    return NextResponse.json({ personas });
+    
+    // Fetch schedules for this account
+    const scheduleRows = await sql`
+      SELECT * FROM account_schedules WHERE connected_account_id = ${accountId}
+    `;
+    
+    // Map schedules by persona_id
+    const scheduleMap = new Map<string, typeof scheduleRows.rows[0][]>();
+    scheduleRows.rows.forEach((row: typeof scheduleRows.rows[0]) => {
+      if (row.persona_id) {
+        if (!scheduleMap.has(row.persona_id)) {
+          scheduleMap.set(row.persona_id, []);
+        }
+        scheduleMap.get(row.persona_id)!.push(row);
+      }
+    });
+
+    // Attach schedules to each persona
+    const personasWithSchedules = personas.map(persona => ({
+      ...persona,
+      schedules: (scheduleMap.get(persona.id) || []).map(schedule => ({
+        id: schedule.id,
+        days_of_week: schedule.days_of_week,
+        start_time: schedule.start_time,
+        is_active: schedule.is_active,
+      })),
+    }));
+
+    return NextResponse.json({ personas: personasWithSchedules });
   } catch (error) {
     console.error('Error fetching personas:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

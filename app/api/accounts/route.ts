@@ -1,7 +1,9 @@
 // app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { sql } from '@vercel/postgres';
 import { accountService } from '@/lib/accountService';
-import { getUserIdFromRequest } from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Enhanced Multi-Account Management API
@@ -15,16 +17,20 @@ import { getUserIdFromRequest } from '@/lib/auth';
  */
 export async function GET(request: NextRequest) {
   try {
-    // Get current user ID
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    // Get accounts accessible by this user
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+    const userId = userResult.rows[0].id;
+
     const accounts = await accountService.getAccountsByUserId(userId);
     
     // Return enhanced account information without sensitive credentials
@@ -70,14 +76,19 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get current user ID
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
       );
     }
+
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+    const userId = userResult.rows[0].id;
 
     const body = await request.json();
     

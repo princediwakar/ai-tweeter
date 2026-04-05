@@ -1,81 +1,54 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { Loader2, Sparkles, Trash2, Edit2, Check, X } from 'lucide-react';
-import { usePersonas } from '@/hooks/usePersonas';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Loader2, Sparkles } from 'lucide-react';
+import { Persona, PersonaEditorProps, EditablePersona, ScheduleFormData, PersonaSchedule } from './types';
+import { getDefaultEditablePersona } from './utils';
+import PersonaForm from './PersonaForm';
+import ScheduleDialog from './ScheduleDialog';
+import DeleteConfirmDialog from './DeleteConfirmDialog';
 
-interface Persona {
-  id: string;
-  connected_account_id: string;
-  name: string;
-  description: string;
-  config: Record<string, unknown>;
-  rss_sources?: string[];
-  min_length: number;
-  max_length: number;
-  tone?: string;
-  topics?: string[];
-  is_active: boolean;
-  is_default: boolean;
+interface ExtendedPersonaEditorProps extends PersonaEditorProps {
+  onAccountChange?: (accountId: string) => void;
+  accounts?: { id: string; name: string; twitter_handle: string; platform: string }[];
+  selectedAccountId?: string | null;
+  editingPersona?: Persona | null;
+  onEditComplete?: () => void;
 }
 
-interface PersonaEditorProps {
-  accountId: string;
-  platform?: string;
-  accountName?: string;
-  onPersonaUpdate?: () => void;
-}
-
-interface EditablePersona {
-  name: string;
-  description: string;
-  tone: string;
-  topics: string[];
-  min_length: number;
-  max_length: number;
-  rss_sources: string[];
-  is_active: boolean;
-}
-
-export default function PersonaEditor(props: PersonaEditorProps) {
-  const { accountId, platform = 'twitter', accountName } = props;
-  const { fetchPersonas } = usePersonas();
+export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
+  const { accountId, platform = 'twitter', accountName, onAccountChange, accounts, selectedAccountId, editingPersona, onEditComplete } = props;
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // AI generation state
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [generatedPreview, setGeneratedPreview] = useState<EditablePersona | null>(null);
   const generationInProgress = useRef(false);
   
-  // Edit mode state
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<EditablePersona>({
-    name: '',
-    description: '',
-    tone: '',
-    topics: [],
-    min_length: 100,
-    max_length: 280,
-    rss_sources: [],
-    is_active: true,
-  });
+  const [editData, setEditData] = useState<EditablePersona>(getDefaultEditablePersona());
 
-  // Delete confirmation state
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Single fetch on mount
-  useEffect(() => {
-    if (!accountId) return;
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [schedulePersonaId, setSchedulePersonaId] = useState<string | null>(null);
+  const [currentSchedules, setCurrentSchedules] = useState<PersonaSchedule[]>([]);
+
+  const currentAccountId = selectedAccountId || accountId;
+  const currentPlatform = accounts?.find(a => a.id === currentAccountId)?.platform || platform;
+  const currentAccountName = accounts?.find(a => a.id === currentAccountId)?.name || accountName;
+
+  const loadPersonas = useCallback(() => {
+    if (!currentAccountId) return;
     
     setLoading(true);
     
-    fetch(`/api/personas`)
+    fetch('/api/personas')
       .then(res => res.json())
       .then(data => {
-        const filtered = (data.personas || []).filter((p: Persona) => p.connected_account_id === accountId);
+        const filtered = (data.personas || []).filter((p: Persona) => p.connected_account_id === currentAccountId);
         setPersonas(filtered);
       })
       .catch(error => {
@@ -84,7 +57,30 @@ export default function PersonaEditor(props: PersonaEditorProps) {
       .finally(() => {
         setLoading(false);
       });
-  }, [accountId]);
+  }, [currentAccountId]);
+
+  useEffect(() => {
+    loadPersonas();
+  }, [loadPersonas]);
+
+  useEffect(() => {
+    if (editingPersona) {
+      setEditingId(editingPersona.id);
+      setEditData({
+        name: editingPersona.name,
+        description: editingPersona.description,
+        tone: editingPersona.tone || '',
+        topics: editingPersona.topics || [],
+        min_length: editingPersona.min_length,
+        max_length: editingPersona.max_length,
+        rss_sources: editingPersona.rss_sources || [],
+        is_active: editingPersona.is_active,
+      });
+      setTimeout(() => {
+        document.getElementById('edit-persona-form')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [editingPersona]);
 
   const handleGenerate = async () => {
     if (!prompt.trim() || prompt.length < 10 || generationInProgress.current) {
@@ -101,9 +97,9 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           prompt: prompt.trim(),
-          connected_account_id: accountId,
-          platform,
-          account_name: accountName
+          connected_account_id: currentAccountId,
+          platform: currentPlatform,
+          account_name: currentAccountName
         }),
       });
       
@@ -113,14 +109,13 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         throw new Error(data.error || 'Failed to generate persona');
       }
       
-      // Set preview as editable form
       setGeneratedPreview({
         name: data.generated.name || '',
         description: data.generated.description || '',
         tone: data.generated.tone || '',
         topics: data.generated.topics || [],
-        min_length: data.generated.min_length || (platform === 'linkedin' ? 600 : 100),
-        max_length: data.generated.max_length || (platform === 'linkedin' ? 2500 : 280),
+        min_length: data.generated.min_length || (currentPlatform === 'linkedin' ? 600 : 100),
+        max_length: data.generated.max_length || (currentPlatform === 'linkedin' ? 2500 : 280),
         rss_sources: data.generated.rss_sources || [],
         is_active: true,
       });
@@ -143,7 +138,7 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          connected_account_id: accountId,
+          connected_account_id: currentAccountId,
           name: generatedPreview.name,
           description: generatedPreview.description,
           tone: generatedPreview.tone,
@@ -161,10 +156,9 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         throw new Error('Failed to save persona');
       }
       
-      // Reset state
       setPrompt('');
       setGeneratedPreview(null);
-      fetchPersonas();
+      loadPersonas();
       if (props.onPersonaUpdate) {
         props.onPersonaUpdate();
       }
@@ -176,14 +170,8 @@ export default function PersonaEditor(props: PersonaEditorProps) {
     }
   };
 
-  const handleDeleteClick = (personaId: string) => {
-    setDeletingId(personaId);
-  };
-
   const confirmDelete = () => {
     if (!deletingId) return;
-    
-    console.log('Deleting persona:', deletingId);
     
     fetch(`/api/personas?id=${deletingId}`, { 
       method: 'DELETE',
@@ -193,8 +181,7 @@ export default function PersonaEditor(props: PersonaEditorProps) {
       if (!res.ok) {
         return res.json().then(err => { throw new Error(err.error || 'Failed to delete'); });
       }
-      console.log('Delete successful, refreshing...');
-      fetchPersonas();
+      loadPersonas();
     })
     .catch(error => {
       console.error('Error deleting persona:', error);
@@ -203,11 +190,6 @@ export default function PersonaEditor(props: PersonaEditorProps) {
     .finally(() => {
       setDeletingId(null);
     });
-  };
-
-  const cancelDelete = () => {
-    console.log('Delete cancelled for:', deletingId);
-    setDeletingId(null);
   };
 
   const handleEditClick = (persona: Persona) => {
@@ -241,17 +223,9 @@ export default function PersonaEditor(props: PersonaEditorProps) {
       if (!res.ok) throw new Error('Failed to update');
       
       setEditingId(null);
-      setEditData({
-        name: '',
-        description: '',
-        tone: '',
-        topics: [],
-        min_length: 100,
-        max_length: 280,
-        rss_sources: [],
-        is_active: true,
-      });
-      fetchPersonas();
+      setEditData(getDefaultEditablePersona());
+      loadPersonas();
+      onEditComplete?.();
     } catch (error) {
       console.error('Error updating persona:', error);
       alert('Failed to update persona');
@@ -261,138 +235,73 @@ export default function PersonaEditor(props: PersonaEditorProps) {
   const handleCancelEdit = () => {
     setEditingId(null);
     setGeneratedPreview(null);
-    setEditData({
-      name: '',
-      description: '',
-      tone: '',
-      topics: [],
-      min_length: 100,
-      max_length: 280,
-      rss_sources: [],
-      is_active: true,
-    });
+    setEditData(getDefaultEditablePersona());
   };
 
-  // Helper to render editable form fields
-  const renderEditableForm = (
-    data: EditablePersona,
-    onChange: (data: EditablePersona) => void,
-    isPreview: boolean = false
-  ) => (
-    <div className="space-y-5">
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
-        <input
-          type="text"
-          value={data.name}
-          onChange={(e) => onChange({ ...data, name: e.target.value })}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-          placeholder="Persona name"
-        />
-      </div>
+  const handleScheduleClick = (personaId: string) => {
+    const persona = personas.find(p => p.id === personaId);
+    setCurrentSchedules(persona?.schedules || []);
+    setSchedulePersonaId(personaId);
+    setScheduleDialogOpen(true);
+  };
 
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-        <textarea
-          value={data.description}
-          onChange={(e) => onChange({ ...data, description: e.target.value })}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none"
-          rows={4}
-          placeholder="Describe this persona's writing style and focus..."
-        />
-      </div>
+  const handleSaveSchedules = async (forms: ScheduleFormData[]) => {
+    if (!schedulePersonaId || !currentAccountId) return;
+    
+    const persona = personas.find(p => p.id === schedulePersonaId);
+    const existingSchedules = persona?.schedules || [];
+    
+    for (let i = 0; i < forms.length; i++) {
+      const form = forms[i];
+      const existing = existingSchedules[i];
+      
+      const payload = {
+        connected_account_id: currentAccountId,
+        name: `Schedule ${i + 1}`,
+        persona_id: schedulePersonaId,
+        days_of_week: form.days_of_week,
+        start_time: form.start_time,
+        end_time: form.start_time,
+        is_active: true,
+      };
+      
+      if (existing) {
+        await fetch(`/api/accounts/${currentAccountId}/schedules/${existing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch(`/api/accounts/${currentAccountId}/schedules`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+    }
+    
+    loadPersonas();
+    if (props.onPersonaUpdate) {
+      props.onPersonaUpdate();
+    }
+  };
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Tone</label>
-          <input
-            type="text"
-            value={data.tone}
-            onChange={(e) => onChange({ ...data, tone: e.target.value })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-            placeholder="e.g., professional, witty"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Topics (comma separated or Enter)</label>
-          <input
-            type="text"
-            value={data.topics.join(', ')}
-            onChange={(e) => onChange({ ...data, topics: e.target.value.split(/[,\n]/).map(t => t.trim()).filter(Boolean) })}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                e.currentTarget.blur();
-              }
-            }}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-            placeholder="AI, startups, productivity"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Min Characters</label>
-          <input
-            type="number"
-            value={data.min_length}
-            onChange={(e) => onChange({ ...data, min_length: parseInt(e.target.value) || 50 })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-            min={50}
-            max={500}
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Max Characters</label>
-          <input
-            type="number"
-            value={data.max_length}
-            onChange={(e) => onChange({ ...data, max_length: parseInt(e.target.value) || 280 })}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
-            min={50}
-            max={3000}
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">RSS Sources (one per line)</label>
-        <textarea
-          value={data.rss_sources.join('\n')}
-          onChange={(e) => onChange({ ...data, rss_sources: e.target.value.split('\n').filter(line => line.trim()) })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              const textarea = e.currentTarget;
-              const cursorPos = textarea.selectionStart;
-              const value = textarea.value;
-              const newValue = value.slice(0, cursorPos) + '\n' + value.slice(cursorPos);
-              onChange({ ...data, rss_sources: newValue.split('\n').filter(line => line.trim()) });
-              setTimeout(() => {
-                textarea.selectionStart = textarea.selectionEnd = cursorPos + 1;
-              }, 0);
-            }
-          }}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none font-mono text-sm"
-          rows={4}
-          placeholder="https://example.com/feed.xml"
-        />
-        <p className="text-xs text-gray-500 mt-1">Enter RSS feed URLs, one per line</p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <input
-          type="checkbox"
-          id={`${isPreview ? 'preview' : 'edit'}_active`}
-          checked={data.is_active}
-          onChange={(e) => onChange({ ...data, is_active: e.target.checked })}
-          className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-        />
-        <label htmlFor={`${isPreview ? 'preview' : 'edit'}_active`} className="text-sm font-medium text-gray-700">Active</label>
-      </div>
-    </div>
-  );
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    if (!currentAccountId) return;
+    
+    try {
+      await fetch(`/api/accounts/${currentAccountId}/schedules/${scheduleId}`, {
+        method: 'DELETE',
+      });
+      loadPersonas();
+      setCurrentSchedules(prev => prev.filter(s => s.id !== scheduleId));
+      if (props.onPersonaUpdate) {
+        props.onPersonaUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting schedule:', error);
+    }
+  };
 
   if (loading) {
     return (
@@ -407,24 +316,40 @@ export default function PersonaEditor(props: PersonaEditorProps) {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">AI Personas</h2>
+        <h2 className="text-xl font-bold text-gray-900">Create Persona</h2>
       </div>
 
-      {/* AI Persona Generator */}
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-indigo-900">Create AI Persona</h3>
+          <h3 className="text-lg font-semibold text-indigo-900">AI Persona Generator</h3>
         </div>
+
+        {accounts && accounts.length > 1 && (
+          <div className="flex items-center gap-4 mb-4">
+            <label className="text-sm font-medium text-gray-700">Account:</label>
+            <select
+              value={currentAccountId}
+              onChange={(e) => onAccountChange?.(e.target.value)}
+              className="flex-1 max-w-xs border border-indigo-200 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.name} (@{account.twitter_handle})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         
         <p className="text-sm text-indigo-700 mb-4">
-          Describe what kind of content you want to post on {platform === 'linkedin' ? 'LinkedIn' : 'Twitter'}. The AI will create a custom persona with RSS sources and recommended settings.
+          Describe what kind of content you want to post on {currentPlatform === 'linkedin' ? 'LinkedIn' : 'Twitter'}. The AI will create a custom persona with RSS sources and recommended settings.
         </p>
         
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={platform === 'linkedin' 
+          placeholder={currentPlatform === 'linkedin' 
             ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
             : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
           }
@@ -457,7 +382,6 @@ export default function PersonaEditor(props: PersonaEditorProps) {
           </button>
         </div>
         
-        {/* Generated Preview - Now editable */}
         {generatedPreview && (
           <div className="mt-6 bg-white border border-indigo-200 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center justify-between mb-4">
@@ -467,11 +391,11 @@ export default function PersonaEditor(props: PersonaEditorProps) {
                 onClick={() => setGeneratedPreview(null)}
                 className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
               >
-                <X className="w-4 h-4" />
+                ×
               </button>
             </div>
             
-            {renderEditableForm(generatedPreview, setGeneratedPreview, true)}
+            <PersonaForm data={generatedPreview} onChange={setGeneratedPreview} prefix="preview" />
             
             <div className="mt-6 pt-4 border-t border-indigo-100 flex justify-end gap-3">
               <button
@@ -493,10 +417,7 @@ export default function PersonaEditor(props: PersonaEditorProps) {
                     Creating...
                   </>
                 ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    Create Persona
-                  </>
+                  'Create Persona'
                 )}
               </button>
             </div>
@@ -504,129 +425,46 @@ export default function PersonaEditor(props: PersonaEditorProps) {
         )}
       </div>
 
-      {/* Existing Personas */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">Your Personas</h3>
-        
-        {personas.length === 0 && (
-          <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed">
-            No personas yet. Use the AI generator above to create one!
-          </div>
-        )}
-        
-        {personas.map(persona => (
-          <div
-            key={persona.id}
-            className={`bg-white border rounded-xl p-5 ${!persona.is_active ? 'opacity-60' : ''} ${editingId === persona.id ? 'ring-2 ring-indigo-500 border-indigo-500' : 'border-gray-200'}`}
-          >
-            {editingId === persona.id ? (
-              /* Edit Mode - Same as preview form */
-              <div>
-                {renderEditableForm(editData, setEditData)}
-                <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveEdit}
-                    className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 font-medium"
-                  >
-                    <Check className="w-4 h-4" />
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Display Mode */
-              <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-lg">
-                    {persona.name}
-                    {persona.is_default && (
-                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">Default</span>
-                    )}
-                    {!persona.is_active && (
-                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">Inactive</span>
-                    )}
-                  </h3>
-                  {persona.description && (
-                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{persona.description}</p>
-                  )}
-                  <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                    <span className="bg-gray-100 px-2 py-1 rounded">Length: {persona.min_length}-{persona.max_length}</span>
-                    {persona.rss_sources && persona.rss_sources.length > 0 && (
-                      <span className="bg-gray-100 px-2 py-1 rounded">RSS: {persona.rss_sources.length} sources</span>
-                    )}
-                    {persona.tone && (
-                      <span className="bg-gray-100 px-2 py-1 rounded">Tone: {persona.tone}</span>
-                    )}
-                  </div>
-                  {persona.topics && persona.topics.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {persona.topics.map((topic, i) => (
-                        <span key={i} className="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-full">
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    type="button"
-                    onClick={() => handleEditClick(persona)}
-                    className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteClick(persona.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Delete Confirmation Modal */}
-      {deletingId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Persona?</h3>
-            <p className="text-gray-600 text-sm mb-6">
-              This action cannot be undone. The persona will be permanently deleted.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={cancelDelete}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
-              >
-                Delete
-              </button>
-            </div>
+      {editingId && (
+        <div id="edit-persona-form" className="bg-white border-2 border-indigo-500 rounded-xl p-5">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Persona</h3>
+          <PersonaForm data={editData} onChange={setEditData} prefix="edit" />
+          <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingId(null);
+                setEditData(getDefaultEditablePersona());
+                onEditComplete?.();
+              }}
+              className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              className="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 font-medium"
+            >
+              Save Changes
+            </button>
           </div>
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={!!deletingId}
+        onClose={() => setDeletingId(null)}
+        onConfirm={confirmDelete}
+      />
+
+      <ScheduleDialog
+        open={scheduleDialogOpen}
+        onClose={() => setScheduleDialogOpen(false)}
+        schedules={currentSchedules}
+        onSave={handleSaveSchedules}
+        onDeleteSchedule={handleDeleteSchedule}
+      />
     </div>
   );
 }

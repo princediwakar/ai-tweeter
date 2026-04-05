@@ -11,7 +11,6 @@ interface ScheduleRow {
   start_time: number;
   end_time: number;
   is_active: boolean;
-  max_posts_per_day: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -21,7 +20,6 @@ export interface Schedule {
   should_post: boolean;
   generation_personas: string[];
   posting_personas: string[];
-  batch_size?: number;
 }
 
 export async function getGenerationBatchInfo(
@@ -84,7 +82,6 @@ export async function getGenerationBatchInfo(
     should_post: true,
     generation_personas: personas,
     posting_personas: personas,
-    batch_size: activeSchedule.max_posts_per_day,
   };
 }
 
@@ -175,7 +172,6 @@ async function getActiveSchedulesForAccount(accountId: string): Promise<Schedule
     start_time: row.start_time,
     end_time: row.end_time,
     is_active: row.is_active,
-    max_posts_per_day: row.max_posts_per_day,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }));

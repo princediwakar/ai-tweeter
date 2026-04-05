@@ -1,71 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sql } from '@vercel/postgres';
 import { scheduleService } from '@/lib/scheduleService';
-import { getUserIdFromRequest } from '@/lib/auth';
-import { accountService } from '@/lib/accountService';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-interface RouteParams {
-  accountId: string;
-  scheduleId: string;
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
-) {
-  try {
-    const userId = await getUserIdFromRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { accountId, scheduleId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const schedule = await scheduleService.getSchedule(scheduleId);
-    if (!schedule || schedule.connected_account_id !== accountId) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ schedule });
-  } catch (error) {
-    console.error('Error fetching schedule:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  }
+async function getUserId(): Promise<string | null> {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) return null;
+  const result = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+  return result.rows[0]?.id || null;
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<{ accountId: string; scheduleId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request);
+    const userId = await getUserId();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { accountId, scheduleId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.user_id !== userId) {
+
+    const accountResult = await sql`
+      SELECT id FROM connected_accounts 
+      WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+
+    if (accountResult.rows.length === 0) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const schedule = await scheduleService.getSchedule(scheduleId);
-    if (!schedule || schedule.connected_account_id !== accountId) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    }
-
     const body = await request.json();
-    const updated = await scheduleService.updateSchedule({
-      id: scheduleId,
-      ...body,
-    });
+    await scheduleService.updateSchedule({ id: scheduleId, ...body });
 
-    return NextResponse.json({ schedule: updated });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating schedule:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -74,24 +44,23 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<RouteParams> }
+  { params }: { params: Promise<{ accountId: string; scheduleId: string }> }
 ) {
   try {
-    const userId = await getUserIdFromRequest(request);
+    const userId = await getUserId();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { accountId, scheduleId } = await params;
-    const account = await accountService.getAccount(accountId);
-    
-    if (!account || account.user_id !== userId) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
 
-    const schedule = await scheduleService.getSchedule(scheduleId);
-    if (!schedule || schedule.connected_account_id !== accountId) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const accountResult = await sql`
+      SELECT id FROM connected_accounts 
+      WHERE id = ${accountId} AND user_id = ${userId}
+    `;
+
+    if (accountResult.rows.length === 0) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     await scheduleService.deleteSchedule(scheduleId);

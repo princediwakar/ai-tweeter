@@ -115,8 +115,7 @@ account_schedules (
   days_of_week,
   start_time,
   end_time,
-  is_active,
-  max_posts_per_day
+  is_active
 )
 ```
 

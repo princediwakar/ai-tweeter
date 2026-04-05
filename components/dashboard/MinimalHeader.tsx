@@ -42,7 +42,7 @@ export function MinimalHeader({
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name || a.account_username || a.twitter_handle} {a.platform === 'linkedin' ? '(LinkedIn)' : ''}
+                  {(a.name || a.account_username || a.twitter_handle)} ({a.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
                 </option>
               ))}
             </select>

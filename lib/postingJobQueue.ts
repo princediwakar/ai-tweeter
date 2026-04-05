@@ -1,8 +1,13 @@
 import { sql } from '@vercel/postgres';
+import { getCurrentISTDay, getCurrentISTHour, getCurrentISTMinute } from './utils';
+import crypto from 'crypto';
 
 export interface PostingJob {
   id: string;
+  user_id: string | null;
   account_id: string;
+  schedule_id: string | null;
+  scheduled_date: string | null;
   platform: 'twitter' | 'linkedin';
   status: 'pending' | 'processing' | 'completed' | 'failed';
   batch_index: number;
@@ -163,6 +168,67 @@ class PostingJobQueue {
     return result.rowCount ?? 0;
   }
 
+  /**
+   * Synchronizes scheduled jobs for a specific platform.
+   * Checks all active schedules and enqueues missing jobs for the current day.
+   */
+  async syncScheduledJobs(platform: 'twitter' | 'linkedin'): Promise<number> {
+    const now = new Date();
+    const dayOfWeek = getCurrentISTDay(now);
+    const hour = getCurrentISTHour(now);
+    const minute = getCurrentISTMinute(now);
+    const currentMinutes = hour * 60 + minute;
+    const todayDate = now.toISOString().split('T')[0];
+
+    // 1. Fetch active schedules for the platform that are currently due
+    const schedulesResult = await sql`
+      SELECT s.*, a.user_id
+      FROM account_schedules s
+      JOIN connected_accounts a ON s.connected_account_id = a.id
+      WHERE s.is_active = true
+        AND a.platform = ${platform}
+        AND ${dayOfWeek} = ANY(s.days_of_week)
+        AND s.start_time <= ${currentMinutes}
+    `;
+
+    if (schedulesResult.rows.length === 0) return 0;
+
+    let enqueuedCount = 0;
+
+    for (const schedule of schedulesResult.rows) {
+      const jobId = crypto.randomUUID();
+      const timestamp = new Date().toISOString();
+
+      try {
+        // 2. Insert into posting_jobs with unique constraint check
+        // The unique constraint (account_id, platform, schedule_id, scheduled_date)
+        // ensures we only enqueue one job per schedule per day.
+        const result = await sql`
+          INSERT INTO posting_jobs (
+            id, user_id, account_id, platform, schedule_id, scheduled_date,
+            status, batch_index, tweets_count, attempts, max_attempts,
+            created_at, updated_at
+          ) VALUES (
+            ${jobId}, ${schedule.user_id}, ${schedule.connected_account_id}, ${platform}, ${schedule.id}, ${todayDate},
+            'pending', 0, 0, 0, 3,
+            ${timestamp}, ${timestamp}
+          )
+          ON CONFLICT ON CONSTRAINT unique_posting_job_per_schedule_day DO NOTHING
+          RETURNING id
+        `;
+        
+        if (result.rowCount && result.rowCount > 0) {
+          enqueuedCount++;
+        }
+      } catch (error) {
+        // Silently ignore or log if needed, as ON CONFLICT handles most duplicates
+      }
+    }
+
+    return enqueuedCount;
+  }
+
+  /** @deprecated Use syncScheduledJobs instead */
   async enqueueAccountsForPlatform(
     accounts: { id: string; twitter_handle?: string; account_username?: string }[],
     platform: 'twitter' | 'linkedin',
@@ -227,7 +293,10 @@ class PostingJobQueue {
   private mapRow(row: Record<string, unknown>): PostingJob {
     return {
       id: row.id as string,
+      user_id: row.user_id as string | null,
       account_id: row.account_id as string,
+      schedule_id: row.schedule_id as string | null,
+      scheduled_date: row.scheduled_date as string | null,
       platform: row.platform as 'twitter' | 'linkedin',
       status: row.status as 'pending' | 'processing' | 'completed' | 'failed',
       batch_index: row.batch_index as number,

@@ -179,9 +179,27 @@ export const connectedAccountsService = {
   async getByTwitterHandle(twitterHandle: string): Promise<ConnectedAccount | null> {
     const result = await sqlWithRetry<ConnectedAccountRow>`
       SELECT * FROM connected_accounts 
-      WHERE account_username = ${twitterHandle.replace('@', '')} AND platform = 'twitter'
+      WHERE account_username = ${twitterHandle.replace('@', '')}
+      ORDER BY platform = 'twitter' DESC
       LIMIT 1
     `;
+    if (result.rows.length === 0) return null;
+    return mapRowToConnectedAccount(result.rows[0]);
+  },
+
+  async getByUsername(username: string, platform?: 'twitter' | 'linkedin'): Promise<ConnectedAccount | null> {
+    const usernameClean = username.replace('@', '');
+    const result = platform 
+      ? await sqlWithRetry<ConnectedAccountRow>`
+          SELECT * FROM connected_accounts 
+          WHERE account_username = ${usernameClean} AND platform = ${platform}
+          LIMIT 1
+        `
+      : await sqlWithRetry<ConnectedAccountRow>`
+          SELECT * FROM connected_accounts 
+          WHERE account_username = ${usernameClean}
+          LIMIT 1
+        `;
     if (result.rows.length === 0) return null;
     return mapRowToConnectedAccount(result.rows[0]);
   },

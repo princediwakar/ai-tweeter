@@ -109,7 +109,7 @@ async function processJob(job: { id: string; account_id: string }): Promise<{ po
   const currentHourIST = getCurrentISTHour(nowIST);
 
   const readyTweets = await getReadyTweetsByAccount(account.id);
-  const accountScheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
+  const accountScheduledPersonas = await getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
   
   const scheduledTweets = readyTweets
     .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
@@ -202,38 +202,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const allAccounts = await accountService.getAllAccounts();
-    const twitterAccounts = allAccounts.filter(a => a.platform === 'twitter');
-    
-    const accountsToQueue = twitterAccounts.filter(account => {
-      const hash = account.twitter_handle.split('').reduce((acc, char) => {
-        return ((acc << 5) - acc) + char.charCodeAt(0);
-      }, 0);
-      const scheduledHour = Math.abs(hash) % 24;
-      return scheduledHour === currentHourIST;
-    });
-
-    if (accountsToQueue.length > 0) {
-      await postingJobQueue.enqueueAccountsForPlatform(
-        accountsToQueue.map(a => ({ 
-          id: a.id, 
-          twitter_handle: a.twitter_handle,
-          account_username: a.account_username 
-        })),
-        'twitter',
-        currentHourIST,
-        dayOfWeek
-      );
-      logger.info(`📝 Enqueued ${accountsToQueue.length} accounts for Twitter posting`, 'auto-post');
+    // 3. Synchronize scheduled jobs (Check what's due today and enqueue missing ones)
+    const enqueued = await postingJobQueue.syncScheduledJobs('twitter');
+    if (enqueued > 0) {
+      logger.info(`📝 Enqueued ${enqueued} new accounts for Twitter posting`, 'auto-post');
     }
 
     const stats = await postingJobQueue.getQueueStats('twitter');
     return NextResponse.json({ 
       success: true, 
-      message: accountsToQueue.length === 0 && stats.pending === 0 
-        ? `⏳ No accounts scheduled for posting now.` 
-        : `Enqueued ${accountsToQueue.length} accounts. Queue: ${stats.pending} pending`,
-      enqueued: accountsToQueue.length,
+      message: stats.pending === 0 
+        ? `⏳ No pending Twitter jobs.` 
+        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
+      enqueued,
       queue: stats
     });
 
@@ -264,13 +245,18 @@ export async function POST(request: NextRequest) {
        const account = allAccounts.find(a => a.id === requestBody.account_id);
        if(account) accountsToProcess.push(account);
     } else {
-      const scheduledTwitterHandles = getScheduledTwitterHandles();
+      const scheduledTwitterHandles = await getScheduledTwitterHandles();
       const allAccounts = await accountService.getAllAccounts();
       if (debugMode) {
         accountsToProcess = allAccounts.filter(acc => scheduledTwitterHandles.includes(acc.twitter_handle));
         logger.info(`🔍 [POST] Debug mode: Processing ${accountsToProcess.length} accounts regardless of schedule`, 'auto-post');
       } else {
-        accountsToProcess = allAccounts.filter(acc => scheduledTwitterHandles.includes(acc.twitter_handle) && isPostingScheduled(acc.twitter_handle, nowIST));
+        const results = await Promise.all(allAccounts.map(async acc => {
+          if (!scheduledTwitterHandles.includes(acc.twitter_handle)) return null;
+          if (await isPostingScheduled(acc.twitter_handle, nowIST)) return acc;
+          return null;
+        }));
+        accountsToProcess = results.filter((acc): acc is AccountWithCredentials => acc !== null);
       }
     }
 
@@ -285,7 +271,7 @@ export async function POST(request: NextRequest) {
     for (const account of accountsToProcess) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
-        let scheduledPersonas = getScheduledPersonasForPosting(account.twitter_handle, getCurrentISTDay(nowIST), getCurrentISTHour(nowIST));
+        let scheduledPersonas = await getScheduledPersonasForPosting(account.twitter_handle, getCurrentISTDay(nowIST), getCurrentISTHour(nowIST));
         
         if (debugMode && scheduledPersonas.length === 0) {
           if (account.twitter_handle.includes('gibbi')) {

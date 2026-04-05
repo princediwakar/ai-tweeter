@@ -1,11 +1,4 @@
 {
-    "mcpServers": {
-      "playwright": {
-        "command": "npx",
-        "args": [
-          "@playwright/mcp"
-        ]
-      },
       "Neon": {
         "command": "npx",
         "args": [
@@ -14,5 +7,5 @@
           "https://mcp.neon.tech/mcp"
         ]
       }
-    }
+
   }

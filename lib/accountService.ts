@@ -28,6 +28,10 @@ export const accountService = {
     return connectedAccountsService.getByTwitterHandle(twitterHandle);
   },
 
+  async getAccountByUsername(username: string, platform?: 'twitter' | 'linkedin'): Promise<ConnectedAccount | null> {
+    return connectedAccountsService.getByUsername(username, platform);
+  },
+
   async getAccountsByUserId(userId: string): Promise<ConnectedAccount[]> {
     return connectedAccountsService.getByUserId(userId);
   },

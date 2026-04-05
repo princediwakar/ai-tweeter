@@ -23,6 +23,14 @@ export function getCurrentISTHour(date: Date = new Date()): number {
 }
 
 /**
+ * Get current minute in IST timezone (0-59)
+ */
+export function getCurrentISTMinute(date: Date = new Date()): number {
+  const istDate = new Date(date.toLocaleString('en-US', { timeZone: INDIAN_TZ }));
+  return istDate.getMinutes();
+}
+
+/**
  * Get current day of week in IST timezone (0=Sun, 1=Mon, ..., 6=Sat)
  */
 export function getCurrentISTDay(date: Date = new Date()): number {

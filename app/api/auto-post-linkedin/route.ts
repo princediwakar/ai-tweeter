@@ -4,7 +4,8 @@ import { logger } from '@/lib/logger';
 import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/utils';
 import {
   getScheduledPersonasForLinkedInPosting,
-  isLinkedInPostingScheduled
+  isLinkedInPostingScheduled,
+  getScheduledLinkedInAccounts
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import {
@@ -28,12 +29,12 @@ async function processLinkedInJob(job: { id: string; account_id: string }): Prom
   const dayOfWeek = getCurrentISTDay(nowIST);
   const currentHourIST = getCurrentISTHour(nowIST);
 
-  if (!isLinkedInPostingScheduled(account.twitter_handle, nowIST)) {
+  if (!(await isLinkedInPostingScheduled(account.twitter_handle, nowIST))) {
     logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting at this hour`, 'auto-post-linkedin');
     return { posted: 0, errors: 0 };
   }
 
-  const scheduledPersonas = getScheduledPersonasForLinkedInPosting(account.twitter_handle, dayOfWeek, currentHourIST);
+  const scheduledPersonas = await getScheduledPersonasForLinkedInPosting(account.twitter_handle, dayOfWeek, currentHourIST);
   if (scheduledPersonas.length === 0) {
     logger.info(`⏳ ${account.name}: No personas scheduled for LinkedIn posting`, 'auto-post-linkedin');
     return { posted: 0, errors: 0 };
@@ -179,38 +180,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const allAccounts = await accountService.getAllAccounts();
-    const linkedinAccounts = allAccounts.filter(a => a.linkedin_enabled && a.linkedin_access_token);
-    
-    const accountsToQueue = linkedinAccounts.filter(account => {
-      const hash = (account.account_username || account.twitter_handle || '').split('').reduce((acc, char) => {
-        return ((acc << 5) - acc) + char.charCodeAt(0);
-      }, 0);
-      const scheduledHour = Math.abs(hash) % 24;
-      return scheduledHour === currentHourIST;
-    });
-
-    if (accountsToQueue.length > 0) {
-      await postingJobQueue.enqueueAccountsForPlatform(
-        accountsToQueue.map(a => ({ 
-          id: a.id, 
-          twitter_handle: a.twitter_handle,
-          account_username: a.account_username 
-        })),
-        'linkedin',
-        currentHourIST,
-        dayOfWeek
-      );
-      logger.info(`📝 Enqueued ${accountsToQueue.length} accounts for LinkedIn posting`, 'auto-post-linkedin');
+    // 3. Synchronize scheduled jobs (Check what's due today and enqueue missing ones)
+    const enqueued = await postingJobQueue.syncScheduledJobs('linkedin');
+    if (enqueued > 0) {
+      logger.info(`📝 Enqueued ${enqueued} new accounts for LinkedIn posting`, 'auto-post-linkedin');
     }
 
     const stats = await postingJobQueue.getQueueStats('linkedin');
     return NextResponse.json({ 
       success: true, 
-      message: accountsToQueue.length === 0 && stats.pending === 0 
-        ? `⏳ No LinkedIn accounts scheduled for posting now.` 
-        : `Enqueued ${accountsToQueue.length} accounts. Queue: ${stats.pending} pending`,
-      enqueued: accountsToQueue.length,
+      message: stats.pending === 0 
+        ? `⏳ No pending LinkedIn jobs.` 
+        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
+      enqueued,
       queue: stats
     });
 

@@ -1,6 +1,3 @@
-// app/api/auto-post-linkedin/route.ts
-// LinkedIn posting service - independent of Twitter posting
-
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { logger } from '@/lib/logger';
@@ -17,14 +14,112 @@ import {
   LinkedInCredentials
 } from '@/lib/linkedin';
 import { Tweet } from '@/lib/types';
+import { postingJobQueue } from '@/lib/postingJobQueue';
 
-/**
- * Auto-post LinkedIn endpoint - posts ready content to LinkedIn
- * Runs on separate schedule from Twitter posting
- */
+const BATCH_SIZE = 5;
+
+async function processLinkedInJob(job: { id: string; account_id: string }): Promise<{ posted: number; errors: number }> {
+  const account = await accountService.getAccount(job.account_id);
+  if (!account || !account.linkedin_enabled || !account.linkedin_access_token) {
+    throw new Error(`LinkedIn not enabled for account: ${job.account_id}`);
+  }
+
+  const nowIST = getCurrentTimeInIST();
+  const dayOfWeek = getCurrentISTDay(nowIST);
+  const currentHourIST = getCurrentISTHour(nowIST);
+
+  if (!isLinkedInPostingScheduled(account.twitter_handle, nowIST)) {
+    logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting at this hour`, 'auto-post-linkedin');
+    return { posted: 0, errors: 0 };
+  }
+
+  const scheduledPersonas = getScheduledPersonasForLinkedInPosting(account.twitter_handle, dayOfWeek, currentHourIST);
+  if (scheduledPersonas.length === 0) {
+    logger.info(`⏳ ${account.name}: No personas scheduled for LinkedIn posting`, 'auto-post-linkedin');
+    return { posted: 0, errors: 0 };
+  }
+
+  if (account.linkedin_refresh_token && account.linkedin_token_expires_at && shouldRefreshToken(new Date(account.linkedin_token_expires_at))) {
+    logger.info(`🔄 ${account.name}: Refreshing LinkedIn token`, 'auto-post-linkedin');
+    try {
+      const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
+      await accountService.updateAccount(account.id, {
+        linkedin_access_token: accessToken,
+        linkedin_refresh_token: refreshToken,
+        linkedin_token_expires_at: expiresAt,
+      } as never);
+      account.linkedin_access_token = accessToken;
+      account.linkedin_refresh_token = refreshToken;
+      account.linkedin_token_expires_at = expiresAt.toISOString();
+    } catch (error) {
+      throw new Error(`Failed to refresh LinkedIn token: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const result = await sql<Tweet>`
+    SELECT * FROM tweets
+    WHERE account_id = ${account.id}
+    AND status IN ('ready', 'posted')
+    AND linkedin_id IS NULL
+    AND content_type = 'single_tweet'
+    ORDER BY created_at ASC
+  `;
+
+  const eligibleTweets = result.rows.filter(tweet => scheduledPersonas.includes(tweet.persona));
+  
+  if (eligibleTweets.length === 0) {
+    logger.info(`📋 ${account.name}: No tweets ready for LinkedIn posting`, 'auto-post-linkedin');
+    return { posted: 0, errors: 0 };
+  }
+
+  const linkedinCredentials: LinkedInCredentials = {
+    accessToken: account.linkedin_access_token!,
+    refreshToken: account.linkedin_refresh_token,
+    expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
+    userId: account.linkedin_user_id,
+    orgId: account.linkedin_org_id,
+  };
+
+  let posted = 0;
+  let errors = 0;
+
+  for (const tweet of eligibleTweets) {
+    try {
+      const contentForLinkedIn = tweet.content.replace(/@/g, '');
+      const fullContent = tweet.hashtags?.length > 0
+        ? `${contentForLinkedIn}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}`
+        : contentForLinkedIn;
+
+      const linkedinResult = await postToLinkedIn(fullContent, linkedinCredentials, tweet.image_url);
+
+      await sql`
+        UPDATE tweets
+        SET
+          linkedin_id = ${linkedinResult.id},
+          posted_at = COALESCE(posted_at, NOW()),
+          status = CASE
+            WHEN persona = 'linkedin_analyst' THEN 'posted'
+            WHEN twitter_id IS NOT NULL THEN 'posted'
+            ELSE status
+          END
+        WHERE id = ${tweet.id}
+      `;
+
+      posted++;
+      logger.info(`✅ ${account.name}: Posted to LinkedIn: ${tweet.content.substring(0, 30)}...`, 'auto-post-linkedin');
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      logger.error(`❌ ${account.name}: Failed to post to LinkedIn: ${errorMsg}`, 'auto-post-linkedin', error as Error);
+      await sql`UPDATE tweets SET error_message = ${`LinkedIn: ${errorMsg}`} WHERE id = ${tweet.id}`;
+      errors++;
+    }
+  }
+
+  return { posted, errors };
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate cron request
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -37,178 +132,86 @@ export async function GET(request: NextRequest) {
 
     logger.info(`🔍 [LinkedIn] Auto-post check at ${currentHourIST}:00 IST${debugMode ? ' (DEBUG MODE)' : ''}`, 'auto-post-linkedin');
 
-    // Get all active accounts with LinkedIn enabled
-    const allAccounts = await accountService.getAllAccounts();
-    const linkedinAccounts = allAccounts.filter(
-      account => account.linkedin_enabled && account.linkedin_access_token
-    );
+    const claimedJobs = await postingJobQueue.claimJobs('linkedin', BATCH_SIZE);
+    
+    if (claimedJobs.length > 0) {
+      logger.info(`📦 Processing ${claimedJobs.length} LinkedIn jobs from queue`, 'auto-post-linkedin');
+      
+      let totalPosted = 0;
+      let totalErrors = 0;
 
-    if (linkedinAccounts.length === 0) {
-      logger.info('⏳ No LinkedIn-enabled accounts found', 'auto-post-linkedin');
-      return NextResponse.json({
-        success: true,
-        message: 'No LinkedIn-enabled accounts found'
+      for (const job of claimedJobs) {
+        try {
+          const result = await processLinkedInJob(job);
+          await postingJobQueue.markCompleted(job.id, result.posted);
+          totalPosted += result.posted;
+          totalErrors += result.errors;
+          logger.info(`✅ LinkedIn Job ${job.id} completed: ${result.posted} posted, ${result.errors} errors`, 'auto-post-linkedin');
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          logger.error(`❌ LinkedIn Job ${job.id} failed: ${errorMsg}`, 'auto-post-linkedin', error as Error);
+          await postingJobQueue.markFailed(job.id, errorMsg);
+          totalErrors++;
+        }
+      }
+
+      const stats = await postingJobQueue.getQueueStats('linkedin');
+      return NextResponse.json({ 
+        success: true, 
+        processed: claimedJobs.length,
+        posted: totalPosted,
+        errors: totalErrors,
+        queue: stats
       });
     }
 
-    let totalPosted = 0;
-    let totalErrors = 0;
-
-    for (const account of linkedinAccounts) {
-      try {
-        // Check if this account is scheduled for LinkedIn posting now (skip in debug mode)
-        if (!debugMode && !isLinkedInPostingScheduled(account.twitter_handle, nowIST)) {
-          logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting at this hour`, 'auto-post-linkedin');
-          continue;
-        }
-
-        logger.info(`🏢 Processing LinkedIn posting for: ${account.name}`, 'auto-post-linkedin');
-
-        // Get scheduled personas for LinkedIn posting
-        let scheduledPersonas = getScheduledPersonasForLinkedInPosting(
-          account.twitter_handle,
-          dayOfWeek,
-          currentHourIST
-        );
-
-        // In debug mode, provide default persona if none scheduled
-        if (debugMode && scheduledPersonas.length === 0) {
-          scheduledPersonas = ['linkedin_analyst'];
-          logger.info(`🔍 [LinkedIn] Debug mode: Using default persona 'linkedin_analyst' for ${account.name}`, 'auto-post-linkedin');
-        }
-
-        if (scheduledPersonas.length === 0) {
-          logger.info(`⏳ ${account.name}: No personas scheduled for LinkedIn posting`, 'auto-post-linkedin');
-          continue;
-        }
-
-        // Check if token needs refresh
-        if (account.linkedin_refresh_token && account.linkedin_token_expires_at && shouldRefreshToken(new Date(account.linkedin_token_expires_at))) {
-          logger.info(`🔄 ${account.name}: Refreshing LinkedIn token`, 'auto-post-linkedin');
-          try {
-            const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(
-              account.linkedin_refresh_token
-            );
-
-            await accountService.updateAccount(account.id, {
-              linkedin_access_token: accessToken,
-              linkedin_refresh_token: refreshToken,
-              linkedin_token_expires_at: expiresAt,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } as any);
-
-            // Update account object for current use
-            account.linkedin_access_token = accessToken;
-            account.linkedin_refresh_token = refreshToken;
-            account.linkedin_token_expires_at = expiresAt.toISOString();
-
-            logger.info(`✅ ${account.name}: LinkedIn token refreshed`, 'auto-post-linkedin');
-          } catch (error) {
-            logger.error(`❌ ${account.name}: Failed to refresh LinkedIn token`, 'auto-post-linkedin', error as Error);
-            totalErrors++;
-            continue;
-          }
-        }
-
-        // Query tweets ready for LinkedIn posting
-        // Status can be 'ready' (not posted anywhere) or 'posted' (posted to Twitter but not LinkedIn)
-        // Must be single tweets only (no threads for now)
-        const result = await sql<Tweet>`
-          SELECT * FROM tweets
-          WHERE account_id = ${account.id}
-          AND status IN ('ready', 'posted')
-          AND linkedin_id IS NULL
-          AND content_type = 'single_tweet'
-          ORDER BY created_at ASC
-        `;
-
-        // Filter by scheduled personas (linkedin_analyst, satirist, pattern_spotter)
-        const eligibleTweets = result.rows.filter(tweet =>
-          scheduledPersonas.includes(tweet.persona)
-        );
-
-        if (eligibleTweets.length === 0) {
-          logger.info(`📋 ${account.name}: No tweets ready for LinkedIn posting`, 'auto-post-linkedin');
-          continue;
-        }
-
-        const tweet = eligibleTweets[0];
-        logger.info(`📤 ${account.name}: Posting to LinkedIn: ${tweet.content.substring(0, 50)}...`, 'auto-post-linkedin');
-
-        // Prepare LinkedIn credentials
-        const linkedinCredentials: LinkedInCredentials = {
-          accessToken: account.linkedin_access_token!,
-          refreshToken: account.linkedin_refresh_token,
-          expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
-          userId: account.linkedin_user_id,
-          orgId: account.linkedin_org_id,
-        };
-
-        // Post to LinkedIn
+    const staleJobs = await postingJobQueue.getProcessingJobs('linkedin', BATCH_SIZE);
+    if (staleJobs.length > 0) {
+      logger.info(`🔄 Reclaiming ${staleJobs.length} stale LinkedIn jobs`, 'auto-post-linkedin');
+      for (const job of staleJobs) {
         try {
-          // Remove @ symbol from Twitter handles for LinkedIn
-          // @AshwiniVaishnaw → AshwiniVaishnaw
-          // @princediwakar25 → princediwakar25
-          const contentForLinkedIn = tweet.content.replace(/@/g, '');
-
-          // Combine content and hashtags
-          const fullContent = tweet.hashtags?.length > 0
-            ? `${contentForLinkedIn}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}`
-            : contentForLinkedIn;
-
-          logger.info(`📝 ${account.name}: Removed @ symbols from Twitter handles for LinkedIn`, 'auto-post-linkedin');
-
-          const linkedinResult = await postToLinkedIn(
-            fullContent,
-            linkedinCredentials,
-            tweet.image_url // Pass image URL if available
-          );
-
-          // Update tweet with LinkedIn ID
-          // For linkedin_analyst persona, mark as 'posted' since these are LinkedIn-only
-          // For other personas (cross-posted from Twitter), only mark 'posted' if already on Twitter
-          await sql`
-            UPDATE tweets
-            SET
-              linkedin_id = ${linkedinResult.id},
-              posted_at = COALESCE(posted_at, NOW()),
-              status = CASE
-                WHEN persona = 'linkedin_analyst' THEN 'posted'
-                WHEN twitter_id IS NOT NULL THEN 'posted'
-                ELSE status
-              END
-            WHERE id = ${tweet.id}
-          `;
-
-          totalPosted++;
-          logger.info(`✅ ${account.name}: Posted to LinkedIn successfully`, 'auto-post-linkedin');
-          logger.info(`🔗 LinkedIn Post ID: ${linkedinResult.id}`, 'auto-post-linkedin');
+          const result = await processLinkedInJob(job);
+          await postingJobQueue.markCompleted(job.id, result.posted);
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : String(error);
-          logger.error(`❌ ${account.name}: Failed to post to LinkedIn: ${errorMsg}`, 'auto-post-linkedin', error as Error);
-
-          // Update tweet with error (but don't mark as failed - it might still post to Twitter)
-          await sql`
-            UPDATE tweets
-            SET
-              error_message = ${`LinkedIn: ${errorMsg}`}
-            WHERE id = ${tweet.id}
-          `;
-
-          totalErrors++;
+          await postingJobQueue.markFailed(job.id, errorMsg);
         }
-      } catch (error) {
-        logger.error(`❌ Failed to process LinkedIn account ${account.name}`, 'auto-post-linkedin', error as Error);
-        totalErrors++;
       }
     }
 
-    logger.info(`📊 [LinkedIn] Summary: ${totalPosted} posted, ${totalErrors} errors`, 'auto-post-linkedin');
-    return NextResponse.json({
-      success: true,
-      totalPosted,
-      totalErrors,
-      timestamp: nowIST.toISOString()
+    const allAccounts = await accountService.getAllAccounts();
+    const linkedinAccounts = allAccounts.filter(a => a.linkedin_enabled && a.linkedin_access_token);
+    
+    const accountsToQueue = linkedinAccounts.filter(account => {
+      const hash = (account.account_username || account.twitter_handle || '').split('').reduce((acc, char) => {
+        return ((acc << 5) - acc) + char.charCodeAt(0);
+      }, 0);
+      const scheduledHour = Math.abs(hash) % 24;
+      return scheduledHour === currentHourIST;
+    });
+
+    if (accountsToQueue.length > 0) {
+      await postingJobQueue.enqueueAccountsForPlatform(
+        accountsToQueue.map(a => ({ 
+          id: a.id, 
+          twitter_handle: a.twitter_handle,
+          account_username: a.account_username 
+        })),
+        'linkedin',
+        currentHourIST,
+        dayOfWeek
+      );
+      logger.info(`📝 Enqueued ${accountsToQueue.length} accounts for LinkedIn posting`, 'auto-post-linkedin');
+    }
+
+    const stats = await postingJobQueue.getQueueStats('linkedin');
+    return NextResponse.json({ 
+      success: true, 
+      message: accountsToQueue.length === 0 && stats.pending === 0 
+        ? `⏳ No LinkedIn accounts scheduled for posting now.` 
+        : `Enqueued ${accountsToQueue.length} accounts. Queue: ${stats.pending} pending`,
+      enqueued: accountsToQueue.length,
+      queue: stats
     });
 
   } catch (error) {

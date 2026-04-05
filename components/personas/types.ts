@@ -27,7 +27,7 @@ export interface PersonaEditorProps {
   accountName?: string;
   onPersonaUpdate?: () => void;
   onAccountChange?: (accountId: string) => void;
-  accounts?: { id: string; name: string | null; twitter_handle: string; platform: string }[];
+  accounts?: { id: string; name: string | null; twitter_handle: string; platform?: string }[];
   selectedAccountId?: string | null;
   editingPersona?: Persona | null;
   onEditComplete?: () => void;

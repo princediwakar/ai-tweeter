@@ -1,6 +1,5 @@
-// lib/generation/types.ts - ADD THESE TYPES TO YOUR EXISTING FILE
-import type { Account } from '../types';
-import type { PersonaConfig } from '../personas';
+import type { Account, Persona } from '../types';
+import type { PersonaTopic } from '../personas';
 
 // Existing types remain unchanged...
 export interface VariationMarkers {
@@ -52,6 +51,6 @@ export interface GenerationContext {
 
 export interface PersonaGenerationResult {
   prompt: string;
-  persona: PersonaConfig;
-  topic: { key: string; displayName: string };
+  persona: Persona;
+  topic: PersonaTopic;
 }

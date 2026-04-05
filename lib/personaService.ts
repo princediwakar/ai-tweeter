@@ -1,34 +1,20 @@
 import { sql } from '@vercel/postgres';
-
-export interface Persona {
-  id: string;
-  connected_account_id: string;
-  name: string;
-  description: string;
-  rss_sources: string[];
-  config: Record<string, unknown>;
-  min_length: number;
-  max_length: number;
-  tone?: string;
-  topics?: string[];
-  is_active: boolean;
-  is_default: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import type { Persona, PersonaConfigDNA } from './types';
+export type { Persona, PersonaConfigDNA };
 
 export interface CreatePersonaInput {
   connected_account_id: string;
   name: string;
   description?: string;
   rss_sources?: string[];
-  config?: Record<string, unknown>;
+  config?: PersonaConfigDNA | Record<string, unknown>;
   min_length?: number;
   max_length?: number;
   tone?: string;
   topics?: string[];
   is_active?: boolean;
   is_default?: boolean;
+  key?: string;
 }
 
 export interface UpdatePersonaInput extends Partial<CreatePersonaInput> {
@@ -231,6 +217,7 @@ class PersonaService {
       is_default: row.is_default as boolean,
       created_at: (row.created_at as Date).toISOString(),
       updated_at: (row.updated_at as Date).toISOString(),
+      key: row.key as string || '',
     };
   }
 }

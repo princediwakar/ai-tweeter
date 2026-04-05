@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import type { QueryResult, QueryResultRow } from '@vercel/postgres';
-import type { Tweet } from './types';
+import type { Tweet, Persona, PersonaConfigDNA } from './types';
 import { GENERATION_CONFIG } from './generation/config';
 import type { RecentPattern } from './generation/types';
 
@@ -95,6 +95,8 @@ export interface Thread {
   created_at: string;
 }
 
+
+
 // NOTE: Account management functions have been moved to lib/accountService.ts
 // All account operations (get, create, update, delete) should use accountService
 // which handles proper AES-256-GCM encryption/decryption
@@ -138,6 +140,36 @@ export async function getAllTweets(limit: number = 100): Promise<Tweet[]> {
     }));
   } catch (error) {
     console.error('[Neon] Error getting tweets:', error);
+    return [];
+  }
+}
+
+export async function getPersona(key: string): Promise<Persona | null> {
+  try {
+    const result = await sqlWithRetry`
+      SELECT * FROM personas
+      WHERE key = ${key} AND is_active = true
+      LIMIT 1
+    `;
+    
+    if (result.rows.length === 0) return null;
+    return result.rows[0] as Persona;
+  } catch (error) {
+    console.error(`[Neon] Error getting persona ${key}:`, error);
+    return null;
+  }
+}
+
+export async function getAllPersonasFromDb(): Promise<Persona[]> {
+  try {
+    const result = await sqlWithRetry`
+      SELECT * FROM personas
+      WHERE is_active = true
+      ORDER BY name ASC
+    `;
+    return result.rows as Persona[];
+  } catch (error) {
+    console.error(`[Neon] Error getting all personas:`, error);
     return [];
   }
 }

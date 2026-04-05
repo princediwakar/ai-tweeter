@@ -204,9 +204,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   // For threading personas, only generate one thread per call  
   const selectedPersonaKey = batchInfo.generation_personas[0];
-  const persona = getPersonaByKey(selectedPersonaKey);
-  const isThreadingPersona = supportsThreading && ['business_storyteller', 'cricket_storyteller'].includes(selectedPersonaKey);
-  const shouldGenerateThreads = isThreadingPersona && persona?.content_types?.includes('thread');
+  const persona = await getPersonaByKey(selectedPersonaKey);
+  const threadPersonas = ['business_storyteller', 'cricket_storyteller', 'linkedin_analyst', 'satirist', 'pattern_spotter'];
+  const isThreadingPersona = supportsThreading && threadPersonas.includes(selectedPersonaKey);
+  const shouldGenerateThreads = isThreadingPersona;
 
   if (shouldGenerateThreads) {
     targetBatchSize = 1; // Only one thread per generation call

@@ -3,9 +3,8 @@ import { createThread, saveTweet, generateTweetId, updateThread } from './db';
 import { accountService } from './accountService';
 import type { Account, Tweet } from './types';
 import { logger } from '@/lib/logger';
-import { BusinessStorytellerGenerator } from './generation/personas/businessStoryteller';
-import { CricketStorytellerGenerator } from './generation/personas/cricketStoryteller';
-import { BasePersonaGenerator } from './generation/personas/base';
+import { getPersonaByKey } from '@/lib/personas';
+import { getPersonaGenerator, BasePersonaGenerator } from './generation/personas';
 import type { GenerationContext, TweetGenerationConfig } from './generation/types';
 import { GENERATION_CONFIG } from './generation/config';
 
@@ -85,16 +84,14 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     const account = await accountService.getAccount(accountId!) as any;
     if (!account) throw new Error(`Account not found: ${accountId}`);
     
-    // --- DYNAMIC PERSONA PROMPT GENERATION (FIX) ---
-    // We instantiate the correct persona generator class to get the right prompt.
-    let personaGenerator: BasePersonaGenerator;
-    if (config.persona === 'business_storyteller') {
-      personaGenerator = new BusinessStorytellerGenerator();
-    } else if (config.persona === 'cricket_storyteller') {
-      personaGenerator = new CricketStorytellerGenerator();
-    } else {
-      throw new Error(`Persona "${config.persona}" does not have a thread generator.`);
+    // --- DYNAMIC PERSONA PROMPT GENERATION (FIXED) ---
+    // We fetch the full persona from DB and use the dynamic generator.
+    const persona = await getPersonaByKey(config.persona);
+    if (!persona) {
+      throw new Error(`Persona "${config.persona}" not found in database.`);
     }
+
+    const personaGenerator = getPersonaGenerator(persona);
 
     const markers = {
         timeMarker: `T${Date.now()}`,
@@ -232,7 +229,7 @@ export function canGenerateThreads(account: Account): boolean {
   }
   
   // Default: allow threads if account has thread-capable personas
-  const threadPersonas = ['business_storyteller', 'cricket_storyteller'];
+  const threadPersonas = ['business_storyteller', 'cricket_storyteller', 'linkedin_analyst', 'satirist', 'pattern_spotter'];
   const hasThreadPersona = account.personas?.some(p => threadPersonas.includes(p));
   return hasThreadPersona || false;
 }

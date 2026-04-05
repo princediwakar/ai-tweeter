@@ -59,7 +59,7 @@ function getDeepseekClient(): OpenAI {
 }
 
 // Async version that properly waits for initialization
-async function getDeepseekClientAsync(): Promise<OpenAI> {
+export async function getDeepseekClientAsync(): Promise<OpenAI> {
   if (deepseekClientInstance) {
     return deepseekClientInstance;
   }
@@ -184,29 +184,29 @@ export async function generateTweet(
     let imageStatus: "none" | "pending" = "none";
 
     console.log(
-      `🔍 Checking image generation for persona ${persona.displayName}: enabled=${persona.image_generation?.enabled}`
+      `🔍 Checking image generation for persona ${persona.name}: probability=${persona.config.image_probability}`
     );
 
-    if (persona.image_generation?.enabled && cardData) {
-      // If cardData exists, it means we decided to generate an image (format decision already made for satirist)
+    if (persona.config.image_probability && persona.config.image_probability > 0 && cardData) {
+      // If cardData exists and probability is > 0, we can generate an image
       console.log(
-        `🖼️ Queueing async image generation for ${persona.displayName} with key ${persona.key}`
+        `🖼️ Queueing async image generation for ${persona.name} with key ${persona.key}`
       );
       imageStatus = "pending";
-    } else if (persona.image_generation?.enabled && !cardData) {
+    } else if (persona.config.image_probability && persona.config.image_probability > 0 && !cardData) {
       console.log(
-        `🔍 Image generation enabled but no card data for persona ${persona.displayName} (text-only format selected)`
+        `🔍 Image generation enabled but no card data for persona ${persona.name} (text-only format selected)`
       );
     } else {
       console.log(
-        `🔍 Image generation disabled for persona ${persona.displayName}`
+        `🔍 Image generation disabled for persona ${persona.name}`
       );
     }
 
     const contentHash = generateContentHash(tweetData);
 
     console.log(
-      `✅ Generated enhanced tweet for ${persona.displayName} on content Hash: ${contentHash}`
+      `✅ Generated enhanced tweet for ${persona.name} on content Hash: ${contentHash}`
     );
 
     // MODIFIED: Add sourceUrl to the final returned object

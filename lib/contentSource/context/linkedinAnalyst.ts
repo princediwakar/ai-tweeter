@@ -9,6 +9,7 @@ import { sql } from '@vercel/postgres';
 import { enrichArticles, extractEntities } from '../../generation/articleEnricher';
 import { fetchFromRssFeeds } from '../fetchers';
 import type { LinkedinAnalystContext } from '../types';
+import { ArticleValidator, ValidatableArticle } from './articleValidator';
 
 export async function getLinkedinAnalystContext(accountId?: string): Promise<LinkedinAnalystContext | null> {
   console.log('[Content Source] 📊 LinkedIn Analyst selected. Fetching deep-dive content...');
@@ -77,10 +78,33 @@ export async function getLinkedinAnalystContext(accountId?: string): Promise<Lin
       });
     }
     
+    
     const headlinesToUse = freshHeadlinesByEntity.length > 0 ? freshHeadlinesByEntity : uniqueHeadlines;
-    const selectedHeadlines = headlinesToUse.slice(0, headlinesInPrompt);
+    
+    // --- NEW: STEP 6: Validate with ArticleValidator ---
+    const validatableHeadlines: ValidatableArticle[] = headlinesToUse.map(h => ({
+      headline: h.headline,
+      url: h.url,
+      description: h.description,
+      sourceType: 'rss', // Since allFeeds currently only includes RSS
+    }));
 
-    console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} headlines...`);
+    const validCandidates = ArticleValidator.filterAndScore(validatableHeadlines);
+    
+    if (validCandidates.length === 0) {
+      console.warn('[Content Source] ❌ No valid candidates remain after ArticleValidator for linkedin_analyst');
+      // We could fall back to unvalidated, but it's better to fail and let another persona take over or wait for better news.
+      // However, for Prince, we might want to be a bit more lenient if he's the primary persona.
+      // Let's stick to valid candidates for now to ensure quality.
+      return null;
+    }
+
+    // Take the best candidates
+    const selectedHeadlines = validCandidates.slice(0, headlinesInPrompt).map(vc => 
+      headlinesToUse.find(h => h.url === vc.url)!
+    );
+
+    console.log(`[Content Source] 📰 Fetching full article content for ${selectedHeadlines.length} high-quality headlines...`);
     const enrichedArticles = await enrichArticles(
       selectedHeadlines, 
       GENERATION_CONFIG.enrichment.maxConcurrent

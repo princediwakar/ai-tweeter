@@ -42,6 +42,7 @@ export interface EditablePersona {
   max_length: number;
   rss_sources: string[];
   is_active: boolean;
+  config?: Record<string, any>;
 }
 
 export interface ScheduleFormData {

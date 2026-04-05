@@ -98,12 +98,41 @@ export interface PersonaSchedule {
   is_active: boolean;
 }
 
+export interface PersonaConfigDNA {
+  identity_context: string;
+  source_logic: string;
+  voice_dna: string;
+  anti_patterns: string;
+  structural_archetypes: {
+    name: string;
+    description: string;
+    example: string;
+  }[];
+  validation_checklist: string[];
+  image_probability?: number;
+  headlines_to_fetch?: number;
+  headlines_in_prompt?: number;
+}
+
 export interface Persona {
   id: string;
+  user_id?: string;
+  connected_account_id: string;
   name: string;
   description: string;
-  emoji: string;
-  schedules?: PersonaSchedule[];
+  config: PersonaConfigDNA;
+  min_length: number;
+  max_length: number;
+  tone?: string;
+  topics?: string[];
+  rss_sources: string[];
+  is_active: boolean;
+  is_default: boolean;
+  created_at: string | Date;
+  updated_at: string | Date;
+  key: string;
+  emoji?: string; // UI only
+  schedules?: PersonaSchedule[]; // UI only
 }
 
 // Tweet and Content Types
@@ -144,7 +173,7 @@ export interface EnhancedTweet {
   persona: string;
   engagementHooks: string[];
   gibbiCTA?: string;
-  contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
+  contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy' | 'single_tweet' | 'thread';
   imageBuffer?: Buffer; // Image data for image-based tweets (deprecated)
   imageUrl?: string; // Cloudinary URL for image-based tweets
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
@@ -302,22 +331,8 @@ export interface ConnectedAccount {
   linkedin_token_expires_at?: Date;
 }
 
-export interface UserPersona {
-  id: string;
-  connected_account_id: string;
-  name: string;
-  description?: string;
-  config: Record<string, unknown>;
-  rss_sources?: string[];
-  min_length: number;
-  max_length: number;
-  tone?: string;
-  topics?: string[];
-  is_active: boolean;
-  is_default: boolean;
-  created_at: Date;
-  updated_at: Date;
-}
+// Re-use standard Persona type
+export type UserPersona = Persona;
 
 export interface UserSchedule {
   id: string;

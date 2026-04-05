@@ -1,108 +1,40 @@
-import { sql } from '@vercel/postgres';
 import { accountService } from './accountService';
+import { getPersona, getAllPersonasFromDb } from './db';
+import type { Persona } from './types';
 
+export type { Persona };
+export type PersonaConfig = Persona;
 export interface PersonaTopic {
   key: string;
   displayName: string;
 }
 
-export interface PersonaConfig {
-  key: string;
-  displayName: string;
-  description: string;
-  prompt_template?: string;
-  content_types?: ('single_tweet' | 'thread')[];
-  thread_templates?: string[];
-  image_generation?: {
-    enabled: boolean;
-    unsplash_query?: string;
-  };
-}
-
-export const VOCABULARY_BUILDER: PersonaConfig = {
-  key: 'english_vocab_builder',
-  displayName: 'Vocabulary Builder 🏆',
-  description: 'Master new words, meanings, and usage in engaging ways',
-  image_generation: {
-    enabled: true,
-    unsplash_query: 'white background'
-  }
-};
-
-export const BUSINESS_STORYTELLER: PersonaConfig = {
-  key: 'business_storyteller',
-  displayName: 'Business Storyteller 📈',
-  description: 'Compelling Indian business stories with emotional depth and strategic insights',
-  content_types: ['thread']
-};
-
-export const CRICKET_STORYTELLER: PersonaConfig = {
-  key: 'cricket_storyteller',
-  displayName: 'Cricket Storyteller 🏏',
-  description: 'Human stories with cricket as the backdrop - exploring character, psychology, and life lessons through iconic cricket moments',
-  content_types: ['thread'],
-};
-
-export const SATIRIST: PersonaConfig = {
-  key: 'satirist',
-  displayName: 'The Signal Finder 💡',
-  description: 'Extracts non-obvious insights from news using specific data and evidence.',
-  content_types: ['single_tweet'],
-  image_generation: {
-    enabled: true
-  },
-};
-
-export const PATTERN_SPOTTER: PersonaConfig = {
-  key: 'pattern_spotter',
-  displayName: 'The Pattern Spotter 🔍',
-  description: 'Finds non-obvious patterns across multiple news stories.',
-  content_types: ['single_tweet'],
-  image_generation: {
-    enabled: true
-  },
-};
-
-export const LINKEDIN_ANALYST: PersonaConfig = {
-  key: 'linkedin_analyst',
-  displayName: 'LinkedIn Analyst 📊',
-  description: 'Creates meaningful, long-form content on AI, products, startups, trends.',
-  content_types: ['single_tweet'],
-  image_generation: {
-    enabled: true
-  },
-};
-
-export const PERSONAS: readonly PersonaConfig[] = [
-  SATIRIST,
-  PATTERN_SPOTTER,
-  BUSINESS_STORYTELLER,
-  CRICKET_STORYTELLER,
-  VOCABULARY_BUILDER,
-  LINKEDIN_ANALYST,
-];
+// Hardcoded fallback list is now empty as we move to DB
+export const PERSONAS: readonly Persona[] = [];
 
 export type PersonaKey = typeof PERSONAS[number]['key'];
 
-export function getPersonaByKey(key: string): PersonaConfig | undefined {
+export async function getPersonaByKey(key: string): Promise<Persona | undefined> {
   if (!key) return undefined;
-  return PERSONAS.find(p => p.key === key);
+  const persona = await getPersona(key);
+  return persona || undefined;
 }
 
-export function selectPersonaByWeight(): PersonaConfig {
-  const randomIndex = Math.floor(Math.random() * PERSONAS.length);
-  return PERSONAS[randomIndex];
+export async function selectPersonaByWeight(): Promise<Persona> {
+  const personas = await getAllPersonasFromDb();
+  const randomIndex = Math.floor(Math.random() * personas.length);
+  return personas[randomIndex];
 }
 
-export function getAllPersonas(): PersonaConfig[] {
-  return [...PERSONAS];
+export async function getAllPersonas(): Promise<Persona[]> {
+  return await getAllPersonasFromDb();
 }
 
 export const personas = PERSONAS.map(p => {
-  const emojiMatch = p.displayName.match(/\p{Emoji}/u);
+  const emojiMatch = p.name.match(/\p{Emoji}/u);
   return {
       id: p.key,
-      name: p.displayName,
+      name: p.name,
       emoji: emojiMatch ? emojiMatch[0] : '🗣️',
       description: p.description,
   };
@@ -134,7 +66,7 @@ export function isPersonaAllowedForHandle(personaKey: string, twitterHandle: str
   return allowedPersonas.includes(personaKey);
 }
 
-export async function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: string[]): Promise<PersonaConfig> {
+export async function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: string[]): Promise<Persona> {
   const allowedPersonas = await getAllowedPersonasForHandle(twitterHandle);
   
   let eligiblePersonas = allowedPersonas;
@@ -148,7 +80,7 @@ export async function getRandomPersonaForHandle(twitterHandle: string, personaKe
   }
   
   const randomKey = eligiblePersonas[Math.floor(Math.random() * eligiblePersonas.length)];
-  const persona = getPersonaByKey(randomKey);
+  const persona = await getPersonaByKey(randomKey);
   if (!persona) throw new Error(`Persona not found: ${randomKey}`);
   return persona;
 }

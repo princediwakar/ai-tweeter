@@ -75,6 +75,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
         max_length: editingPersona.max_length,
         rss_sources: editingPersona.rss_sources || [],
         is_active: editingPersona.is_active,
+        config: editingPersona.config,
       });
       setTimeout(() => {
         document.getElementById('edit-persona-form')?.scrollIntoView({ behavior: 'smooth' });
@@ -118,6 +119,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
         max_length: data.generated.max_length || (currentPlatform === 'linkedin' ? 2500 : 280),
         rss_sources: data.generated.rss_sources || [],
         is_active: true,
+        config: data.generated.config,
       });
     } catch (error) {
       console.error('Error generating persona:', error);
@@ -146,7 +148,11 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
           min_length: generatedPreview.min_length,
           max_length: generatedPreview.max_length,
           rss_sources: generatedPreview.rss_sources,
-          config: { auto_generated: true, original_prompt: prompt },
+          config: { 
+            ...generatedPreview.config,
+            auto_generated: true, 
+            original_prompt: prompt 
+          },
           is_active: generatedPreview.is_active,
           is_default: false,
         }),
@@ -204,6 +210,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       max_length: persona.max_length,
       rss_sources: persona.rss_sources || [],
       is_active: persona.is_active,
+      config: persona.config,
     });
   };
 

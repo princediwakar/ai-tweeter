@@ -6,8 +6,8 @@ import { Tweet, GenerateFormState, Persona, Account } from '@/types/dashboard';
 
 const BULK_GENERATION_CONFIG = {
   count: 5,
-  includeHashtags: true,
-  useTrendingTopics: false,
+  includeHashtags: false,
+  useTrendingTopics: true,
 };
 
 function parseTweetDates(tweets: Tweet[]): Tweet[] {
@@ -42,8 +42,8 @@ export function useTweetDashboard() {
   const [generateForm, setGenerateForm] = useState<GenerateFormState>({
     account_id: '',
     persona: '',
-    includeHashtags: true,
-    useTrendingTopics: false,
+    includeHashtags: false,
+    useTrendingTopics: true,
     customPrompt: '',
   });
 

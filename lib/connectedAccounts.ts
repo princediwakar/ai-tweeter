@@ -152,7 +152,11 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
     twitter_access_token_secret: decrypt(row.twitter_access_token_secret_encrypted),
     personas: row.personas || [],
     branding: row.branding || {},
-    profile_image_url: row.profile_image_url
+    profile_image_url: row.profile_image_url,
+    linkedin_enabled: row.platform === 'linkedin' && !!row.access_token_encrypted,
+    linkedin_access_token: row.platform === 'linkedin' ? (decrypt(row.access_token_encrypted) || undefined) : undefined,
+    linkedin_refresh_token: row.platform === 'linkedin' ? (decrypt(row.refresh_token_encrypted) || undefined) : undefined,
+    linkedin_token_expires_at: row.platform === 'linkedin' ? (row.token_expires_at || undefined) : undefined,
   };
 }
 

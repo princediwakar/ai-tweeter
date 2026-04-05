@@ -40,6 +40,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
   const [formData, setFormData] = useState<CreateScheduleInput>({
     connected_account_id: accountId,
     name: '',
+    timezone: 'Asia/Kolkata',
     days_of_week: [0, 1, 2, 3, 4, 5, 6],
     start_time: 540,
     end_time: 540,

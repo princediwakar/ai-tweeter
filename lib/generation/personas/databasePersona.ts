@@ -55,6 +55,10 @@ ${config.previousHeadlines && config.previousHeadlines.length > 0
   ? `Already used article numbers: ${config.previousHeadlines.join(', ')}. Pick a different article.`
   : ''}
 
+${config.usedSourceUrls && config.usedSourceUrls.length > 0
+  ? `**ALREADY POSTED - DO NOT USE:**\n${config.usedSourceUrls.map(url => `- ${url}`).join('\n')}\nPick a different article from the available sources.`
+  : ''}
+
 ━━━━━━━━━━━━━━━━━━━━━
 VOICE DNA (THE HUMAN PATTERN)
 ━━━━━━━━━━━━━━━━━━━━━

@@ -1079,47 +1079,7 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
 
 
 
-export async function getRecentSatiristData(
-  accountId: string,
-  limit: number = 10
-): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
-  try {
-    const result = await sql`
-      SELECT content, source_url, created_at
-      FROM tweets
-      WHERE connected_account_id = ${accountId}
-        AND content IS NOT NULL
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-    `;
-
-    const recentPatterns: RecentPattern[] = [];
-    const usedSourceUrls: string[] = [];
-
-    for (const row of result.rows) {
-      if (row.content) {
-        recentPatterns.push({
-          text: row.content,
-          timestamp: row.created_at ? new Date(row.created_at).toISOString() : undefined
-        });
-      }
-      
-      if (row.source_url && !usedSourceUrls.includes(row.source_url)) {
-        usedSourceUrls.push(row.source_url);
-      }
-    }
-
-    console.log(`[DB] Found ${recentPatterns.length} recent satirist tweets and ${usedSourceUrls.length} used source URLs for account ${accountId}`);
-    return { patterns: recentPatterns, usedSourceUrls };
-  } catch (error) {
-    console.warn('[DB] Failed to fetch recent satirist tweets:', error);
-    return { patterns: [], usedSourceUrls: [] };
-  }
-}
-
-
-
-
+// Removed: getRecentSatiristData was duplicate of getRecentPatternData
 
 export async function getRecentPatternData(
   accountId: string,
@@ -1163,66 +1123,44 @@ export async function getRecentPatternData(
   }
 }
 /**
- * Gets recently used source URLs for business_storyteller persona to avoid repetition.
+ * Gets recently used source URLs for a specific persona to avoid repetition.
  * Returns an array of source URLs used in the last N days.
  */
-export async function getRecentBusinessStorytellerSources(accountId: string, days: number = 30): Promise<string[]> {
-  try {
-    // Use a calculated date instead of INTERVAL with interpolation
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-
-    const result = await sql`
-      SELECT DISTINCT source_url
-      FROM tweets
-      WHERE connected_account_id = ${accountId}
-        AND persona IN ('satirist', 'pattern_spotter', 'business_storyteller')
-        AND source_url IS NOT NULL
-        AND created_at > ${cutoffDate.toISOString()}
-      ORDER BY source_url
-    `;
-
-    const sources = result.rows
-      .map(row => row.source_url)
-      .filter((url): url is string => typeof url === 'string');
-
-    console.log(`[Neon] Found ${sources.length} recently used business_storyteller sources for account ${accountId} (last ${days} days)`);
-    return sources;
-  } catch (error) {
-    console.error('[Neon] Error getting recent business_storyteller sources:', error);
-    return []; // Return empty array on error to allow generation to proceed
+export async function getRecentPersonaSources(
+  accountId: string, 
+  personaKeys: string[], 
+  days: number = 30
+): Promise<string[]> {
+  if (personaKeys.length === 0) {
+    return [];
   }
-}
 
-/**
- * Gets recently used source URLs for cricket_storyteller persona to avoid repetition.
- * Returns an array of source URLs used in the last N days.
- */
-export async function getRecentCricketStorytellerSources(accountId: string, days: number = 30): Promise<string[]> {
   try {
-    // Use a calculated date instead of INTERVAL with interpolation
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
-    const result = await sql`
+    const placeholders = personaKeys.map((_, i) => `$${i + 1}`).join(', ');
+    const query = `
       SELECT DISTINCT source_url
       FROM tweets
-      WHERE connected_account_id = ${accountId}
-        AND persona = 'cricket_storyteller'
+      WHERE connected_account_id = $${personaKeys.length + 1}
+        AND persona IN (${placeholders})
         AND source_url IS NOT NULL
-        AND created_at > ${cutoffDate.toISOString()}
+        AND created_at > $${personaKeys.length + 2}
       ORDER BY source_url
     `;
+
+    const result = await sql.query(query, [...personaKeys, accountId, cutoffDate.toISOString()]);
 
     const sources = result.rows
       .map(row => row.source_url)
       .filter((url): url is string => typeof url === 'string');
 
-    console.log(`[Neon] Found ${sources.length} recently used cricket_storyteller sources for account ${accountId} (last ${days} days)`);
+    console.log(`[DB] Found ${sources.length} recently used sources for personas [${personaKeys.join(', ')}] for account ${accountId} (last ${days} days)`);
     return sources;
   } catch (error) {
-    console.error('[Neon] Error getting recent cricket_storyteller sources:', error);
-    return []; // Return empty array on error to allow generation to proceed
+    console.error('[DB] Error getting recent persona sources:', error);
+    return [];
   }
 }
 

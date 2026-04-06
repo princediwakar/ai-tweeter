@@ -38,7 +38,21 @@ export async function getGenerationBatchInfo(
 ): Promise<Schedule> {
   if (debugMode) {
     const allPersonas = await getAllPersonas();
-    const debugPersonas = allPersonas.length > 0 ? allPersonas.map(p => p.key).filter(Boolean) : ['satirist'];
+    const debugPersonas = allPersonas.length > 0 
+      ? allPersonas.map(p => p.key).filter(Boolean) 
+      : [];
+    
+    if (debugPersonas.length === 0) {
+      return {
+        should_generate: false,
+        should_post: false,
+        generation_personas: [],
+        posting_personas: [],
+        batch_size: 5,
+        reason: 'No personas available for debug mode',
+      };
+    }
+    
     return {
       should_generate: true,
       should_post: true,

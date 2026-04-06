@@ -1,6 +1,8 @@
 // app/api/generate/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { promises as fs } from 'fs';
+
+export const maxDuration = 300; // Extend Vercel limit for background execution
 import path from 'path';
 
 import { generateTweet } from '@/lib/generationService';
@@ -59,7 +61,13 @@ export async function GET(request: NextRequest) {
     const personaOverride = searchParams.get('persona');
 
     if (accountId) {
-      return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
+      if (debugMode) {
+        return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
+      }
+      after(async () => {
+        await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
+      });
+      return NextResponse.json({ success: true, message: `Async generation started for account ${accountId}` }, { status: 202 });
     }
 
     if (twitterHandle) {
@@ -69,10 +77,23 @@ export async function GET(request: NextRequest) {
           error: `Account not found for Twitter handle: ${twitterHandle}`
         }, { status: 404 });
       }
-      return await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
+      if (debugMode) {
+        return await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
+      }
+      after(async () => {
+        await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
+      });
+      return NextResponse.json({ success: true, message: `Async generation started for handle ${twitterHandle}` }, { status: 202 });
     }
 
-    return await generateForAllAccountsEnhanced(request, debugMode);
+    if (debugMode) {
+      return await generateForAllAccountsEnhanced(request, debugMode);
+    }
+    
+    after(async () => {
+      await generateForAllAccountsEnhanced(request, debugMode);
+    });
+    return NextResponse.json({ success: true, message: "Async multi-account generation started" }, { status: 202 });
 
   } catch (error) {
     logger.error('Enhanced generation failed', 'generate', error as Error);

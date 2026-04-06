@@ -45,13 +45,13 @@ async function buildDynamicContext(
     return null;
   }
 
-  // Get generation config from persona
   const config = dbPersona?.config as Record<string, unknown> || {};
-  const headlinesToFetch = Number(config.headlines_to_fetch) || 20;
+  const headlinesToFetch = Number(config.headlines_to_fetch) || 15;
   const headlinesInPrompt = Number(config.headlines_in_prompt) || 5;
+  const headlinesPerFeed = Number(config.headlines_per_feed) || 3;
 
   // Fetch headlines from RSS
-  const headlines = await fetchFromRssFeeds(rssSources, 5, headlinesToFetch);
+  const headlines = await fetchFromRssFeeds(rssSources, headlinesPerFeed, headlinesToFetch);
   if (headlines.length === 0) {
     console.warn(`[Content Source] No headlines fetched from RSS feeds`);
     return null;

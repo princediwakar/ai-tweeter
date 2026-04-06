@@ -1,3 +1,4 @@
+// components/dashboard/Composer.tsx
 'use client';
 
 import { useState } from 'react';
@@ -5,10 +6,9 @@ import { Wand2, Zap, Settings2, Sparkles, Loader2, ChevronDown, AlertCircle } fr
 import { Button } from '@/components/ui/button';
 import { GenerateFormState, Persona } from '@/types/dashboard';
 import Link from 'next/link';
-
 import { useRouter } from 'next/navigation';
 
-interface MinimalComposerProps {
+interface ComposerProps {
   form: GenerateFormState;
   loading: boolean;
   personas: Persona[];
@@ -18,7 +18,7 @@ interface MinimalComposerProps {
   onBulkGenerate: () => void;
 }
 
-export function MinimalComposer({
+export function Composer({
   form,
   loading,
   personas,
@@ -26,24 +26,25 @@ export function MinimalComposer({
   onFormChange,
   onGenerate,
   onBulkGenerate
-}: MinimalComposerProps) {
+}: ComposerProps) {
   const [showOptions, setShowOptions] = useState(false);
   const router = useRouter();
   const currentPersona = personas.find(p => p.id === form.persona);
   const hasNoPersonas = personas.length === 0;
 
+  // STRATEGIC LOCK: Prevent backend rejections by enforcing the rule on the frontend
+  const isPromptValid = form.customPrompt && form.customPrompt.trim().length >= 10;
+
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-8">
-      {/* Input Area */}
       <div className="relative mb-4">
         <textarea
           value={form.customPrompt}
           onChange={(e) => onFormChange({ customPrompt: e.target.value })}
-          placeholder="What's the topic for your next post?"
+          placeholder="What's the topic for your next post? (Min 10 characters)"
           className="w-full h-32 p-4 bg-gray-50/50 border border-transparent focus:border-indigo-100 focus:bg-white rounded-xl text-gray-900 placeholder:text-gray-400 resize-none transition-all outline-none"
         />
         
-        {/* Floating Persona Selector */}
         <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-white/80 backdrop-blur-sm border border-gray-100 p-1 rounded-lg shadow-sm">
           {hasNoPersonas ? (
             <div className="flex items-center gap-2 px-2 py-1">
@@ -75,7 +76,6 @@ export function MinimalComposer({
         </div>
       </div>
 
-      {/* Control Row */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button
@@ -124,17 +124,17 @@ export function MinimalComposer({
             <>
               <Button
                 onClick={onBulkGenerate}
-                disabled={loading}
+                disabled={loading || !isPromptValid}
                 variant="ghost"
-                className="h-10 px-4 text-gray-500 text-sm font-semibold hover:bg-gray-100 rounded-xl"
+                className="h-10 px-4 text-gray-500 text-sm font-semibold hover:bg-gray-100 rounded-xl disabled:opacity-40"
               >
                 <Zap className="h-4 w-4 mr-2" />
                 Bulk {bulkCount}
               </Button>
               <Button
                 onClick={onGenerate}
-                disabled={loading}
-                className="h-10 px-6 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-sm transition-all active:scale-95"
+                disabled={loading || !isPromptValid}
+                className="h-10 px-6 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 shadow-sm transition-all active:scale-95 disabled:opacity-60"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -153,7 +153,8 @@ export function MinimalComposer({
   );
 }
 
-export function MinimalComposerSkeleton() {
+// ... (ComposerSkeleton remains the same)
+export function ComposerSkeleton() {
   return (
     <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm mb-8">
       {/* Input Area */}

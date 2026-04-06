@@ -60,15 +60,28 @@ export default function ScheduleDialog({
 
   const handleDelete = async (index: number) => {
     const scheduleId = formScheduleIds[index];
-    if (!scheduleId || !onDeleteSchedule) return;
     
-    setDeletingId(scheduleId);
-    try {
-      await onDeleteSchedule(scheduleId);
-      setFormScheduleIds(formScheduleIds.filter((_, i) => i !== index));
-      setForms(forms.filter((_, i) => i !== index));
-    } finally {
+    // If it exists in the DB, delete it from the DB first
+    if (scheduleId && onDeleteSchedule) {
+      setDeletingId(scheduleId);
+      try {
+        await onDeleteSchedule(scheduleId);
+      } catch (error) {
+        // If DB deletion fails, stop here. Don't remove it from the UI.
+        setDeletingId(null);
+        return; 
+      }
       setDeletingId(null);
+    }
+    
+    // FIXED: Remove from local state whether it was in the DB or just a local unsaved form
+    setFormScheduleIds(formScheduleIds.filter((_, i) => i !== index));
+    setForms(forms.filter((_, i) => i !== index));
+    
+    // If they deleted the very last form, give them a fresh empty one so the modal isn't blank
+    if (forms.length === 1) {
+      setForms([getDefaultScheduleForm()]);
+      setFormScheduleIds([null]);
     }
   };
 
@@ -81,6 +94,9 @@ export default function ScheduleDialog({
       setSaving(false);
     }
   };
+
+  // FIXED: Validate that no ghost schedules (0 days selected) can be saved
+  const isFormValid = forms.every(form => form.days_of_week.length > 0);
 
   if (!open) return null;
 
@@ -103,21 +119,22 @@ export default function ScheduleDialog({
             <div key={index} className="p-4 bg-gray-50 rounded-xl border border-gray-200">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-semibold text-gray-700">Schedule #{index + 1}</span>
-                {formScheduleIds[index] && onDeleteSchedule && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(index)}
-                    disabled={deletingId === formScheduleIds[index]}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Delete schedule"
-                  >
-                    <Trash className="w-4 h-4" />
-                  </button>
-                )}
+                {/* FIXED: Trash can is now always available, even for unsaved forms */}
+                <button
+                  type="button"
+                  onClick={() => handleDelete(index)}
+                  disabled={deletingId === formScheduleIds[index] && deletingId !== null}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  title="Delete schedule"
+                >
+                  <Trash className="w-4 h-4" />
+                </button>
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Days</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Days <span className="text-red-500">*</span>
+                </label>
                 <div className="flex gap-2">
                   {DAYS.map(day => (
                     <button
@@ -134,6 +151,9 @@ export default function ScheduleDialog({
                     </button>
                   ))}
                 </div>
+                {form.days_of_week.length === 0 && (
+                  <p className="text-xs text-red-500 mt-2">Please select at least one day.</p>
+                )}
               </div>
 
               <div>
@@ -172,7 +192,7 @@ export default function ScheduleDialog({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || !isFormValid}
             className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (

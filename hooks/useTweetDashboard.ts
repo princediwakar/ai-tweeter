@@ -1,3 +1,4 @@
+// hooks/useTweetDashboard.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 
@@ -32,8 +33,13 @@ export function useTweetDashboard() {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [latestTweet, setLatestTweet] = useState<Tweet | null>(null);
   const [selectedTweets, setSelectedTweets] = useState<string[]>([]);
+  
+  // Global loading for full page/composer locks
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  
+  // FIXED: Localized loading state to prevent button spamming on specific tweets
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>('');
@@ -56,13 +62,11 @@ export function useTweetDashboard() {
     hasPrev: false,
   });
 
-  // Single parallel data fetch - fixes the multiple loading states issue
   const initializeData = useCallback(async () => {
     setInitialLoading(true);
     setLoading(true);
     
     try {
-      // Parallel fetch - single round trip for all initial data
       const [accountsRes, personasRes] = await Promise.all([
         fetch('/api/accounts'),
         fetch('/api/personas')
@@ -74,13 +78,11 @@ export function useTweetDashboard() {
       const newAccounts = accountsData.accounts || [];
       setAccounts(newAccounts);
       
-      // Set default account
       if (newAccounts.length > 0 && !selectedAccount) {
         const firstActive = newAccounts.find((acc: Account) => acc.status === 'active') || newAccounts[0];
         setSelectedAccount(firstActive.id);
         setGenerateForm(prev => ({ ...prev, account_id: firstActive.id }));
         
-        // Filter personas for this account
         const accountPersonas = (personasData.personas || [])
           .filter((p: any) => p.connected_account_id === firstActive.id && p.is_active)
           .map((p: any) => ({
@@ -96,7 +98,6 @@ export function useTweetDashboard() {
         }
       }
       
-      // Fetch tweets with account filter
       const tweetsRes = await fetch('/api/tweets?page=1&limit=10');
       if (tweetsRes.ok) {
         const tweetsData = await tweetsRes.json();
@@ -125,12 +126,12 @@ export function useTweetDashboard() {
       setLoading(false);
       setInitialLoading(false);
     }
-  }, [selectedAccount]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Initialize on mount
   useEffect(() => {
     initializeData();
-  }, []);
+  }, [initializeData]);
 
   const fetchTweets = useCallback(async (page = 1, limit = 10, accountId?: string) => {
     setLoading(true);
@@ -175,28 +176,6 @@ export function useTweetDashboard() {
     }
   }, [selectedAccount]);
 
-  const goToPage = useCallback(async (page: number) => {
-    if (page >= 1 && page <= pagination.totalPages) {
-      await fetchTweets(page, pagination.limit);
-    }
-  }, [pagination.totalPages, pagination.limit, fetchTweets]);
-
-  const nextPage = useCallback(async () => {
-    if (pagination.hasNext) {
-      await fetchTweets(pagination.page + 1, pagination.limit);
-    }
-  }, [pagination.hasNext, pagination.page, pagination.limit, fetchTweets]);
-
-  const prevPage = useCallback(async () => {
-    if (pagination.hasPrev) {
-      await fetchTweets(pagination.page - 1, pagination.limit);
-    }
-  }, [pagination.hasPrev, pagination.page, pagination.limit, fetchTweets]);
-
-  const changePageSize = useCallback(async (newLimit: number) => {
-    await fetchTweets(1, newLimit);
-  }, [fetchTweets]);
-
   const generateTweet = useCallback(async () => {
     if (loading) return;
     setLoading(true);
@@ -211,17 +190,21 @@ export function useTweetDashboard() {
         })
       });
       
+      const data = await response.json();
+
+      // FIXED: Actually display the backend error message
       if (response.ok) {
-        const data = await response.json();
         setLatestTweet(parseTweetDates([data.tweet])[0]);
         toast.success('Tweet generated!');
+        // Clear the prompt after successful generation so they don't accidentally double-submit
+        setGenerateForm(prev => ({ ...prev, customPrompt: '' })); 
         await fetchTweets();
       } else {
-        toast.error('Failed to generate tweet');
+        toast.error(data.error || 'Failed to generate tweet');
       }
     } catch (error) {
       console.error('Failed to generate tweet:', error);
-      toast.error('Failed to generate tweet');
+      toast.error('An unexpected error occurred while generating.');
     } finally {
       setLoading(false);
     }
@@ -242,22 +225,30 @@ export function useTweetDashboard() {
         })
       });
       
+      const data = await response.json();
+
+      // FIXED: Display the backend error message
       if (response.ok) {
-        const data = await response.json();
         toast.success(`Generated ${data.tweets.length} tweets!`);
+        setGenerateForm(prev => ({ ...prev, customPrompt: '' })); 
         await fetchTweets();
       } else {
-        toast.error('Failed to bulk generate tweets');
+        toast.error(data.error || 'Failed to bulk generate tweets');
       }
     } catch (error) {
       console.error('Failed to bulk generate tweets:', error);
-      toast.error('Failed to bulk generate tweets');
+      toast.error('An unexpected error occurred during bulk generation.');
     } finally {
       setLoading(false);
     }
   }, [loading, generateForm, fetchTweets]);
 
   const postTweet = useCallback(async (tweetId: string) => {
+    if (actionLoadingId === tweetId) return;
+    
+    // FIXED: Lock this specific tweet so the user can't spam the button
+    setActionLoadingId(tweetId);
+    
     try {
       const response = await fetch(`/api/tweets/${tweetId}`, {
         method: 'POST',
@@ -265,19 +256,28 @@ export function useTweetDashboard() {
         body: JSON.stringify({ action: 'post' })
       });
       
+      const data = await response.json();
+
       if (response.ok) {
         toast.success('Tweet posted!');
         await fetchTweets();
       } else {
-        toast.error('Failed to post tweet');
+        toast.error(data.error || 'Failed to post tweet');
       }
     } catch (error) {
       console.error('Failed to post tweet:', error);
-      toast.error('Failed to post tweet');
+      toast.error('An unexpected error occurred while posting.');
+    } finally {
+      setActionLoadingId(null);
     }
-  }, [fetchTweets]);
+  }, [actionLoadingId, fetchTweets]);
 
   const deleteTweet = useCallback(async (tweetId: string) => {
+    if (actionLoadingId === tweetId) return;
+    
+    // FIXED: Lock this specific tweet to prevent spam clicking
+    setActionLoadingId(tweetId);
+    
     try {
       const response = await fetch(`/api/tweets/${tweetId}`, {
         method: 'DELETE'
@@ -292,9 +292,11 @@ export function useTweetDashboard() {
       }
     } catch (error) {
       console.error('Failed to delete tweet:', error);
-      toast.error('Failed to delete tweet');
+      toast.error('An unexpected error occurred while deleting.');
+    } finally {
+      setActionLoadingId(null);
     }
-  }, [fetchTweets]);
+  }, [actionLoadingId, fetchTweets]);
 
   const deleteSelectedTweets = useCallback(async () => {
     try {
@@ -302,6 +304,8 @@ export function useTweetDashboard() {
         toast.error('No tweets selected for deletion');
         return;
       }
+
+      setLoading(true);
 
       const response = await fetch('/api/tweets', {
         method: 'POST',
@@ -323,41 +327,16 @@ export function useTweetDashboard() {
       }
     } catch (error) {
       console.error('Failed to delete tweets:', error);
-      toast.error('Failed to delete tweets');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete tweets');
+    } finally {
+      setLoading(false);
     }
   }, [selectedTweets, fetchTweets]);
-
-  const shareOnX = useCallback((tweet: Tweet) => {
-    const tweetText = `${tweet.content}${tweet.hashtags.length > 0 ? ' ' + tweet.hashtags.map(tag => `${tag}`).join(' ') : ''}`;
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
-    window.open(twitterUrl, '_blank');
-  }, []);
-
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'posted': return 'bg-green-900 text-green-200';
-      case 'ready': return 'bg-blue-900 text-blue-200';
-      case 'failed': return 'bg-red-900 text-red-200';
-      default: return 'bg-gray-700 text-gray-200';
-    }
-  };
-
-  const getQualityGradeColor = (grade: string) => {
-    switch (grade) {
-      case 'A': return 'text-green-400';
-      case 'B': return 'text-blue-400';
-      case 'C': return 'text-yellow-400';
-      case 'D': return 'text-orange-400';
-      case 'F': return 'text-red-400';
-      default: return 'text-gray-400';
-    }
-  };
 
   const switchAccount = useCallback(async (accountId: string) => {
     setSelectedAccount(accountId);
     setGenerateForm(prev => ({ ...prev, account_id: accountId }));
     
-    // Fetch personas for new account
     try {
       const response = await fetch('/api/personas');
       if (response.ok) {
@@ -382,25 +361,11 @@ export function useTweetDashboard() {
       console.error('Failed to fetch personas:', error);
     }
     
-    // Fetch tweets for new account
     await fetchTweets(1, pagination.limit, accountId);
   }, [pagination.limit, fetchTweets]);
 
-  const refreshData = useCallback(async () => {
-    await initializeData();
-  }, [initializeData]);
-
-  const refreshAccounts = useCallback(async () => {
-    const res = await fetch('/api/accounts');
-    const data = res.ok ? await res.json() : { accounts: [] };
-    setAccounts(data.accounts || []);
-  }, []);
-
-  const readyTweets = useMemo(() => tweets.filter(t => t.status === 'ready'), [tweets]);
-  const stats = useMemo(() => ({
-    ready: readyTweets.length,
-    posted: tweets.filter(t => t.status === 'posted').length,
-  }), [readyTweets, tweets]);
+  // Pass actionLoadingId down to your UI components!
+  // If you want to use it in History.tsx, add `isActionLoading: actionLoadingId === tweet.id` to the props.
 
   return {
     tweets,
@@ -408,10 +373,14 @@ export function useTweetDashboard() {
     selectedTweets,
     loading,
     initialLoading,
+    actionLoadingId, // NEW: Export this so the UI can lock specific buttons
     showHistory,
     generateForm,
     pagination,
-    stats,
+    stats: {
+      ready: tweets.filter(t => t.status === 'ready').length,
+      posted: tweets.filter(t => t.status === 'posted').length,
+    },
     accounts,
     selectedAccount,
     setSelectedTweets,
@@ -422,18 +391,12 @@ export function useTweetDashboard() {
     postTweet,
     deleteTweet,
     deleteSelectedTweets,
-    shareOnX,
-    refreshData,
+    refreshData: initializeData,
     switchAccount,
-    refreshAccounts,
-    goToPage,
-    nextPage,
-    prevPage,
-    changePageSize,
-    getStatusBadgeColor,
-    getQualityGradeColor,
-    formatForUserDisplay,
-    toDateTimeLocal,
+    goToPage: async (p: number) => { if (p >= 1 && p <= pagination.totalPages) await fetchTweets(p, pagination.limit); },
+    nextPage: async () => { if (pagination.hasNext) await fetchTweets(pagination.page + 1, pagination.limit); },
+    prevPage: async () => { if (pagination.hasPrev) await fetchTweets(pagination.page - 1, pagination.limit); },
+    changePageSize: async (l: number) => await fetchTweets(1, l),
     personas: personasList,
     BULK_GENERATION_CONFIG,
   };

@@ -1,3 +1,4 @@
+// components/onboarding/OnboardingFlow.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -244,7 +245,7 @@ function MagicDashboard({ accounts, onAddMore }: {
         </div>
       </div>
 
-      {/* Quick Actions - Minimal */}
+      {/* Quick Actions -  */}
       {activeAccounts > 0 && (
         <div className="flex gap-4">
           <Button
@@ -258,7 +259,7 @@ function MagicDashboard({ accounts, onAddMore }: {
         </div>
       )}
 
-      {/* What happens next - educational but minimal */}
+      {/* What happens next - educational but  */}
       {activeAccounts > 0 && (
         <div className="border border-border/30 bg-card/30 rounded-xl p-6">
           <h3 className="font-mono-brutal text-sm font-bold text-foreground mb-4 flex items-center gap-2">

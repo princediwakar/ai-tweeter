@@ -1,3 +1,4 @@
+// hooks/useConnectedAccounts.ts
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import type { ConnectedAccount } from '@/lib/types';
@@ -62,11 +63,18 @@ export function useConnectedAccounts() {
         method: 'DELETE',
       });
       
-      if (!response.ok) throw new Error('Failed to disconnect');
+      // FIXED: Catch specific API errors
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to disconnect account');
+      }
+
       toast.success('Account disconnected');
       await fetchAccounts();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
+      // FIXED: Throw error back to caller
+      throw err;
     }
   }, [fetchAccounts]);
 

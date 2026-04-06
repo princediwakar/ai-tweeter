@@ -1,3 +1,4 @@
+// hooks/usePersonas.ts
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import type { UserPersona } from '@/lib/types';
@@ -56,7 +57,7 @@ export function usePersonas() {
       await fetchPersonas();
       return result.persona;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create');
+      toast.error(err instanceof Error ? err.message : 'Failed to create persona');
       throw err;
     }
   }, [fetchPersonas]);
@@ -69,22 +70,37 @@ export function usePersonas() {
         body: JSON.stringify({ id, ...data }),
       });
       
-      if (!response.ok) throw new Error('Failed to update');
+      // FIXED: Actually read the backend error
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to update persona');
+      }
+
       toast.success('Persona updated');
       await fetchPersonas();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update');
+      toast.error(err instanceof Error ? err.message : 'Failed to update persona');
+      // FIXED: Throw error back to component so the modal doesn't falsely close
+      throw err; 
     }
   }, [fetchPersonas]);
 
   const deletePersona = useCallback(async (id: string) => {
     try {
       const response = await fetch(`/api/personas?id=${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete');
+      
+      // FIXED: Read backend error
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete persona');
+      }
+
       toast.success('Persona deleted');
       await fetchPersonas();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to delete');
+      toast.error(err instanceof Error ? err.message : 'Failed to delete persona');
+      // FIXED: Throw error back to component
+      throw err;
     }
   }, [fetchPersonas]);
 

@@ -1,3 +1,4 @@
+// components/dashboard/AccountSelector.tsx
 'use client';
 
 import { useState } from 'react';

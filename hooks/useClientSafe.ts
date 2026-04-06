@@ -1,3 +1,4 @@
+// hooks/useClientSafe.ts
 import { useEffect, useState } from 'react';
 
 /**

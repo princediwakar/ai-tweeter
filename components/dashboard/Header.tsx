@@ -2,7 +2,7 @@ import { RefreshCw, Users, Twitter, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Persona } from '@/types/dashboard';
 
-interface MinimalHeaderProps {
+interface HeaderProps {
   accounts: any[];
   selectedAccount: string;
   onSwitchAccount: (id: string) => void;
@@ -12,7 +12,7 @@ interface MinimalHeaderProps {
   activePersonas: Persona[];
 }
 
-export function MinimalHeader({
+export function Header({
   accounts,
   selectedAccount,
   onSwitchAccount,
@@ -20,7 +20,7 @@ export function MinimalHeader({
   loading,
   stats,
   activePersonas
-}: MinimalHeaderProps) {
+}: HeaderProps) {
   const currentAccount = accounts.find(a => a.id === selectedAccount);
 
   return (
@@ -92,7 +92,7 @@ export function MinimalHeader({
   );
 }
 
-export function MinimalHeaderSkeleton() {
+export function HeaderSkeleton() {
   return (
     <header className="py-4 border-b border-gray-100 mb-8 space-y-4">
       <div className="flex items-center justify-between">

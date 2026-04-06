@@ -2,15 +2,15 @@
 'use client';
 
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
-import { MinimalHeader } from './Header';
-import { MinimalComposer } from './Composer';
-import { MinimalHistory } from './History';
-import { MinimalHeaderSkeleton } from './Header';
-import { MinimalComposerSkeleton } from './Composer';
-import { MinimalHistorySkeleton } from './History';
+import { Header } from './Header';
+import { Composer } from './Composer';
+import { History } from './History';
+import { HeaderSkeleton } from './Header';
+import { ComposerSkeleton } from './Composer';
+import { HistorySkeleton } from './History';
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
 
-export default function MinimalDashboard() {
+export default function Dashboard() {
   const {
     tweets,
     loading,
@@ -41,9 +41,9 @@ export default function MinimalDashboard() {
   if (initialLoading) {
     return (
       <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-6">
-        <MinimalHeaderSkeleton />
-        <MinimalComposerSkeleton />
-        <MinimalHistorySkeleton />
+        <HeaderSkeleton />
+        <ComposerSkeleton />
+        <HistorySkeleton />
       </div>
     );
   }
@@ -51,7 +51,7 @@ export default function MinimalDashboard() {
   return (
     <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-6">
       {/* Header with Switcher & Refresh */}
-      <MinimalHeader
+      <Header
         accounts={accounts}
         selectedAccount={selectedAccount}
         onSwitchAccount={switchAccount}
@@ -62,7 +62,7 @@ export default function MinimalDashboard() {
       />
 
       {/* The Core Action: Compose & Generate */}
-      <MinimalComposer
+      <Composer
         form={generateForm}
         loading={loading}
         personas={personas}
@@ -73,7 +73,7 @@ export default function MinimalDashboard() {
       />
 
       {/* The Activity Log */}
-      <MinimalHistory
+      <History
         tweets={tweets}
         onPostTweet={postTweet}
         onDeleteTweet={deleteTweet}

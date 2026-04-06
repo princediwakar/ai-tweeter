@@ -25,9 +25,24 @@ import {
 interface OnboardingState {
   step: number;
   connectedPlatforms: string[];
-  selectedTopics: string[];
+  prompt: string;
+  generatedPersonas: {
+    twitter?: GeneratedPersona;
+    linkedin?: GeneratedPersona;
+  };
+  regenerationCount: number;
   postFrequency: number;
   postTime: 'morning' | 'afternoon' | 'evening';
+}
+
+interface GeneratedPersona {
+  name: string;
+  description: string;
+  tone: string;
+  topics: string[];
+  rss_sources: string[];
+  min_length: number;
+  max_length: number;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -71,9 +86,10 @@ const TIME_OPTIONS = [
 const STEPS = [
   { id: 1, label: 'Welcome' },
   { id: 2, label: 'Connect' },
-  { id: 3, label: 'Topics' },
-  { id: 4, label: 'Schedule' },
-  { id: 5, label: 'Launch' },
+  { id: 3, label: 'Prompt' },
+  { id: 4, label: 'Review' },
+  { id: 5, label: 'Schedule' },
+  { id: 6, label: 'Launch' },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -83,15 +99,19 @@ export default function OnboardingWizard() {
   const [state, setState] = useState<OnboardingState>({
     step: 1,
     connectedPlatforms: [],
-    selectedTopics: [],
+    prompt: '',
+    generatedPersonas: {},
+    regenerationCount: 0,
     postFrequency: 3,
     postTime: 'morning',
   });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [platformConnecting, setPlatformConnecting] = useState<string | null>(null);
   const [animDir, setAnimDir] = useState<'forward' | 'back'>('forward');
   const [visible, setVisible] = useState(true);
+  const [accounts, setAccounts] = useState<Array<{ id: string; platform: string }>>([]);
 
   // ── Load initial state from API ──────────────────────────────────────────
   useEffect(() => {
@@ -123,10 +143,10 @@ export default function OnboardingWizard() {
           ...prev,
           step: startStep,
           connectedPlatforms: platforms,
-          selectedTopics: status.topics || [],
           postFrequency: status.frequency || 3,
           postTime: status.postTime || 'morning',
         }));
+        setAccounts(accountsData.accounts || []);
       } catch (e) {
         console.error('Init error', e);
       } finally {
@@ -134,7 +154,7 @@ export default function OnboardingWizard() {
       }
     };
     init();
-  }, []);
+  }, [accounts]);
 
   // ── Step persistence ─────────────────────────────────────────────────────
   const saveStep = useCallback(async (step: number) => {
@@ -185,29 +205,93 @@ export default function OnboardingWizard() {
   };
 
   // ── Topic toggle ──────────────────────────────────────────────────────────
-  const toggleTopic = (id: string) => {
-    setState(prev => ({
-      ...prev,
-      selectedTopics: prev.selectedTopics.includes(id)
-        ? prev.selectedTopics.filter(t => t !== id)
-        : [...prev.selectedTopics, id],
-    }));
+  const setPrompt = (prompt: string) => {
+    setState(prev => ({ ...prev, prompt }));
+  };
+
+  const regeneratePersonas = async () => {
+    if (state.regenerationCount >= 3) return;
+    setIsGenerating(true);
+    
+    const twitterAccount = accounts.find(a => a.platform === 'twitter');
+    const linkedinAccount = accounts.find(a => a.platform === 'linkedin');
+    
+    const newPersonas: OnboardingState['generatedPersonas'] = {};
+    
+    if (twitterAccount) {
+      try {
+        const res = await fetch('/api/onboarding/generate-personas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: state.prompt,
+            connectedAccountId: twitterAccount.id,
+            platform: 'twitter',
+            regenerationCount: state.regenerationCount,
+          }),
+        });
+        const data = await res.json();
+        if (data.persona) newPersonas.twitter = data.persona;
+      } catch (e) {
+        console.error('Failed to regenerate Twitter persona', e);
+      }
+    }
+    
+    if (linkedinAccount) {
+      try {
+        const res = await fetch('/api/onboarding/generate-personas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: state.prompt,
+            connectedAccountId: linkedinAccount.id,
+            platform: 'linkedin',
+            regenerationCount: state.regenerationCount,
+          }),
+        });
+        const data = await res.json();
+        if (data.persona) newPersonas.linkedin = data.persona;
+      } catch (e) {
+        console.error('Failed to regenerate LinkedIn persona', e);
+      }
+    }
+    
+    if (Object.keys(newPersonas).length > 0) {
+      setState(prev => ({
+        ...prev,
+        generatedPersonas: newPersonas,
+        regenerationCount: prev.regenerationCount + 1,
+      }));
+    }
+    setIsGenerating(false);
   };
 
   // ── Finish ────────────────────────────────────────────────────────────────
   const finish = async () => {
     setSubmitting(true);
     try {
+      const twitterAccount = accounts.find(a => a.platform === 'twitter');
+      const linkedinAccount = accounts.find(a => a.platform === 'linkedin');
+      
+      const personasToSave: Array<{ accountId: string; persona: GeneratedPersona }> = [];
+      
+      if (twitterAccount && state.generatedPersonas.twitter) {
+        personasToSave.push({ accountId: twitterAccount.id, persona: state.generatedPersonas.twitter });
+      }
+      if (linkedinAccount && state.generatedPersonas.linkedin) {
+        personasToSave.push({ accountId: linkedinAccount.id, persona: state.generatedPersonas.linkedin });
+      }
+      
       await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          topics: state.selectedTopics,
+          personas: personasToSave,
           frequency: state.postFrequency,
           postTime: state.postTime,
         }),
       });
-      await goTo(5, 'forward');
+      await goTo(6, 'forward');
     } catch {
       setSubmitting(false);
     }
@@ -289,14 +373,89 @@ export default function OnboardingWizard() {
             />
           )}
           {state.step === 3 && (
-            <StepTopics
-              selected={state.selectedTopics}
-              onToggle={toggleTopic}
+            <StepPrompt
+              prompt={state.prompt}
+              onChange={setPrompt}
+              isGenerating={isGenerating}
+              onGenerate={async () => {
+                setIsGenerating(true);
+                const twitterAccount = accounts.find(a => a.platform === 'twitter');
+                const linkedinAccount = accounts.find(a => a.platform === 'linkedin');
+                
+                const newPersonas: OnboardingState['generatedPersonas'] = {};
+                
+                if (twitterAccount) {
+                  try {
+                    const res = await fetch('/api/onboarding/generate-personas', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        prompt: state.prompt,
+                        connectedAccountId: twitterAccount.id,
+                        platform: 'twitter',
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.persona) newPersonas.twitter = data.persona;
+                  } catch (e) {
+                    console.error('Failed to generate Twitter persona', e);
+                  }
+                }
+                
+                if (linkedinAccount) {
+                  try {
+                    const res = await fetch('/api/onboarding/generate-personas', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        prompt: state.prompt,
+                        connectedAccountId: linkedinAccount.id,
+                        platform: 'linkedin',
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.persona) newPersonas.linkedin = data.persona;
+                  } catch (e) {
+                    console.error('Failed to generate LinkedIn persona', e);
+                  }
+                }
+                
+                if (Object.keys(newPersonas).length > 0) {
+                  setState(prev => ({
+                    ...prev,
+                    generatedPersonas: newPersonas,
+                  }));
+                  next();
+                }
+                setIsGenerating(false);
+              }}
               onNext={next}
               onBack={back}
             />
           )}
           {state.step === 4 && (
+            <StepReview
+              personas={state.generatedPersonas}
+              regenerationCount={state.regenerationCount}
+              isGenerating={isGenerating}
+              onRegenerate={regeneratePersonas}
+              onPersonaChange={(platform, updates) => {
+                setState(prev => ({
+                  ...prev,
+                  generatedPersonas: {
+                    ...prev.generatedPersonas,
+                    [platform]: {
+                      ...prev.generatedPersonas[platform as keyof typeof prev.generatedPersonas],
+                      ...updates,
+                    },
+                  },
+                }));
+              }}
+              onNext={next}
+              onBack={back}
+            />
+          )}
+          {state.step === 5 && (
             <StepSchedule
               frequency={state.postFrequency}
               postTime={state.postTime}
@@ -307,7 +466,7 @@ export default function OnboardingWizard() {
               submitting={submitting}
             />
           )}
-          {state.step === 5 && <StepLaunch state={state} onGo={goToDashboard} />}
+          {state.step === 6 && <StepLaunch state={state} onGo={goToDashboard} />}
         </div>
       </main>
     </div>
@@ -338,8 +497,8 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
           </span>
         </h1>
         <p className="text-gray-500 text-lg max-w-md mx-auto leading-relaxed">
-          We'll walk you through everything in 4 quick steps. Connect your accounts, pick
-          your topics, set a schedule — and we handle the rest.
+          We'll walk you through everything in 5 quick steps. Connect your accounts, describe your goal,
+          review your AI personas, set a schedule — and we handle the rest.
         </p>
       </div>
 
@@ -518,60 +677,154 @@ function PlatformCard({
   );
 }
 
-// ─── Step 3: Topics ───────────────────────────────────────────────────────────
+// ─── Step 3: Prompt ───────────────────────────────────────────────────────────
 
-function StepTopics({
-  selected,
-  onToggle,
+function StepPrompt({
+  prompt,
+  onChange,
+  onGenerate,
   onNext,
   onBack,
+  isGenerating,
 }: {
-  selected: string[];
-  onToggle: (id: string) => void;
+  prompt: string;
+  onChange: (p: string) => void;
+  onGenerate: () => void;
   onNext: () => void;
   onBack: () => void;
+  isGenerating: boolean;
 }) {
   return (
     <div className="space-y-8">
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">3</div>
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Your topics</span>
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Your voice</span>
         </div>
         <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">
-          What do you want to post about?
+          What do you want to be known for?
         </h2>
         <p className="text-gray-500 text-base">
-          Pick at least one. Our AI will generate content in these areas.
+          Describe your goal in a sentence or two. Our AI will create your tactical blueprints.
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2.5">
-        {TOPICS.map(topic => {
-          const isSelected = selected.includes(topic.id);
-          return (
-            <button
-              key={topic.id}
-              onClick={() => onToggle(topic.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.97] ${
-                isSelected
-                  ? 'border-black bg-black text-white shadow-md'
-                  : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
-              }`}
-            >
-              <span>{topic.emoji}</span>
-              <span>{topic.label}</span>
-              {isSelected && <Check size={13} className="ml-0.5" />}
-            </button>
-          );
-        })}
+      <textarea
+        value={prompt}
+        onChange={e => onChange(e.target.value)}
+        placeholder="e.g., I want to be known as the go-to person for SaaS growth tactics and product-led growth insights..."
+        className="w-full h-40 p-4 border-2 border-gray-200 rounded-2xl text-gray-800 placeholder-gray-400 font-medium focus:border-black focus:ring-0 focus:outline-none resize-none"
+      />
+
+      <div className="flex items-center justify-between pt-2">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          <ArrowLeft size={16} />
+          Back
+        </button>
+
+        <button
+          onClick={onGenerate}
+          disabled={isGenerating}
+          className="inline-flex items-center gap-2 px-7 py-3.5 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Writing Blueprint...
+            </>
+          ) : !prompt.trim() ? (
+            <>
+              Skip & Generate Baseline
+              <ArrowRight size={16} />
+            </>
+          ) : (
+            <>
+              Generate Personas
+              <Sparkles size={16} />
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 4: Review ───────────────────────────────────────────────────────────
+
+function StepReview({
+  personas,
+  regenerationCount,
+  onRegenerate,
+  onPersonaChange,
+  onNext,
+  onBack,
+  isGenerating,
+}: {
+  personas: OnboardingState['generatedPersonas'];
+  regenerationCount: number;
+  onRegenerate: () => void;
+  onPersonaChange: (platform: string, updates: Partial<GeneratedPersona>) => void;
+  onNext: () => void;
+  onBack: () => void;
+  isGenerating: boolean;
+}) {
+  const hasPersonas = personas.twitter || personas.linkedin;
+
+  return (
+    <div className="space-y-8">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-black text-white flex items-center justify-center text-xs font-bold">4</div>
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-widest">Review</span>
+        </div>
+        <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+          Your Tactical Blueprints
+        </h2>
+        <p className="text-gray-500 text-base">
+          Fine-tune your personas before we launch. You can regenerate up to 3 times.
+        </p>
       </div>
 
-      {selected.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-emerald-600 font-semibold">
-          <CheckCircle size={15} />
-          {selected.length} topic{selected.length > 1 ? 's' : ''} selected
-        </div>
+      <div className="space-y-4">
+        {personas.twitter && (
+          <PersonaCard
+            platform="twitter"
+            persona={personas.twitter}
+            onChange={updates => onPersonaChange('twitter', updates)}
+          />
+        )}
+        {personas.linkedin && (
+          <PersonaCard
+            platform="linkedin"
+            persona={personas.linkedin}
+            onChange={updates => onPersonaChange('linkedin', updates)}
+          />
+        )}
+      </div>
+
+      {regenerationCount < 3 && (
+        <button
+          onClick={onRegenerate}
+          disabled={isGenerating}
+          className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-semibold hover:border-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 size={16} className="animate-spin inline mr-2" />
+              Mapping RSS feeds...
+            </>
+          ) : (
+            `Regenerate (${3 - regenerationCount} left)`
+          )}
+        </button>
+      )}
+      {regenerationCount >= 3 && (
+        <p className="text-xs text-gray-400 text-center">
+          Fine-tune in dashboard later
+        </p>
       )}
 
       <div className="flex items-center justify-between pt-2">
@@ -585,7 +838,7 @@ function StepTopics({
 
         <button
           onClick={onNext}
-          disabled={selected.length === 0}
+          disabled={!hasPersonas}
           className="inline-flex items-center gap-2 px-7 py-3.5 bg-black text-white rounded-xl font-bold text-sm hover:bg-gray-800 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           Continue
@@ -596,7 +849,109 @@ function StepTopics({
   );
 }
 
-// ─── Step 4: Schedule ─────────────────────────────────────────────────────────
+function PersonaCard({
+  platform,
+  persona,
+  onChange,
+}: {
+  platform: string;
+  persona: GeneratedPersona;
+  onChange: (updates: Partial<GeneratedPersona>) => void;
+}) {
+  const [editingName, setEditingName] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [name, setName] = useState(persona.name);
+  const [description, setDescription] = useState(persona.description);
+
+  const handleSaveName = () => {
+    onChange({ name });
+    setEditingName(false);
+  };
+
+  const handleSaveDesc = () => {
+    onChange({ description });
+    setEditingDesc(false);
+  };
+
+  return (
+    <div className="p-5 bg-white border-2 border-gray-100 rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {platform === 'twitter' ? <Twitter size={20} /> : <Linkedin size={20} />}
+          <span className="font-bold text-gray-900 capitalize">{platform}</span>
+          <span className="text-xs text-gray-400">{persona.tone}</span>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-gray-400 font-medium">Name</label>
+          {editingName ? (
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              onBlur={handleSaveName}
+              onKeyDown={e => e.key === 'Enter' && handleSaveName()}
+              className="w-full mt-1 px-2 py-1 border border-gray-200 rounded text-sm font-semibold focus:border-black focus:outline-none"
+            />
+          ) : (
+            <p
+              onClick={() => setEditingName(true)}
+              className="text-lg font-bold text-gray-900 cursor-pointer hover:text-indigo-600"
+            >
+              {persona.name}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-400 font-medium">Description</label>
+          {editingDesc ? (
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              onBlur={handleSaveDesc}
+              className="w-full mt-1 px-2 py-1 border border-gray-200 rounded text-sm resize-none focus:border-black focus:outline-none"
+              rows={2}
+            />
+          ) : (
+            <p
+              onClick={() => setEditingDesc(true)}
+              className="text-sm text-gray-600 cursor-pointer hover:text-indigo-600"
+            >
+              {persona.description}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-400 font-medium">Topics</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {persona.topics.map(topic => (
+              <span key={topic} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                {topic}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-xs text-gray-400 font-medium">RSS Sources</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {persona.rss_sources.slice(0, 3).map(rss => (
+              <span key={rss} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs truncate max-w-[200px]">
+                {new URL(rss).hostname}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Step 5: Schedule ─────────────────────────────────────────────────────────
 
 function StepSchedule({
   frequency,
@@ -718,14 +1073,9 @@ function StepSchedule({
   );
 }
 
-// ─── Step 5: Launch ───────────────────────────────────────────────────────────
+// ─── Step 6: Launch ───────────────────────────────────────────────────────────
 
 function StepLaunch({ state, onGo }: { state: OnboardingState; onGo: () => void }) {
-  const selectedTopicLabels = state.selectedTopics
-    .slice(0, 4)
-    .map(id => TOPICS.find(t => t.id === id)?.label)
-    .filter(Boolean);
-
   const freqOption = FREQUENCY_OPTIONS.find(f => f.value === state.postFrequency);
   const timeOption = TIME_OPTIONS.find(t => t.value === state.postTime);
 
@@ -770,13 +1120,7 @@ function StepLaunch({ state, onGo }: { state: OnboardingState; onGo: () => void 
               value={state.connectedPlatforms.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' & ')}
             />
           )}
-          {selectedTopicLabels.length > 0 && (
-            <SummaryRow
-              emoji="🎯"
-              label="Topics"
-              value={`${selectedTopicLabels.join(', ')}${state.selectedTopics.length > 4 ? ` +${state.selectedTopics.length - 4} more` : ''}`}
-            />
-          )}
+
           {freqOption && (
             <SummaryRow emoji="📅" label="Posting frequency" value={freqOption.label} />
           )}

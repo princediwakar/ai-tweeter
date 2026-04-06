@@ -128,37 +128,6 @@ export async function GET(request: NextRequest) {
       profile_image_url: profile.profile_image_url,
     });
 
-    // Create default persona for Twitter accounts (Pattern Spotter)
-    try {
-      // Get the connected account ID
-      const connectedAccount = await sql`
-        SELECT id FROM connected_accounts
-        WHERE user_id = ${userId} AND platform = 'twitter' AND account_username = ${profile.username}
-        LIMIT 1
-      `;
-      if (connectedAccount.rows.length > 0) {
-        const connectedAccountId = connectedAccount.rows[0].id;
-        // Check if default persona already exists
-        const existingDefault = await personaService.getDefaultPersonaForAccount(connectedAccountId);
-        if (!existingDefault) {
-          await personaService.createPersona({
-            connected_account_id: connectedAccountId,
-            name: 'Pattern Spotter',
-            description: 'Finds non-obvious patterns across multiple news stories.',
-            config: { key: 'pattern_spotter' },
-            rss_sources: [],
-            min_length: 200,
-            max_length: 280,
-            is_active: true,
-            is_default: true,
-          });
-          console.log(`✅ Created default Pattern Spotter persona for Twitter account @${profile.username}`);
-        }
-      }
-    } catch (personaError) {
-      console.warn('⚠️ Failed to create default persona:', personaError);
-      // Non-critical error - don't break OAuth flow
-    }
 
     console.log(`✅ Success! Automated connection complete for @${profile.username}`);
     

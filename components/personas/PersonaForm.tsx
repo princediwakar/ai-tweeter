@@ -1,6 +1,7 @@
 // components/personas/PersonaForm.tsx
 'use client';
 
+import { useState, useEffect } from 'react';
 import { EditablePersona } from './types';
 
 interface PersonaFormProps {
@@ -10,6 +11,25 @@ interface PersonaFormProps {
 }
 
 export default function PersonaForm({ data, onChange, prefix = 'form' }: PersonaFormProps) {
+  const [topicsText, setTopicsText] = useState(data.topics.join(', '));
+  const [rssText, setRssText] = useState(data.rss_sources.join('\n'));
+
+  useEffect(() => {
+    const parsedTopics = topicsText.split(/[,\n]/).map(t => t.trim()).filter(Boolean);
+    if (parsedTopics.join(',') !== data.topics.join(',')) {
+      setTopicsText(data.topics.join(', '));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.topics]);
+
+  useEffect(() => {
+    const parsedRss = rssText.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+    if (parsedRss.join(',') !== data.rss_sources.join(',')) {
+      setRssText(data.rss_sources.join('\n'));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.rss_sources]);
+
   return (
     <div className="space-y-5">
       <div>
@@ -49,12 +69,14 @@ export default function PersonaForm({ data, onChange, prefix = 'form' }: Persona
           <label className="block text-sm font-semibold text-gray-700 mb-2">Topics (comma separated or Enter)</label>
           <input
             type="text"
-            value={data.topics.join(', ')}
-            onChange={(e) => onChange({ ...data, topics: e.target.value.split(/[,\n]/).map(t => t.trim()).filter(Boolean) })}
+            value={topicsText}
+            onChange={(e) => {
+              setTopicsText(e.target.value);
+              onChange({ ...data, topics: e.target.value.split(/[,\n]/).map(t => t.trim()).filter(Boolean) });
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
-                e.currentTarget.blur();
               }
             }}
             className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900"
@@ -89,14 +111,14 @@ export default function PersonaForm({ data, onChange, prefix = 'form' }: Persona
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">RSS Sources (one per line)</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">RSS Sources (one per line, or comma separated)</label>
         <textarea
-          value={data.rss_sources.join('\n')}
+          value={rssText}
           onChange={(e) => {
-            // FIXED: Strip whitespace and filter out empty lines so we don't save garbage
+            setRssText(e.target.value);
             onChange({ 
               ...data, 
-              rss_sources: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) 
+              rss_sources: e.target.value.split(/[\n,]/).map(s => s.trim()).filter(Boolean) 
             });
           }}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none font-mono text-sm"

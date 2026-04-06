@@ -32,6 +32,20 @@ export default function SignUpPage() {
     }
 
     try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to register account');
+        return;
+      }
+
+      // Automatically sign in upon successful registration
       const result = await signIn('credentials', {
         email,
         password,
@@ -39,7 +53,7 @@ export default function SignUpPage() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        setError('Account created, but failed to sign in automatically: ' + result.error);
       } else {
         router.push('/onboarding');
         router.refresh();

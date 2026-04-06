@@ -123,37 +123,6 @@ export async function GET(request: NextRequest) {
       token_expires_at: expiresAt.toISOString(),
     });
 
-    // Create default persona for LinkedIn accounts (Business Analyst)
-    try {
-      // Get the connected account ID
-      const connectedAccount = await sql`
-        SELECT id FROM connected_accounts
-        WHERE user_id = ${userId} AND platform = 'linkedin' AND account_username = ${profile.sub}
-        LIMIT 1
-      `;
-      if (connectedAccount.rows.length > 0) {
-        const connectedAccountId = connectedAccount.rows[0].id;
-        // Check if default persona already exists
-        const existingDefault = await personaService.getDefaultPersonaForAccount(connectedAccountId);
-        if (!existingDefault) {
-          await personaService.createPersona({
-            connected_account_id: connectedAccountId,
-            name: 'Business Analyst',
-            description: 'Creates meaningful, long-form content on AI, products, startups, trends.',
-            config: { key: 'linkedin_analyst' },
-            rss_sources: [],
-            min_length: 200,
-            max_length: 280,
-            is_active: true,
-            is_default: true,
-          });
-          console.log(`✅ Created default Business Analyst persona for LinkedIn account ${profile.name}`);
-        }
-      }
-    } catch (personaError) {
-      console.warn('⚠️ Failed to create default persona:', personaError);
-      // Non-critical error - don't break OAuth flow
-    }
 
     console.log(`✅ Success! Automated LinkedIn connection complete for ${profile.name}`);
     

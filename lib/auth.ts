@@ -1,7 +1,7 @@
 import { NextAuthOptions, getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { sql } from '@vercel/postgres';
-import { createHash } from 'crypto';
+import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
 
 export const authOptions: NextAuthOptions = {
@@ -26,28 +26,14 @@ export const authOptions: NextAuthOptions = {
         `;
 
         if (result.rows.length === 0) {
-          const hashedPassword = createHash('sha256').update(password).digest('hex');
-          const newUserResult = await sql`
-            INSERT INTO users (id, name, email, hashed_password, created_at, updated_at)
-            VALUES (gen_random_uuid(), ${email}, ${email}, ${hashedPassword}, NOW(), NOW())
-            RETURNING id, name, email, image
-          `;
-          
-          if (newUserResult.rows.length > 0) {
-            return {
-              id: newUserResult.rows[0].id,
-              name: newUserResult.rows[0].name,
-              email: newUserResult.rows[0].email,
-              image: newUserResult.rows[0].image,
-            };
-          }
           return null;
         }
 
         const user = result.rows[0];
-        const hashedPassword = createHash('sha256').update(password).digest('hex');
+        
+        const isValid = await bcrypt.compare(password, user.hashedPassword);
 
-        if (user.hashedPassword !== hashedPassword) {
+        if (!isValid) {
           return null;
         }
 
@@ -87,12 +73,10 @@ export const authOptions: NextAuthOptions = {
 
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+  if (!session?.user) {
     return null;
   }
-  // Resolve from DB by email — avoids stale JWT token.id mismatches
-  const result = await sql`SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1`;
-  return result.rows[0]?.id || null;
+  return (session.user as any).id || null;
 }
 
 export async function getCurrentUser() {

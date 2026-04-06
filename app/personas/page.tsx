@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, Clock } from 'lucide-react';
+import { Pencil, Trash2, Clock, Plus, Sparkles } from 'lucide-react';
 import PersonaEditor from '@/components/personas/PersonaEditor';
 import NavigationLayout from '@/components/NavigationLayout';
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
@@ -196,9 +196,11 @@ export default function PersonasPage() {
   return (
     <NavigationLayout>
       <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-8">
-        <div className="pb-6 border-b border-gray-100">
-          <h1 className="text-2xl font-bold text-gray-900">AI Personas</h1>
-          <p className="text-gray-500 text-sm">Create and manage AI voices</p>
+        <div className="pb-6 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">AI Personas</h1>
+            <p className="text-gray-500 text-sm">Create and manage AI voices</p>
+          </div>
         </div>
 
         {accounts.length === 0 ? (
@@ -353,7 +355,7 @@ function PersonaListByAccount({
               </div>
               <button
                 onClick={() => onSchedule?.(persona.id)}
-                className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 rounded"
+                className="ml-2 px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded"
               >
                 Set Schedule
               </button>

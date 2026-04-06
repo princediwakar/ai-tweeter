@@ -3,22 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-// NOTE: Assuming these imports exist and are correct based on your original file structure
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
 import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
 import { logger } from '@/lib/logger';
-import {
-  getGenerationBatchInfo,
-} from '@/lib/schedule';
+import { getGenerationBatchInfo } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
-
-// In-memory request deduplication to prevent overlapping cron jobs
-const inFlightRequests = new Map<string, Promise<any>>();
-const REQUEST_DEDUP_WINDOW_MS = 30 * 1000; // 30 seconds
 
 
 // MODIFIED: Added sourceUrl to the info type
@@ -120,14 +113,8 @@ export async function GET(request: NextRequest) {
  * ADDED TIMING LOGS
  */
 async function generateForAccountEnhanced(accountId: string, request: NextRequest, debugMode = false, personaOverride?: string | null) {
-  // Request deduplication: prevent same account from being processed twice within window
-  const dedupKey = `generate:${accountId}:${debugMode ? 'debug' : 'prod'}`;
-  const existingRequest = inFlightRequests.get(dedupKey);
-  
-  if (existingRequest && !debugMode) {
-    logger.info(`[DEDUP] Request for account ${accountId} already in flight, returning cached result`, 'generate-dedup');
-    return existingRequest;
-  }
+  // Deduplication is now handled by DB-based slot claiming in getGenerationBatchInfo (lib/schedule.ts)
+  // This ensures proper deduplication across server restarts and deployments
   
   const startTime = performance.now(); // START
   const nowIST = getCurrentTimeInIST();
@@ -405,12 +392,11 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     generatedTweets: debugMode ? generatedTweets : generatedTweets.length,
     generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ tweets: t.total_tweets })),
     errors: errors.length > 0 ? errors : undefined,
-    duration_s: parseFloat(totalDuration), // Add duration to the response
+    duration_s: parseFloat(totalDuration),
     timestamp: new Date().toISOString()
   };
 
-  // Clean up deduplication key after completion
-  inFlightRequests.delete(dedupKey);
+  // DB-based slot claiming handles deduplication automatically
 
   return NextResponse.json(response);
 }

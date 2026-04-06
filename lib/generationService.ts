@@ -29,6 +29,51 @@ import {
 let deepseekClientInstance: OpenAI | null = null;
 let clientInitPromise: Promise<OpenAI> | null = null;
 
+// Circuit breaker state
+const circuitBreaker = {
+  failures: 0,
+  lastFailure: 0,
+  state: 'closed' as 'closed' | 'open' | 'half-open',
+  failureThreshold: 5,
+  resetTimeoutMs: 60000, // 1 minute
+  maxRetries: 2
+};
+
+function shouldAllowRequest(): boolean {
+  const now = Date.now();
+  
+  if (circuitBreaker.state === 'closed') {
+    return true;
+  }
+  
+  if (circuitBreaker.state === 'open') {
+    if (now - circuitBreaker.lastFailure > circuitBreaker.resetTimeoutMs) {
+      circuitBreaker.state = 'half-open';
+      return true;
+    }
+    return false;
+  }
+  
+  // half-open: allow one request to test
+  return true;
+}
+
+function recordSuccess(): void {
+  if (circuitBreaker.state === 'half-open') {
+    circuitBreaker.state = 'closed';
+    circuitBreaker.failures = 0;
+  }
+}
+
+function recordFailure(): void {
+  circuitBreaker.failures++;
+  circuitBreaker.lastFailure = Date.now();
+  
+  if (circuitBreaker.failures >= circuitBreaker.failureThreshold) {
+    circuitBreaker.state = 'open';
+  }
+}
+
 function getDeepseekClient(): OpenAI {
   if (deepseekClientInstance) {
     return deepseekClientInstance;
@@ -93,28 +138,25 @@ export async function generateTweet(
   config: TweetGenerationConfig = {}
 ): Promise<EnhancedTweet | null> {
   try {
-    // --- MODIFIED: Dynamic RSS-based persona check for recent data ---
+    // Cache persona list - avoid redundant DB calls
     const allPersonas = await getAllPersonas();
-    const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
+    const rssPersonaKeys = allPersonas
+      .filter(p => p.rss_sources && p.rss_sources.length > 0)
+      .map(p => p.key);
+    
+    const isRssPersona = config.persona && rssPersonaKeys.includes(config.persona);
     
     if (
       config.connected_account_id &&
-      config.persona &&
-      rssPersonaKeys.includes(config.persona) &&
+      isRssPersona &&
       !config.recentPatterns
     ) {
       console.log(
         `[Single Tweet] Fetching recent data for account ${config.connected_account_id}...`
       );
-      // Get recent patterns for any persona with RSS sources
-      const allPersonas = await getAllPersonas();
-      const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
-      
-      if (config.persona && rssPersonaKeys.includes(config.persona)) {
-        const recentData = await getRecentPatternData(config.connected_account_id, 5);
-        config.recentPatterns = recentData.patterns;
-        config.usedSourceUrls = recentData.usedSourceUrls;
-      }
+      const recentData = await getRecentPatternData(config.connected_account_id, 5);
+      config.recentPatterns = recentData.patterns;
+      config.usedSourceUrls = recentData.usedSourceUrls;
     }
 
     // --- MODIFIED: Call imported function ---
@@ -122,28 +164,56 @@ export async function generateTweet(
 
     // --- MODIFIED: Dynamic RSS-based persona check ---
     let actualHeadlineCount: number | undefined;
-    if (rssContext && persona.key) {
-      const allPersonas = await getAllPersonas();
-      const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
-      if (rssPersonaKeys.includes(persona.key)) {
-        const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
-        actualHeadlineCount = headlineMatches
-          ? headlineMatches.length
-          : undefined;
-        console.log(
-          `📊 [${persona.key}] Counted ${actualHeadlineCount} "### ARTICLE" blocks in RSS context for validation`
-        );
-      }
+    if (rssContext && persona.key && rssPersonaKeys.includes(persona.key)) {
+      const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
+      actualHeadlineCount = headlineMatches
+        ? headlineMatches.length
+        : undefined;
+      console.log(
+        `📊 [${persona.key}] Counted ${actualHeadlineCount} "### ARTICLE" blocks in RSS context for validation`
+      );
+    }
+
+    // Circuit breaker check before API call
+    if (!shouldAllowRequest()) {
+      console.warn(`[CircuitBreaker] Open - failing fast for persona ${config.persona}`);
+      throw new Error("Circuit breaker open - AI API temporarily unavailable");
     }
 
     const client = await getDeepseekClientAsync();
-    const response = await client.chat.completions.create({
-      model: GENERATION_CONFIG.ai.model,
-      messages: [{ role: "user", content: prompt }],
-      temperature: GENERATION_CONFIG.ai.temperature,
-      max_tokens: GENERATION_CONFIG.ai.maxTokens,
-      response_format: { type: "json_object" },
-    });
+    let response;
+    let lastError: Error | null = null;
+    
+    // Retry with circuit breaker tracking
+    for (let attempt = 0; attempt <= circuitBreaker.maxRetries; attempt++) {
+      try {
+        response = await client.chat.completions.create({
+          model: GENERATION_CONFIG.ai.model,
+          messages: [{ role: "user", content: prompt }],
+          temperature: GENERATION_CONFIG.ai.temperature,
+          max_tokens: GENERATION_CONFIG.ai.maxTokens,
+          response_format: { type: "json_object" },
+        });
+        // Success - record and break retry loop
+        recordSuccess();
+        break;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        console.error(`[AI Call] Attempt ${attempt + 1} failed:`, lastError.message);
+        
+        if (attempt < circuitBreaker.maxRetries) {
+          // Exponential backoff: 1s, 2s, 4s
+          const backoffMs = Math.pow(2, attempt) * 1000;
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
+      }
+    }
+    
+    // If all retries failed, record failure and throw
+    if (!response) {
+      recordFailure();
+      throw new Error(`AI API failed after ${circuitBreaker.maxRetries + 1} attempts: ${lastError?.message}`);
+    }
 
     const content = response.choices[0].message.content;
     if (!content) {

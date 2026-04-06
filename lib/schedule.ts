@@ -62,10 +62,19 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  // Generate signature for current time slot (hour:minute)
-  const currentHour = new Date().getUTCHours();
-  const currentMinute = new Date().getUTCMinutes();
-  const today = new Date().toISOString().split('T')[0];
+  // Use account's schedule timezone consistently for slot claiming (matches schedule logic)
+  // Get timezone from account's active schedule, fallback to UTC
+  const scheduleResult = await sql`
+    SELECT timezone FROM account_schedules 
+    WHERE connected_account_id = ${account.id} AND is_active = true 
+    LIMIT 1
+  `;
+  const accountTimezone = scheduleResult.rows[0]?.timezone || 'UTC';
+  
+  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
+  const currentHour = accountTime.getHours();
+  const currentMinute = accountTime.getMinutes();
+  const today = accountTime.toISOString().split('T')[0];
 
   // Atomically claim generation slot - only allow ONCE per account/date/hour/minute
   const result = await sql`
@@ -89,7 +98,7 @@ export async function getGenerationBatchInfo(
   }
 
   // Find active schedule that matches current time window
-  const scheduleResult = await sql`
+  const matchingSchedule = await sql`
     SELECT s.*
     FROM account_schedules s
     WHERE s.connected_account_id = ${account.id}
@@ -106,7 +115,7 @@ export async function getGenerationBatchInfo(
     LIMIT 1
   `;
 
-  if (scheduleResult.rows.length === 0) {
+  if (matchingSchedule.rows.length === 0) {
     return {
       should_generate: false,
       should_post: false,
@@ -117,7 +126,7 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  const claimedSchedule = scheduleResult.rows[0];
+  const claimedSchedule = matchingSchedule.rows[0];
   
   const personas: string[] = [];
   if (claimedSchedule.persona_id) {

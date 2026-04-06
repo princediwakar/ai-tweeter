@@ -154,7 +154,7 @@ export default function OnboardingWizard() {
       }
     };
     init();
-  }, [accounts]);
+  }, []);
 
   // ── Step persistence ─────────────────────────────────────────────────────
   const saveStep = useCallback(async (step: number) => {

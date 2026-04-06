@@ -43,11 +43,52 @@ export async function GET(request: NextRequest) {
     // 4. Fetch LinkedIn Profile metadata
     const profile = await getLinkedInProfile(accessToken);
     const session = await getServerSession(authOptions);
-    const userId = (session?.user as any)?.id;
+    console.log('LinkedIn callback session:', JSON.stringify(session, null, 2));
+    console.log('Session user:', session?.user);
+    if (session?.user) {
+      console.log('Session user id:', (session.user as any).id);
+      console.log('Session user email:', session.user.email);
+    }
 
-    if (!userId) {
+    if (!session?.user?.email) {
       return NextResponse.redirect(new URL('/accounts?connected=error&message=Unauthorized', request.url));
     }
+
+    // Get or create user by email
+    const email = session.user.email;
+    let userResult = await sql`SELECT id FROM users WHERE email = ${email}`;
+    let userId: string;
+    if (userResult.rows.length === 0) {
+      // Create new user (auto-signup)
+      console.log(`Creating new user for email: ${email}`);
+      try {
+        const newUserResult = await sql`
+          INSERT INTO users (id, name, email, hashed_password, created_at, updated_at)
+          VALUES (gen_random_uuid(), ${email}, ${email}, NULL, NOW(), NOW())
+          RETURNING id
+        `;
+        userId = newUserResult.rows[0].id;
+      } catch (error: any) {
+        // Handle duplicate email race condition
+        if (error.code === '23505') { // unique_violation
+          console.log('Duplicate email detected, retrying select...');
+          userResult = await sql`SELECT id FROM users WHERE email = ${email}`;
+          if (userResult.rows.length === 0) {
+            throw new Error('Failed to create or find user after duplicate violation');
+          }
+          userId = userResult.rows[0].id;
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      userId = userResult.rows[0].id;
+    }
+    const sessionUserId = (session?.user as any)?.id;
+    if (sessionUserId && sessionUserId !== userId) {
+      console.warn(`⚠️ Session user ID (${sessionUserId}) differs from looked-up user ID (${userId}). Using looked-up ID.`);
+    }
+    console.log(`Using user ID: ${userId}`);
 
     // 5. Automated Account Provisioning
     // Check if we have a state with accountId: "accountId:f7c2...:nonce"
@@ -56,6 +97,15 @@ export async function GET(request: NextRequest) {
 
     if (finalAccountId === 'pending') {
       finalAccountId = crypto.randomUUID();
+    }
+
+    // Clear out any other connections for this specific account slot if they conflict
+    if (finalAccountId && finalAccountId !== 'pending') {
+      try {
+        await sql`DELETE FROM connected_accounts WHERE id = ${finalAccountId} AND platform = 'linkedin' AND account_username != ${profile.sub}`;
+      } catch (e) {
+        console.warn('⚠️ Non-critical error clearing old connections:', e);
+      }
     }
 
     // 6. Upsert the connection in connected_accounts

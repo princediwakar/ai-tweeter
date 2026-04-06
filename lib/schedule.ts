@@ -82,7 +82,13 @@ export async function getGenerationBatchInfo(
   
   console.log(`[Schedule] Account ${account.id} - found ${scheduleResult.rows.length} schedules`);
   if (scheduleResult.rows.length > 0) {
-    console.log(`[Schedule] Schedule: start_time=${scheduleResult.rows[0].start_time}, timezone=${scheduleResult.rows[0].timezone}`);
+    const tz = scheduleResult.rows[0].timezone || 'UTC';
+    const currentInTz = new Date(new Date().toLocaleString('en-US', { timeZone: tz }));
+    const currentMinutes = currentInTz.getHours() * 60 + currentInTz.getMinutes();
+    const startTime = scheduleResult.rows[0].start_time;
+    console.log(`[Schedule] Current time: ${currentInTz.getHours()}:${currentInTz.getMinutes()} (${currentMinutes} min) in ${tz}`);
+    console.log(`[Schedule] Schedule start_time: ${startTime} min`);
+    console.log(`[Schedule] Window: ${startTime - GENERATION_WINDOW_MINUTES} to ${startTime + GENERATION_WINDOW_MINUTES}`);
   }
   
   const activeSchedule = scheduleResult.rows[0];

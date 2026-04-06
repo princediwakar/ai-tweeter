@@ -161,19 +161,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Sync scheduled jobs (run once per day with cron-job.org)
-    const enqueued = await postingJobQueue.syncScheduledJobs('linkedin');
-    if (enqueued > 0) {
-      logger.info(`📝 Enqueued ${enqueued} new accounts for LinkedIn posting`, 'auto-post-linkedin');
-    }
+    // Note: syncScheduledJobs removed - now runs daily via /api/cron/sync
 
     const stats = await postingJobQueue.getQueueStats('linkedin');
     return NextResponse.json({ 
       success: true, 
       message: stats.pending === 0 
         ? `⏳ No pending LinkedIn jobs.` 
-        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
-      enqueued,
+        : `Queue: ${stats.pending} pending.`,
       queue: stats
     });
 

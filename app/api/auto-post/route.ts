@@ -91,19 +91,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Sync scheduled jobs (run once per day with cron-job.org)
-    const enqueued = await postingJobQueue.syncScheduledJobs('twitter');
-    if (enqueued > 0) {
-      logger.info(`📝 Enqueued ${enqueued} new accounts for Twitter posting`, 'auto-post');
-    }
+    // Note: syncScheduledJobs removed - now runs daily via /api/cron/sync
 
     const stats = await postingJobQueue.getQueueStats('twitter');
     return NextResponse.json({ 
       success: true, 
       message: stats.pending === 0 
         ? `⏳ No pending Twitter jobs.` 
-        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
-      enqueued,
+        : `Queue: ${stats.pending} pending.`,
       queue: stats
     });
 

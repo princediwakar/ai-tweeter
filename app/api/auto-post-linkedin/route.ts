@@ -5,7 +5,7 @@ import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/
 import {
   getScheduledPersonasForLinkedInPosting,
   isLinkedInPostingScheduled,
-  getScheduledLinkedInAccounts
+  getPostingBatchInfo
 } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
 import {
@@ -28,6 +28,14 @@ async function processLinkedInJob(job: { id: string; account_id: string }): Prom
   const nowIST = getCurrentTimeInIST();
   const dayOfWeek = getCurrentISTDay(nowIST);
   const currentHourIST = getCurrentISTHour(nowIST);
+
+  // Check if we should post right now (deduplication)
+  const postingInfo = await getPostingBatchInfo(account.twitter_handle, nowIST);
+  
+  if (!postingInfo.should_post) {
+    logger.info(`⏳ ${account.name}: Already posted or not in posting window`, 'auto-post-linkedin');
+    return { posted: 0, errors: 0 };
+  }
 
   if (!(await isLinkedInPostingScheduled(account.twitter_handle, nowIST))) {
     logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting at this hour`, 'auto-post-linkedin');

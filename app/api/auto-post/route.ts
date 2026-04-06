@@ -10,7 +10,8 @@ import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/
 import {
   getScheduledPersonasForPosting,
   getScheduledTwitterHandles,
-  isPostingScheduled
+  isPostingScheduled,
+  getPostingBatchInfo
 } from '@/lib/schedule';
 import { getAllPersonas } from '@/lib/personas';
 import { accountService } from '@/lib/accountService';
@@ -272,7 +273,15 @@ export async function POST(request: NextRequest) {
     for (const account of accountsToProcess) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
-        let scheduledPersonas = await getScheduledPersonasForPosting(account.twitter_handle, getCurrentISTDay(nowIST), getCurrentISTHour(nowIST));
+        // Check if we should post right now (deduplication)
+        const postingInfo = await getPostingBatchInfo(account.twitter_handle, nowIST);
+        
+        if (!postingInfo.should_post && !debugMode) {
+          logger.info(`⏭️ ${account.name}: Already posted or not in posting window`, 'auto-post');
+          continue;
+        }
+
+        let scheduledPersonas = postingInfo.personas;
         
         // In debug mode, get all available personas from DB if none scheduled
         if (debugMode && scheduledPersonas.length === 0) {

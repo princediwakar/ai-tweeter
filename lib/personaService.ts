@@ -73,13 +73,16 @@ class PersonaService {
       topics = `{${input.topics.join(',')}}`;
     }
 
+    const key = input.key || this.generateKey(input.name);
+    const userId = await this.getUserIdFromAccount(input.connected_account_id);
+
     const result = await sql`
       INSERT INTO personas (
-        id, connected_account_id, name, description, rss_sources, config,
+        id, connected_account_id, user_id, key, name, description, rss_sources, config,
         min_length, max_length, tone, topics, is_active, is_default,
         created_at, updated_at
       ) VALUES (
-        ${id}, ${input.connected_account_id}, ${input.name},
+        ${id}, ${input.connected_account_id}, ${userId}, ${key}, ${input.name},
         ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
         ${JSON.stringify(this.mergeWithDefaultDna(input.config || {}))}::jsonb,
         ${input.min_length ?? 200}, ${input.max_length ?? 280},
@@ -90,7 +93,25 @@ class PersonaService {
       RETURNING *
     `;
 
+    await sql`
+      UPDATE connected_accounts 
+      SET personas = personas || jsonb_build_array(${key})
+      WHERE id = ${input.connected_account_id}
+      AND NOT personas ? ${key}
+    `;
+
     return this.mapRow(result.rows[0]);
+  }
+
+  private generateKey(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  private async getUserIdFromAccount(accountId: string): Promise<string | null> {
+    const result = await sql`
+      SELECT user_id FROM connected_accounts WHERE id = ${accountId}
+    `;
+    return result.rows[0]?.user_id || null;
   }
 
   async updatePersona(input: UpdatePersonaInput): Promise<Persona | null> {

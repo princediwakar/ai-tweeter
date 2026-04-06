@@ -205,7 +205,23 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   // For threading personas, only generate one thread per call  
   const selectedPersonaKey = batchInfo.generation_personas[0];
+  if (!selectedPersonaKey) {
+    logger.error(`[Enhanced:${callId}] No persona available for generation`, 'generate-error');
+    return NextResponse.json({
+      success: false,
+      error: 'No persona available for generation. Please assign a persona to this account.'
+    }, { status: 400 });
+  }
+
   const persona = await getPersonaByKey(selectedPersonaKey);
+  if (!persona) {
+    logger.error(`[Enhanced:${callId}] Persona '${selectedPersonaKey}' not found in database`, 'generate-error');
+    return NextResponse.json({
+      success: false,
+      error: `Persona '${selectedPersonaKey}' not found. Please create a persona first.`
+    }, { status: 400 });
+  }
+
   const allPersonas = await getAllPersonas();
   const threadPersonas = allPersonas.filter(p => p.config?.supports_threads).map(p => p.key);
   const isThreadingPersona = supportsThreading && threadPersonas.includes(selectedPersonaKey);

@@ -15,6 +15,8 @@ interface ScheduleRow {
   start_time: number;
   end_time: number;
   is_active: boolean;
+  last_generated_at?: Date | null;
+  last_posted_at?: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -27,6 +29,25 @@ export interface Schedule {
   batch_size?: number;
 }
 
+const GENERATION_WINDOW_MINUTES = 5;   // ±5 minutes from scheduled time
+const POSTING_WINDOW_MINUTES = 10;     // end_time - 10 to end_time
+
+function isWithinGenerationWindow(currentMinutes: number, targetMinutes: number): boolean {
+  return currentMinutes >= targetMinutes - GENERATION_WINDOW_MINUTES && 
+         currentMinutes <= targetMinutes + GENERATION_WINDOW_MINUTES;
+}
+
+function isWithinPostingWindow(currentMinutes: number, targetMinutes: number): boolean {
+  return currentMinutes >= targetMinutes - POSTING_WINDOW_MINUTES && 
+         currentMinutes <= targetMinutes;
+}
+
+function isSameDay(date1: Date, date2: Date): boolean {
+  return date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate();
+}
+
 export async function getGenerationBatchInfo(
   twitterHandle: string,
   now: Date,
@@ -34,7 +55,7 @@ export async function getGenerationBatchInfo(
 ): Promise<Schedule> {
   if (debugMode) {
     const allPersonas = await getAllPersonas();
-    const debugPersonas = allPersonas.length > 0 ? allPersonas.map(p => p.key) : ['satirist'];
+    const debugPersonas = allPersonas.length > 0 ? allPersonas.map(p => p.key).filter(Boolean) : ['satirist'];
     return {
       should_generate: true,
       should_post: true,
@@ -71,11 +92,20 @@ export async function getGenerationBatchInfo(
   const dayOfWeek = getCurrentISTDay(now);
   const currentTimeInMinutes = hour * 60 + minute;
 
+  // Find schedule that matches today and is within generation window
   const activeSchedule = schedules.find((s: ScheduleRow) => {
     if (!s.is_active) return false;
     if (!s.days_of_week.includes(dayOfWeek)) return false;
-    if (currentTimeInMinutes < s.start_time || currentTimeInMinutes > s.end_time) return false;
-    return true;
+    
+    // Check if we're within generation window (scheduled time + 10 min)
+    const withinGenerationWindow = isWithinGenerationWindow(currentTimeInMinutes, s.start_time);
+    
+    // Check if we already generated today for this schedule
+    if (s.last_generated_at && isSameDay(s.last_generated_at, now)) {
+      return false; // Already generated today
+    }
+    
+    return withinGenerationWindow;
   });
 
   if (!activeSchedule) {
@@ -88,6 +118,13 @@ export async function getGenerationBatchInfo(
     };
   }
 
+  // If we reach here, we should generate - mark as generated
+  await sql`
+    UPDATE account_schedules 
+    SET last_generated_at = ${now.toISOString()}
+    WHERE id = ${activeSchedule.id}
+  `;
+
   // If schedule has a specific persona_id, only use that persona
   // Otherwise fall back to account.personas (which are persona keys)
   let personas: string[] = [];
@@ -97,7 +134,7 @@ export async function getGenerationBatchInfo(
       personas = [dbPersona.key];
     }
   } else {
-    personas = account.personas || [];
+    personas = account.personas?.filter(Boolean) || [];
   }
   
   const scheduleConfig = activeSchedule.schedule_config as Record<string, unknown> || {};
@@ -110,30 +147,102 @@ export async function getGenerationBatchInfo(
   };
 }
 
+export interface PostingSchedule {
+  should_post: boolean;
+  personas: string[];
+}
+
+export async function getPostingBatchInfo(
+  twitterHandle: string,
+  now: Date
+): Promise<PostingSchedule> {
+  const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+  if (!account) {
+    return { should_post: false, personas: [] };
+  }
+
+  const schedules = await getActiveSchedulesForAccount(account.id);
+  if (schedules.length === 0) {
+    return { should_post: false, personas: [] };
+  }
+
+  const hour = getCurrentISTHour(now);
+  const minute = getCurrentISTMinute(now);
+  const dayOfWeek = getCurrentISTDay(now);
+  const currentTimeInMinutes = hour * 60 + minute;
+
+  // Find schedule that matches today and is within posting window
+  const activeSchedule = schedules.find((s: ScheduleRow) => {
+    if (!s.is_active) return false;
+    if (!s.days_of_week.includes(dayOfWeek)) return false;
+    
+    const withinPostingWindow = isWithinPostingWindow(currentTimeInMinutes, s.end_time);
+    
+    if (s.last_posted_at && isSameDay(s.last_posted_at, now)) {
+      return false; // Already posted today
+    }
+    
+    return withinPostingWindow;
+  });
+
+  if (!activeSchedule) {
+    return { should_post: false, personas: [] };
+  }
+
+  // Mark as posted
+  await sql`
+    UPDATE account_schedules 
+    SET last_posted_at = ${now.toISOString()}
+    WHERE id = ${activeSchedule.id}
+  `;
+
+  let personas: string[] = [];
+  if (activeSchedule.persona_id) {
+    const dbPersona = await getPersonaById(activeSchedule.persona_id);
+    if (dbPersona?.key) {
+      personas = [dbPersona.key];
+    }
+  } else {
+    personas = account.personas?.filter(Boolean) || [];
+  }
+
+  return { should_post: true, personas };
+}
+
 export async function isScheduledForGeneration(
   twitterHandle: string,
   dayOfWeek: number,
-  hour: number
+  hour: number,
+  minute: number = 0
 ): Promise<boolean> {
   const account = await accountService.getAccountByTwitterHandle(twitterHandle);
   if (!account) return false;
   
   const schedules = await getActiveSchedulesForAccount(account.id);
-  const currentTimeInMinutes = hour * 60 + getCurrentISTMinute();
+  const currentTimeInMinutes = hour * 60 + minute;
   
-  return schedules.some(s => 
-    s.days_of_week.includes(dayOfWeek) && 
-    currentTimeInMinutes >= s.start_time && 
-    currentTimeInMinutes <= s.end_time
-  );
+  return schedules.some(s => {
+    if (!s.is_active || !s.days_of_week.includes(dayOfWeek)) return false;
+    return currentTimeInMinutes >= s.start_time && currentTimeInMinutes <= s.start_time + GENERATION_WINDOW_MINUTES;
+  });
 }
 
 export async function isScheduledForPosting(
   twitterHandle: string,
   dayOfWeek: number,
-  hour: number
+  hour: number,
+  minute: number = 0
 ): Promise<boolean> {
-  return isScheduledForGeneration(twitterHandle, dayOfWeek, hour);
+  const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+  if (!account) return false;
+  
+  const schedules = await getActiveSchedulesForAccount(account.id);
+  const currentTimeInMinutes = hour * 60 + minute;
+  
+  return schedules.some(s => {
+    if (!s.is_active || !s.days_of_week.includes(dayOfWeek)) return false;
+    return currentTimeInMinutes >= s.end_time - POSTING_WINDOW_MINUTES && currentTimeInMinutes <= s.end_time;
+  });
 }
 
 export async function getNextScheduledTime(
@@ -156,38 +265,40 @@ export async function getNextScheduledTime(
 export async function getScheduledPersonasForPosting(
   twitterHandle: string,
   dayOfWeek?: number,
-  hour?: number
+  hour?: number,
+  minute?: number
 ): Promise<string[]> {
   const now = new Date();
   const d = dayOfWeek ?? getCurrentISTDay(now);
   const h = hour ?? getCurrentISTHour(now);
+  const m = minute ?? getCurrentISTMinute(now);
   
   const account = await accountService.getAccountByTwitterHandle(twitterHandle);
   if (!account) return [];
 
   const schedules = await getActiveSchedulesForAccount(account.id);
-  const currentTimeInMinutes = h * 60 + (hour === undefined ? getCurrentISTMinute(now) : 0);
+  const currentTimeInMinutes = h * 60 + m;
   
-  const activeSchedule = schedules.find(s => 
-    s.days_of_week.includes(d) && 
-    currentTimeInMinutes >= s.start_time && 
-    currentTimeInMinutes <= s.end_time
-  );
+  const activeSchedule = schedules.find(s => {
+    if (!s.is_active || !s.days_of_week.includes(d)) return false;
+    return currentTimeInMinutes >= s.end_time - POSTING_WINDOW_MINUTES && currentTimeInMinutes <= s.end_time;
+  });
 
-  return activeSchedule ? (account.personas || []) : [];
+  return activeSchedule ? (account.personas?.filter(Boolean) || []) : [];
 }
 
-export async function getScheduledTwitterHandles(dayOfWeek?: number, hour?: number): Promise<string[]> {
+export async function getScheduledTwitterHandles(dayOfWeek?: number, hour?: number, minute?: number): Promise<string[]> {
   const now = new Date();
   const d = dayOfWeek ?? getCurrentISTDay(now);
   const h = hour ?? getCurrentISTHour(now);
+  const m = minute ?? getCurrentISTMinute(now);
   
   const accounts = await accountService.getAllAccounts();
   const twitterAccounts = accounts.filter(a => a.platform === 'twitter');
   
   const scheduledHandles: string[] = [];
   for (const account of twitterAccounts) {
-    const isScheduled = await isScheduledForPosting(account.twitter_handle, d, h);
+    const isScheduled = await isScheduledForPosting(account.twitter_handle, d, h, m);
     if (isScheduled) {
       scheduledHandles.push(account.twitter_handle);
     }
@@ -196,17 +307,18 @@ export async function getScheduledTwitterHandles(dayOfWeek?: number, hour?: numb
   return scheduledHandles;
 }
 
-export async function getScheduledLinkedInAccounts(dayOfWeek?: number, hour?: number): Promise<any[]> {
+export async function getScheduledLinkedInAccounts(dayOfWeek?: number, hour?: number, minute?: number): Promise<any[]> {
   const now = new Date();
   const d = dayOfWeek ?? getCurrentISTDay(now);
   const h = hour ?? getCurrentISTHour(now);
+  const m = minute ?? getCurrentISTMinute(now);
   
   const accounts = await accountService.getAllAccounts();
   const linkedinAccounts = accounts.filter(a => a.linkedin_enabled && a.linkedin_access_token);
   
   const scheduledAccounts: any[] = [];
   for (const account of linkedinAccounts) {
-    const isScheduled = await isLinkedInPostingScheduled(account.twitter_handle, d, h);
+    const isScheduled = await isLinkedInPostingScheduled(account.twitter_handle, d, h, m);
     if (isScheduled) {
       scheduledAccounts.push(account);
     }
@@ -238,56 +350,59 @@ export async function isPostingScheduled(
 export async function getScheduledPersonasForLinkedInPosting(
   twitterHandle: string,
   dayOfWeek?: number,
-  hour?: number
+  hour?: number,
+  minute?: number
 ): Promise<string[]> {
-  // LinkedIn uses the same account handle for lookup usually, or handle is passed
   const now = new Date();
   const d = dayOfWeek ?? getCurrentISTDay(now);
   const h = hour ?? getCurrentISTHour(now);
+  const m = minute ?? getCurrentISTMinute(now);
   
   const account = await accountService.getAccountByUsername(twitterHandle, 'linkedin');
   if (!account) return [];
 
   const schedules = await getActiveSchedulesForAccount(account.id);
-  const currentTimeInMinutes = h * 60 + (hour === undefined ? getCurrentISTMinute(now) : 0);
+  const currentTimeInMinutes = h * 60 + m;
   
-  const activeSchedule = schedules.find(s => 
-    s.days_of_week.includes(d) && 
-    currentTimeInMinutes >= s.start_time && 
-    currentTimeInMinutes <= s.end_time
-  );
+  const activeSchedule = schedules.find(s => {
+    if (!s.is_active || !s.days_of_week.includes(d)) return false;
+    return currentTimeInMinutes >= s.end_time - POSTING_WINDOW_MINUTES && currentTimeInMinutes <= s.end_time;
+  });
 
-  return activeSchedule ? (account.personas || []) : [];
+  return activeSchedule ? (account.personas?.filter(Boolean) || []) : [];
 }
 
 export async function isLinkedInPostingScheduled(
   twitterHandle: string,
   dayOfWeekOrDate?: number | Date,
-  hour?: number
+  hour?: number,
+  minute?: number
 ): Promise<boolean> {
   const now = new Date();
   let d: number;
   let h: number;
+  let m: number;
 
   if (dayOfWeekOrDate instanceof Date) {
     d = getCurrentISTDay(dayOfWeekOrDate);
     h = getCurrentISTHour(dayOfWeekOrDate);
+    m = getCurrentISTMinute(dayOfWeekOrDate);
   } else {
     d = dayOfWeekOrDate ?? getCurrentISTDay(now);
     h = hour ?? getCurrentISTHour(now);
+    m = minute ?? getCurrentISTMinute(now);
   }
 
   const account = await accountService.getAccountByUsername(twitterHandle, 'linkedin');
   if (!account || !account.linkedin_enabled) return false;
   
   const schedules = await getActiveSchedulesForAccount(account.id);
-  const currentTimeInMinutes = h * 60 + (hour === undefined ? getCurrentISTMinute(now) : 0);
+  const currentTimeInMinutes = h * 60 + m;
   
-  return schedules.some(s => 
-    s.days_of_week.includes(d) && 
-    currentTimeInMinutes >= s.start_time && 
-    currentTimeInMinutes <= s.end_time
-  );
+  return schedules.some(s => {
+    if (!s.is_active || !s.days_of_week.includes(d)) return false;
+    return currentTimeInMinutes >= s.end_time - POSTING_WINDOW_MINUTES && currentTimeInMinutes <= s.end_time;
+  });
 }
 
 export async function isEngagementScheduled(

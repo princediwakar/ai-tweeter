@@ -1,3 +1,4 @@
+// lib/scheduleService.ts
 import { sql } from '@vercel/postgres';
 import { getUserIdFromRequest } from '@/lib/auth';
 

@@ -1,3 +1,4 @@
+// components/schedules/ScheduleBuilder.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

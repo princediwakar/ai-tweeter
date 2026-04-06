@@ -72,11 +72,12 @@ export async function getGenerationBatchInfo(
   const currentMinutes = currentInTz.getHours() * 60 + currentInTz.getMinutes();
   const dayOfWeek = currentInTz.getDay();
 
-  console.log(`[Schedule] Account ${account.id}: current time = ${currentInTz.getHours()}:${currentInTz.getMinutes()} (${currentMinutes} min), dayOfWeek = ${dayOfWeek}`);
+  console.log(`[DEBUG] Account ${account.id}:`);
+  console.log(`[DEBUG]   Current time: ${currentInTz.getHours()}:${currentInTz.getMinutes()} (${currentMinutes} min)`);
+  console.log(`[DEBUG]   Day of week: ${dayOfWeek}`);
+  console.log(`[DEBUG]   Timezone: ${tz}`);
 
-  // Find schedules within 60 min window around current time (including future)
-  // e.g., if schedule at 1:20 (80 min) and current is 1:08 (68 min), it should match
-  // because 68 is within [20, 140] and 80 will pass soon
+  // Find schedules within 60 min window around current time
   const scheduleResult = await sql`
     SELECT s.id, s.timezone, s.start_time, s.end_time, s.persona_id, s.days_of_week
     FROM account_schedules s
@@ -89,7 +90,7 @@ export async function getGenerationBatchInfo(
     LIMIT 1
   `;
 
-  console.log(`[Schedule] Found ${scheduleResult.rows.length} schedules matching window`);
+  console.log(`[DEBUG] Found ${scheduleResult.rows.length} schedules matching [${currentMinutes - 60}, ${currentMinutes + 60}]`);
   
   const activeSchedule = scheduleResult.rows[0];
   

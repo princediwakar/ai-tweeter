@@ -28,8 +28,8 @@ export default function PersonaForm({ data, onChange, prefix = 'form' }: Persona
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none"
-          rows={4}
-          placeholder="Describe this persona's writing style and focus..."
+          rows={8}
+          placeholder="Detailed persona description including identity, source logic, voice DNA, anti-patterns, structural archetypes, and validation checklist."
         />
       </div>
 

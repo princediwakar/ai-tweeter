@@ -66,45 +66,81 @@ class PersonaService {
   async createPersona(input: CreatePersonaInput): Promise<Persona> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    
+
     const tone = input.tone || null;
     let topics = null;
     if (input.topics?.length) {
       topics = `{${input.topics.join(',')}}`;
     }
 
-    const key = input.key || this.generateKey(input.name);
+    const baseKey = input.key || this.generateKey(input.name);
+    let key = await this.ensureUniqueKey(baseKey);
     const userId = await this.getUserIdFromAccount(input.connected_account_id);
 
-    const result = await sql`
-      INSERT INTO personas (
-        id, connected_account_id, user_id, key, name, description, rss_sources, config,
-        min_length, max_length, tone, topics, is_active, is_default,
-        created_at, updated_at
-      ) VALUES (
-        ${id}, ${input.connected_account_id}, ${userId}, ${key}, ${input.name},
-        ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
-        ${JSON.stringify(this.mergeWithDefaultDna(input.config || {}))}::jsonb,
-        ${input.min_length ?? 200}, ${input.max_length ?? 280},
-        ${tone}, ${topics},
-        ${input.is_active ?? true}, ${input.is_default ?? false},
-        ${now}, ${now}
-      )
-      RETURNING *
-    `;
+    let attempts = 0;
+    const maxAttempts = 5;
 
-    await sql`
-      UPDATE connected_accounts 
-      SET personas = personas || jsonb_build_array(${key})
-      WHERE id = ${input.connected_account_id}
-      AND NOT personas ? ${key}
-    `;
+    while (attempts < maxAttempts) {
+      const result = await sql`
+        INSERT INTO personas (
+          id, connected_account_id, user_id, key, name, description, rss_sources, config,
+          min_length, max_length, tone, topics, is_active, is_default,
+          created_at, updated_at
+        ) VALUES (
+          ${id}, ${input.connected_account_id}, ${userId}, ${key}, ${input.name},
+          ${input.description || ''}, ${JSON.stringify(input.rss_sources || [])}::jsonb,
+          ${JSON.stringify(this.mergeWithDefaultDna(input.config || {}))}::jsonb,
+          ${input.min_length ?? 200}, ${input.max_length ?? 280},
+          ${tone}, ${topics},
+          ${input.is_active ?? true}, ${input.is_default ?? false},
+          ${now}, ${now}
+        )
+        ON CONFLICT (key) DO NOTHING
+        RETURNING *
+      `;
 
-    return this.mapRow(result.rows[0]);
+      if (result.rows.length > 0) {
+        // Success
+        await sql`
+          UPDATE connected_accounts
+          SET personas = COALESCE(personas, '[]'::jsonb) || jsonb_build_array(${key}::text)
+          WHERE id = ${input.connected_account_id}
+          AND NOT COALESCE(personas, '[]'::jsonb) @> jsonb_build_array(${key}::text)
+        `;
+        return this.mapRow(result.rows[0]);
+      }
+
+      // Conflict occurred, generate a new key
+      key = await this.ensureUniqueKey(`${baseKey}-${Date.now()}`);
+      attempts++;
+    }
+
+    throw new Error('Failed to create persona after maximum attempts');
   }
 
   private generateKey(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  private async ensureUniqueKey(baseKey: string): Promise<string> {
+    let candidate = baseKey;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts) {
+      const result = await sql`
+        SELECT 1 FROM personas WHERE key = ${candidate}
+      `;
+      if (result.rows.length === 0) {
+        return candidate;
+      }
+      // Generate new candidate with random suffix
+      const suffix = Math.random().toString(36).substring(2, 7);
+      candidate = `${baseKey}-${suffix}`;
+      attempts++;
+    }
+    // If all attempts fail, fallback to timestamp
+    return `${baseKey}-${Date.now()}`;
   }
 
   private async getUserIdFromAccount(accountId: string): Promise<string | null> {

@@ -11,7 +11,7 @@ A "Prince-level" persona does NOT just have a bio. It has a **Tactical Blueprint
 
 1. **Identity & Context (The "Who"):** Specific role, background, location, and unique niche perspective. NO "I am an AI assistant."
 2. **Source Selection Logic (The "What"):** Define "High-Signal" metrics/news to look for. Identify "Immediate Rejection" categories (Banned AI Slop like generic PR, listicles, or multi-topic roundups).
-3. **Voice DNA (The "How"):** Specific sentence structures, lead-in patterns (e.g., "Lead with the Aha! moment"), and personal framing rules. 
+3. **Voice DNA (The "How"):** Specific sentence structures, lead-in patterns (e.g., "Lead with the Aha! moment"), and personal framing rules.
 4. **Anti-Patterns (The "Not"):** List banned words (reveals, underscores, delve, highlights) and structural bans (no hashtags, no emojis).
 5. **Structural Archetypes (The "Rotation"):** 3-4 specific tactical formats (e.g., "The Contradiction", "The Hidden Lever"). EACH must have a Name, Description, and a detailed, high-fidelity Example.
 6. **Formatting & Constraints:** Define length (Twitter: 140-240 chars, LinkedIn: 800-2000 chars) and visual cadence (e.g., short paragraphs, skip colons).
@@ -19,7 +19,7 @@ A "Prince-level" persona does NOT just have a bio. It has a **Tactical Blueprint
 
 ### EXAMPLE OF EXCELLENCE (THE "SATIRIST"):
 Identity: Sharp startup analyst explaining business moves through data.
-Source Logic: Focus on ONE Indian tech company. Reject Global Tech, VC funds, or listicles. 
+Source Logic: Focus on ONE Indian tech company. Reject Global Tech, VC funds, or listicles.
 Voice DNA: Lead with Aha! Moment. Factual but sharp (explaining to a founder friend).
 Anti-Patterns: No "quietly", no "The real story is...", no hashtags/emojis.
 Archetype Example ("The Contradiction"): "Swiggy: Their Instamart unit grew 70% but still loses INR 8 on every order. Scale is exploding while unit economics stay broken."
@@ -28,9 +28,11 @@ Validation: "Company name comes first?", "All numbers verbatim from article?", "
 ### YOUR OUTPUT REQUIREMENTS:
 Return a valid JSON object with detailed, long-form instructional content in each field. Do NOT provide summaries. Provide deep tactical logic.
 
+The description field should be a detailed paragraph that incorporates all the persona's key attributes: identity, source logic, voice DNA, anti-patterns, structural archetypes, and validation checklist. Write it in a cohesive paragraph form.
+
 {
   "name": "Catchy Name",
-  "description": "Short public-facing bio",
+  "description": "Detailed persona description that includes identity, source selection logic, voice DNA, anti-patterns, structural archetypes, and validation checklist in paragraph form.",
   "tone": "e.g., Analytical, Witty, Blunt",
   "topics": ["topic1", "topic2"],
   "rss_sources": ["url1", "url2"],

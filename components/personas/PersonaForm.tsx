@@ -93,7 +93,11 @@ export default function PersonaForm({ data, onChange, prefix = 'form' }: Persona
         <textarea
           value={data.rss_sources.join('\n')}
           onChange={(e) => {
-            onChange({ ...data, rss_sources: e.target.value.split('\n') });
+            // FIXED: Strip whitespace and filter out empty lines so we don't save garbage
+            onChange({ 
+              ...data, 
+              rss_sources: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) 
+            });
           }}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none font-mono text-sm"
           rows={4}

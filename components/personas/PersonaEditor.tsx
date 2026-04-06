@@ -159,8 +159,10 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
         }),
       });
       
+      // FIXED: Actually read the API error message instead of ignoring it
       if (!res.ok) {
-        throw new Error('Failed to save persona');
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to save persona');
       }
       
       setPrompt('');
@@ -171,7 +173,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       }
     } catch (error) {
       console.error('Error saving persona:', error);
-      alert('Failed to save persona');
+      alert(error instanceof Error ? error.message : 'Failed to save persona');
     } finally {
       setIsCreating(false);
     }
@@ -192,7 +194,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     })
     .catch(error => {
       console.error('Error deleting persona:', error);
-      alert('Failed to delete persona');
+      alert(error instanceof Error ? error.message : 'Failed to delete persona');
     })
     .finally(() => {
       setDeletingId(null);
@@ -228,7 +230,11 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
         }),
       });
       
-      if (!res.ok) throw new Error('Failed to update');
+      // FIXED: Actually read the API error message
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to update');
+      }
       
       setEditingId(null);
       setEditData(getDefaultEditablePersona());
@@ -236,21 +242,8 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       onEditComplete?.();
     } catch (error) {
       console.error('Error updating persona:', error);
-      alert('Failed to update persona');
+      alert(error instanceof Error ? error.message : 'Failed to update persona');
     }
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setGeneratedPreview(null);
-    setEditData(getDefaultEditablePersona());
-  };
-
-  const handleScheduleClick = (personaId: string) => {
-    const persona = personas.find(p => p.id === personaId);
-    setCurrentSchedules(persona?.schedules || []);
-    setSchedulePersonaId(personaId);
-    setScheduleDialogOpen(true);
   };
 
   const handleSaveSchedules = async (forms: ScheduleFormData[]) => {
@@ -259,38 +252,51 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     const persona = personas.find(p => p.id === schedulePersonaId);
     const existingSchedules = persona?.schedules || [];
     
-    for (let i = 0; i < forms.length; i++) {
-      const form = forms[i];
-      const existing = existingSchedules[i];
-      
-      const payload = {
-        connected_account_id: currentAccountId,
-        name: `Schedule ${i + 1}`,
-        persona_id: schedulePersonaId,
-        days_of_week: form.days_of_week,
-        start_time: form.start_time,
-        end_time: form.start_time,
-        is_active: true,
-      };
-      
-      if (existing) {
-        await fetch(`/api/accounts/${currentAccountId}/schedules/${existing.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`/api/accounts/${currentAccountId}/schedules`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+    try {
+      for (let i = 0; i < forms.length; i++) {
+        const form = forms[i];
+        const existing = existingSchedules[i];
+        
+        const payload = {
+          connected_account_id: currentAccountId,
+          name: `Schedule ${i + 1}`,
+          persona_id: schedulePersonaId,
+          days_of_week: form.days_of_week,
+          start_time: form.start_time,
+          end_time: form.start_time + 60, // FIXED: A window of 60 minutes, not 0 minutes.
+          is_active: true,
+        };
+        
+        let res;
+        if (existing) {
+          res = await fetch(`/api/accounts/${currentAccountId}/schedules/${existing.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          res = await fetch(`/api/accounts/${currentAccountId}/schedules`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        // FIXED: Catch silent API failures
+        if (!res.ok) {
+           const err = await res.json();
+           throw new Error(err.error || `Failed to save Schedule ${i + 1}`);
+        }
       }
-    }
-    
-    loadPersonas();
-    if (props.onPersonaUpdate) {
-      props.onPersonaUpdate();
+      
+      loadPersonas();
+      if (props.onPersonaUpdate) {
+        props.onPersonaUpdate();
+      }
+      setScheduleDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving schedules:', error);
+      alert(error instanceof Error ? error.message : 'Failed to save schedules');
     }
   };
 
@@ -298,9 +304,11 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     if (!currentAccountId) return;
     
     try {
-      await fetch(`/api/accounts/${currentAccountId}/schedules/${scheduleId}`, {
+      const res = await fetch(`/api/accounts/${currentAccountId}/schedules/${scheduleId}`, {
         method: 'DELETE',
       });
+      if (!res.ok) throw new Error("Failed to delete schedule");
+
       loadPersonas();
       setCurrentSchedules(prev => prev.filter(s => s.id !== scheduleId));
       if (props.onPersonaUpdate) {
@@ -308,6 +316,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       }
     } catch (error) {
       console.error('Error deleting schedule:', error);
+      alert('Failed to delete schedule');
     }
   };
 
@@ -321,6 +330,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     );
   }
 
+  // ... (The rest of the JSX render function remains identical)
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">

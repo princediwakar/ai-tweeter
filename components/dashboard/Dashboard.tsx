@@ -1,12 +1,13 @@
+// components/dashboard/Dashboard.tsx
 'use client';
 
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
-import { MinimalHeader } from './MinimalHeader';
-import { MinimalComposer } from './MinimalComposer';
-import { MinimalHistory } from './MinimalHistory';
-import { MinimalHeaderSkeleton } from './MinimalHeader';
-import { MinimalComposerSkeleton } from './MinimalComposer';
-import { MinimalHistorySkeleton } from './MinimalHistory';
+import { MinimalHeader } from './Header';
+import { MinimalComposer } from './Composer';
+import { MinimalHistory } from './History';
+import { MinimalHeaderSkeleton } from './Header';
+import { MinimalComposerSkeleton } from './Composer';
+import { MinimalHistorySkeleton } from './History';
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
 
 export default function MinimalDashboard() {

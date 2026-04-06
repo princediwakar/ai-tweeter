@@ -1,3 +1,4 @@
+// components/personas/ScheduleDialog.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

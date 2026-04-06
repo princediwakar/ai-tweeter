@@ -23,7 +23,7 @@ Plan: Implement Persona System for AI Tweeter
 
  1. Empty Dropdown Issue
 
- - Location: components/dashboard/MinimalComposer.tsx (lines 41-55)
+ - Location: components/dashboard/Composer.tsx (lines 41-55)
  - Data Source: useTweetDashboard hook fetches personas from /api/accounts/${accountId}/personas (deprecated endpoint)
  - Root Cause: Personas array is empty because:
    - No personas exist in database for the account/user
@@ -180,7 +180,7 @@ Plan: Implement Persona System for AI Tweeter
 
  - hooks/useTweetDashboard.ts - Update to fetch personas by connected_account_id not user_id
  - app/api/personas/route.ts - Update CRUD operations for connected_account_id and add RSS handling
- - components/dashboard/MinimalComposer.tsx - Dropdown that shows account-specific personas
+ - components/dashboard/Composer.tsx - Dropdown that shows account-specific personas
  - components/dashboard/ManualGeneration.tsx - Dropdown with debug info
 
  Default Persona Creation (Priority 3)

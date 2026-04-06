@@ -1,3 +1,4 @@
+// lib/services/personaDesigner.ts
 import OpenAI from "openai";
 import { PersonaConfigDNA } from "../types";
 import { getDeepseekClientAsync } from "../generationService";
@@ -8,13 +9,12 @@ const PERSONA_DESIGNER_SYSTEM_PROMPT = `You are a world-class AI Persona Archite
 A "Prince-level" persona does NOT just have a bio. It has a **Tactical Blueprint**. It defines exactly what to seek, what to reject, how to think (Chain of Thought), and how to validate every character before outputting.
 
 ### THE 7-LAYER DNA STRUCTURE (REQUIREMENTS):
-
 1. **Identity & Context (The "Who"):** Specific role, background, location, and unique niche perspective. NO "I am an AI assistant."
 2. **Source Selection Logic (The "What"):** Define "High-Signal" metrics/news to look for. Identify "Immediate Rejection" categories (Banned AI Slop like generic PR, listicles, or multi-topic roundups).
 3. **Voice DNA (The "How"):** Specific sentence structures, lead-in patterns (e.g., "Lead with the Aha! moment"), and personal framing rules.
 4. **Anti-Patterns (The "Not"):** List banned words (reveals, underscores, delve, highlights) and structural bans (no hashtags, no emojis).
 5. **Structural Archetypes (The "Rotation"):** 3-4 specific tactical formats (e.g., "The Contradiction", "The Hidden Lever"). EACH must have a Name, Description, and a detailed, high-fidelity Example.
-6. **Formatting & Constraints:** Define length (Twitter: 140-240 chars, LinkedIn: 800-2000 chars) and visual cadence (e.g., short paragraphs, skip colons).
+6. **Formatting & Constraints:** Define length and visual cadence (e.g., short paragraphs, skip colons).
 7. **Final Validation Checklist:** A brutal list of non-negotiable checks (e.g., "Is it <= 250 chars?", "Does it use filler words?").
 
 ### EXAMPLE OF EXCELLENCE (THE "SATIRIST"):
@@ -26,13 +26,11 @@ Archetype Example ("The Contradiction"): "Swiggy: Their Instamart unit grew 70% 
 Validation: "Company name comes first?", "All numbers verbatim from article?", "Original insight (not copied)?"
 
 ### YOUR OUTPUT REQUIREMENTS:
-Return a valid JSON object with detailed, long-form instructional content in each field. Do NOT provide summaries. Provide deep tactical logic.
-
-The description field should be a detailed paragraph that incorporates all the persona's key attributes: identity, source logic, voice DNA, anti-patterns, structural archetypes, and validation checklist. Write it in a cohesive paragraph form.
+Return a valid JSON object. The "description" field should be a brief 2-sentence summary of the persona. The deep tactical logic MUST go into the specific fields inside the "config" object.
 
 {
   "name": "Catchy Name",
-  "description": "Detailed persona description that includes identity, source selection logic, voice DNA, anti-patterns, structural archetypes, and validation checklist in paragraph form.",
+  "description": "A brief, 2-sentence summary of who this persona is and what they talk about.",
   "tone": "e.g., Analytical, Witty, Blunt",
   "topics": ["topic1", "topic2"],
   "rss_sources": ["url1", "url2"],
@@ -92,9 +90,14 @@ export class PersonaDesigner {
 
     try {
       const result = JSON.parse(content) as PersonaDesignResult;
-      // Basic validation/sanitization
-      result.min_length = platform === 'linkedin' ? 600 : 100;
-      result.max_length = platform === 'linkedin' ? 2500 : 280;
+      
+      // FIXED: Only apply fallbacks if the AI failed to provide a valid length
+      if (!result.min_length || typeof result.min_length !== 'number') {
+        result.min_length = platform === 'linkedin' ? 600 : 100;
+      }
+      if (!result.max_length || typeof result.max_length !== 'number') {
+        result.max_length = platform === 'linkedin' ? 2500 : 280;
+      }
       
       return result;
     } catch (error) {

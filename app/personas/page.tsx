@@ -1,3 +1,4 @@
+// app/personas/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,12 +23,9 @@ function formatScheduleTime(schedule: PersonaSchedule): string {
 function formatScheduleDays(schedule: PersonaSchedule): string {
   if (!schedule.days_of_week || schedule.days_of_week.length === 0) return 'No days';
   if (schedule.days_of_week.length === 7) return 'Every day';
-  // JS getDay(): Sun=0, Mon=1, ..., Sat=6
-  // Weekdays: Mon-Fri (1-5)
   const hasMonToFri = [1,2,3,4,5].every(d => schedule.days_of_week.includes(d));
   const hasSatSun = schedule.days_of_week.includes(0) || schedule.days_of_week.includes(6);
   if (schedule.days_of_week.length === 5 && hasMonToFri && !hasSatSun) return 'Weekdays';
-  // Weekends: Sat, Sun (0, 6)
   if (schedule.days_of_week.length === 2 && schedule.days_of_week.includes(0) && schedule.days_of_week.includes(6)) return 'Weekends';
   return schedule.days_of_week.map(d => DAYS[d]).join(', ');
 }
@@ -104,50 +102,69 @@ export default function PersonasPage() {
     const persona = personas.find(p => p.id === schedulePersonaId);
     const existingSchedules = persona?.schedules || [];
     
-    for (let i = 0; i < forms.length; i++) {
-      const form = forms[i];
-      const existing = existingSchedules[i];
-      
-      const payload = {
-        connected_account_id: selectedAccount.id,
-        name: `Schedule ${i + 1}`,
-        persona_id: schedulePersonaId,
-        days_of_week: form.days_of_week,
-        start_time: form.start_time,
-        end_time: form.start_time,
-        is_active: true,
-      };
-      
-      if (existing) {
-        await fetch(`/api/accounts/${selectedAccount.id}/schedules/${existing.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        await fetch(`/api/accounts/${selectedAccount.id}/schedules`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
+    try {
+      for (let i = 0; i < forms.length; i++) {
+        const form = forms[i];
+        const existing = existingSchedules[i];
+        
+        const payload = {
+          connected_account_id: selectedAccount.id,
+          name: `Schedule ${i + 1}`,
+          persona_id: schedulePersonaId,
+          days_of_week: form.days_of_week,
+          start_time: form.start_time,
+          end_time: form.start_time + 60, // FIXED: Zero-minute window eliminated
+          is_active: true,
+        };
+        
+        let res;
+        if (existing) {
+          res = await fetch(`/api/accounts/${selectedAccount.id}/schedules/${existing.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          res = await fetch(`/api/accounts/${selectedAccount.id}/schedules`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        }
+
+        // FIXED: Catch API rejections instead of silently ignoring them
+        if (!res.ok) {
+           const err = await res.json();
+           throw new Error(err.error || `Failed to save Schedule ${i + 1}`);
+        }
       }
+      
+      const res = await fetch(`/api/personas`);
+      const data = await res.json();
+      setPersonas(data.personas || []);
+      setScheduleDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving schedules:', error);
+      alert(error instanceof Error ? error.message : 'Failed to save schedules');
     }
-    
-    const res = await fetch(`/api/personas`);
-    const data = await res.json();
-    setPersonas(data.personas || []);
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
     if (!selectedAccount) return;
     
     try {
-      await fetch(`/api/accounts/${selectedAccount.id}/schedules/${scheduleId}`, {
+      const res = await fetch(`/api/accounts/${selectedAccount.id}/schedules/${scheduleId}`, {
         method: 'DELETE',
       });
+      if (!res.ok) throw new Error("Failed to delete schedule");
+      
       setCurrentSchedules(prev => prev.filter(s => s.id !== scheduleId));
+      
+      const updatedPersonas = await fetch(`/api/personas`).then(r => r.json());
+      setPersonas(updatedPersonas.personas || []);
     } catch (error) {
       console.error('Error deleting schedule:', error);
+      alert('Failed to delete schedule');
     }
   };
 
@@ -155,9 +172,7 @@ export default function PersonasPage() {
   const groupedByPlatform = platforms.map(platform => {
     const platformAccounts = accounts.filter(a => {
       const p = (a.platform || '').toLowerCase();
-      // Twitter: exact match
       if (platform === 'twitter') return p === 'twitter';
-      // LinkedIn: match 'linkedin' OR no platform (legacy accounts without platform field)
       if (platform === 'linkedin') return p === 'linkedin' || p === '' || !a.platform;
       return false;
     });
@@ -170,7 +185,6 @@ export default function PersonasPage() {
     };
   }).filter(g => g.accounts.length > 0);
 
-  // For PersonaEditor, we need accounts with account_username
   const editorAccounts = accounts.map(a => ({
     id: a.id,
     name: a.name ?? null,
@@ -178,6 +192,7 @@ export default function PersonasPage() {
     platform: a.platform
   }));
 
+  // ... (The rest of the JSX render function remains identical)
   return (
     <NavigationLayout>
       <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-8">

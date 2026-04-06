@@ -1,6 +1,6 @@
 // lib/personas.ts - Persona operations (all DB-driven)
 import { getPersona, getAllPersonasFromDb } from './db';
-import { accountService } from './accountService';
+import { connectedAccountsService } from './connectedAccounts';
 import type { Persona } from './types';
 
 export type { Persona };
@@ -34,7 +34,7 @@ export async function getAllowedPersonasForHandle(twitterHandle: string): Promis
   const cleanHandle = twitterHandle.replace('@', '').toLowerCase();
 
   try {
-    const account = await accountService.getAccountByTwitterHandle(cleanHandle);
+    const account = await connectedAccountsService.getByTwitterHandle(cleanHandle);
     if (account && account.personas && account.personas.length > 0) {
       return account.personas;
     }

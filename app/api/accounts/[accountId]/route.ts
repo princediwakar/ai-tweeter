@@ -1,6 +1,6 @@
 // app/api/accounts/[accountId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getUserIdFromRequest } from '@/lib/auth';
 
 export async function GET(
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccountForUser(userId, accountId);
+    const account = await connectedAccountsService.getForUser(userId, accountId);
 
     if (!account) {
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function PATCH(
     } = body;
 
     // Check if account exists and user has access
-    const existingAccount = await accountService.getAccountForUser(userId, accountId);
+    const existingAccount = await connectedAccountsService.getForUser(userId, accountId);
     if (!existingAccount) {
       return NextResponse.json(
         { error: 'Account not found or access denied' },
@@ -99,7 +99,7 @@ export async function PATCH(
     if (status !== undefined) updates.status = status;
 
     // Update account with optional credential validation
-    await accountService.updateAccount(accountId, updates);
+    await connectedAccountsService.update(accountId, updates);
 
     return NextResponse.json({
       message: 'Account updated successfully'
@@ -129,7 +129,7 @@ export async function DELETE(
 
     const { accountId } = await params;
     // Check if account exists and user has access
-    const existingAccount = await accountService.getAccountForUser(userId, accountId);
+    const existingAccount = await connectedAccountsService.getForUser(userId, accountId);
     if (!existingAccount) {
       return NextResponse.json(
         { error: 'Account not found or access denied' },
@@ -137,7 +137,7 @@ export async function DELETE(
       );
     }
 
-    await accountService.deleteAccount(accountId);
+    await connectedAccountsService.delete(accountId);
 
     return NextResponse.json({
       message: 'Account deleted successfully'

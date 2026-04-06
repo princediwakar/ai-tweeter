@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { sql } from '@vercel/postgres';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { authOptions } from '@/lib/auth';
 
 /**
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
     const userId = userResult.rows[0].id;
 
-    const accounts = await accountService.getAccountsByUserId(userId);
+    const accounts = await connectedAccountsService.getByUserId(userId);
     
     // Return enhanced account information without sensitive credentials
     const safeAccounts = accounts.map(account => ({
@@ -110,34 +110,21 @@ export async function POST(request: NextRequest) {
       twitterHandle = `@${twitterHandle}`;
     }
 
-    // Set up account data with enhanced branding configuration
-    const accountData = {
+    // Create account with built-in validation
+    const account = await connectedAccountsService.create({
       id: body.id,
       user_id: userId,
+      platform: body.platform || 'twitter',
+      account_username: twitterHandle.replace(/^@/, ''),
+      account_name: body.name,
       name: body.name,
-      twitter_handle: twitterHandle,
-      status: (body.status || 'active') as 'active' | 'inactive' | 'suspended',
-      twitter_api_key: body.twitter_api_key,
-      twitter_api_secret: body.twitter_api_secret,
-      twitter_access_token: body.twitter_access_token,
-      twitter_access_token_secret: body.twitter_access_token_secret,
-      twitter_oauth2_client_id: body.twitter_oauth2_client_id,
-      twitter_oauth2_client_secret: body.twitter_oauth2_client_secret,
+      status: body.status || 'active',
       personas: body.personas || [],
-      branding: {
-        theme: body.branding?.theme || 'professional',
-        audience: body.branding?.audience || 'general',
-        tone: body.branding?.tone || 'helpful',
-        cta_frequency: body.branding?.cta_frequency || 0.1,
-        cta_message: body.branding?.cta_message || ''
-      }
-    };
-
-    // Create account with built-in validation
-    const account = await accountService.createAccount(accountData);
+      branding: body.branding || {},
+    });
 
     // Set the current user as the owner of this account
-    await accountService.setAccountOwner(account.id, userId);
+    console.log('setAccountOwner called - now handled via user_id in connected_accounts');
 
     // Return safe account data (no credentials)
     const safeAccount = {

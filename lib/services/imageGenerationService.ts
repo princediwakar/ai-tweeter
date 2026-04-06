@@ -83,8 +83,8 @@ export async function generatePersonaImage(
   }
 
   try {
-    const { accountService } = await import('@/lib/accountService');
-    const account = await accountService.getAccount(accountId);
+    const { connectedAccountsService } = await import('@/lib/connectedAccounts');
+    const account = await connectedAccountsService.getById(accountId);
     if (!account) throw new Error(`Account not found: ${accountId}`);
 
     const persona = await getPersona(personaKey);

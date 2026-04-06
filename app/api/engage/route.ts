@@ -1,7 +1,7 @@
 // app/api/engage/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getEngagementConfigForAccount } from '@/lib/engagement/targets';
 import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithTweet } from '@/lib/db';
 import { postReplyTweet } from '@/lib/twitter';
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 3. Get Account (with decrypted credentials) and Engagement Config
-  const account = await accountService.getAccountByTwitterHandle(twitterHandle) as any;
+  const account = await connectedAccountsService.getByTwitterHandle(twitterHandle) as any;
   if (!account) {
     console.error(`[Engage API] Failed: Account not found for handle: ${twitterHandle}`);
     return NextResponse.json({ error: `Account not found for handle: ${twitterHandle}` }, { status: 404 });

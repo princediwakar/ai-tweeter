@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken, getTwitterUserProfile, verifierStore } from '@/lib/twitter-oauth';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { platformSettings } from '@/lib/platformSettings';
 import { sql } from '@vercel/postgres';
 import { getServerSession } from 'next-auth';
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get the account
-    const account = await accountService.getAccount(accountId);
+    const account = await connectedAccountsService.getById(accountId);
     if (!account) {
       return NextResponse.json(
         { success: false, error: `Account not found: ${accountId}` },
@@ -158,11 +158,10 @@ export async function GET(request: NextRequest) {
     `;
 
     // Mark account as having Twitter connected
-    await accountService.updateAccount(account.id, {
+    await connectedAccountsService.update(account.id, {
       twitter_oauth2_enabled: true,
       twitter_oauth2_user_id: profile.id,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    });
 
     console.log(`✅ Twitter OAuth tokens saved to connected_accounts for user ${userId}`);
 

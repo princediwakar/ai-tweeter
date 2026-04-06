@@ -1,6 +1,6 @@
 // lib/schedule.ts
 import { sql } from '@vercel/postgres';
-import { accountService } from './accountService';
+import { connectedAccountsService } from './connectedAccounts';
 import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
 
@@ -48,7 +48,7 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+  const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) {
     return {
       should_generate: false,
@@ -145,7 +145,7 @@ export interface PostingSchedule {
 export async function getPostingBatchInfo(
   twitterHandle: string
 ): Promise<PostingSchedule> {
-  const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+  const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) {
     return { should_post: false, personas: [], reason: 'Account not found' };
   }

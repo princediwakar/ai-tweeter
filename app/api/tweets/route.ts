@@ -1,7 +1,7 @@
 // app/api/tweets/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets } from '@/lib/db';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getAllPersonas } from '@/lib/personas';
 import type { Tweet } from '@/lib/types';
 import { generateTweet, generateBatchTweets } from '@/lib/generationService';
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       const supportsThreads = persona?.config?.supports_threads ?? false;
       
       let shouldGenerateThread = false;
-      const account = await accountService.getAccount(accountId);
+      const account = await connectedAccountsService.getById(accountId);
       
       // FIXED: Use 'as any' to bypass the Date vs String incompatibility 
       // between different ConnectedAccount definitions.

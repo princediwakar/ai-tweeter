@@ -6,7 +6,6 @@ import { exchangeCodeForToken, getLinkedInProfile } from '@/lib/linkedin';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { personaService } from '@/lib/personaService';
 import { sql } from '@vercel/postgres';
-import accountService from '@/lib/accountService';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

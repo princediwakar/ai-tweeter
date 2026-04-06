@@ -6,7 +6,7 @@ import path from 'path';
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { logger } from '@/lib/logger';
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (twitterHandle) {
-      const account = await accountService.getAccountByTwitterHandle(twitterHandle);
+      const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
       if (!account) {
         return NextResponse.json({
           error: `Account not found for Twitter handle: ${twitterHandle}`
@@ -92,7 +92,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   logger.info(`[Enhanced:${callId}] Starting generation for account ${accountId}`, 'generate-enhanced', { timestamp: new Date().toISOString() });
 
-  const account = await accountService.getAccount(accountId) as any;
+  const account = await connectedAccountsService.getById(accountId) as any;
   if (!account) {
     return NextResponse.json({
       success: false,

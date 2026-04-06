@@ -11,7 +11,7 @@ import {
   EnhancedTweet,
   CardData,
 } from "./types";
-import { accountService, type Account } from "./accountService";
+import { connectedAccountsService, type ConnectedAccount as Account } from "./connectedAccounts";
 import { getDynamicContext } from "./contentSource";
 import {
   generateVariationMarkers,
@@ -32,7 +32,7 @@ export async function generateTweetPrompt(
   let account: any = null;
 
   if (config.connected_account_id && config.connected_account_id !== "fallback") {
-    account = await accountService.getAccount(config.connected_account_id);
+    account = await connectedAccountsService.getById(config.connected_account_id);
     if (account) {
       console.log(
         `🎯 Account context: ${account.name} (${account.account_username})`

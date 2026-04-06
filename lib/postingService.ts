@@ -1,6 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { TwitterApi, TweetV2PostTweetResult } from 'twitter-api-v2';
-import { accountService } from './accountService';
+import { connectedAccountsService } from './connectedAccounts';
 import { postToLinkedIn, refreshAccessToken, shouldRefreshToken, LinkedInCredentials } from './linkedin';
 import { claimTweetsForPosting, finalizeTweetPosting, releaseStaleTweets } from './db';
 import { logger } from './logger';
@@ -48,7 +48,7 @@ export async function refreshTokenIfNeeded(account: any, platform: 'twitter' | '
       try {
         logger.info(`🔄 Refreshing LinkedIn token for ${account.name}`, 'posting-service');
         const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
-        await accountService.updateAccount(account.id, {
+        await connectedAccountsService.update(account.id, {
           linkedin_access_token: accessToken,
           linkedin_refresh_token: refreshToken,
           linkedin_token_expires_at: expiresAt,
@@ -189,7 +189,7 @@ export async function postSingleContent(
   platform: 'twitter' | 'linkedin',
   maxTweets: number = 5
 ): Promise<{ posted: number; errors: number }> {
-  const account = await accountService.getAccount(accountId);
+  const account = await connectedAccountsService.getById(accountId);
   if (!account) throw new Error(`Account not found: ${accountId}`);
 
   if (platform === 'linkedin' && (!account.linkedin_enabled || !account.linkedin_access_token)) {

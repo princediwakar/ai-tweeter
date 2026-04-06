@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { initiateTwitterOAuth } from '@/lib/twitter-oauth';
 import { getUserIdFromRequest } from '@/lib/auth';
 import { sql } from '@vercel/postgres';
@@ -24,7 +24,7 @@ export async function GET(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccountForUser(userId, accountId);
+    const account = await connectedAccountsService.getForUser(userId, accountId);
 
     if (!account) {
       return NextResponse.json(
@@ -89,7 +89,7 @@ export async function POST(
     }
 
     const { accountId } = await params;
-    const account = await accountService.getAccountForUser(userId, accountId);
+    const account = await connectedAccountsService.getForUser(userId, accountId);
 
     if (!account) {
       return NextResponse.json(

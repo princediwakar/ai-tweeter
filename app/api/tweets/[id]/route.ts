@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getAllTweets, saveTweet, deleteTweet } from '@/lib/db';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { postTweet } from '@/lib/twitter';
 import { postToLinkedIn, refreshAccessToken, LinkedInCredentials } from '@/lib/linkedin';
 import { sql } from '@vercel/postgres';
@@ -63,7 +63,7 @@ export async function PUT(
         if (!accountId) {
           return NextResponse.json({ error: 'No account linked to this tweet' }, { status: 400 });
         }
-        const account = await accountService.getAccount(accountId);
+        const account = await connectedAccountsService.getById(accountId);
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
@@ -77,7 +77,7 @@ export async function PUT(
             // Try to find any account with LinkedIn connected for this user
             const userId = account.user_id;
             if (userId) {
-              const userAccounts = await accountService.getAccountsByUserId(userId);
+              const userAccounts = await connectedAccountsService.getByUserId(userId);
               linkedInAccount = userAccounts.find(a => a.linkedin_enabled && a.linkedin_access_token);
             }
           }
@@ -97,7 +97,7 @@ export async function PUT(
             if (shouldRefresh) {
               try {
                 const { accessToken, refreshToken, expiresAt: newExpiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
-                await accountService.updateAccount(accountId, {
+                await connectedAccountsService.update(accountId, {
                   linkedin_access_token: accessToken,
                   linkedin_refresh_token: refreshToken,
                   linkedin_token_expires_at: newExpiresAt.toISOString(),

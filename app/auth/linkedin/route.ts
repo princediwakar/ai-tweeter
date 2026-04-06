@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken, getLinkedInProfile } from '@/lib/linkedin';
-import { accountService } from '@/lib/accountService';
+import { connectedAccountsService } from '@/lib/connectedAccounts';
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     console.log(`🆔 LinkedIn ID: ${profile.sub}`);
 
     // Get the account by ID
-    const account = await accountService.getAccount(accountId);
+    const account = await connectedAccountsService.getById(accountId);
     if (!account) {
       return NextResponse.json(
         { success: false, error: `Account not found: ${accountId}` },
@@ -78,14 +78,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Update account with LinkedIn tokens
-    await accountService.updateAccount(account.id, {
+    await connectedAccountsService.update(account.id, {
       linkedin_access_token: accessToken,
       linkedin_refresh_token: refreshToken,
       linkedin_user_id: profile.sub,
       linkedin_enabled: true,
       linkedin_token_expires_at: expiresAt,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    });
 
     console.log(`✅ LinkedIn credentials saved for account: ${account.twitter_handle} (${account.id})`);
 

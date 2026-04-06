@@ -75,10 +75,11 @@ export async function PUT(
           
           if (!account?.linkedin_enabled || !account?.linkedin_access_token) {
             // Try to find any account with LinkedIn connected for this user
-            const userId = account.user_id;
+            const userId = account?.user_id;
             if (userId) {
               const userAccounts = await connectedAccountsService.getByUserId(userId);
-              linkedInAccount = userAccounts.find(a => a.linkedin_enabled && a.linkedin_access_token);
+              const foundAccount = userAccounts.find(a => a.linkedin_enabled && a.linkedin_access_token);
+              if (foundAccount) linkedInAccount = foundAccount;
             }
           }
 
@@ -112,11 +113,11 @@ export async function PUT(
           }
 
           const linkedinCreds: LinkedInCredentials = {
-            accessToken: account.linkedin_access_token,
-            refreshToken: account.linkedin_refresh_token,
+            accessToken: account.linkedin_access_token ?? '',
+            refreshToken: account.linkedin_refresh_token ?? undefined,
             expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
-            userId: account.linkedin_user_id,
-            orgId: account.linkedin_org_id,
+            userId: account.linkedin_user_id ?? undefined,
+            orgId: account.linkedin_org_id ?? undefined,
           };
 
           // Strip @ mentions for LinkedIn

@@ -382,7 +382,6 @@ export function useTweetDashboard() {
       posted: tweets.filter(t => t.status === 'posted').length,
     },
     accounts,
-    accounts,
     selectedAccount,
     setSelectedTweets,
     setShowHistory,

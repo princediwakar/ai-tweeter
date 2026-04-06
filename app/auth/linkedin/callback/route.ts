@@ -114,13 +114,13 @@ export async function GET(request: NextRequest) {
       user_id: userId,
       platform: 'linkedin',
       account_username: profile.sub,
-      account_id: finalAccountId,
+      id: finalAccountId,
       account_name: profile.name,
       name: profile.name,
       platform_user_id: profile.sub,
-      accessToken,
-      refreshToken,
-      expiresAt,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_expires_at: expiresAt.toISOString(),
     });
 
     // Create default persona for LinkedIn accounts (Business Analyst)

@@ -118,13 +118,13 @@ export async function GET(request: NextRequest) {
       user_id: userId,
       platform: 'twitter',
       account_username: profile.username,
-      account_id: finalAccountId,
+      id: finalAccountId,
       account_name: profile.name,
       name: profile.name,
       platform_user_id: profile.id,
-      accessToken,
-      refreshToken,
-      expiresAt,
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_expires_at: expiresAt.toISOString(),
       profile_image_url: profile.profile_image_url,
     });
 

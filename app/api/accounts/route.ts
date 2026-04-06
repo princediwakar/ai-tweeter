@@ -1,172 +1,135 @@
-// app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { authOptions } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 /**
- * Enhanced Multi-Account Management API
- * Inspired by the YouTube system's clean account management architecture
- * Provides CRUD operations for Twitter accounts with encryption and validation
+ * UNIFIED CONNECTED ACCOUNTS API
+ * Handles Twitter/LinkedIn integrations for the current user.
+ * Ensure this file is located at: ./app/api/connected-accounts/route.ts
  */
 
-/**
- * GET /api/accounts
- * Retrieve all active accounts for the current user with enhanced metadata (credentials excluded for security)
- */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 1. Get Internal User ID
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
     if (userResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'User record not found' }, { status: 404 });
     }
     const userId = userResult.rows[0].id;
 
+    // 2. Fetch all accounts via Service
     const accounts = await connectedAccountsService.getByUserId(userId);
     
-    // Return enhanced account information without sensitive credentials
+    // 3. Return sanitized data (Strip sensitive tokens for the frontend)
     const safeAccounts = accounts.map(account => ({
       id: account.id,
       name: account.name,
-      platform: account.platform || 'twitter',
-      account_username: account.account_username || (account as any).twitter_handle,
-      twitter_handle: account.account_username || (account as any).twitter_handle,
+      platform: account.platform,
+      account_username: account.account_username,
       status: account.status,
-      personas: account.personas || [],
-      branding: account.branding,
-      created_at: account.created_at,
-      updated_at: account.updated_at,
+      is_active: account.is_active,
       profile_image_url: account.profile_image_url,
-      is_active: account.is_active ?? account.status === 'active',
-      linkedin_enabled: account.linkedin_enabled,
-      // Health indicators without exposing credentials
-      credentials_configured: !!(account.access_token || (account as any).twitter_access_token),
-      persona_count: account.personas?.length || 0
+      persona_count: account.personas?.length || 0,
+      created_at: account.created_at,
+      // Health check for the UI without exposing the actual keys
+      is_configured: !!(account.access_token || account.twitter_access_token)
     }));
 
     return NextResponse.json({
       success: true,
       accounts: safeAccounts,
-      count: safeAccounts.length,
-      active_accounts: safeAccounts.filter(acc => acc.status === 'active').length
+      count: safeAccounts.length
     });
   } catch (error) {
-    console.error('Error fetching accounts:', error);
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'Failed to fetch accounts' 
-      },
-      { status: 500 }
-    );
+    logger.error('Failed to fetch connected accounts', 'api-accounts-get', error as Error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/accounts
- * Create a new Twitter account with enhanced validation and encryption
- * Automatically assigns the account to the current user as owner
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
-    }
     const userId = userResult.rows[0].id;
 
     const body = await request.json();
     
-    // Validate required fields
-    if (!body.id || !body.name || !body.twitter_handle) {
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required fields: id, name, twitter_handle'
-      }, { status: 400 });
-    }
-    
-    // Credentials are optional - accounts can be created first and connected later via OAuth
-
-    // Normalize Twitter handle format
-    let twitterHandle = body.twitter_handle.toString().trim();
-    if (!twitterHandle.startsWith('@')) {
-      twitterHandle = `@${twitterHandle}`;
+    // Strict Validation
+    if (!body.platform || !body.account_username) {
+      return NextResponse.json({ error: 'Missing required fields: platform, account_username' }, { status: 400 });
     }
 
-    // Create account with built-in validation
+    // Normalize handle (remove @ if present)
+    const cleanUsername = body.account_username.replace(/^@/, '');
+
+    // Create via Service (handles encryption and DB insertion)
     const account = await connectedAccountsService.create({
-      id: body.id,
+      id: body.id || crypto.randomUUID(),
       user_id: userId,
-      platform: body.platform || 'twitter',
-      account_username: twitterHandle.replace(/^@/, ''),
-      account_name: body.name,
-      name: body.name,
-      status: body.status || 'active',
-      personas: body.personas || [],
-      branding: body.branding || {},
+      platform: body.platform,
+      account_username: cleanUsername,
+      name: body.name || cleanUsername,
+      access_token: body.access_token || null, // Service will encrypt this
+      status: 'active'
     });
-
-    // Set the current user as the owner of this account
-    console.log('setAccountOwner called - now handled via user_id in connected_accounts');
-
-    // Return safe account data (no credentials)
-    const safeAccount = {
-      id: account.id,
-      name: account.name,
-      twitter_handle: account.twitter_handle,
-      status: account.status,
-      personas: account.personas,
-      branding: account.branding,
-      created_at: account.created_at,
-      updated_at: account.updated_at
-    };
 
     return NextResponse.json({
       success: true,
-      account: safeAccount,
-      message: `Account created successfully: ${account.name}`
+      account: {
+        id: account.id,
+        name: account.name,
+        platform: account.platform,
+        username: account.account_username
+      }
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Error creating account:', error);
-    
-    // Handle specific error cases
-    if (error instanceof Error) {
-      if (error.message.includes('duplicate key') || error.message.includes('already exists')) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Account with this ID already exists' 
-        }, { status: 409 });
-      }
-      
-      if (error.message.includes('validation failed') || error.message.includes('credential')) {
-        return NextResponse.json({ 
-          success: false, 
-          error: error.message 
-        }, { status: 400 });
-      }
+    logger.error('Failed to create account', 'api-accounts-post', error as Error);
+    return NextResponse.json({ error: 'Failed to connect account' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Account ID is required' }, { status: 400 });
     }
-    
+
+    // Security Check: Verify ownership before deletion
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
+    const userId = userResult.rows[0].id;
+    const existing = await connectedAccountsService.getAccount(id);
+
+    if (!existing || existing.user_id !== userId) {
+      return NextResponse.json({ error: 'Account not found or access denied' }, { status: 403 });
+    }
+
+    await connectedAccountsService.delete(id);
+
     return NextResponse.json({ 
-      success: false, 
-      error: 'Failed to create account' 
-    }, { status: 500 });
+      success: true, 
+      message: 'Account disconnected successfully' 
+    });
+  } catch (error) {
+    logger.error('Failed to delete account', 'api-accounts-delete', error as Error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

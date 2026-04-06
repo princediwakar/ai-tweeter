@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
     console.log(`🆔 Twitter ID: ${profile.id}`);
 
     // Verify the Twitter handle matches the account
-    const expectedHandle = account.twitter_handle.replace('@', '');
+    const expectedHandle = (account.twitter_handle ?? '').replace('@', '');
     if (profile.username.toLowerCase() !== expectedHandle.toLowerCase()) {
       return NextResponse.json(
         {

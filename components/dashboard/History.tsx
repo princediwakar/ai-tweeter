@@ -138,33 +138,31 @@ export function History({
                         >
                           <Send size={14} />
                         </Button>
-                        <div className="absolute right-0 top-0 mt-8 w-40 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                          <button
-                            onClick={() => {
-                              const twitterAccount = accounts.find(a => a.platform === 'twitter' && a.is_active);
-                              if (twitterAccount) {
-                                onPostTweet(tweet.id, 'twitter');
-                              }
-                            }}
-                            disabled={loading || !accounts.some(a => a.platform === 'twitter' && a.is_active)}
-                            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-t-lg"
-                          >
-                            <Twitter size={14} className="text-sky-500" />
-                            Post to Twitter
-                          </button>
-                          <button
-                            onClick={() => {
-                              const linkedinAccount = accounts.find(a => a.platform === 'linkedin' && a.is_active);
-                              if (linkedinAccount) {
-                                onPostTweet(tweet.id, 'linkedin');
-                              }
-                            }}
-                            disabled={loading || !accounts.some(a => a.platform === 'linkedin' && a.is_active)}
-                            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
-                          >
-                            <Linkedin size={14} className="text-blue-700" />
-                            Post to LinkedIn
-                          </button>
+                        <div className="absolute right-0 top-0 mt-8 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                          {accounts.length === 0 ? (
+                            <div className="px-3 py-2 text-xs text-gray-400 text-center">
+                              No accounts connected
+                            </div>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => onPostTweet(tweet.id, 'twitter')}
+                                disabled={loading}
+                                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-t-lg"
+                              >
+                                <Twitter size={14} className="text-sky-500" />
+                                Post to Twitter
+                              </button>
+                              <button
+                                onClick={() => onPostTweet(tweet.id, 'linkedin')}
+                                disabled={loading}
+                                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
+                              >
+                                <Linkedin size={14} className="text-blue-700" />
+                                Post to LinkedIn
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     )}

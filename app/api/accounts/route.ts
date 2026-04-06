@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
       created_at: account.created_at,
       updated_at: account.updated_at,
       profile_image_url: account.profile_image_url,
+      is_active: account.is_active ?? account.status === 'active',
+      linkedin_enabled: account.linkedin_enabled,
       // Health indicators without exposing credentials
       credentials_configured: !!(account.access_token || (account as any).twitter_access_token),
       persona_count: account.personas?.length || 0

@@ -230,6 +230,86 @@ export const connectedAccountsService = {
     return null;
   },
 
+  async update(id: string, data: any): Promise<ConnectedAccount | null> {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    // Direct mapping for common fields
+    const fields = [
+      'name', 'account_name', 'status', 'account_username', 
+      'profile_image_url', 'is_active'
+    ];
+
+    for (const field of fields) {
+      if (data[field] !== undefined) {
+        updates.push(`${field} = $${paramIndex++}`);
+        values.push(data[field]);
+      }
+    }
+
+    // Twitter OAuth 2.0 fields
+    if (data.twitter_oauth2_enabled !== undefined) {
+      updates.push(`twitter_oauth2_enabled = $${paramIndex++}`);
+      values.push(data.twitter_oauth2_enabled);
+    }
+    if (data.twitter_oauth2_user_id !== undefined) {
+      updates.push(`twitter_oauth2_user_id = $${paramIndex++}`);
+      values.push(data.twitter_oauth2_user_id);
+    }
+
+    // LinkedIn fields (encrypt tokens before storing)
+    if (data.linkedin_enabled !== undefined) {
+      updates.push(`linkedin_enabled = $${paramIndex++}`);
+      values.push(data.linkedin_enabled);
+    }
+    if (data.linkedin_access_token !== undefined) {
+      updates.push(`linkedin_access_token_encrypted = $${paramIndex++}`);
+      values.push(encrypt(data.linkedin_access_token));
+    }
+    if (data.linkedin_refresh_token !== undefined) {
+      updates.push(`linkedin_refresh_token_encrypted = $${paramIndex++}`);
+      values.push(encrypt(data.linkedin_refresh_token));
+    }
+    if (data.linkedin_token_expires_at !== undefined) {
+      updates.push(`linkedin_token_expires_at = $${paramIndex++}`);
+      values.push(data.linkedin_token_expires_at);
+    }
+    if (data.linkedin_user_id !== undefined) {
+      updates.push(`linkedin_user_id = $${paramIndex++}`);
+      values.push(data.linkedin_user_id);
+    }
+    if (data.linkedin_org_id !== undefined) {
+      updates.push(`linkedin_org_id = $${paramIndex++}`);
+      values.push(data.linkedin_org_id);
+    }
+
+    // Twitter OAuth 2.0 fields (encrypt tokens before storing)
+    if (data.twitter_oauth2_access_token_encrypted !== undefined) {
+      updates.push(`twitter_oauth2_access_token_encrypted = $${paramIndex++}`);
+      values.push(encrypt(data.twitter_oauth2_access_token_encrypted));
+    }
+    if (data.twitter_oauth2_refresh_token_encrypted !== undefined) {
+      updates.push(`twitter_oauth2_refresh_token_encrypted = $${paramIndex++}`);
+      values.push(encrypt(data.twitter_oauth2_refresh_token_encrypted));
+    }
+    if (data.twitter_oauth2_token_expires_at !== undefined) {
+      updates.push(`twitter_oauth2_token_expires_at = $${paramIndex++}`);
+      values.push(data.twitter_oauth2_token_expires_at);
+    }
+
+    if (updates.length === 0) return this.getById(id);
+
+    values.push(id);
+    const result = await sqlWithRetry.query<ConnectedAccountRow>(
+      `UPDATE connected_accounts SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`,
+      values
+    );
+
+    if (result.rows.length === 0) return null;
+    return mapRowToConnectedAccount(result.rows[0]);
+  },
+
   async delete(id: string): Promise<void> {
     await sqlWithRetry`DELETE FROM connected_accounts WHERE id = ${id}`;
   },

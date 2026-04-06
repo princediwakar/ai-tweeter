@@ -63,64 +63,12 @@ export async function getGenerationBatchInfo(
   }
 
   // Use account's schedule timezone consistently for slot claiming (matches schedule logic)
-  // Get timezone from account's active schedule, fallback to UTC
+  // Get all active schedules for this account that match current time window
   const scheduleResult = await sql`
-    SELECT timezone FROM account_schedules 
-    WHERE connected_account_id = ${account.id} AND is_active = true 
-    LIMIT 1
-  `;
-  const accountTimezone = scheduleResult.rows[0]?.timezone || 'UTC';
-  const scheduleId = scheduleResult.rows[0]?.id;
-  
-  if (!scheduleId) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 5,
-      reason: 'No active schedule found',
-    };
-  }
-  
-  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
-  const currentHour = accountTime.getHours();
-  const currentMinute = accountTime.getMinutes();
-  // Round down to nearest hour for slot - ensures same schedule always gets same slot
-  const slotHour = currentHour;
-  const slotMinute = Math.floor(currentMinute / 60) * 60; // always 0
-  const today = accountTime.toISOString().split('T')[0];
-
-  // Deduplication: Use (account, date, hour) as unique slot
-  // This ensures ONLY ONE generation per account per hour per day
-  // Even if cron runs every minute, it will only generate ONCE per hour
-  const result = await sql`
-    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
-    VALUES (${account.id}, ${today}, ${slotHour}, ${slotMinute}, 1, NOW(), NOW(), NOW())
-    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
-    DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
-    RETURNING generation_count
-  `;
-
-  // If generation_count > 1, already generated in this hour - skip
-  if (result.rows[0]?.generation_count > 1) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 5,
-      reason: 'Generation already completed this hour for this account',
-    };
-  }
-
-  // Find active schedule that matches current time window
-  const matchingSchedule = await sql`
-    SELECT s.*
+    SELECT s.id, s.timezone, s.start_time, s.end_time, s.persona_id
     FROM account_schedules s
-    WHERE s.connected_account_id = ${account.id}
+    WHERE s.connected_account_id = ${account.id} 
       AND s.is_active = true
-      AND s.start_time IS NOT NULL
       AND (
         EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) * 60 +
         EXTRACT(MINUTE FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone))
@@ -131,37 +79,66 @@ export async function getGenerationBatchInfo(
     ORDER BY s.start_time
     LIMIT 1
   `;
-
-  if (matchingSchedule.rows.length === 0) {
+  
+  const activeSchedule = scheduleResult.rows[0];
+  
+  if (!activeSchedule) {
     return {
       should_generate: false,
       should_post: false,
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
-      reason: 'No schedule matches current time window',
+      reason: 'No schedule matches current generation window',
+    };
+  }
+  
+  const accountTimezone = activeSchedule.timezone || 'UTC';
+  const scheduleId = activeSchedule.id;
+  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
+  const today = accountTime.toISOString().split('T')[0];
+
+  // Deduplication: Use (account, schedule_id, date) as unique slot
+  // This allows multiple schedules per account - each runs independently
+  // e.g., 5 schedules at 12:00, 12:12, 12:24, 12:36, 12:48 → 5 posts per hour
+  const result = await sql`
+    INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
+    VALUES (${account.id}, ${scheduleId}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
+    ON CONFLICT (connected_account_id, schedule_id, slot_date)
+    DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
+    RETURNING generation_count
+  `;
+
+  // If generation_count > 1, this schedule already ran today - skip
+  if (result.rows[0]?.generation_count > 1) {
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 5,
+      reason: 'Generation already completed for this schedule today',
     };
   }
 
-  const claimedSchedule = matchingSchedule.rows[0];
-  
-  const personas: string[] = [];
-  if (claimedSchedule.persona_id) {
-    const dbPersona = await getPersonaById(claimedSchedule.persona_id);
+  // Get the persona from this schedule
+  let personas: string[] = [];
+  if (activeSchedule.persona_id) {
+    const { getPersonaById } = await import('./db');
+    const dbPersona = await getPersonaById(activeSchedule.persona_id);
     if (dbPersona?.key) {
-      personas.push(dbPersona.key);
+      personas = [dbPersona.key];
     }
   } else {
-    personas.push(...(account.personas?.filter(Boolean) || []));
+    personas = account.personas?.filter(Boolean) || [];
   }
 
-  const scheduleConfig = claimedSchedule.schedule_config as Record<string, unknown> || {};
   return {
     should_generate: true,
     should_post: true,
     generation_personas: personas,
     posting_personas: personas,
-    batch_size: typeof scheduleConfig.batch_size === 'number' ? scheduleConfig.batch_size : undefined,
+    batch_size: 5,
   };
 }
 
@@ -180,74 +157,66 @@ export async function getPostingBatchInfo(
     return { should_post: false, personas: [], reason: 'Account not found' };
   }
 
-  // Get timezone from active schedule
-  const tzResult = await sql`
-    SELECT timezone FROM account_schedules 
-    WHERE connected_account_id = ${account.id} AND is_active = true 
+  // Get schedule that's currently in posting window
+  const scheduleResult = await sql`
+    SELECT s.id, s.timezone, s.persona_id, s.start_time, s.end_time
+    FROM account_schedules s
+    WHERE s.connected_account_id = ${account.id}
+      AND s.is_active = true
+      AND EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) = ANY(s.days_of_week)
+      AND (
+        EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) * 60 +
+        EXTRACT(MINUTE FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone))
+        BETWEEN s.end_time - ${POSTING_WINDOW_MINUTES}
+        AND s.end_time
+      )
+      AND (s.last_posted_at IS NULL OR
+           (s.last_posted_at AT TIME ZONE s.timezone)::date !=
+           (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)::date)
+    ORDER BY s.start_time
     LIMIT 1
   `;
-  const accountTimezone = tzResult.rows[0]?.timezone || 'UTC';
-  
+
+  const activeSchedule = scheduleResult.rows[0];
+  if (!activeSchedule) {
+    return { should_post: false, personas: [], reason: 'No schedule in posting window' };
+  }
+
+  const accountTimezone = activeSchedule.timezone || 'UTC';
+  const scheduleId = activeSchedule.id;
   const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
-  const currentHour = accountTime.getHours();
-  const currentMinute = accountTime.getMinutes();
-  // Round to hour for slot - ensures only ONE posting per hour per account
   const today = accountTime.toISOString().split('T')[0];
 
-  // Deduplication: Only ONE posting per account per hour per day
+  // Deduplication: Use (account, schedule_id, date) - each schedule posts independently
   const postingResult = await sql`
-    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
-    VALUES (${account.id}, ${today}, ${currentHour}, 0, 1, NOW(), NOW(), NOW())
-    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
+    INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
+    VALUES (${account.id}, ${scheduleId}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
+    ON CONFLICT (connected_account_id, schedule_id, slot_date)
     DO UPDATE SET posting_count = generation_slots.posting_count + 1, last_posted_at = NOW()
     RETURNING posting_count
   `;
 
-  // If posting_count > 1, already posted in this hour - skip
+  // If posting_count > 1, this schedule already posted today - skip
   if (postingResult.rows[0]?.posting_count > 1) {
     return { 
       should_post: false, 
       personas: [], 
-      reason: 'Posting already completed this hour for this account' 
+      reason: 'Posting already completed for this schedule today' 
     };
   }
 
-  const result = await sql`
+  // Update last_posted_at
+  await sql`
     UPDATE account_schedules
     SET last_posted_at = NOW()
-    WHERE id IN (
-      SELECT s.id FROM account_schedules s
-      WHERE s.connected_account_id = ${account.id}
-        AND s.is_active = true
-        AND EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) = ANY(s.days_of_week)
-        AND (
-          EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) * 60 +
-          EXTRACT(MINUTE FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone))
-          BETWEEN s.end_time - ${POSTING_WINDOW_MINUTES}
-          AND s.end_time
-        )
-        AND (s.last_posted_at IS NULL OR
-             (s.last_posted_at AT TIME ZONE s.timezone)::date !=
-             (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)::date)
-      ORDER BY s.start_time
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING *
+    WHERE id = ${scheduleId}
   `;
 
-  if (result.rows.length === 0) {
-    return { 
-      should_post: false, 
-      personas: [], 
-      reason: 'No posting schedule matches current time window' 
-    };
-  }
-
-  const claimedSchedule = result.rows[0];
+  // Get persona
   let personas: string[] = [];
-  if (claimedSchedule.persona_id) {
-    const dbPersona = await getPersonaById(claimedSchedule.persona_id);
+  if (activeSchedule.persona_id) {
+    const { getPersonaById } = await import('./db');
+    const dbPersona = await getPersonaById(activeSchedule.persona_id);
     if (dbPersona?.key) {
       personas = [dbPersona.key];
     }

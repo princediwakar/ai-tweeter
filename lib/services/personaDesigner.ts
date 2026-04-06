@@ -30,7 +30,7 @@ Return a valid JSON object. The "description" field should be a brief 2-sentence
 
 {
   "name": "Catchy Name",
-  "description": "A brief, 2-sentence summary of who this persona is and what they talk about.",
+  "description": "A detailed 4-6 sentence description of who this persona is, their unique perspective, what they specialize in, and why their take is valuable. Make it specific enough to visualize the person.",
   "tone": "e.g., Analytical, Blunt, Conversational",
   "topics": ["topic1", "topic2"],
   "rss_sources": ["url1", "url2"],

@@ -22,7 +22,6 @@ export default function ScheduleDialog({
   onDeleteSchedule 
 }: ScheduleDialogProps) {
   const [forms, setForms] = useState<ScheduleFormData[]>([getDefaultScheduleForm()]);
-  const [formScheduleIds, setFormScheduleIds] = useState<(string | null)[]>([null]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [localTimezone, setLocalTimezone] = useState('');
@@ -34,22 +33,21 @@ export default function ScheduleDialog({
   useEffect(() => {
     if (open) {
       if (schedules.length > 0) {
+        // Embed the DB id directly into each form so it travels with the data
         setForms(schedules.map(s => ({
+          id: s.id,
           days_of_week: s.days_of_week,
           start_time: s.start_time,
           timezone: s.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         })));
-        setFormScheduleIds(schedules.map(s => s.id));
       } else {
         setForms([getDefaultScheduleForm()]);
-        setFormScheduleIds([null]);
       }
     }
   }, [open, schedules]);
 
   const handleAdd = () => {
     setForms([...forms, getDefaultScheduleForm()]);
-    setFormScheduleIds([...formScheduleIds, null]);
   };
 
   const handleChange = (index: number, updates: Partial<ScheduleFormData>) => {
@@ -65,7 +63,7 @@ export default function ScheduleDialog({
   };
 
   const handleDelete = async (index: number) => {
-    const scheduleId = formScheduleIds[index];
+    const scheduleId = forms[index].id;
     
     // If it exists in the DB, delete it from the DB first
     if (scheduleId && onDeleteSchedule) {
@@ -80,14 +78,13 @@ export default function ScheduleDialog({
       setDeletingId(null);
     }
     
-    // FIXED: Remove from local state whether it was in the DB or just a local unsaved form
-    setFormScheduleIds(formScheduleIds.filter((_, i) => i !== index));
-    setForms(forms.filter((_, i) => i !== index));
+    const remaining = forms.filter((_, i) => i !== index);
     
     // If they deleted the very last form, give them a fresh empty one so the modal isn't blank
-    if (forms.length === 1) {
+    if (remaining.length === 0) {
       setForms([getDefaultScheduleForm()]);
-      setFormScheduleIds([null]);
+    } else {
+      setForms(remaining);
     }
   };
 
@@ -134,7 +131,7 @@ export default function ScheduleDialog({
                 <button
                   type="button"
                   onClick={() => handleDelete(index)}
-                  disabled={deletingId === formScheduleIds[index] && deletingId !== null}
+                disabled={deletingId === forms[index].id && deletingId !== null}
                   className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                   title="Delete schedule"
                 >

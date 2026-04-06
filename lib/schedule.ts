@@ -28,6 +28,7 @@ export interface Schedule {
   should_post: boolean;
   generation_personas: string[];
   posting_personas: string[];
+  schedule_ids?: string[]; // IDs of schedules that need generation this run
   batch_size?: number;
   reason?: string;
 }
@@ -75,6 +76,7 @@ export async function getGenerationBatchInfo(
   }
 
   // Use Postgres to calculate exact local time and day of week natively
+  // Fetch ALL matching schedules (not just LIMIT 1) so each gets its own generation slot
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
@@ -89,13 +91,12 @@ export async function getGenerationBatchInfo(
     WHERE local_dow = ANY(days_of_week)
       AND (local_minutes - start_time + 1440) % 1440 >= 0
       AND (local_minutes - start_time + 1440) % 1440 < ${GENERATION_WINDOW_MINUTES}
-    ORDER BY start_time DESC
-    LIMIT 1
+    ORDER BY start_time ASC
   `;
 
-  const activeSchedule = scheduleResult.rows[0];
-  
-  if (!activeSchedule) {
+  const activeSchedules = scheduleResult.rows;
+
+  if (activeSchedules.length === 0) {
     return {
       should_generate: false,
       should_post: false,
@@ -105,40 +106,58 @@ export async function getGenerationBatchInfo(
       reason: 'No schedule matches current generation window in local timezone',
     };
   }
-  
-  const scheduleId = activeSchedule.id;
-  
-  // Get today's date in the account's local timezone for the slot logic
-  const tzResult = await sql`SELECT timezone(${activeSchedule.timezone}, NOW())::date as local_date`;
+
+  // Get today's date in the account's local timezone (use first schedule's timezone)
+  const tzResult = await sql`SELECT timezone(${activeSchedules[0].timezone}, NOW())::date as local_date`;
   const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
 
-  const result = await sql`
-    INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
-    VALUES (${account.id}, ${scheduleId}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
-    ON CONFLICT (connected_account_id, schedule_id, slot_date)
-    DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
-    RETURNING generation_count
-  `;
+  // Process each schedule independently — create one generation_slots row per schedule
+  const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
 
-  if (result.rows[0]?.generation_count > 1) {
+  for (const schedule of activeSchedules) {
+    const result = await sql`
+      INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
+      VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
+      ON CONFLICT (connected_account_id, schedule_id, slot_date)
+      DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
+      RETURNING generation_count
+    `;
+
+    // Only generate if this is the FIRST run for this schedule today (count == 1)
+    if (result.rows[0]?.generation_count === 1) {
+      schedulesToGenerate.push({ scheduleId: schedule.id, personaId: schedule.persona_id || null });
+    }
+  }
+
+  if (schedulesToGenerate.length === 0) {
     return {
       should_generate: false,
       should_post: false,
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
-      reason: 'Generation already completed for this schedule today',
+      reason: 'Generation already completed for all matching schedules today',
     };
   }
 
-  let personas: string[] = [];
-  if (activeSchedule.persona_id) {
-    const dbPersona = await getPersonaById(activeSchedule.persona_id);
-    if (dbPersona?.key) {
-      personas = [dbPersona.key];
+  // Resolve personas for each schedule that needs generation
+  const personas: string[] = [];
+  const scheduleIds: string[] = [];
+
+  for (const { scheduleId, personaId } of schedulesToGenerate) {
+    scheduleIds.push(scheduleId);
+    if (personaId) {
+      const dbPersona = await getPersonaById(personaId);
+      if (dbPersona?.key) {
+        personas.push(dbPersona.key);
+      }
     }
-  } else {
-    personas = account.personas?.filter(Boolean) || [];
+  }
+
+  // Fall back to account-level personas if no schedule-level personas resolved
+  if (personas.length === 0) {
+    const fallbackPersonas = account.personas?.filter(Boolean) || [];
+    personas.push(...fallbackPersonas);
   }
 
   return {
@@ -146,6 +165,7 @@ export async function getGenerationBatchInfo(
     should_post: true,
     generation_personas: personas,
     posting_personas: personas,
+    schedule_ids: scheduleIds,
     batch_size: 5,
   };
 }

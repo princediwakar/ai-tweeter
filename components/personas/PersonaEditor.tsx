@@ -249,13 +249,9 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   const handleSaveSchedules = async (forms: ScheduleFormData[]) => {
     if (!schedulePersonaId || !currentAccountId) return;
     
-    const persona = personas.find(p => p.id === schedulePersonaId);
-    const existingSchedules = persona?.schedules || [];
-    
     try {
       for (let i = 0; i < forms.length; i++) {
         const form = forms[i];
-        const existing = existingSchedules[i];
         
         const payload = {
           connected_account_id: currentAccountId,
@@ -263,18 +259,20 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
           persona_id: schedulePersonaId,
           days_of_week: form.days_of_week,
           start_time: form.start_time,
-          end_time: form.start_time + 60, // FIXED: A window of 60 minutes, not 0 minutes.
+          end_time: form.start_time + 60, // A window of 60 minutes
           is_active: true,
         };
         
         let res;
-        if (existing) {
-          res = await fetch(`/api/accounts/${currentAccountId}/schedules/${existing.id}`, {
+        if (form.id) {
+          // ID-based matching: PATCH the exact schedule we know by id
+          res = await fetch(`/api/accounts/${currentAccountId}/schedules/${form.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           });
         } else {
+          // No id means this is a brand-new schedule
           res = await fetch(`/api/accounts/${currentAccountId}/schedules`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -282,7 +280,6 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
           });
         }
 
-        // FIXED: Catch silent API failures
         if (!res.ok) {
            const err = await res.json();
            throw new Error(err.error || `Failed to save Schedule ${i + 1}`);

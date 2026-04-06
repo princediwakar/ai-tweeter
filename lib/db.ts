@@ -308,7 +308,7 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         id, connected_account_id, content, hashtags, persona, status, created_at,
         posted_at, twitter_id, twitter_url, error_message, image_url,
         thread_id, thread_sequence, parent_twitter_id, content_type,
-        image_status, card_data, source_url
+        image_status, card_data, source_url, schedule_id, persona_id
       ) VALUES (
         ${tweet.id},
         ${tweet.connected_account_id},
@@ -328,7 +328,9 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         ${tweet.content_type || 'single_tweet'},
         ${tweet.image_status || 'none'},
         ${tweet.card_data || null},
-        ${tweet.source_url || null}
+        ${tweet.source_url || null},
+        ${tweet.schedule_id || null},
+        ${tweet.persona_id || null}
       )
       ON CONFLICT (id)
       DO UPDATE SET
@@ -348,7 +350,9 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         content_type = EXCLUDED.content_type,
         image_status = EXCLUDED.image_status,
         card_data = EXCLUDED.card_data,
-        source_url = EXCLUDED.source_url;
+        source_url = EXCLUDED.source_url,
+        schedule_id = EXCLUDED.schedule_id,
+        persona_id = EXCLUDED.persona_id;
     `;
     
   } catch (error) {

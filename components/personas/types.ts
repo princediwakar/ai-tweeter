@@ -47,6 +47,7 @@ export interface EditablePersona {
 }
 
 export interface ScheduleFormData {
+  id?: string;          // Existing schedule DB id — present when editing, absent when creating
   days_of_week: number[];
   start_time: number;
   timezone: string;

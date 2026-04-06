@@ -76,7 +76,21 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
   if (!session?.user) {
     return null;
   }
-  return (session.user as any).id || null;
+  
+  // Primary: id baked into JWT by the jwt callback
+  const tokenId = (session.user as any).id;
+  if (tokenId) return tokenId;
+  
+  // Fallback: look up user by email (handles old tokens issued before id was baked in)
+  const email = session.user.email;
+  if (!email) return null;
+  
+  try {
+    const result = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+    return result.rows[0]?.id || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getCurrentUser() {

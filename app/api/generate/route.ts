@@ -179,6 +179,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
 
   const persona = await getPersonaByKey(selectedPersonaKey);
+  const personaDbId = persona?.id; // Capture DB id for tweet metadata
+  const scheduleId = batchInfo.schedule_ids?.[0]; // First triggered schedule id
   const allPersonas = await getAllPersonas();
   const threadPersonas = allPersonas.filter(p => p.config?.supports_threads).map(p => p.key);
   const shouldGenerateThreads = supportsThreading && threadPersonas.includes(selectedPersonaKey);
@@ -253,6 +255,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       image_status: generatedTweet.imageStatus || 'none',
       card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
       source_url: generatedTweet.sourceUrl,
+      schedule_id: scheduleId,
+      persona_id: personaDbId,
     };
 
     await saveTweet(tweet as Tweet);

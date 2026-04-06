@@ -162,6 +162,9 @@ export interface Tweet {
   twitter_url?: string;
   error_message?: string;
   created_at: string;
+  // Schedule & persona tracking
+  schedule_id?: string; // The schedule that triggered this tweet's generation
+  persona_id?: string;  // The DB id of the persona used to generate this
   // Threading support
   thread_id?: string;
   thread_sequence?: number;

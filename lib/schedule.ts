@@ -48,6 +48,58 @@ function isSameDay(date1: Date, date2: Date): boolean {
     date1.getDate() === date2.getDate();
 }
 
+async function claimGenerationSchedule(
+  accountId: string,
+  dayOfWeek: number,
+  currentMinutes: number
+): Promise<ScheduleRow | null> {
+  const now = new Date();
+  const result = await sql<ScheduleRow>`
+    UPDATE account_schedules
+    SET last_generated_at = ${now.toISOString()}
+    WHERE id IN (
+      SELECT id FROM account_schedules
+      WHERE connected_account_id = ${accountId}
+        AND is_active = true
+        AND ${dayOfWeek} = ANY(days_of_week)
+        AND ${currentMinutes} >= start_time - ${GENERATION_WINDOW_MINUTES}
+        AND ${currentMinutes} <= start_time + ${GENERATION_WINDOW_MINUTES}
+        AND (last_generated_at IS NULL OR (last_generated_at AT TIME ZONE 'Asia/Kolkata')::date != (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+      ORDER BY start_time
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING *
+  `;
+  return result.rows[0] || null;
+}
+
+async function claimPostingSchedule(
+  accountId: string,
+  dayOfWeek: number,
+  currentMinutes: number
+): Promise<ScheduleRow | null> {
+  const now = new Date();
+  const result = await sql<ScheduleRow>`
+    UPDATE account_schedules
+    SET last_posted_at = ${now.toISOString()}
+    WHERE id IN (
+      SELECT id FROM account_schedules
+      WHERE connected_account_id = ${accountId}
+        AND is_active = true
+        AND ${dayOfWeek} = ANY(days_of_week)
+        AND ${currentMinutes} >= end_time - ${POSTING_WINDOW_MINUTES}
+        AND ${currentMinutes} <= end_time
+        AND (last_posted_at IS NULL OR (last_posted_at AT TIME ZONE 'Asia/Kolkata')::date != (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
+      ORDER BY start_time
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING *
+  `;
+  return result.rows[0] || null;
+}
+
 export async function getGenerationBatchInfo(
   twitterHandle: string,
   now: Date,
@@ -76,39 +128,14 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  const schedules = await getActiveSchedulesForAccount(account.id);
-  if (schedules.length === 0) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 5,
-    };
-  }
-
   const hour = getCurrentISTHour(now);
   const minute = getCurrentISTMinute(now);
   const dayOfWeek = getCurrentISTDay(now);
   const currentTimeInMinutes = hour * 60 + minute;
 
-  // Find schedule that matches today and is within generation window
-  const activeSchedule = schedules.find((s: ScheduleRow) => {
-    if (!s.is_active) return false;
-    if (!s.days_of_week.includes(dayOfWeek)) return false;
-    
-    // Check if we're within generation window (scheduled time + 10 min)
-    const withinGenerationWindow = isWithinGenerationWindow(currentTimeInMinutes, s.start_time);
-    
-    // Check if we already generated today for this schedule
-    if (s.last_generated_at && isSameDay(s.last_generated_at, now)) {
-      return false; // Already generated today
-    }
-    
-    return withinGenerationWindow;
-  });
-
-  if (!activeSchedule) {
+  // Atomically claim a schedule for generation using row locking
+  const claimedSchedule = await claimGenerationSchedule(account.id, dayOfWeek, currentTimeInMinutes);
+  if (!claimedSchedule) {
     return {
       should_generate: false,
       should_post: false,
@@ -118,26 +145,19 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  // If we reach here, we should generate - mark as generated
-  await sql`
-    UPDATE account_schedules 
-    SET last_generated_at = ${now.toISOString()}
-    WHERE id = ${activeSchedule.id}
-  `;
-
   // If schedule has a specific persona_id, only use that persona
   // Otherwise fall back to account.personas (which are persona keys)
   let personas: string[] = [];
-  if (activeSchedule.persona_id) {
-    const dbPersona = await getPersonaById(activeSchedule.persona_id);
+  if (claimedSchedule.persona_id) {
+    const dbPersona = await getPersonaById(claimedSchedule.persona_id);
     if (dbPersona?.key) {
       personas = [dbPersona.key];
     }
   } else {
     personas = account.personas?.filter(Boolean) || [];
   }
-  
-  const scheduleConfig = activeSchedule.schedule_config as Record<string, unknown> || {};
+
+  const scheduleConfig = claimedSchedule.schedule_config as Record<string, unknown> || {};
   return {
     should_generate: true,
     should_post: true,
@@ -161,44 +181,20 @@ export async function getPostingBatchInfo(
     return { should_post: false, personas: [] };
   }
 
-  const schedules = await getActiveSchedulesForAccount(account.id);
-  if (schedules.length === 0) {
-    return { should_post: false, personas: [] };
-  }
-
   const hour = getCurrentISTHour(now);
   const minute = getCurrentISTMinute(now);
   const dayOfWeek = getCurrentISTDay(now);
   const currentTimeInMinutes = hour * 60 + minute;
 
-  // Find schedule that matches today and is within posting window
-  const activeSchedule = schedules.find((s: ScheduleRow) => {
-    if (!s.is_active) return false;
-    if (!s.days_of_week.includes(dayOfWeek)) return false;
-    
-    const withinPostingWindow = isWithinPostingWindow(currentTimeInMinutes, s.end_time);
-    
-    if (s.last_posted_at && isSameDay(s.last_posted_at, now)) {
-      return false; // Already posted today
-    }
-    
-    return withinPostingWindow;
-  });
-
-  if (!activeSchedule) {
+  // Atomically claim a schedule for posting using row locking
+  const claimedSchedule = await claimPostingSchedule(account.id, dayOfWeek, currentTimeInMinutes);
+  if (!claimedSchedule) {
     return { should_post: false, personas: [] };
   }
 
-  // Mark as posted
-  await sql`
-    UPDATE account_schedules 
-    SET last_posted_at = ${now.toISOString()}
-    WHERE id = ${activeSchedule.id}
-  `;
-
   let personas: string[] = [];
-  if (activeSchedule.persona_id) {
-    const dbPersona = await getPersonaById(activeSchedule.persona_id);
+  if (claimedSchedule.persona_id) {
+    const dbPersona = await getPersonaById(claimedSchedule.persona_id);
     if (dbPersona?.key) {
       personas = [dbPersona.key];
     }

@@ -22,7 +22,7 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AutoInfluencer Bot",
+  title: "AutoGrowth",
   description: "AI-powered multi-account Twitter & LinkedIn automation system with custom personas and content generation",
 };
 

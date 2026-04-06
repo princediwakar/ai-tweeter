@@ -420,6 +420,7 @@ type AccountGenerationResult = {
 /**
  * Enhanced multi-account orchestration - SCALABLE VERSION
  * Queries only accounts due for generation in current time window
+ * Uses DB slot claiming to prevent duplicate generation
  */
 async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = false) {
   const sessionId = Math.random().toString(36).substring(2, 8);
@@ -431,8 +432,8 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
   const currentMinutes = currentHourIST * 60 + currentMinuteIST;
   const dayOfWeek = Math.floor((nowIST.getDay() + 6) % 7) + 1;
 
-  // SCALABLE: Query ONLY accounts due for generation in this time window
-  const accountsDue = await sql`
+  // Get all accounts with active schedules for today (we'll deduplicate via DB slot claiming)
+  const accountsWithSchedules = await sql`
     SELECT a.id, a.name, a.twitter_handle, a.platform, a.personas, a.branding
     FROM connected_accounts a
     JOIN account_schedules s ON s.connected_account_id = a.id
@@ -445,7 +446,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     LIMIT 100
   `;
 
-  if (accountsDue.rows.length === 0) {
+  if (accountsWithSchedules.rows.length === 0) {
     logger.info(`[Session:${sessionId}] No accounts due for generation in this window.`, 'generate-multi-skip');
     return NextResponse.json({
         success: true,
@@ -453,10 +454,11 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     });
   }
 
-  logger.info(`[Session:${sessionId}] Found ${accountsDue.rows.length} accounts due for generation`, 'generate-multi');
+  logger.info(`[Session:${sessionId}] Found ${accountsWithSchedules.rows.length} accounts due for generation`, 'generate-multi');
 
-  // Fire off all account generations in parallel
-  const accountPromises = accountsDue.rows.map(account =>
+  // Process each account - getGenerationBatchInfo handles slot claiming internally
+  // This prevents duplicate generation even if same schedule falls in window twice
+  const accountPromises = accountsWithSchedules.rows.map(account =>
     generateForAccountEnhanced(account.id, request, debugMode)
       .then(res => res.json())
       .catch(error => {
@@ -482,7 +484,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     success: true,
     message: `Multi-account generation complete: ${totalGenerated} content units generated across ${accountsWithGeneration} accounts.`,
     sessionId,
-    totalAccounts: accountsDue.rows.length,
+    totalAccounts: accountsWithSchedules.rows.length,
     successfulAccounts,
     accountsWithGeneration,
     totalGenerated,

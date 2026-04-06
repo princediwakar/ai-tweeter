@@ -70,30 +70,47 @@ export async function getGenerationBatchInfo(
     LIMIT 1
   `;
   const accountTimezone = scheduleResult.rows[0]?.timezone || 'UTC';
+  const scheduleId = scheduleResult.rows[0]?.id;
   
-  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
-  const currentHour = accountTime.getHours();
-  const currentMinute = accountTime.getMinutes();
-  const today = accountTime.toISOString().split('T')[0];
-
-  // Atomically claim generation slot - only allow ONCE per account/date/hour/minute
-  const result = await sql`
-    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
-    VALUES (${account.id}, ${today}, ${currentHour}, ${currentMinute}, 1, NOW(), NOW(), NOW())
-    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
-    DO NOTHING
-    RETURNING generation_count
-  `;
-
-  // If no row returned, slot already exists - generation already attempted
-  if (result.rows.length === 0) {
+  if (!scheduleId) {
     return {
       should_generate: false,
       should_post: false,
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
-      reason: 'Generation already attempted for this slot today',
+      reason: 'No active schedule found',
+    };
+  }
+  
+  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
+  const currentHour = accountTime.getHours();
+  const currentMinute = accountTime.getMinutes();
+  // Round down to nearest hour for slot - ensures same schedule always gets same slot
+  const slotHour = currentHour;
+  const slotMinute = Math.floor(currentMinute / 60) * 60; // always 0
+  const today = accountTime.toISOString().split('T')[0];
+
+  // Deduplication: Use (account, date, hour) as unique slot
+  // This ensures ONLY ONE generation per account per hour per day
+  // Even if cron runs every minute, it will only generate ONCE per hour
+  const result = await sql`
+    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
+    VALUES (${account.id}, ${today}, ${slotHour}, ${slotMinute}, 1, NOW(), NOW(), NOW())
+    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
+    DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
+    RETURNING generation_count
+  `;
+
+  // If generation_count > 1, already generated in this hour - skip
+  if (result.rows[0]?.generation_count > 1) {
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 5,
+      reason: 'Generation already completed this hour for this account',
     };
   }
 
@@ -163,25 +180,35 @@ export async function getPostingBatchInfo(
     return { should_post: false, personas: [], reason: 'Account not found' };
   }
 
-  const currentHour = new Date().getUTCHours();
-  const currentMinute = new Date().getUTCMinutes();
-  const today = new Date().toISOString().split('T')[0];
+  // Get timezone from active schedule
+  const tzResult = await sql`
+    SELECT timezone FROM account_schedules 
+    WHERE connected_account_id = ${account.id} AND is_active = true 
+    LIMIT 1
+  `;
+  const accountTimezone = tzResult.rows[0]?.timezone || 'UTC';
+  
+  const accountTime = new Date(new Date().toLocaleString('en-US', { timeZone: accountTimezone }));
+  const currentHour = accountTime.getHours();
+  const currentMinute = accountTime.getMinutes();
+  // Round to hour for slot - ensures only ONE posting per hour per account
+  const today = accountTime.toISOString().split('T')[0];
 
-  // Atomically claim posting slot - only allow ONCE per account/date/hour/minute
+  // Deduplication: Only ONE posting per account per hour per day
   const postingResult = await sql`
     INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
-    VALUES (${account.id}, ${today}, ${currentHour}, ${currentMinute}, 1, NOW(), NOW(), NOW())
+    VALUES (${account.id}, ${today}, ${currentHour}, 0, 1, NOW(), NOW(), NOW())
     ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
-    DO NOTHING
+    DO UPDATE SET posting_count = generation_slots.posting_count + 1, last_posted_at = NOW()
     RETURNING posting_count
   `;
 
-  // If no row returned, slot already exists - posting already attempted
-  if (postingResult.rows.length === 0) {
+  // If posting_count > 1, already posted in this hour - skip
+  if (postingResult.rows[0]?.posting_count > 1) {
     return { 
       should_post: false, 
       personas: [], 
-      reason: 'Posting already attempted for this slot today' 
+      reason: 'Posting already completed this hour for this account' 
     };
   }
 

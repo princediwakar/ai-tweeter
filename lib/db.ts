@@ -160,6 +160,22 @@ export async function getPersona(key: string): Promise<Persona | null> {
   }
 }
 
+export async function getPersonaById(id: string): Promise<Persona | null> {
+  try {
+    const result = await sqlWithRetry`
+      SELECT * FROM personas
+      WHERE id = ${id} AND is_active = true
+      LIMIT 1
+    `;
+    
+    if (result.rows.length === 0) return null;
+    return result.rows[0] as Persona;
+  } catch (error) {
+    console.error(`[Neon] Error getting persona by ID ${id}:`, error);
+    return null;
+  }
+}
+
 export async function getAllPersonasFromDb(): Promise<Persona[]> {
   try {
     const result = await sqlWithRetry`
@@ -1009,7 +1025,7 @@ export async function hasEngagedWithTweet(accountId: string, tweetId: string): P
 
 
 
-export async function getRecentVocabularyWords(accountId: string, days: number = GENERATION_CONFIG.personas.englishVocabBuilder.deduplicationDays): Promise<string[]> {
+export async function getRecentVocabularyWords(accountId: string, days: number = 30): Promise<string[]> {
   try {
     const result = await sqlWithRetry`
       SELECT DISTINCT card_data
@@ -1019,7 +1035,7 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
         AND card_data IS NOT NULL
         AND created_at > NOW() - INTERVAL '${days} days'
       ORDER BY created_at DESC
-      LIMIT ${GENERATION_CONFIG.personas.englishVocabBuilder.deduplicationLimit}
+      LIMIT 100
     `;
 
     const recentWords: string[] = [];

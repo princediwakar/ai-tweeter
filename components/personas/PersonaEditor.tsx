@@ -10,7 +10,7 @@ import DeleteConfirmDialog from './DeleteConfirmDialog';
 
 interface ExtendedPersonaEditorProps extends PersonaEditorProps {
   onAccountChange?: (accountId: string) => void;
-  accounts?: { id: string; name: string | null; twitter_handle: string; platform?: string }[];
+  accounts?: { id: string; name: string | null; account_username: string; platform?: string }[];
   selectedAccountId?: string | null;
   editingPersona?: Persona | null;
   onEditComplete?: () => void;
@@ -342,7 +342,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
             >
               {accounts.map((account) => (
                 <option key={account.id} value={account.id}>
-                  {(account.name || account.twitter_handle)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                  {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
                 </option>
               ))}
             </select>

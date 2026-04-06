@@ -1,16 +1,15 @@
 // lib/contentSource/types.ts
 /**
  * Shared TypeScript interfaces for content source module
+ * 
+ * DESIGN: All types are generic/dynamic - personas read from DB (personas.rss_sources)
+ * No hardcoded persona-specific types
  */
-
 
 // ─────────────────────────────────────────────
 // 🔧 Core Data Structures
 // ─────────────────────────────────────────────
 
-/**
- * A headline with its source URL and optional description
- */
 export interface HeadlineWithSource {
   headline: string;
   url: string;
@@ -18,23 +17,16 @@ export interface HeadlineWithSource {
   sourceType?: 'rss' | 'reddit' | 'twitter'
 }
 
-/**
- * An enriched article with full content and extracted entities
- * NOTE: This must match lib/generation/articleEnricher.ts::EnrichedArticle
- */
 export interface EnrichedArticle {
   headline: string;
   url: string;
   description?: string;
-  fullText?: string; // Article body text
-  keyMetrics?: string; // NEW: Extracted metric-heavy paragraphs
-  entities: string[]; // Company/person names mentioned
-  cached?: boolean; // NEW: Flag for cached results
+  fullText?: string;
+  keyMetrics?: string;
+  entities: string[];
+  cached?: boolean;
 }
 
-/**
- * Source metadata for tracking in prompts
- */
 export interface SourceMetadata {
   index: number;
   url: string;
@@ -42,68 +34,10 @@ export interface SourceMetadata {
 }
 
 // ─────────────────────────────────────────────
-// 🎭 Persona Context Interfaces
+// 🎭 Generic Persona Context (dynamic - works for any persona)
 // ─────────────────────────────────────────────
 
-/**
- * Structured context for Satirist persona
- */
-export interface SatiristContext {
-  articles: EnrichedArticle[];
-  sourceMetadata: Array<{ 
-    index: number; 
-    url: string; 
-    headline: string 
-  }>;
-  articlesJson?: string;
-  headlinesInPrompt: number;
-  recentContent?: string[];      // NEW: Recent tweet content for deduplication
-  usedSourceUrls?: string[];     // NEW: Recently used source URLs
-}
-
-
-/**
- * Structured context for Pattern Spotter persona
- * ✨ UPDATED: Now uses enriched articles instead of headlines
- */
-export interface PatternSpotterContext {
-  articles: EnrichedArticle[];        // ✨ CHANGED: Enriched articles with full text
-  sourceMetadata: SourceMetadata[];
-  articlesJson?: string;
-  totalHeadlines: number;
-  recentContent?: string[];           // Recent tweet content for deduplication
-  usedSourceUrls?: string[];          // Recently used source URLs
-}
-
-/**
- * Structured context for Business Storyteller persona
- */
-export interface BusinessStorytellerContext {
-  mainStory: HeadlineWithSource;
-  mainEntity: string;
-  enrichmentContext: string[];
-  sourceUrl: string;
-}
-
-/**
- * Structured context for Cricket Storyteller persona
- */
-export interface CricketStorytellerContext {
-  mainStory: HeadlineWithSource;
-  keyPlayer: string;
-  enrichmentContext: string[];
-  sourceUrl: string;
-}
-
-/**
- * Structured context for English Vocab Builder persona
- */
-export interface EnglishVocabBuilderContext {
-  headlines: string[];
-  topic: string;
-}
-
-export interface LinkedinAnalystContext {
+export interface PersonaContext {
   articles: EnrichedArticle[];
   sourceMetadata: SourceMetadata[];
   articlesJson?: string;
@@ -111,17 +45,6 @@ export interface LinkedinAnalystContext {
   recentContent?: string[];
   usedSourceUrls?: string[];
 }
-
-/**
- * Union type for all persona contexts
- */
-export type PersonaContext =
-  | SatiristContext
-  | PatternSpotterContext
-  | BusinessStorytellerContext
-  | CricketStorytellerContext
-  | EnglishVocabBuilderContext
-  | LinkedinAnalystContext;
 
 // ─────────────────────────────────────────────
 // 🔧 Cache & Utilities

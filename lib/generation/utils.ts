@@ -32,16 +32,6 @@ export function generateContentHash(tweet: EnhancedTweet): string {
 }
 
 export function shouldUseRSSSources(account: Account | null): boolean {
-  if (!account) return false;
-  
-  const handle = account.twitter_handle.replace('@', '').toLowerCase();
-  
-  switch (handle) {
-    case 'gibbi_ai':
-      return false;
-    case 'princediwakar25':
-      return true;
-    default:
-      return true;
-  }
+  // All accounts use RSS by default - config should come from account in DB
+  return true;
 }

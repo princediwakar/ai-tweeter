@@ -82,22 +82,24 @@ export async function GET(request: NextRequest) {
 
     const profile = profileResponse.ok ? await profileResponse.json() : { sub: 'unknown', name: 'Unknown' };
 
-    // Save to connected_accounts
+    // Save to connected_accounts - use new LinkedIn-specific columns
     const userResult = await sql`SELECT id FROM users WHERE email = ${user_email}`;
     
     if (userResult.rows.length > 0) {
       const userId = userResult.rows[0].id;
       
       await sql`
-        INSERT INTO connected_accounts (user_id, platform, account_username, account_name, platform_user_id, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, connected_at)
-        VALUES (${userId}, 'linkedin', profile.sub, profile.name || profile.sub, ${profile.sub}, ${encryptToken(tokens.access_token)}, ${encryptToken(tokens.refresh_token || '')}, ${tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null}, true, NOW())
+        INSERT INTO connected_accounts (user_id, platform, account_username, account_name, platform_user_id, is_active, connected_at, linkedin_enabled, linkedin_user_id, linkedin_access_token_encrypted, linkedin_refresh_token_encrypted, linkedin_token_expires_at)
+        VALUES (${userId}, 'linkedin', profile.sub, profile.name || profile.sub, ${profile.sub}, true, NOW(), true, ${profile.sub}, ${encryptToken(tokens.access_token)}, ${encryptToken(tokens.refresh_token || '')}, ${tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null})
         ON CONFLICT (user_id, platform, account_username) 
         DO UPDATE SET 
           account_name = EXCLUDED.account_name,
           platform_user_id = EXCLUDED.platform_user_id,
-          access_token_encrypted = EXCLUDED.access_token_encrypted,
-          refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-          token_expires_at = EXCLUDED.token_expires_at,
+          linkedin_enabled = true,
+          linkedin_user_id = EXCLUDED.linkedin_user_id,
+          linkedin_access_token_encrypted = EXCLUDED.linkedin_access_token_encrypted,
+          linkedin_refresh_token_encrypted = EXCLUDED.linkedin_refresh_token_encrypted,
+          linkedin_token_expires_at = EXCLUDED.linkedin_token_expires_at,
           is_active = true,
           last_used_at = NOW()
       `;

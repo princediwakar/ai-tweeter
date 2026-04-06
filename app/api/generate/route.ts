@@ -14,7 +14,7 @@ import {
   getGenerationBatchInfo,
 } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
-import { getPersonaByKey } from '@/lib/personas';
+import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 
 // In-memory request deduplication to prevent overlapping cron jobs
 const inFlightRequests = new Map<string, Promise<any>>();
@@ -183,8 +183,9 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
   logger.info(`[Enhanced:${callId}] DB read time: ${((performance.now() - dbReadStart) / 1000).toFixed(2)}s. Pending tweets: ${pendingTweets.length}`, 'generate-timing');
 
-  const maxPipelineSize = account.branding?.max_pipeline_size || (account.twitter_handle.includes('gibbi') ? 8 : 30);
-  const supportsThreading = account.branding?.supports_threads ?? canGenerateThreads(account);
+  const maxPipelineSize = account.branding?.max_pipeline_size || 30;
+  const canThreads = await canGenerateThreads(account);
+  const supportsThreading = account.branding?.supports_threads ?? canThreads;
 
   if (pendingTweets.length >= maxPipelineSize) {
     logger.info(`[Enhanced:${callId}] Generation skipped: pipeline full. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
@@ -205,7 +206,8 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   // For threading personas, only generate one thread per call  
   const selectedPersonaKey = batchInfo.generation_personas[0];
   const persona = await getPersonaByKey(selectedPersonaKey);
-  const threadPersonas = ['business_storyteller', 'cricket_storyteller', 'linkedin_analyst', 'satirist', 'pattern_spotter'];
+  const allPersonas = await getAllPersonas();
+  const threadPersonas = allPersonas.filter(p => p.config?.supports_threads).map(p => p.key);
   const isThreadingPersona = supportsThreading && threadPersonas.includes(selectedPersonaKey);
   const shouldGenerateThreads = isThreadingPersona;
 
@@ -242,9 +244,9 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       const threadCallStart = performance.now();
       logger.info(`🚀 [Enhanced:${callId}] Starting thread generation for ${selectedPersonaKey}`, 'thread-generation');
 
-      // Fetch context with accountId for source deduplication
+      // Fetch context with accountId and personaKey for source deduplication
       const { getDynamicContext } = await import('@/lib/contentSource');
-      const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId);
+      const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey);
 
       // Generate thread with the fetched context
       const threadResult = await generateThread({
@@ -292,10 +294,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     if (!generatedTweet) throw new Error(`Failed to generate tweet for persona ${selectedPersonaKey}`);
 
     const saveStart = performance.now();
-    // MODIFIED: Added source_url to the object saved in the database
+    // Use connected_account_id (not account_id) to match tweets table schema
     const tweet: Partial<Tweet> = {
       id: generateTweetId(),
-      account_id: accountId,
+      connected_account_id: accountId,
       content: generatedTweet.content,
       hashtags: generatedTweet.hashtags,
       persona: generatedTweet.persona,
@@ -305,7 +307,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       image_url: generatedTweet.imageUrl,
       image_status: generatedTweet.imageStatus || 'none',
       card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
-      source_url: generatedTweet.sourceUrl, // Save the URL to the DB
+      source_url: generatedTweet.sourceUrl,
     };
 
     await saveTweet(tweet as Tweet);

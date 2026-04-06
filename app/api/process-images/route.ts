@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTweetsWithPendingImages, updateTweetImage } from '@/lib/db';
 import { generatePersonaImage } from '@/lib/services/imageGenerationService';
-import { VocabularyCard } from '@/lib/types';
 import { logger } from '@/lib/logger';
 
 /**
@@ -43,10 +42,10 @@ export async function GET(request: NextRequest) {
           throw new Error('No card_data found for image generation');
         }
 
-        const cardData: VocabularyCard = JSON.parse(tweet.card_data);
+        const cardData = JSON.parse(tweet.card_data) as Record<string, unknown>;
         
-        // ✅ FIX 1: Pass accountId to generatePersonaImage for Cloudinary configuration
-        const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.account_id);
+        // Use connected_account_id (not account_id) to match tweets table schema
+        const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.connected_account_id);
         
         if (imageUrl) {
           await updateTweetImage(tweet.id, imageUrl, 'completed');

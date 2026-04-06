@@ -170,8 +170,13 @@ export default function PersonasPage() {
     };
   }).filter(g => g.accounts.length > 0);
 
-  // Debug: log accounts and their platforms
-  console.log('Accounts:', accounts.map(a => ({ id: a.id, name: a.name, platform: a.platform })));
+  // For PersonaEditor, we need accounts with account_username
+  const editorAccounts = accounts.map(a => ({
+    id: a.id,
+    name: a.name ?? null,
+    account_username: a.account_username,
+    platform: a.platform
+  }));
 
   return (
     <NavigationLayout>
@@ -194,7 +199,7 @@ export default function PersonasPage() {
                   platform={selectedAccount.platform as 'twitter' | 'linkedin'}
                   accountName={selectedAccount.name || undefined}
                   onAccountChange={setSelectedAccountId}
-                  accounts={accounts}
+                  accounts={editorAccounts}
                   selectedAccountId={selectedAccountId}
                   editingPersona={editingPersona}
                   onEditComplete={() => {
@@ -224,7 +229,7 @@ export default function PersonasPage() {
                   {platformAccounts.map(({ account, personas: accountPersonas }) => (
                     <div key={account.id} className="space-y-3 pl-4">
                       <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-                        <span className="font-medium text-gray-900">{(account.name || account.twitter_handle)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})</span>
+                        <span className="font-medium text-gray-900">{(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})</span>
                       </div>
                       <PersonaListByAccount 
                         personas={accountPersonas}

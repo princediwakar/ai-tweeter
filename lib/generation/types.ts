@@ -1,7 +1,5 @@
 import type { Account, Persona } from '../types';
-import type { PersonaTopic } from '../personas';
 
-// Existing types remain unchanged...
 export interface VariationMarkers {
   time_marker: string;
   token_marker: string;
@@ -9,10 +7,8 @@ export interface VariationMarkers {
   content_hash: string;
 }
 
-// UPDATED: Added recentPatterns with proper typing
 export interface TweetGenerationConfig {
   connected_account_id?: string;
-  account_id?: string; // Deprecated - use connected_account_id
   persona?: string;
   category?: string;
   topic?: string;
@@ -21,26 +17,15 @@ export interface TweetGenerationConfig {
   batchSize?: number;
   previousWords?: string[];
   previousHeadlines?: number[];
-  recentPatterns?: RecentPattern[]; // UPDATED: Now properly typed
+  recentPatterns?: RecentPattern[];
   usedSourceUrls?: string[];
   rssContext?: string;
-  satiristFormat?: 'image' | 'text-only';
-  patternSpotterFormat?: 'image' | 'text-only';
-  vocabFormat?: 'image' | 'text-only';
+  generationFormat?: 'image' | 'text-only';
 }
 
-// NEW: Pattern tracking type
 export interface RecentPattern {
   text: string;
   timestamp?: string;
-}
-
-
-
-export interface HeadlineWithSource {
-  headline: string;
-  url: string;
-  description?: string;
 }
 
 export interface GenerationContext {
@@ -52,5 +37,5 @@ export interface GenerationContext {
 export interface PersonaGenerationResult {
   prompt: string;
   persona: Persona;
-  topic: PersonaTopic;
+  topic: string;
 }

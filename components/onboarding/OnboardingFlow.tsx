@@ -8,7 +8,7 @@ import { Sparkles, Zap, ArrowRight, Loader2, Brain, CheckCircle, Rocket, Wand2 }
 interface Account {
   id: string;
   name: string;
-  twitter_handle: string;
+  account_username: string;
   status: string;
   twitter_oauth2_enabled: boolean;
 }

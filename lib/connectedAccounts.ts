@@ -88,6 +88,7 @@ export interface ConnectedAccount {
   created_at: string | null;
   updated_at: string | null;
   last_used_at: string | null;
+  // Twitter legacy credentials
   twitter_api_key?: string | null;
   twitter_api_secret?: string | null;
   twitter_access_token?: string | null;
@@ -95,12 +96,22 @@ export interface ConnectedAccount {
   personas?: string[];
   branding?: Record<string, unknown>;
   profile_image_url?: string | null;
+  // Cloudinary
+  cloudinary_cloud_name?: string | null;
+  cloudinary_api_key?: string | null;
+  cloudinary_api_secret?: string | null;
+  // LinkedIn OAuth
   linkedin_enabled?: boolean;
   linkedin_user_id?: string;
   linkedin_org_id?: string;
   linkedin_token_expires_at?: string;
   linkedin_access_token?: string;
   linkedin_refresh_token?: string;
+  // Twitter OAuth 2.0
+  twitter_oauth2_enabled?: boolean;
+  twitter_oauth2_access_token?: string;
+  twitter_oauth2_refresh_token?: string;
+  twitter_oauth2_token_expires_at?: string;
 }
 
 interface ConnectedAccountRow {
@@ -118,6 +129,7 @@ interface ConnectedAccountRow {
   status: string;
   connected_at: string | null;
   last_used_at: string | null;
+  // Twitter API credentials (legacy)
   twitter_api_key_encrypted: string | null;
   twitter_api_secret_encrypted: string | null;
   twitter_access_token_encrypted: string | null;
@@ -125,6 +137,22 @@ interface ConnectedAccountRow {
   personas: string[];
   branding: Record<string, unknown>;
   profile_image_url: string | null;
+  // Cloudinary
+  cloudinary_cloud_name_encrypted: string | null;
+  cloudinary_api_key_encrypted: string | null;
+  cloudinary_api_secret_encrypted: string | null;
+  // LinkedIn OAuth (platform-specific or separate columns)
+  linkedin_enabled: boolean;
+  linkedin_user_id: string | null;
+  linkedin_org_id: string | null;
+  linkedin_access_token_encrypted: string | null;
+  linkedin_refresh_token_encrypted: string | null;
+  linkedin_token_expires_at: string | null;
+  // Twitter OAuth 2.0
+  twitter_oauth2_enabled: boolean;
+  twitter_oauth2_access_token_encrypted: string | null;
+  twitter_oauth2_refresh_token_encrypted: string | null;
+  twitter_oauth2_token_expires_at: string | null;
 }
 
 function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
@@ -146,6 +174,7 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
     created_at: row.connected_at,
     updated_at: row.connected_at,
     last_used_at: row.last_used_at,
+    // Twitter legacy credentials
     twitter_api_key: decrypt(row.twitter_api_key_encrypted),
     twitter_api_secret: decrypt(row.twitter_api_secret_encrypted),
     twitter_access_token: decrypt(row.twitter_access_token_encrypted),
@@ -153,10 +182,22 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
     personas: row.personas || [],
     branding: row.branding || {},
     profile_image_url: row.profile_image_url,
-    linkedin_enabled: row.platform === 'linkedin' && !!row.access_token_encrypted,
-    linkedin_access_token: row.platform === 'linkedin' ? (decrypt(row.access_token_encrypted) || undefined) : undefined,
-    linkedin_refresh_token: row.platform === 'linkedin' ? (decrypt(row.refresh_token_encrypted) || undefined) : undefined,
-    linkedin_token_expires_at: row.platform === 'linkedin' ? (row.token_expires_at || undefined) : undefined,
+    // Cloudinary
+    cloudinary_cloud_name: decrypt(row.cloudinary_cloud_name_encrypted),
+    cloudinary_api_key: decrypt(row.cloudinary_api_key_encrypted),
+    cloudinary_api_secret: decrypt(row.cloudinary_api_secret_encrypted),
+    // LinkedIn
+    linkedin_enabled: row.linkedin_enabled,
+    linkedin_user_id: row.linkedin_user_id || undefined,
+    linkedin_org_id: row.linkedin_org_id || undefined,
+    linkedin_access_token: decrypt(row.linkedin_access_token_encrypted) || undefined,
+    linkedin_refresh_token: decrypt(row.linkedin_refresh_token_encrypted) || undefined,
+    linkedin_token_expires_at: row.linkedin_token_expires_at || undefined,
+    // Twitter OAuth 2.0
+    twitter_oauth2_enabled: row.twitter_oauth2_enabled,
+    twitter_oauth2_access_token: decrypt(row.twitter_oauth2_access_token_encrypted) || undefined,
+    twitter_oauth2_refresh_token: decrypt(row.twitter_oauth2_refresh_token_encrypted) || undefined,
+    twitter_oauth2_token_expires_at: row.twitter_oauth2_token_expires_at || undefined,
   };
 }
 

@@ -1,7 +1,6 @@
 // lib/generation/personas/base.ts
+// Base classes for persona prompt generation - config should come from DB
 import type { TweetGenerationConfig, GenerationContext } from '../types';
-import type { Account } from '../../types';
-import { GENERATION_CONFIG } from '../config';
 
 export interface PersonaGenerator {
   generatePrompt(
@@ -18,20 +17,10 @@ export abstract class BasePersonaGenerator implements PersonaGenerator {
     markers: { timeMarker: string; tokenMarker: string }
   ): string;
 
-  protected addGibbiCTA(basePrompt: string, account: Account | null): string {
-    if (account) {
-      const isGibbiAccount = account.twitter_handle.includes('gibbi') || (account.name && account.name.toLowerCase().includes('gibbi'));
-      if (isGibbiAccount && Math.random() < GENERATION_CONFIG.personas.englishVocabBuilder.ctaProbability) {
-        return basePrompt + `\n\nIMPORTANT: Include a natural Gibbi AI mention like "Practice more English at gibbi.vercel.app" or "Improve your skills at gibbi.vercel.app" - keep it helpful and non-promotional.`;
-      }
-    }
-    return basePrompt;
-  }
-
   protected addCommonSuffix(prompt: string, maxChars: number = 280): string {
     return prompt + `\n\n━━━━━━━━━━━━━━━━━━━━━━
 CRITICAL OUTPUT RULES
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 
 🚨 CHARACTER LIMITS (STRICTLY ENFORCED):
 • HARD MAXIMUM: ${maxChars} characters total

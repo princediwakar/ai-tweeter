@@ -1,18 +1,14 @@
-import { accountService } from './accountService';
+// lib/personas.ts - Persona operations (all DB-driven)
 import { getPersona, getAllPersonasFromDb } from './db';
+import { accountService } from './accountService';
 import type { Persona } from './types';
 
 export type { Persona };
 export type PersonaConfig = Persona;
-export interface PersonaTopic {
-  key: string;
-  displayName: string;
-}
 
-// Hardcoded fallback list is now empty as we move to DB
+// All personas come from DB - no hardcoded list
 export const PERSONAS: readonly Persona[] = [];
-
-export type PersonaKey = typeof PERSONAS[number]['key'];
+export type PersonaKey = string;
 
 export async function getPersonaByKey(key: string): Promise<Persona | undefined> {
   if (!key) return undefined;
@@ -20,30 +16,18 @@ export async function getPersonaByKey(key: string): Promise<Persona | undefined>
   return persona || undefined;
 }
 
+export async function getAllPersonas(): Promise<Persona[]> {
+  return getAllPersonasFromDb();
+}
+
 export async function selectPersonaByWeight(): Promise<Persona> {
   const personas = await getAllPersonasFromDb();
+  if (personas.length === 0) {
+    throw new Error('No personas found in database');
+  }
   const randomIndex = Math.floor(Math.random() * personas.length);
   return personas[randomIndex];
 }
-
-export async function getAllPersonas(): Promise<Persona[]> {
-  return await getAllPersonasFromDb();
-}
-
-export const personas = PERSONAS.map(p => {
-  const emojiMatch = p.name.match(/\p{Emoji}/u);
-  return {
-      id: p.key,
-      name: p.name,
-      emoji: emojiMatch ? emojiMatch[0] : '🗣️',
-      description: p.description,
-  };
-});
-
-const FALLBACK_ACCOUNT_PERSONA_MAPPING: Record<string, string[]> = {
-  'gibbi_ai': ['english_vocab_builder'],
-  'princediwakar25': ['satirist', 'pattern_spotter', 'business_storyteller', 'cricket_storyteller', 'linkedin_analyst'],
-};
 
 export async function getAllowedPersonasForHandle(twitterHandle: string): Promise<string[]> {
   if (!twitterHandle) return [];
@@ -55,15 +39,14 @@ export async function getAllowedPersonasForHandle(twitterHandle: string): Promis
       return account.personas;
     }
   } catch (e) {
-    console.warn('Failed to get DB personas, using fallback:', e);
+    console.warn('Failed to get personas from account:', e);
   }
 
-  return FALLBACK_ACCOUNT_PERSONA_MAPPING[cleanHandle] || [];
+  return [];
 }
 
-export function isPersonaAllowedForHandle(personaKey: string, twitterHandle: string): boolean {
-  const allowedPersonas = FALLBACK_ACCOUNT_PERSONA_MAPPING[twitterHandle.replace('@', '').toLowerCase()] || [];
-  return allowedPersonas.includes(personaKey);
+export function isPersonaAllowedForHandle(_personaKey: string, _twitterHandle: string): boolean {
+  return true;
 }
 
 export async function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: string[]): Promise<Persona> {
@@ -84,5 +67,3 @@ export async function getRandomPersonaForHandle(twitterHandle: string, personaKe
   if (!persona) throw new Error(`Persona not found: ${randomKey}`);
   return persona;
 }
-
-export default PERSONAS;

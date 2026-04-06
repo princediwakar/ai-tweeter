@@ -20,12 +20,10 @@ import { generateContentHash } from "./generation/utils";
 import { TweetV2 } from "./twitter";
 import { EngagementTarget } from "./engagement/targets";
 import { GENERATION_CONFIG } from "./generation/config";
+import { getAllPersonas } from "./personas";
 import {
   getRecentPatternData,
-  getRecentSatiristData,
-  getRecentVocabularyWords,
 } from "./db";
-import { getEngagementPersona } from "./engagement/personas";
 
 // Lazy initialization of the client with thread-safe pattern
 let deepseekClientInstance: OpenAI | null = null;
@@ -95,40 +93,39 @@ export async function generateTweet(
   config: TweetGenerationConfig = {}
 ): Promise<EnhancedTweet | null> {
   try {
+    // --- MODIFIED: Dynamic RSS-based persona check for recent data ---
+    const allPersonas = await getAllPersonas();
+    const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
+    
     if (
-      config.persona === "satirist" &&
       config.connected_account_id &&
+      config.persona &&
+      rssPersonaKeys.includes(config.persona) &&
       !config.recentPatterns
     ) {
       console.log(
-        `[Single Tweet] Fetching recent satirist data for account ${config.connected_account_id}...`
+        `[Single Tweet] Fetching recent data for account ${config.connected_account_id}...`
       );
-      const recentData = await getRecentSatiristData(config.connected_account_id, 5);
-      config.recentPatterns = recentData.patterns;
-      config.usedSourceUrls = recentData.usedSourceUrls;
-    }
-
-    if (
-      config.persona === "pattern_spotter" &&
-      config.connected_account_id &&
-      !config.recentPatterns
-    ) {
-      console.log(
-        `[Single Tweet] Fetching recent pattern data for account ${config.connected_account_id}...`
-      );
-      const recentData = await getRecentPatternData(config.connected_account_id, 5);
-      config.recentPatterns = recentData.patterns;
-      config.usedSourceUrls = recentData.usedSourceUrls;
+      // Get recent patterns for any persona with RSS sources
+      const allPersonas = await getAllPersonas();
+      const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
+      
+      if (config.persona && rssPersonaKeys.includes(config.persona)) {
+        const recentData = await getRecentPatternData(config.connected_account_id, 5);
+        config.recentPatterns = recentData.patterns;
+        config.usedSourceUrls = recentData.usedSourceUrls;
+      }
     }
 
     // --- MODIFIED: Call imported function ---
     const { prompt, persona, rssContext } = await generateTweetPrompt(config);
 
-    // NEW: Count actual headlines in RSS context for validation
+    // --- MODIFIED: Dynamic RSS-based persona check ---
     let actualHeadlineCount: number | undefined;
-    if (rssContext) {
-      // ✨ MODIFIED: Both personas now use the same "### ARTICLE" format
-      if (persona.key === "satirist" || persona.key === "pattern_spotter" || persona.key === "linkedin_analyst") {
+    if (rssContext && persona.key) {
+      const allPersonas = await getAllPersonas();
+      const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
+      if (rssPersonaKeys.includes(persona.key)) {
         const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
         actualHeadlineCount = headlineMatches
           ? headlineMatches.length
@@ -172,28 +169,27 @@ export async function generateTweet(
       reasoning,
     } = parsedResponse;
 
-    // --- NEW: Log the 5 Whys to the server (console for now; extend to DB) ---
-    if (reasoning && config.persona === "pattern_spotter") {
-      // Console log (temporary)
-      console.log(
-        `📝 [Server Log] 5 Whys for tweet on ${sourceUrl || "unknown source"}:`,
-        JSON.stringify(reasoning, null, 2)
-      );
+    // Log reasoning if available (could be stored in DB later)
+    if (reasoning) {
+      console.log(`📝 [Server Log] Reasoning for tweet on ${sourceUrl || "unknown source"}:`, JSON.stringify(reasoning, null, 2));
     }
+    
     const imageUrl: string | undefined = undefined;
     let imageStatus: "none" | "pending" = "none";
+    const personaConfig = (persona.config as Record<string, unknown>) || {};
+    const imageProbability = Number(personaConfig.image_probability) || 0;
 
     console.log(
-      `🔍 Checking image generation for persona ${persona.name}: probability=${persona.config.image_probability}`
+      `🔍 Checking image generation for persona ${persona.name}: probability=${imageProbability}`
     );
 
-    if (persona.config.image_probability && persona.config.image_probability > 0 && cardData) {
+    if (imageProbability > 0 && cardData) {
       // If cardData exists and probability is > 0, we can generate an image
       console.log(
         `🖼️ Queueing async image generation for ${persona.name} with key ${persona.key}`
       );
       imageStatus = "pending";
-    } else if (persona.config.image_probability && persona.config.image_probability > 0 && !cardData) {
+    } else if (imageProbability > 0 && !cardData) {
       console.log(
         `🔍 Image generation enabled but no card data for persona ${persona.name} (text-only format selected)`
       );
@@ -228,130 +224,66 @@ export async function generateBatchTweets(
   config: TweetGenerationConfig = {}
 ): Promise<EnhancedTweet[]> {
   const tweets: EnhancedTweet[] = [];
-  const generatedWords: string[] = [];
   const usedHeadlines: number[] = [];
 
-  let recentWords: string[] = [];
-  if (config.connected_account_id && config.persona === "english_vocab_builder") {
-    recentWords = await getRecentVocabularyWords(config.connected_account_id);
-    console.log(
-      `📚 Found ${recentWords.length} recent vocabulary words to avoid repetition`
-    );
-  }
-
-  let recentPatterns: RecentPattern[] = [];
-  let usedSourceUrls: string[] = [];
-
-  // ✨ MODIFIED: Check for both personas
+  // RSS-based personas get recent content for deduplication
+  const allPersonas = await getAllPersonas();
+  const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
+  
   if (
     config.connected_account_id &&
-    (config.persona === "pattern_spotter" || config.persona === "satirist" || config.persona === "linkedin_analyst")
+    config.persona &&
+    rssPersonaKeys.includes(config.persona)
   ) {
-    let recentData;
-    if (config.persona === "pattern_spotter") {
-      recentData = await getRecentPatternData(config.connected_account_id, 5);
-    } else {
-      recentData = await getRecentSatiristData(config.connected_account_id, 5);
-    }
-    recentPatterns = recentData.patterns;
-    usedSourceUrls = recentData.usedSourceUrls;
+    const recentData = await getRecentPatternData(config.connected_account_id, 5);
+    config.recentPatterns = recentData.patterns;
+    config.usedSourceUrls = recentData.usedSourceUrls;
     console.log(
-      `🔍 [Batch: ${config.persona}] Initial context: ${recentPatterns.length} recent patterns and ${usedSourceUrls.length} used source URLs to avoid.`
+      `🔍 [Batch: ${config.persona}] Initial context: ${recentData.patterns.length} recent patterns and ${recentData.usedSourceUrls.length} used source URLs to avoid.`
     );
   }
 
   for (let i = 0; i < count; i++) {
-    // ✨ FIXED: We must provide the *full* config to getDynamicContext
-    // This means we must NOT set rssContext to undefined, but rather let
-    // generateTweetPrompt handle it, which will call getDynamicContext.
+    // Use config.usedSourceUrls which is set above
     const batchConfig: TweetGenerationConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
-      previousWords: recentWords.length > 0 ? recentWords : undefined,
+      previousWords: undefined,
       previousHeadlines: usedHeadlines.length > 0 ? usedHeadlines : undefined,
-      recentPatterns: recentPatterns.length > 0 ? recentPatterns : undefined,
-      usedSourceUrls: usedSourceUrls.length > 0 ? usedSourceUrls : undefined,
-      // rssContext is intentionally left out so it gets fetched fresh
-      // by generateTweetPrompt, which respects the usedSourceUrls
+      recentPatterns: config.recentPatterns ? config.recentPatterns : undefined,
+      usedSourceUrls: config.usedSourceUrls ? config.usedSourceUrls : undefined,
     };
 
     console.log(
       `🔄 [Batch ${i + 1}/${count}] Generating with ${
-        usedSourceUrls.length
+        config.usedSourceUrls?.length || 0
       } blocked URLs...`
     );
 
     const result = await generateTweet(batchConfig);
 
-    if (result) {
-      tweets.push(result);
+      if (result) {
+        tweets.push(result);
 
-      if (
-        result.persona === "english_vocab_builder" &&
-        result.cardData &&
-        "word" in result.cardData
-      ) {
-        const newWord = result.cardData.word.toLowerCase();
-        generatedWords.push(newWord);
-      }
+        // Track headline numbers (for RSS-based personas)
+        if (
+          config.persona &&
+          rssPersonaKeys.includes(config.persona) &&
+          result.selectedHeadlineNumber
+        ) {
+          usedHeadlines.push(result.selectedHeadlineNumber);
+        }
 
-      // Track headline numbers (for satirist AND pattern_spotter)
-      if (
-        (result.persona === "satirist" ||
-          result.persona === "pattern_spotter" ||
-          result.persona === "linkedin_analyst") &&
-        result.selectedHeadlineNumber
-      ) {
-        usedHeadlines.push(result.selectedHeadlineNumber);
-      }
-
-      // ✅ CRITICAL: Update blocklist immediately for next tweet in batch
-      if (
-        result.persona === "pattern_spotter" ||
-        result.persona === "satirist"
-      ) {
-        // Add this tweet's source URL to blocklist for next iteration
-        if (result.sourceUrl && !usedSourceUrls.includes(result.sourceUrl)) {
-          usedSourceUrls.push(result.sourceUrl);
-          console.log(
-            `🚫 [Batch ${
-              i + 1
-            }] Blocked source for next tweet: ${result.sourceUrl.substring(
-              0,
-              50
-            )}...`
-          );
+        // Track used source URLs (in config for next iteration)
+        if (result.sourceUrl && config.usedSourceUrls && !config.usedSourceUrls.includes(result.sourceUrl)) {
+          config.usedSourceUrls.push(result.sourceUrl);
         }
       }
-
-      // Update recent patterns
-      if (
-        result.persona === "pattern_spotter" ||
-        result.persona === "satirist"
-      ) {
-        recentPatterns.push({
-          text: result.content,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    // Small delay between generations - only add if needed for rate limiting
-    // Removed hardcoded 500ms sleep that was adding ~2s latency per batch of 5
-    // Rate limiting is now handled by the API's natural execution time
   }
 
-  console.log(
-    `📊 Enhanced batch generation complete: ${tweets.length}/${count} successful tweets`
-  );
-  console.log(`🔤 Generated words: ${generatedWords.join(", ")}`);
-  console.log(`🚫 Avoided ${recentWords.length} recent words from database`);
-  if (usedHeadlines.length > 0) {
-    console.log(`📰 Used headlines: #${usedHeadlines.join(", #")}`);
-  }
-  if (usedSourceUrls.length > 0) {
-    console.log(`🚫 Final blocked URLs (total ${usedSourceUrls.length})`);
+  if (config.usedSourceUrls && config.usedSourceUrls.length > 0) {
+    console.log(`🚫 Final blocked URLs (total ${config.usedSourceUrls.length})`);
   }
   return tweets;
 }
@@ -361,15 +293,19 @@ export async function generateEngagementReply(
   target: EngagementTarget,
   engagementPersonaKey: string
 ): Promise<string | null> {
-  const engagementPersona = getEngagementPersona(engagementPersonaKey);
-  if (!engagementPersona) {
+  // Get persona from DB - personas table should have engagement prompts in config
+  const { getPersona } = await import('@/lib/db');
+  const persona = await getPersona(engagementPersonaKey);
+  const pConfig = (persona?.config as Record<string, unknown>) || {};
+  
+  if (!persona || !pConfig.systemPrompt) {
     console.error(
-      `[Generator] Engagement persona '${engagementPersonaKey}' not found.`
+      `[Generator] Engagement persona '${engagementPersonaKey}' not found in DB.`
     );
     return null;
   }
 
-  const prompt = `${engagementPersona.systemPrompt}
+  const prompt = `${pConfig.systemPrompt}
 
   Reply Context:
   - You are replying to: @${target.username} (Tier ${target.tier} influencer: ${target.description})
@@ -378,7 +314,7 @@ export async function generateEngagementReply(
 
   try {
     console.log(
-      `[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${engagementPersona.displayName}`
+      `[Generator] Generating engagement reply for tweet ${tweet.id} with persona ${persona.name}`
     );
     const client = await getDeepseekClientAsync();
     const response = await client.chat.completions.create({

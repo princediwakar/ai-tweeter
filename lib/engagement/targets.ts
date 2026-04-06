@@ -1,6 +1,7 @@
 // lib/engagement/targets.ts
-import { promises as fs } from 'fs';
-import path from 'path';
+// Engagement targets should come from DB (connected_accounts or separate table)
+
+import { sql } from '@vercel/postgres';
 
 export interface EngagementTarget {
   username: string;
@@ -17,22 +18,24 @@ export interface EngagementConfig {
   };
 }
 
-// A simple in-memory cache to avoid reading the file on every request
-let engagementConfigCache: Record<string, EngagementConfig> | null = null;
-
-async function loadEngagementConfig(): Promise<Record<string, EngagementConfig>> {
-  if (engagementConfigCache) {
-    return engagementConfigCache;
-  }
-  const filePath = path.join(process.cwd(), 'config', 'engagement-targets.json');
-  const fileContents = await fs.readFile(filePath, 'utf8');
-  engagementConfigCache = JSON.parse(fileContents);
-  return engagementConfigCache!;
-}
-
 export async function getEngagementConfigForAccount(twitterHandle: string): Promise<EngagementConfig | null> {
-  const config = await loadEngagementConfig();
-  // Normalize handle to ensure it works with or without '@'
-  const normalizedHandle = twitterHandle.startsWith('@') ? twitterHandle : `@${twitterHandle}`;
-  return config[normalizedHandle] || null;
+  // TODO: Read from DB - connected_accounts.engagement_config or separate table
+  // For now, return null - needs DB implementation
+  console.log(`[Engagement] Loading config for ${twitterHandle} from DB...`);
+  
+  try {
+    const result = await sql`
+      SELECT engagement_config 
+      FROM connected_accounts 
+      WHERE twitter_handle = ${twitterHandle.replace('@', '')}
+    `;
+    
+    if (result.rows.length > 0 && result.rows[0].engagement_config) {
+      return result.rows[0].engagement_config as EngagementConfig;
+    }
+  } catch (error) {
+    console.warn('[Engagement] Failed to load config from DB:', error);
+  }
+  
+  return null;
 }

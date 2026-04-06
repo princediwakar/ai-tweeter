@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 interface Account {
   id: string;
   name: string | null;
-  twitter_handle: string;
-  status: string;
+  account_username: string;
+  status?: string;
   platform?: string;
 }
 
@@ -52,7 +52,7 @@ export function ModernAccountSelector({
               >
                 {accounts.map(account => (
                   <option key={account.id} value={account.id}>
-                    {(account.name || account.twitter_handle)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
                   </option>
                 ))}
               </select>

@@ -17,21 +17,28 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
     markers: { timeMarker: string; tokenMarker: string }
   ): string {
     const { timeMarker, tokenMarker } = markers;
-    const { config: dna } = this.persona;
+    const personaConfig = (this.persona.config as Record<string, unknown>) || {};
     const rssSourceContext = context.rssContext || "";
+
+    const identityContext = String(personaConfig.identity_context || 'You are an AI content generator.');
+    const sourceLogic = String(personaConfig.source_logic || 'Select relevant content sources.');
+    const voiceDna = String(personaConfig.voice_dna || 'Write in a clear, engaging voice.');
+    const antiPatterns = String(personaConfig.anti_patterns || 'Avoid generic filler words.');
+    const structuralArchetypes = (personaConfig.structural_archetypes as Array<{ name: string; description: string; example: string }>) || [];
+    const validationChecklist = (personaConfig.validation_checklist as string[]) || [];
 
     // 1. Identity & Goal
     let prompt = `
 # MISSION: ${this.persona.name}
-${dna.identity_context}
+${identityContext}
 
 ## YOUR GOAL
-${this.persona.description}
+${this.persona.description || 'Generate engaging content.'}
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 SOURCE SELECTION (SIGNAL VS NOISE)
-━━━━━━━━━━━━━━━━━━━━━━
-${dna.source_logic}
+━━━━━━━━━━━━━━━━━━━━━
+${sourceLogic}
 
 **CURRENT CONTEXT:**
 ${rssSourceContext}
@@ -40,30 +47,30 @@ ${config.previousHeadlines && config.previousHeadlines.length > 0
   ? `Already used article numbers: ${config.previousHeadlines.join(', ')}. Pick a different article.`
   : ''}
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 VOICE DNA (THE HUMAN PATTERN)
-━━━━━━━━━━━━━━━━━━━━━━
-${dna.voice_dna}
+━━━━━━━━━━━━━━━━━━━━━
+${voiceDna}
 
 **BANNED PATTERNS:**
-${dna.anti_patterns}
+${antiPatterns}
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 STRUCTURAL ARCHETYPES (ROTATION)
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 Choose ONE of these formats to execute based on the data:
 
-${(dna.structural_archetypes || []).map((arch: { name: string; description: string; example: string }, i: number) => `
+${structuralArchetypes.map((arch, i) => `
 **Format ${i + 1}: ${arch.name}**
 - Description: ${arch.description}
 - Example: "${arch.example}"
 `).join('\n')}
 
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 OUTPUT CONSTRUCTION
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 - Tone: ${this.persona.tone || 'Analytical'}
-- Max Length: ${this.persona.max_length} chars
+- Max Length: ${this.persona.max_length || 280} chars
 - Topics: ${this.persona.topics?.join(', ') || 'General'}
 
 **CRITICAL: Output ONLY valid JSON.**
@@ -83,17 +90,17 @@ OUTPUT CONSTRUCTION
 `;
 
     // Add validation checklist
-    if (dna.validation_checklist && dna.validation_checklist.length > 0) {
+    if (validationChecklist.length > 0) {
       prompt += `
-━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 FINAL VALIDATION CHECKLIST
-━━━━━━━━━━━━━━━━━━━━━━
-${(dna.validation_checklist || []).map((item: string) => `□ ${item}`).join('\n')}
+━━━━━━━━━━━━━━━━━━━━━
+${validationChecklist.map((item: string) => `□ ${item}`).join('\n')}
 `;
     }
 
     prompt += `\n-[${timeMarker}-${tokenMarker}]\n`;
 
-    return this.addCommonSuffix(prompt, this.persona.max_length);
+    return this.addCommonSuffix(prompt, this.persona.max_length || 280);
   }
 }

@@ -190,7 +190,8 @@ class PersonaService {
     const persona = await this.getPersona(personaId);
     if (!persona) return null;
 
-    const updatedSources = Array.from(new Set([...persona.rss_sources, rssUrl]));
+    const currentSources = persona.rss_sources || [];
+    const updatedSources = Array.from(new Set([...currentSources, rssUrl]));
 
     return this.updatePersona({
       id: personaId,
@@ -202,7 +203,8 @@ class PersonaService {
     const persona = await this.getPersona(personaId);
     if (!persona) return null;
 
-    const updatedSources = persona.rss_sources.filter(url => url !== rssUrl);
+    const currentSources = persona.rss_sources || [];
+    const updatedSources = currentSources.filter(url => url !== rssUrl);
 
     return this.updatePersona({
       id: personaId,

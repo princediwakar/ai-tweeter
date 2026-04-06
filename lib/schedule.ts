@@ -1,11 +1,14 @@
 import { sql } from '@vercel/postgres';
 import { accountService } from './accountService';
+import { getAllPersonas } from './personas';
+import { getPersonaById } from './db';
 import { getCurrentISTHour, getCurrentISTDay, getCurrentISTMinute } from './utils';
 
 interface ScheduleRow {
   id: string;
   connected_account_id: string;
   name: string;
+  persona_id?: string | null;
   timezone: string;
   schedule_config: Record<string, unknown>;
   days_of_week: number[];
@@ -30,11 +33,13 @@ export async function getGenerationBatchInfo(
   debugMode: boolean = false
 ): Promise<Schedule> {
   if (debugMode) {
+    const allPersonas = await getAllPersonas();
+    const debugPersonas = allPersonas.length > 0 ? allPersonas.map(p => p.key) : ['satirist'];
     return {
       should_generate: true,
       should_post: true,
-      generation_personas: ['satirist'],
-      posting_personas: ['satirist'],
+      generation_personas: debugPersonas,
+      posting_personas: debugPersonas,
       batch_size: 5,
     };
   }
@@ -83,7 +88,18 @@ export async function getGenerationBatchInfo(
     };
   }
 
-  const personas = account.personas || [];
+  // If schedule has a specific persona_id, only use that persona
+  // Otherwise fall back to account.personas (which are persona keys)
+  let personas: string[] = [];
+  if (activeSchedule.persona_id) {
+    const dbPersona = await getPersonaById(activeSchedule.persona_id);
+    if (dbPersona?.key) {
+      personas = [dbPersona.key];
+    }
+  } else {
+    personas = account.personas || [];
+  }
+  
   const scheduleConfig = activeSchedule.schedule_config as Record<string, unknown> || {};
   return {
     should_generate: true,

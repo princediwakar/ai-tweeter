@@ -82,22 +82,23 @@ export async function GET(request: NextRequest) {
 
     const twitterUser = userResponse.ok ? await userResponse.json() : { data: { username: 'unknown' } };
 
-    // Save to connected_accounts
+    // Save to connected_accounts - use Twitter OAuth 2.0 columns
     const userResult = await sql`SELECT id FROM users WHERE email = ${user_email}`;
     
     if (userResult.rows.length > 0) {
       const userId = userResult.rows[0].id;
       
       await sql`
-        INSERT INTO connected_accounts (user_id, platform, account_username, account_name, platform_user_id, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, connected_at)
-        VALUES (${userId}, 'twitter', ${twitterUser.data.username}, ${twitterUser.data.name || twitterUser.data.username}, ${twitterUser.data.id}, ${encryptToken(tokens.access_token)}, ${encryptToken(tokens.refresh_token || '')}, ${tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null}, true, NOW())
+        INSERT INTO connected_accounts (user_id, platform, account_username, account_name, platform_user_id, is_active, connected_at, twitter_oauth2_enabled, twitter_oauth2_access_token_encrypted, twitter_oauth2_refresh_token_encrypted, twitter_oauth2_token_expires_at)
+        VALUES (${userId}, 'twitter', ${twitterUser.data.username}, ${twitterUser.data.name || twitterUser.data.username}, ${twitterUser.data.id}, true, NOW(), true, ${encryptToken(tokens.access_token)}, ${encryptToken(tokens.refresh_token || '')}, ${tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null})
         ON CONFLICT (user_id, platform, account_username) 
         DO UPDATE SET 
           account_name = EXCLUDED.account_name,
           platform_user_id = EXCLUDED.platform_user_id,
-          access_token_encrypted = EXCLUDED.access_token_encrypted,
-          refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-          token_expires_at = EXCLUDED.token_expires_at,
+          twitter_oauth2_enabled = true,
+          twitter_oauth2_access_token_encrypted = EXCLUDED.twitter_oauth2_access_token_encrypted,
+          twitter_oauth2_refresh_token_encrypted = EXCLUDED.twitter_oauth2_refresh_token_encrypted,
+          twitter_oauth2_token_expires_at = EXCLUDED.twitter_oauth2_token_expires_at,
           is_active = true,
           last_used_at = NOW()
       `;

@@ -1,6 +1,7 @@
 /**
- * Advanced Variability Engine
- * Generates dynamic tokens, seeds, and randomization markers to maximize AI output diversity
+ * Generic Variability Engine
+ * Generates dynamic tokens, seeds, and randomization markers
+ * All variability is persona-agnostic - reads from DB config
  */
 
 export interface VariabilityConfig {
@@ -20,44 +21,45 @@ export interface VariabilityOutput {
 }
 
 /**
- * Dynamic seed phrases that influence AI behavior patterns
+ * Generic seed phrases - no hardcoded persona references
+ * All categories are abstract and apply to any content domain
  */
 const SEED_PHRASES = {
   creative: [
-    "Think like a renaissance polymath discovering connections across disciplines",
-    "Channel the curiosity of a linguistic archaeologist uncovering hidden word treasures",
-    "Approach this with the mind of a vocabulary alchemist transforming common into extraordinary",
-    "Embody the perspective of a cross-cultural word collector gathering global linguistic gems",
-    "Think as a cognitive scientist mapping the neural pathways of advanced communication"
+    "Think like a polymath discovering connections across disciplines",
+    "Channel the curiosity of an explorer uncovering hidden insights",
+    "Approach this with fresh perspective and unconventional thinking",
+    "Embody the perspective of a collector gathering meaningful data",
+    "Think as a scientist mapping patterns and relationships"
   ],
   
   analytical: [
-    "Apply the rigor of a computational linguist analyzing word frequency patterns",
-    "Think with the precision of a lexicographer crafting dictionary definitions",
-    "Approach this like a data scientist mining patterns in academic corpus databases",
-    "Channel the methodology of a psycholinguist studying language acquisition",
-    "Think as a corpus linguist analyzing millions of text samples for rare gems"
+    "Apply rigorous methodology with precision and accuracy",
+    "Think with the precision of an expert craftsman",
+    "Approach like a data scientist mining patterns",
+    "Channel the methodology of a researcher studying samples",
+    "Think as an analyst examining millions of data points"
   ],
   
   exploratory: [
-    "Venture into uncharted territories of the English lexicon like a linguistic explorer",
-    "Navigate vocabulary landscapes with the curiosity of an anthropologist",
-    "Explore semantic networks like a cognitive cartographer mapping meaning",
-    "Journey through etymology like a time-traveling word historian",
-    "Discover vocabulary with the wonder of a first-time reader in a vast library"
+    "Venture into uncharted territories with curiosity",
+    "Navigate landscapes with the wonder of discovery",
+    "Explore networks mapping meaningful connections",
+    "Journey through information like an explorer",
+    "Discover insights with the wonder of exploration"
   ],
   
   expert: [
-    "Think with the sophistication of a Harvard linguistics professor",
-    "Channel the expertise of a competitive vocabulary coach for international students",
-    "Approach with the authority of a New York Times crossword puzzle constructor",
-    "Think like a GRE vocabulary section author selecting the most challenging words",
-    "Embody the mindset of a Scripps National Spelling Bee word curator"
+    "Think with the sophistication of an industry expert",
+    "Channel the expertise of a specialist in the field",
+    "Approach with authority and deep knowledge",
+    "Think like a professional selecting the most effective elements",
+    "Embody the mindset of a craftsman perfecting their art"
   ]
 };
 
 /**
- * Variability tokens that inject randomness into AI processing
+ * Generic variability tokens - domain-agnostic
  */
 const VARIABILITY_TOKENS = {
   cognitive: [
@@ -70,77 +72,75 @@ const VARIABILITY_TOKENS = {
     "{DISCOVER_TREASURE}", "{HUNT_UNIQUE}", "{MINE_DEEP}", "{EXCAVATE_UNUSUAL}"
   ],
   
-  linguistic: [
-    "{ETYMOLOGICAL_DIVE}", "{SEMANTIC_VOYAGE}", "{MORPHOLOGICAL_TWIST}", "{PHONETIC_SURPRISE}",
-    "{SYNTACTIC_ADVENTURE}", "{LEXICAL_EXPERIMENT}", "{PRAGMATIC_SHIFT}", "{DISCOURSE_INNOVATION}"
+  analytical: [
+    "{DATA_DRIVEN}", "{PATTERN_ANALYSIS}", "{INSIGHT_FOCUS}", "{METRIC_MINDSET}",
+    "{EVIDENCE_BASED}", "{QUANTITATIVE_VIEW}", "{LOGICAL_FRAME}", "{STRUCTURED_THINK}"
   ],
   
   temporal: [
-    "{TEMPORAL_SHIFT}", "{ARCHAIC_ECHO}", "{MODERN_TWIST}", "{FUTURISTIC_LENS}",
-    "{HISTORICAL_PERSPECTIVE}", "{CONTEMPORARY_FLAVOR}", "{TIMELESS_QUALITY}", "{EVOLUTIONARY_VIEW}"
+    "{TEMPORAL_SHIFT}", "{PERSPECTIVE_SHIFT}", "{MODERN_TWIST}", "{FUTURISTIC_LENS}",
+    "{HISTORICAL_VIEW}", "{CONTEMPORARY_FLAVOR}", "{TIMELESS_QUALITY}", "{EVOLUTIONARY_VIEW}"
   ]
 };
 
 /**
- * Random markers that influence AI attention and focus
+ * Generic random markers - no domain specificity
  */
 const RANDOM_MARKERS = {
   attention: [
-    "⚡ATTENTION_VECTOR_ALPHA⚡", "🎯FOCUS_MATRIX_BETA🎯", "🔥INTENSITY_GAMMA🔥",
-    "💎PRECISION_DELTA💎", "🌟BRILLIANCE_EPSILON🌟", "⭐EXCELLENCE_ZETA⭐"
+    "⚡FOCUS_ALPHA⚡", "🎯INTENSITY_BETA🎯", "🔥PRECISION_GAMMA🔥",
+    "💎CLARITY_DELTA💎", "🌟BRILLIANCE_EPSILON🌟", "⭐EXCELLENCE_ZETA⭐"
   ],
   
   cognitive: [
-    "🧠NEURAL_PATHWAY_1🧠", "🔬COGNITIVE_LENS_2🔬", "🎨CREATIVE_FILTER_3🎨",
-    "📊ANALYTICAL_MODE_4📊", "🌈SPECTRUM_VIEW_5🌈", "🔮INSIGHT_PORTAL_6🔮"
+    "🧠NEURAL_PATTERNS🧠", "🔬ANALYTICAL_LENS🔬", "🎨CREATIVE_FILTER🎨",
+    "📊DATA_MODE📊", "🌈SPECTRUM_VIEW🌈", "🔮INSIGHT_PORTAL🔮"
   ],
   
   randomization: [
-    "🎲CHAOS_SEED_X🎲", "🌀ENTROPY_FIELD_Y🌀", "⚡RANDOM_PULSE_Z⚡",
+    "🎲CHAOS_SEED🎲", "🌀ENTROPY_FIELD🌀", "⚡RANDOM_PULSE⚡",
     "🔄VARIABILITY_WAVE🔄", "🎭PATTERN_BREAK🎭", "🚀INNOVATION_BURST🚀"
   ]
 };
 
 /**
- * Contextual cues that guide AI toward specific discovery modes
+ * Generic contextual cues - apply to any domain
  */
 const CONTEXTUAL_CUES = {
   academic: [
-    "Peer-reviewed journal mindset", "Scholarly discourse orientation", "Research paper precision",
-    "Academic conference vocabulary", "Dissertation-level sophistication", "Graduate seminar depth"
+    "Research-oriented mindset", "Scholarly discourse", "Evidence-based precision",
+    "Academic vocabulary", "Professional depth", "Expert-level analysis"
   ],
   
   professional: [
-    "C-suite communication level", "Industry thought leader perspective", "Expert consultant vocabulary",
-    "International business context", "Strategic planning language", "Executive presentation quality"
+    "Executive communication", "Industry perspective", "Expert vocabulary",
+    "Business context", "Strategic language", "Professional quality"
   ],
   
   cultural: [
-    "Global citizen awareness", "Cross-cultural sensitivity", "International perspective",
-    "Diplomatic communication", "Multicultural understanding", "Worldly sophistication"
+    "Global awareness", "Cross-cultural sensitivity", "International perspective",
+    "Diplomatic communication", "Broad understanding", "Worldly sophistication"
   ],
   
-  competitive: [
-    "High-stakes exam mindset", "Olympic vocabulary level", "Championship word selection",
-    "Tournament-grade precision", "Elite competitor standards", "Record-breaking vocabulary"
+  creative: [
+    "Innovative mindset", "Creative exploration", "Novel perspective",
+    "Artistic expression", "Unconventional approach", "Breakthrough thinking"
   ]
 };
 
 /**
- * Generates pseudo-random numbers based on multiple entropy sources
+ * Generates pseudo-random number from entropy
  */
 function generateEntropy(): number {
   const now = Date.now();
   const micro = performance.now();
   const random = Math.random();
-  
-  // Combine multiple entropy sources
   const entropy = (now * micro * random) % 1000000;
   return entropy / 1000000;
 }
 
 /**
- * Creates a dynamic seed based on context and randomness
+ * Creates a dynamic seed based on randomness
  */
 export function generateDynamicSeed(): string {
   const entropy = generateEntropy();
@@ -157,13 +157,7 @@ export function generateDynamicSeed(): string {
  * Generates variability tokens based on intensity level
  */
 export function generateVariabilityTokens(intensityLevel: VariabilityConfig['intensityLevel']): string[] {
-  const tokenCounts = {
-    low: 2,
-    medium: 4,
-    high: 6,
-    extreme: 8
-  };
-  
+  const tokenCounts = { low: 2, medium: 4, high: 6, extreme: 8 };
   const count = tokenCounts[intensityLevel];
   const allTokens = Object.values(VARIABILITY_TOKENS).flat();
   const tokens: string[] = [];
@@ -172,208 +166,66 @@ export function generateVariabilityTokens(intensityLevel: VariabilityConfig['int
     const entropy = generateEntropy();
     const tokenIndex = Math.floor(entropy * allTokens.length);
     const token = allTokens[tokenIndex];
-    if (!tokens.includes(token)) {
-      tokens.push(token);
-    }
+    if (!tokens.includes(token)) tokens.push(token);
   }
   
   return tokens;
 }
 
 /**
- * Generates random markers for AI attention manipulation
+ * Generates random markers for AI attention
  */
-export function generateRandomMarkers(count: number = 3): string[] {
+export function generateRandomMarkers(count: number = 2): string[] {
   const allMarkers = Object.values(RANDOM_MARKERS).flat();
   const markers: string[] = [];
   
   for (let i = 0; i < count; i++) {
     const entropy = generateEntropy();
-    const markerIndex = Math.floor(entropy * allMarkers.length);
-    const marker = allMarkers[markerIndex];
-    if (!markers.includes(marker)) {
-      markers.push(marker);
-    }
+    const index = Math.floor(entropy * allMarkers.length);
+    const marker = allMarkers[index];
+    if (!markers.includes(marker)) markers.push(marker);
   }
   
   return markers;
 }
 
 /**
- * Generates contextual cues based on topic and situation
+ * Generates contextual cues based on persona config
  */
-export function generateContextualCues(topicKey?: string, examType?: string): string[] {
-  let cueCategory = 'academic'; // default
+export function generateContextualCues(count: number = 3): string[] {
+  const allCues = Object.values(CONTEXTUAL_CUES).flat();
+  const cues: string[] = [];
   
-  if (examType) {
-    cueCategory = 'competitive';
-  } else if (topicKey?.includes('business') || topicKey?.includes('professional')) {
-    cueCategory = 'professional';
-  } else if (topicKey?.includes('cultural') || topicKey?.includes('global')) {
-    cueCategory = 'cultural';
+  for (let i = 0; i < count; i++) {
+    const entropy = generateEntropy();
+    const index = Math.floor(entropy * allCues.length);
+    const cue = allCues[index];
+    if (!cues.includes(cue)) cues.push(cue);
   }
   
-  const cues = CONTEXTUAL_CUES[cueCategory as keyof typeof CONTEXTUAL_CUES];
-  const entropy = generateEntropy();
-  const selectedCues: string[] = [];
-  
-  // Select 2-3 contextual cues
-  for (let i = 0; i < 3; i++) {
-    const cueIndex = Math.floor((entropy + i * 0.33) * cues.length) % cues.length;
-    const cue = cues[cueIndex];
-    if (!selectedCues.includes(cue)) {
-      selectedCues.push(cue);
-    }
-  }
-  
-  return selectedCues;
+  return cues;
 }
 
 /**
- * Creates a diversity injection phrase
+ * Main function: generate full variability output
  */
-export function generateDiversityInjection(): string {
-  const injections = [
-    "Break all patterns and create something genuinely unexpected",
-    "Surprise yourself with vocabulary choices that feel completely fresh",
-    "Think beyond your usual word selection algorithms",
-    "Challenge your own linguistic comfort zone",
-    "Discover words that would make you pause and think 'interesting choice'",
-    "Generate something that doesn't feel like your typical response",
-    "Find vocabulary that sparks curiosity even in yourself",
-    "Create content that feels like a delightful linguistic surprise",
-    "Choose words that would make a vocabulary expert say 'excellent selection'",
-    "Think like you're curating words for the most sophisticated audience"
-  ];
+export function generateVariability(config: VariabilityConfig): VariabilityOutput {
+  const seedPhrase = config.useSeeds ? generateDynamicSeed() : "";
+  const variabilityTokens = config.useTokens ? generateVariabilityTokens(config.intensityLevel) : [];
+  const randomMarkers = config.useRandomMarkers ? generateRandomMarkers(2) : [];
+  const contextualCues = config.contextAwareness ? generateContextualCues(3) : [];
   
-  const entropy = generateEntropy();
-  const index = Math.floor(entropy * injections.length);
-  return injections[index];
-}
-
-/**
- * Main function to generate complete variability package
- */
-export function generateVariabilityPackage(config: VariabilityConfig, context?: {
-  topicKey?: string;
-  examType?: string;
-  batchPosition?: number;
-  previousWords?: string[];
-}): VariabilityOutput {
-  const output: VariabilityOutput = {
-    seedPhrase: '',
-    variabilityTokens: [],
-    randomMarkers: [],
-    contextualCues: [],
-    diversityInjection: ''
-  };
-  
-  if (config.useSeeds) {
-    output.seedPhrase = generateDynamicSeed();
-  }
-  
-  if (config.useTokens) {
-    output.variabilityTokens = generateVariabilityTokens(config.intensityLevel);
-  }
-  
-  if (config.useRandomMarkers) {
-    const markerCount = config.intensityLevel === 'extreme' ? 5 : 
-                       config.intensityLevel === 'high' ? 4 : 
-                       config.intensityLevel === 'medium' ? 3 : 2;
-    output.randomMarkers = generateRandomMarkers(markerCount);
-  }
-  
-  if (config.contextAwareness) {
-    output.contextualCues = generateContextualCues(context?.topicKey, context?.examType);
-  }
-  
-  output.diversityInjection = generateDiversityInjection();
-  
-  return output;
-}
-
-/**
- * Creates variability configuration based on generation context
- */
-export function createVariabilityConfig(
-  batchPosition?: number,
-  batchSize?: number,
-  hasRecentWords?: boolean
-): VariabilityConfig {
-  // Increase intensity for larger batches or when avoiding repetition
-  let intensity: VariabilityConfig['intensityLevel'] = 'medium';
-  
-  if (batchSize && batchSize > 5) {
-    intensity = 'extreme';
-  } else if (batchSize && batchSize > 3) {
-    intensity = 'high';
-  } else if (hasRecentWords) {
-    intensity = 'high';
-  }
-  
-  // Add extra randomness for later positions in batch
-  if (batchPosition && batchPosition > 2) {
-    intensity = intensity === 'medium' ? 'high' : 
-               intensity === 'high' ? 'extreme' : intensity;
-  }
+  const diversityInjection = [
+    variabilityTokens.join(" "),
+    randomMarkers.join(" "),
+    contextualCues.join(" | ")
+  ].filter(Boolean).join("\n");
   
   return {
-    useSeeds: true,
-    useTokens: true,
-    useRandomMarkers: true,
-    intensityLevel: intensity,
-    contextAwareness: true
+    seedPhrase,
+    variabilityTokens,
+    randomMarkers,
+    contextualCues,
+    diversityInjection
   };
-}
-
-/**
- * Injects variability into prompt text
- */
-export function injectVariabilityIntoPrompt(
-  basePrompt: string,
-  variability: VariabilityOutput
-): string {
-  let enhancedPrompt = basePrompt;
-  
-  // Inject seed phrase at the beginning
-  if (variability.seedPhrase) {
-    enhancedPrompt = `COGNITIVE SEED: ${variability.seedPhrase}\n\n${enhancedPrompt}`;
-  }
-  
-  // Inject variability tokens throughout
-  if (variability.variabilityTokens.length > 0) {
-    const tokenString = variability.variabilityTokens.join(' ');
-    enhancedPrompt = enhancedPrompt.replace(
-      'WORD SELECTION CRITERIA:',
-      `VARIABILITY TOKENS: ${tokenString}\n\nWORD SELECTION CRITERIA:`
-    );
-  }
-  
-  // Inject random markers
-  if (variability.randomMarkers.length > 0) {
-    const markerString = variability.randomMarkers.join(' ');
-    enhancedPrompt = enhancedPrompt.replace(
-      'QUALITY STANDARDS:',
-      `${markerString}\n\nQUALITY STANDARDS:`
-    );
-  }
-  
-  // Inject contextual cues
-  if (variability.contextualCues.length > 0) {
-    const cueString = variability.contextualCues.join(', ');
-    enhancedPrompt = enhancedPrompt.replace(
-      'Your goal is to discover',
-      `CONTEXTUAL FRAMEWORK: ${cueString}\n\nYour goal is to discover`
-    );
-  }
-  
-  // Inject diversity requirement
-  if (variability.diversityInjection) {
-    enhancedPrompt = enhancedPrompt.replace(
-      'VOCABULARY EXPLORATION MINDSET:',
-      `DIVERSITY IMPERATIVE: ${variability.diversityInjection}\n\nVOCABULARY EXPLORATION MINDSET:`
-    );
-  }
-  
-  return enhancedPrompt;
 }

@@ -1,125 +1,174 @@
 // lib/services/imageGenerationService.ts
+/**
+ * Persona-Agnostic Image Generation Service
+ */
 
-import { createCanvas, loadImage, CanvasRenderingContext2D, registerFont } from 'canvas';
-import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import { createCanvas } from 'canvas';
+import { getPersona } from '@/lib/db';
 
-import { ImageConfig, CardData } from '../types';
+export interface ImageTemplate {
+  name: string;
+  description: string;
+  canHandle: (cardData: Record<string, unknown>) => boolean;
+  generate: (cardData: Record<string, unknown>, config: ImageTemplateConfig) => Promise<Buffer | null>;
+}
 
-import { accountService } from '@/lib/accountService';
-import { configureCloudinary, uploadToCloudinary } from '../utils/cloudinaryUtils';
-import { fetchUnsplashImage } from '../utils/unsplashUtils';
-import { getSafeFont, wordWrap, fitTextOnCanvas } from '../utils/canvasUtils';
-import { generateVocabularyCardImage } from './vocabularyGenerator';
-import { generateSatiristImage, calculateTotalTextHeight, renderMixedLine } from './satiristGenerator';
-// --- NEW ---
-import { generatePatternSpotterImage } from './patternSpotterGenerator';
-// --- END NEW ---
+export interface ImageTemplateConfig {
+  width: number;
+  height: number;
+  background?: string;
+  theme?: string;
+  [key: string]: unknown;
+}
 
-// Register Poppins fonts
-const fontsPath = path.join(process.cwd(), 'public', 'fonts');
-registerFont(path.join(fontsPath, 'Poppins-Regular.ttf'), { family: 'Poppins', weight: 'normal' });
-registerFont(path.join(fontsPath, 'Poppins-Bold.ttf'), { family: 'Poppins', weight: 'bold' });
+const DEFAULT_CONFIG: ImageTemplateConfig = {
+  width: 1200,
+  height: 675,
+  background: '#ffffff',
+  theme: 'light',
+};
 
-export const TWITTER_IMAGE_CONFIG: ImageConfig = {
-  enabled: true,
-  unsplashQuery: 'white background',
-  dimensions: {
-    width: 1200,
-    height: 675,
-  },
-  textStyle: {
-    wordSize: 90,
-    meaningSize: 40,
-    exampleSize: 30,
-    wordColor: '#1A1A1A',
-    meaningColor: '#333333',
-    exampleColor: '#555555',
-    fontFamily: 'Poppins',
-    backgroundColor: '',
-    backgroundOpacity: 0,
+const templateRegistry = new Map<string, ImageTemplate>();
+
+export function registerImageTemplate(template: ImageTemplate): void {
+  templateRegistry.set(template.name, template);
+}
+
+export function getAvailableTemplates(): string[] {
+  return Array.from(templateRegistry.keys());
+}
+
+function resolveTemplate(cardData: Record<string, unknown>, templateName?: string): ImageTemplate | null {
+  if (templateName && templateRegistry.has(templateName)) {
+    return templateRegistry.get(templateName)!;
+  }
+  for (const template of templateRegistry.values()) {
+    if (template.canHandle(cardData)) {
+      return template;
+    }
+  }
+  return templateRegistry.get('default') || null;
+}
+
+const defaultTemplate: ImageTemplate = {
+  name: 'default',
+  description: 'Default template',
+  canHandle: () => true,
+  generate: async (cardData: Record<string, unknown>, config: ImageTemplateConfig): Promise<Buffer | null> => {
+    const canvas = createCanvas(config.width, config.height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = config.background || '#ffffff';
+    ctx.fillRect(0, 0, config.width, config.height);
+    const content = JSON.stringify(cardData).substring(0, 200);
+    ctx.fillStyle = '#1A1A1A';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText(content, 40, 60);
+    return canvas.toBuffer('image/png');
   },
 };
 
-// * Generate image for persona and upload to Cloudinary using account-specific credentials
+registerImageTemplate(defaultTemplate);
+
 export async function generatePersonaImage(
-  cardData: CardData | string | null, // Accept string as well
+  cardData: Record<string, unknown> | string | null,
   personaKey: string,
   accountId?: string,
-  config?: ImageConfig
+  overrides?: Partial<ImageTemplateConfig>
 ): Promise<string | null> {
   if (!accountId) {
-    console.error("⚠️ Cannot generate image: account ID is required for Cloudinary configuration.");
+    console.error('[Image Gen] Cannot generate: account ID is required');
     return null;
   }
 
   try {
-    const account = await accountService.getAccount(accountId) as any;
-    if (!account) {
-      throw new Error(`Account not found: ${accountId}`);
-    }
+    const { accountService } = await import('@/lib/accountService');
+    const account = await accountService.getAccount(accountId);
+    if (!account) throw new Error(`Account not found: ${accountId}`);
 
-    // --- START: Added Parsing Logic ---
-    let parsedCardData: CardData | null = null;
-    if (typeof cardData === 'string') {
-      try {
-        parsedCardData = JSON.parse(cardData);
-      } catch (e) {
-        console.error('❌ Failed to parse cardData JSON string in generatePersonaImage:', cardData, e);
-        return null; // Exit if JSON is invalid
-      }
-    } else {
-      parsedCardData = cardData;
-    }
-
-    if (!parsedCardData) {
-      console.warn("⚠️ Cannot generate image: card data is null or invalid.");
+    const persona = await getPersona(personaKey);
+    if (!persona) {
+      console.warn(`[Image Gen] Persona not found: ${personaKey}`);
       return null;
     }
-    // --- END: Added Parsing Logic ---
 
-    let imageBuffer: Buffer;
-    let publicId: string;
-
-    // Use 'parsedCardData' from here on
-    if (personaKey === 'english_vocab_builder') {
-      // The type guard ensures 'word' exists for vocab.
-      if (parsedCardData.type === 'satirist_insight' || parsedCardData.type === 'pattern_spotter_insight' || parsedCardData.type === 'linkedin_analyst_insight' || !('word' in parsedCardData) || !parsedCardData.word) {
-        console.warn("⚠️ Cannot generate image: vocabulary card data is missing or invalid.");
-        return null;
-      }
-      imageBuffer = await generateVocabularyCardImage(parsedCardData, config);
-      publicId = `vocab_${parsedCardData.word.replace(/[^\w]/g, '_').substring(0, 20)}`;
-    } else if (personaKey === 'satirist') {
-      if (parsedCardData.type !== 'satirist_insight') {
-        console.warn("⚠️ Cannot generate satirist image: imageContent is missing from card data.");
-        return null;
-      }
-      const imageContent = parsedCardData.imageContent;
-      imageBuffer = await generateSatiristImage(imageContent);
-      publicId = `satirist_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    // --- NEW ---
-    // --- MODIFIED: Reverted to 'pattern_spotter' (snake_case) ---
-    } else if (personaKey === 'pattern_spotter') {
-      if (parsedCardData.type !== 'pattern_spotter_insight') {
-        console.warn("⚠️ Cannot generate pattern_spotter image: imageContent is missing from card data.");
-        return null;
-      }
-      const imageContent = parsedCardData.imageContent;
-      imageBuffer = await generatePatternSpotterImage(imageContent); 
-      publicId = `pattern_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    // --- END MODIFIED ---
-    // --- END NEW ---
-    } else {
-      return null; // Persona doesn't support images
+    const pConfig = (persona.config as Record<string, unknown>) || {};
+    const imageProbability = Number(pConfig.image_probability) || 0;
+    if (imageProbability <= 0) {
+      console.log(`[Image Gen] Image generation disabled for: ${personaKey}`);
+      return null;
     }
 
-    const cloudinaryUrl = await uploadToCloudinary(imageBuffer, publicId, account);
-    return cloudinaryUrl;
+    if (Math.random() > imageProbability) {
+      console.log(`[Image Gen] Skipped ${personaKey} (rolled ${Math.random().toFixed(2)} > ${imageProbability})`);
+      return null;
+    }
 
+    let parsedCardData: Record<string, unknown> = {};
+    if (typeof cardData === 'string') {
+      try { parsedCardData = JSON.parse(cardData); } 
+      catch { return null; }
+    } else if (cardData) {
+      parsedCardData = cardData;
+    } else {
+      return null;
+    }
+
+    const templateName = String(pConfig.image_template || '');
+    const template = resolveTemplate(parsedCardData, templateName || undefined);
+    if (!template) {
+      console.warn(`[Image Gen] No template found`);
+      return null;
+    }
+
+    const templateConfig: ImageTemplateConfig = {
+      ...DEFAULT_CONFIG,
+      ...(pConfig.image_config as Record<string, unknown> || {}),
+      ...overrides,
+    };
+
+    const imageBuffer = await template.generate(parsedCardData, templateConfig);
+    if (!imageBuffer) return null;
+
+    const acc = account as unknown as Record<string, unknown>;
+    const cloudName = acc.cloudinary_cloud_name as string;
+    const apiKey = acc.cloudinary_api_key as string;
+    const apiSecret = acc.cloudinary_api_secret as string;
+
+    if (!cloudName || !apiKey) {
+      console.warn('[Image Gen] Cloudinary not configured');
+      return null;
+    }
+
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
+
+    // Upload directly without using the wrapper
+    const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          public_id: `tweet_${Date.now()}`,
+          folder: `ai-tweeter/${account.account_username}`,
+          format: 'jpg',
+          quality: 'auto:good',
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else if (result) resolve(result as { secure_url: string });
+          else reject(new Error('Cloudinary upload returned no result'));
+        }
+      );
+      uploadStream.end(imageBuffer);
+    });
+
+    return uploadResult.secure_url;
   } catch (error) {
-    console.error('❌ Failed to generate and upload image:', error);
+    console.error('[Image Gen] Failed:', error);
     return null;
   }
 }
-
-export { createCanvas, loadImage, CanvasRenderingContext2D, configureCloudinary, uploadToCloudinary, fetchUnsplashImage, getSafeFont, wordWrap, fitTextOnCanvas, calculateTotalTextHeight, renderMixedLine };

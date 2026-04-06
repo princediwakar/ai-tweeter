@@ -12,6 +12,7 @@ import {
   getScheduledTwitterHandles,
   isPostingScheduled
 } from '@/lib/schedule';
+import { getAllPersonas } from '@/lib/personas';
 import { accountService } from '@/lib/accountService';
 import { postTweet, postTweetWithImage } from '@/lib/twitter';
 import { refreshAccessToken } from '@/lib/twitter-oauth';
@@ -273,13 +274,11 @@ export async function POST(request: NextRequest) {
       try {
         let scheduledPersonas = await getScheduledPersonasForPosting(account.twitter_handle, getCurrentISTDay(nowIST), getCurrentISTHour(nowIST));
         
+        // In debug mode, get all available personas from DB if none scheduled
         if (debugMode && scheduledPersonas.length === 0) {
-          if (account.twitter_handle.includes('gibbi')) {
-            scheduledPersonas = ['english_vocab_builder'];
-          } else {
-            scheduledPersonas = ['business_storyteller', 'cricket_storyteller', 'satirist', 'pattern_spotter'];
-          }
-          logger.info(`🔍 [POST] Debug mode: Using default personas for ${account.name}: ${scheduledPersonas.join(', ')}`, 'auto-post');
+          const allPersonas = await getAllPersonas();
+          scheduledPersonas = allPersonas.map(p => p.key).filter((k): k is string => !!k);
+          logger.info(`🔍 [POST] Debug mode: Using all ${scheduledPersonas.length} personas from DB`, 'auto-post');
         }
         
         const readyThreads = await getReadyThreads(account.id);

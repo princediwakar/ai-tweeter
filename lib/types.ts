@@ -1,6 +1,10 @@
-// lib/types.ts
+// lib/types.ts - All shared types (database + domain)
+// Consolidated from multiple type files
 
-// Core Account and User Types
+// =============================================================================
+// CORE USER TYPES
+// =============================================================================
+
 export interface User {
   id: string;
   name: string | null;
@@ -9,6 +13,9 @@ export interface User {
   image: string | null;
   created_at: Date;
   updated_at: Date;
+  hashed_password?: string | null;
+  is_admin?: boolean;
+  plan?: string;
 }
 
 export interface Session {
@@ -19,77 +26,76 @@ export interface Session {
   created_at: Date;
 }
 
-export interface UserAccount {
-  user_id: string;
-  account_id: string;
-  role: 'owner' | 'editor' | 'viewer';
-  created_at: Date;
-}
-
-export interface Account {
+// =============================================================================
+// CONNECTED ACCOUNTS (from connected_accounts table)
+// =============================================================================
+// Main type matching database schema
+export interface ConnectedAccount {
   id: string;
+  user_id: string;
+  platform: 'twitter' | 'linkedin';
+  account_username: string;
   name: string | null;
-  twitter_handle: string;
-  platform?: 'twitter' | 'linkedin';
-  status: 'active' | 'inactive' | 'suspended';
-  twitter_api_key_encrypted?: string;
-  twitter_api_secret_encrypted?: string;
-  twitter_access_token_encrypted?: string;
-  twitter_access_token_secret_encrypted?: string;
-  cloudinary_cloud_name_encrypted?: string;
-  cloudinary_api_key_encrypted?: string;
-  cloudinary_api_secret_encrypted?: string;
-  // LinkedIn OAuth credentials
-  linkedin_access_token_encrypted?: string;
-  linkedin_refresh_token_encrypted?: string;
-  linkedin_user_id?: string;
-  linkedin_org_id?: string;
+  account_name?: string | null;
+  access_token_encrypted?: string | null;
+  refresh_token_encrypted?: string | null;
+  token_expires_at?: Date | null;
+  is_active: boolean;
+  connected_at?: Date | null;
+  last_used_at?: Date | null;
+  // Twitter API credentials (legacy)
+  account_id?: string | null;
+  twitter_api_key_encrypted?: string | null;
+  twitter_api_secret_encrypted?: string | null;
+  twitter_access_token_encrypted?: string | null;
+  twitter_access_token_secret_encrypted?: string | null;
+  personas?: string[];
+  branding?: Record<string, unknown>;
+  cloudinary_cloud_name_encrypted?: string | null;
+  cloudinary_api_key_encrypted?: string | null;
+  cloudinary_api_secret_encrypted?: string | null;
+  status?: string;
+  profile_image_url?: string | null;
+  // LinkedIn OAuth
   linkedin_enabled?: boolean;
-  linkedin_token_expires_at?: Date;
-  // Twitter OAuth 2.0 credentials
-  twitter_oauth2_access_token_encrypted?: string;
-  twitter_oauth2_refresh_token_encrypted?: string;
-  twitter_oauth2_user_id?: string;
+  linkedin_user_id?: string | null;
+  linkedin_org_id?: string | null;
+  linkedin_access_token_encrypted?: string | null;
+  linkedin_refresh_token_encrypted?: string | null;
+  linkedin_token_expires_at?: Date | null;
+  // Twitter OAuth 2.0
   twitter_oauth2_enabled?: boolean;
-  twitter_oauth2_token_expires_at?: Date;
-  // Twitter OAuth 2.0 Client Credentials
-  twitter_oauth2_client_id_encrypted?: string;
-  twitter_oauth2_client_secret_encrypted?: string;
-  // SaaS multi-tenancy
-  owner_id?: string;
-  personas: string[];
-  branding: {
-    theme: string;
-    audience: string;
-    tone: string;
-    cta_frequency?: number;
-    cta_message?: string;
-    max_pipeline_size?: number;
-    supports_threads?: boolean;
-  };
-  created_at: Date;
-  updated_at: Date;
+  twitter_oauth2_access_token_encrypted?: string | null;
+  twitter_oauth2_refresh_token_encrypted?: string | null;
+  twitter_oauth2_token_expires_at?: Date | null;
 }
 
-// Extended account with decrypted credentials for internal use
-export interface AccountWithCredentials extends Account {
+// Decrypted credentials for internal use
+export interface ConnectedAccountWithCredentials extends ConnectedAccount {
+  // Decrypted Twitter credentials
   twitter_api_key?: string;
   twitter_api_secret?: string;
   twitter_access_token?: string;
   twitter_access_token_secret?: string;
-  cloudinary_cloud_name?: string;
-  cloudinary_api_key?: string;
-  cloudinary_api_secret?: string;
   // Decrypted LinkedIn credentials
   linkedin_access_token?: string;
   linkedin_refresh_token?: string;
-  // Decrypted Twitter OAuth 2.0 credentials
+  // Decrypted Twitter OAuth 2.0
   twitter_oauth2_access_token?: string;
   twitter_oauth2_refresh_token?: string;
-  // Decrypted Twitter OAuth 2.0 Client Credentials
-  twitter_oauth2_client_id?: string;
-  twitter_oauth2_client_secret?: string;
+  // Decrypted Cloudinary
+  cloudinary_cloud_name?: string;
+  cloudinary_api_key?: string;
+  cloudinary_api_secret?: string;
 }
+
+// Backward compatibility alias
+export type Account = ConnectedAccount;
+export type AccountWithCredentials = ConnectedAccountWithCredentials;
+
+// =============================================================================
+// PERSONAS (from personas table)
+// =============================================================================
 
 export interface PersonaSchedule {
   id: string;
@@ -112,27 +118,30 @@ export interface PersonaConfigDNA {
   image_probability?: number;
   headlines_to_fetch?: number;
   headlines_in_prompt?: number;
+  supports_threads?: boolean;
+  [key: string]: unknown; // Allow dynamic config properties
 }
 
 export interface Persona {
   id: string;
-  user_id?: string;
-  connected_account_id: string;
+  user_id?: string | null;  // Can be null - persona tied to account not user
+  connected_account_id: string | null;
   name: string;
-  description: string;
-  config: PersonaConfigDNA;
-  min_length: number;
-  max_length: number;
-  tone?: string;
-  topics?: string[];
-  rss_sources: string[];
-  is_active: boolean;
-  is_default: boolean;
-  created_at: string | Date;
-  updated_at: string | Date;
+  description?: string | null;
+  config?: PersonaConfigDNA | Record<string, unknown>;
+  min_length?: number;
+  max_length?: number;
+  tone?: string | null;
+  topics?: string[] | null;
+  rss_sources?: string[];
+  is_active?: boolean;
+  is_default?: boolean;
+  created_at?: string | Date;
+  updated_at?: string | Date;
   key: string;
-  emoji?: string; // UI only
-  schedules?: PersonaSchedule[]; // UI only
+  // UI-only fields (not in DB)
+  emoji?: string;
+  schedules?: PersonaSchedule[];
 }
 
 // Tweet and Content Types
@@ -161,7 +170,7 @@ export interface Tweet {
   // Image support
   image_url?: string; // Cloudinary URL for image-based tweets
   image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  card_data?: string; // JSON-encoded VocabularyCard data for async image generation
+  card_data?: string; // JSON-encoded card data for async image generation
   source_url?: string;
   // LinkedIn cross-posting support
   linkedin_id?: string;
@@ -172,48 +181,23 @@ export interface EnhancedTweet {
   hashtags: string[];
   persona: string;
   engagementHooks: string[];
-  gibbiCTA?: string;
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy' | 'single_tweet' | 'thread';
-  imageBuffer?: Buffer; // Image data for image-based tweets (deprecated)
-  imageUrl?: string; // Cloudinary URL for image-based tweets
+  imageBuffer?: Buffer;
+  imageUrl?: string;
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  cardData?: CardData; // Card data for async image generation (vocab or satirist)
+  cardData?: Record<string, unknown>; // Generic card data from AI (configurable via DB)
   sourceUrl?: string;
-  selectedHeadlineNumber?: number; // Track which headline was used (satirist persona)
-  reaasoning?: Record<string, string>;
+  selectedHeadlineNumber?: number;
+  reasoning?: Record<string, string>;
 }
 
-export interface VocabularyCard {
-  word: string;
-  meaning: string;
-  example?: string;
-  pronunciation?: string;
-  partOfSpeech?: string;
-  synonyms?: string[];
-  type?: 'single_word' | 'confused_pair' | 'synonym_list' | 'idiom' | 'phrasal_verb';
+// Generic card data - structure defined by AI prompt in DB
+export interface CardData {
+  [key: string]: unknown;
+  type?: string;
 }
 
-export interface SatiristCard {
-  type: 'satirist_insight';
-  imageContent: string;
-}
-
-// --- NEW ---
-export interface PatternSpotterCard {
-  type: 'pattern_spotter_insight';
-  imageContent: string;
-}
-
-export interface LinkedinAnalystCard {
-  type: 'linkedin_analyst_insight';
-  imageContent: string;
-}
-// --- END NEW ---
-
-// --- MODIFIED ---
-export type CardData = VocabularyCard | SatiristCard | PatternSpotterCard | LinkedinAnalystCard;
-// --- END MODIFIED ---
-
+// TweetJob - kept for backward compatibility
 export interface TweetJob {
   id: string;
   persona: string;
@@ -311,29 +295,10 @@ export interface GenerationResult {
   error?: string;
 }
 
-// =============================================================================
-// SaaS Platform Types
-// =============================================================================
-
-export interface ConnectedAccount {
-  id: string;
-  user_id: string;
-  platform: 'twitter' | 'linkedin';
-  account_username: string;
-  account_name?: string;
-  platform_user_id?: string;
-  is_active: boolean;
-  connected_at: Date;
-  last_used_at?: Date;
-  linkedin_enabled?: boolean;
-  linkedin_user_id?: string;
-  linkedin_org_id?: string;
-  linkedin_token_expires_at?: Date;
-}
-
 // Re-use standard Persona type
 export type UserPersona = Persona;
 
+// Legacy schedule type - uses account_schedules table
 export interface UserSchedule {
   id: string;
   user_id: string;
@@ -341,14 +306,13 @@ export interface UserSchedule {
   name: string;
   description?: string;
   persona_id?: string;
-  cron_expression: string;
   timezone: string;
-  use_trending: boolean;
-  include_hashtags: boolean;
-  bulk_count: number;
+  schedule_config?: Record<string, unknown>;
+  days_of_week: number[];
+  start_time: number;
+  end_time: number;
   is_active: boolean;
-  last_run_at?: Date;
-  next_run_at?: Date;
+  max_posts_per_day?: number;
   created_at: Date;
   updated_at: Date;
 }

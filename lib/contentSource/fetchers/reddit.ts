@@ -1,9 +1,9 @@
 // lib/contentSource/fetchers/reddit.ts
 /**
  * Reddit API fetcher with authentication
+ * Limit should be passed as parameter (from DB config)
  */
 
-import { GENERATION_CONFIG } from '../../generation/config';
 import type { HeadlineWithSource, RedditPostData } from '../types';
 
 const fetchFn = globalThis.fetch;
@@ -67,7 +67,11 @@ async function getRedditAccessToken(): Promise<string> {
 /**
  * Fetches recent posts from specified subreddits via Reddit API
  */
-export async function fetchFromReddit(subreddits: string[]): Promise<HeadlineWithSource[]> {
+export async function fetchFromReddit(subreddits: string[], limitPerSubreddit: number = 3): Promise<HeadlineWithSource[]> {
+  if (!subreddits || subreddits.length === 0) {
+    return [];
+  }
+  
   console.log(`[Content Source] Reddit] 🚀 Fetching from ${subreddits.length} subreddits via official API...`);
 
   if (!REDDIT_USERNAME) {
@@ -80,7 +84,7 @@ export async function fetchFromReddit(subreddits: string[]): Promise<HeadlineWit
     const userAgent = `NodeJS:TweetGenerator:v1.0 (by /u/${REDDIT_USERNAME})`;
 
     const fetchPromises = subreddits.map(async (subreddit) => {
-      const url = `https://oauth.reddit.com/r/${subreddit}/best?limit=${GENERATION_CONFIG.personas.patternSpotter.postsPerSubreddit}`;
+      const url = `https://oauth.reddit.com/r/${subreddit}/best?limit=${limitPerSubreddit}`;
       const headlinesForSubreddit: HeadlineWithSource[] = [];
 
       try {

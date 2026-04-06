@@ -38,9 +38,7 @@ export async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, 
     throw new Error(`No Cloudinary configuration available for account: ${account.name}`);
   }
   // Determine folder based on account
-  const folderName = account.twitter_handle.includes('gibbi')
-    ? 'gibbi-vocabulary'
-    : `${account.twitter_handle.replace('@', '')}-content`;
+  const folderName = `${account.account_username.replace('@', '')}-content`;
 
   try {
     const result = await new Promise((resolve, reject) => {

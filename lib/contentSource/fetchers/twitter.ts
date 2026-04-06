@@ -1,16 +1,20 @@
 // lib/contentSource/fetchers/twitter.ts
 /**
  * Twitter handle fetcher via Google News RSS
+ * Requires config from DB (personas.config)
  */
 
-import { GENERATION_CONFIG } from '../../generation/config';
 import { fetchFromGoogle } from './google';
 import type { HeadlineWithSource } from '../types';
 
 /**
  * Fetches recent posts from Twitter handles via Google News RSS.
  */
-export async function fetchFromTwitter(twitterHandles: string[]): Promise<HeadlineWithSource[]> {
+export async function fetchFromTwitter(twitterHandles: string[], limitPerHandle: number = 5): Promise<HeadlineWithSource[]> {
+  if (!twitterHandles || twitterHandles.length === 0) {
+    return [];
+  }
+  
   console.log(`[Content Source] Twitter] 🚀 Fetching from ${twitterHandles.length} Twitter handles via Google News RSS...`);
   const allHeadlines: HeadlineWithSource[] = [];
 
@@ -18,7 +22,7 @@ export async function fetchFromTwitter(twitterHandles: string[]): Promise<Headli
     const cleanHandle = handle.replace('@', '');
     const query = `site:x.com/${cleanHandle}`;
     const results = await fetchFromGoogle(query);
-    return results.slice(0, GENERATION_CONFIG.personas.patternSpotter.postsPerTwitterHandle).map(item => ({
+    return results.slice(0, limitPerHandle).map(item => ({
       headline: `[Twitter Post from ${handle}] ${item.headline}`,
       url: item.url,
       description: item.description,

@@ -3,7 +3,7 @@ import { createThread, saveTweet, generateTweetId, updateThread } from './db';
 import { accountService } from './accountService';
 import type { Account, Tweet } from './types';
 import { logger } from '@/lib/logger';
-import { getPersonaByKey } from '@/lib/personas';
+import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 import { getPersonaGenerator, BasePersonaGenerator } from './generation/personas';
 import type { GenerationContext, TweetGenerationConfig } from './generation/types';
 import { GENERATION_CONFIG } from './generation/config';
@@ -222,14 +222,22 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
 /**
  * Get thread generation eligibility for account
  */
-export function canGenerateThreads(account: Account): boolean {
-  // Use branding config if available, otherwise default based on persona support
-  if (account.branding?.supports_threads !== undefined) {
-    return account.branding.supports_threads;
+export async function canGenerateThreads(account: Account): Promise<boolean> {
+  const branding = account.branding as Record<string, unknown> | undefined;
+  const supportsThreads = branding?.supports_threads;
+  
+  if (supportsThreads !== undefined && supportsThreads !== null) {
+    return Boolean(supportsThreads);
   }
   
-  // Default: allow threads if account has thread-capable personas
-  const threadPersonas = ['business_storyteller', 'cricket_storyteller', 'linkedin_analyst', 'satirist', 'pattern_spotter'];
+  const allPersonas = await getAllPersonas();
+  const pConfig = allPersonas.map(p => p.config as Record<string, unknown> || {});
+  const threadPersonas = pConfig.filter(c => c.supports_threads).map((_, i) => allPersonas[i].key);
+  
+  if (threadPersonas.length === 0) {
+    return false;
+  }
+  
   const hasThreadPersona = account.personas?.some(p => threadPersonas.includes(p));
   return hasThreadPersona || false;
 }

@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
+import { getAllPersonas } from '@/lib/personas';
 import type { Tweet } from '@/lib/types';
 import { generateTweet, generateBatchTweets } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -42,23 +43,26 @@ export async function POST(request: Request) {
     }
 
     if (action === 'generate') {
-      const personaKey = data.persona || 'english_vocab_builder'; // Default to educational persona
-      const topic = data.topic || data.customPrompt; // Handle both topic and customPrompt for backward compatibility
-      const accountId = data.account_id; // Optional for backward compatibility
+      // Get default persona from DB or use first available
+      const allPersonas = await getAllPersonas();
+      const personaKey = data.persona || (allPersonas.length > 0 ? allPersonas[0].key : null);
       
-      // Allow fallback to environment variables if no account_id provided (for development/testing)
-      if (!accountId) {
-        console.warn('No account_id provided, using environment variable fallback for development');
+      if (!personaKey) {
+        return NextResponse.json({ error: 'No personas configured. Please create a persona first.' }, { status: 400 });
       }
       
-      // Determine if a thread should be generated for storytelling personas
-      const threadPersonas = ['business_storyteller', 'cricket_storyteller']; // ADDED cricket_storyteller
-      let shouldGenerateThread = false;
+      const topic = data.topic || data.customPrompt;
+      const accountId = data.account_id;
       
-      if (accountId && threadPersonas.includes(personaKey)) {
+      // Check if persona supports threads via DB config
+      const persona = allPersonas.find(p => p.key === personaKey);
+      const supportsThreads = persona?.config?.supports_threads ?? false;
+      
+      let shouldGenerateThread = false;
+      if (accountId && supportsThreads) {
         const account = await accountService.getAccount(accountId) as any;
-        if (account && canGenerateThreads(account)) {
-          // Generate thread for supported storytelling personas
+        const canThreads = await canGenerateThreads(account);
+        if (account && canThreads) {
           shouldGenerateThread = true;
         }
       }
@@ -129,7 +133,6 @@ export async function POST(request: Request) {
           tweet,
           meta: {
             hooks: generatedTweet.engagementHooks || [],
-            gibbiCTA: generatedTweet.gibbiCTA,
             contentType,
             enhanced: true
           }
@@ -210,9 +213,7 @@ export async function POST(request: Request) {
           meta: {
             contentType,
             personaDistribution: personaStats,
-            // Assuming engagementHooks is the standard field now
             engagementElements: generatedTweets.flatMap(t => t.engagementHooks || []).length,
-            gibbiCTAs: generatedTweets.filter(t => t.gibbiCTA).length,
             enhanced: true
           }
         });

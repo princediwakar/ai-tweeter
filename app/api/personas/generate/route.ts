@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@vercel/postgres';
 import { personaDesigner } from '@/lib/services/personaDesigner';
+import { autoVerifyAndFilterRss, suggestRssSources } from '@/lib/services/rssVerifier';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { prompt, connected_account_id, platform: platformFromBody } = await request.json();
+    const { prompt, connected_account_id, platform: platformFromBody, verifyRss = true } = await request.json();
 
     if (!prompt || prompt.trim().length < 10) {
       return NextResponse.json({ error: 'Please describe what kind of content you want to post (at least 10 characters)' }, { status: 400 });
@@ -35,12 +36,41 @@ export async function POST(request: NextRequest) {
     
     console.log(`🎨 Designing new 7-layer persona for ${platform} based on prompt: "${prompt.substring(0, 50)}..."`);
     
-    const generatedPersona = await personaDesigner.design(prompt, platform);
+    // Step 1: AI designs persona
+    let generatedPersona = await personaDesigner.design(prompt, platform);
 
-    // Return generated data without saving - frontend will confirm to save
+    // Step 2: Auto-verify RSS sources (if enabled)
+    let rssVerification: { valid: string[]; invalid: { url: string; error: string }[] } = { valid: [], invalid: [] };
+    let finalRssSources: string[] = generatedPersona.rss_sources;
+
+    if (verifyRss && generatedPersona.rss_sources.length > 0) {
+      console.log(`🔍 Verifying ${generatedPersona.rss_sources.length} RSS sources...`);
+      rssVerification = await autoVerifyAndFilterRss(generatedPersona.rss_sources);
+      finalRssSources = rssVerification.valid;
+      
+      // If AI didn't suggest RSS, add suggestions based on prompt
+      if (finalRssSources.length === 0) {
+        const suggestions = suggestRssSources(prompt);
+        console.log(`🔍 No valid RSS from AI, got ${suggestions.length} suggestions from knowledge base`);
+        if (suggestions.length > 0) {
+          rssVerification = await autoVerifyAndFilterRss(suggestions);
+          finalRssSources = rssVerification.valid;
+        }
+      }
+      
+      console.log(`✅ RSS verification complete: ${finalRssSources.length} valid, ${rssVerification.invalid.length} invalid`);
+    }
+
+    // Return generated data with verified RSS
     return NextResponse.json({ 
-      generated: generatedPersona,
-      message: 'Persona designed successfully with 7-Layer DNA! Review and save.'
+      generated: {
+        ...generatedPersona,
+        rss_sources: finalRssSources,
+      },
+      rssVerification,
+      message: finalRssSources.length > 0 
+        ? `Persona designed with ${finalRssSources.length} verified RSS sources!`
+        : 'Persona designed. Note: No valid RSS sources found - please add manually.'
     }, { status: 200 });
 
   } catch (error) {

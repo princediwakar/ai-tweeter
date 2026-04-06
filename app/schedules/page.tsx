@@ -48,7 +48,7 @@ export default function SchedulesPage() {
               >
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {(account.name || account.twitter_handle)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
                   </option>
                 ))}
               </select>

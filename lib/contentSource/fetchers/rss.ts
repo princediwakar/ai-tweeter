@@ -1,6 +1,7 @@
 // lib/contentSource/fetchers/rss.ts
 /**
  * Generic RSS feed fetcher with TTL-based caching
+ * Feeds should be passed as parameters (from DB)
  */
 
 import { parseStringPromise } from 'xml2js';
@@ -51,6 +52,11 @@ export async function fetchFromRssFeeds(
   headlinesPerFeed: number,
   totalLimit?: number
 ): Promise<HeadlineWithSource[]> {
+  if (!feeds || feeds.length === 0) {
+    console.warn('[Content Source] ⚠️ No feeds provided to fetchFromRssFeeds');
+    return [];
+  }
+
   const cacheKey = getCacheKey(feeds.join(','), headlinesPerFeed, totalLimit);
   const cached = getCachedOrNull(cacheKey);
   
@@ -105,13 +111,19 @@ export async function fetchFromRssFeeds(
 
 /**
  * Convenience function for fetching headlines only (used by Pattern Spotter)
+ * NOTE: Feeds should be passed as parameter - caller must provide from DB
  */
-export async function fetchHeadlinesOnly(limit = 20): Promise<HeadlineWithSource[]> {
-  console.log(`[Content Source] 📰 Fetching ${limit} headlines (no enrichment)...`);
+export async function fetchHeadlinesOnly(feeds: string[], limit = 20): Promise<HeadlineWithSource[]> {
+  console.log(`[Content Source] 📰 Fetching ${limit} headlines from ${feeds?.length || 0} feeds...`);
+
+  if (!feeds || feeds.length === 0) {
+    console.warn('[Content Source] ⚠️ No feeds provided for fetchHeadlinesOnly');
+    return [];
+  }
 
   try {
     const headlines = await fetchFromRssFeeds(
-      GENERATION_CONFIG.personas.patternSpotter.feeds.business,
+      feeds,
       5,
       limit
     );

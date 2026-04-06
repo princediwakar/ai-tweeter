@@ -80,6 +80,11 @@ export async function getGenerationBatchInfo(
     LIMIT 1
   `;
   
+  console.log(`[Schedule] Account ${account.id} - found ${scheduleResult.rows.length} schedules`);
+  if (scheduleResult.rows.length > 0) {
+    console.log(`[Schedule] Schedule: start_time=${scheduleResult.rows[0].start_time}, timezone=${scheduleResult.rows[0].timezone}`);
+  }
+  
   const activeSchedule = scheduleResult.rows[0];
   
   if (!activeSchedule) {

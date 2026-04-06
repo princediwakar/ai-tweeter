@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     logger.info(`🔍 [LinkedIn] Auto-post check at ${currentHourIST}:${currentMinuteIST} IST`, 'auto-post-linkedin');
 
-    // SCALABLE: Query ONLY LinkedIn accounts due in this time window
+    // SCALABLE: Query LinkedIn accounts in window (±60 min around current time)
     const accountsDue = await sql`
       SELECT a.id, a.name, a.account_username as twitter_handle, a.linkedin_enabled, a.linkedin_access_token,
              a.linkedin_refresh_token, a.linkedin_token_expires_at,
@@ -33,8 +33,8 @@ export async function GET(request: NextRequest) {
         AND a.linkedin_access_token IS NOT NULL
         AND s.is_active = true
         AND ${dayOfWeek} = ANY(s.days_of_week)
-        AND s.end_time > ${currentMinutes}
-        AND s.start_time <= ${currentMinutes}
+        AND s.start_time >= ${currentMinutes - 60}
+        AND s.start_time <= ${currentMinutes + 60}
       GROUP BY a.id
       LIMIT 50
     `;

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     logger.info(`🔍 [GET] Auto-post check at ${currentHourIST}:${currentMinuteIST} IST`, 'auto-post');
 
-    // SCALABLE: Query ONLY accounts due in this time window (not all accounts)
+    // SCALABLE: Query accounts in posting window (±60 min around current time)
     const accountsDue = await sql`
       SELECT a.id, a.name, a.account_username as twitter_handle, a.platform
       FROM connected_accounts a
@@ -30,12 +30,8 @@ export async function GET(request: NextRequest) {
         AND a.platform = 'twitter'
         AND s.is_active = true
         AND ${dayOfWeek} = ANY(s.days_of_week)
-        AND s.end_time > ${currentMinutes}
-        AND s.start_time <= ${currentMinutes}
-        AND (
-          s.last_posted_at IS NULL OR
-          (s.last_posted_at AT TIME ZONE s.timezone)::date != CURRENT_DATE
-        )
+        AND s.start_time >= ${currentMinutes - 60}
+        AND s.start_time <= ${currentMinutes + 60}
       GROUP BY a.id
       LIMIT 50
     `;

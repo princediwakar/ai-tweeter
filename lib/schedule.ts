@@ -74,14 +74,16 @@ export async function getGenerationBatchInfo(
 
   console.log(`[Schedule] Account ${account.id}: current time = ${currentInTz.getHours()}:${currentInTz.getMinutes()} (${currentMinutes} min), dayOfWeek = ${dayOfWeek}`);
 
-  // Find schedules where start_time has PASSED (current time >= start_time) and within 60 min of start
+  // Find schedules within 60 min window around current time (including future)
+  // e.g., if schedule at 1:20 (80 min) and current is 1:08 (68 min), it should match
+  // because 68 is within [20, 140] and 80 will pass soon
   const scheduleResult = await sql`
     SELECT s.id, s.timezone, s.start_time, s.end_time, s.persona_id, s.days_of_week
     FROM account_schedules s
     WHERE s.connected_account_id = ${account.id} 
       AND s.is_active = true
-      AND s.start_time <= ${currentMinutes}
-      AND s.start_time > ${currentMinutes - 60}
+      AND s.start_time >= ${currentMinutes - 60}
+      AND s.start_time <= ${currentMinutes + 60}
       AND ${dayOfWeek} = ANY(s.days_of_week)
     ORDER BY s.start_time DESC
     LIMIT 1

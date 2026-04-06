@@ -432,7 +432,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
   const currentMinutes = currentHourIST * 60 + currentMinuteIST;
   const dayOfWeek = Math.floor((nowIST.getDay() + 6) % 7) + 1;
 
-  // Get all accounts with active schedules for today where schedule time has PASSED
+  // Get all accounts with active schedules that have started in the last 60 min or will start in next 60 min
   const accountsWithSchedules = await sql`
     SELECT a.id, a.name, a.account_username as twitter_handle, a.platform, a.personas, a.branding
     FROM connected_accounts a
@@ -440,7 +440,8 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     WHERE a.is_active = true
       AND s.is_active = true
       AND ${dayOfWeek} = ANY(s.days_of_week)
-      AND s.start_time <= ${currentMinutes}
+      AND s.start_time >= ${currentMinutes - 60}
+      AND s.start_time <= ${currentMinutes + 60}
     GROUP BY a.id
     LIMIT 100
   `;

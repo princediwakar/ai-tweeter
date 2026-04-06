@@ -109,17 +109,22 @@ class PostingJobQueue {
   }
 
   async claimJobs(platform: 'twitter' | 'linkedin', limit: number = BATCH_SIZE): Promise<PostingJob[]> {
-    const now = new Date().toISOString();
+    const now = new Date();
+    const currentHour = getCurrentISTHour(now);
+    const currentMinute = getCurrentISTMinute(now);
+    const currentMinutes = currentHour * 60 + currentMinute;
     
     const result = await sql`
       UPDATE posting_jobs
-      SET status = 'processing', started_at = ${now}, attempts = attempts + 1
+      SET status = 'processing', started_at = ${now.toISOString()}, attempts = attempts + 1
       WHERE id IN (
-        SELECT id FROM posting_jobs
-        WHERE platform = ${platform}
-          AND status = 'pending'
-          AND attempts < max_attempts
-        ORDER BY created_at ASC
+        SELECT pj.id FROM posting_jobs pj
+        JOIN account_schedules s ON pj.schedule_id = s.id
+        WHERE pj.platform = ${platform}
+          AND pj.status = 'pending'
+          AND pj.attempts < pj.max_attempts
+          AND (s.end_time <= ${currentMinutes} OR s.end_time > 1440)
+        ORDER BY pj.created_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
       )
@@ -177,17 +182,16 @@ class PostingJobQueue {
 
   /**
    * Synchronizes scheduled jobs for a specific platform.
-   * Checks all active schedules and enqueues missing jobs for the current day.
+   * Queries ALL active schedules for today (regardless of time), not just "due now".
+   * Jobs will be created but execution time is determined at claim time.
    */
   async syncScheduledJobs(platform: 'twitter' | 'linkedin'): Promise<number> {
     const now = new Date();
     const dayOfWeek = getCurrentISTDay(now);
-    const hour = getCurrentISTHour(now);
-    const minute = getCurrentISTMinute(now);
-    const currentMinutes = hour * 60 + minute;
     const todayDate = now.toISOString().split('T')[0];
 
-    // 1. Fetch active schedules for the platform that are currently due
+    // 1. Fetch ALL active schedules for today (no time restriction)
+    // We'll create jobs for all of them - execution time checked at claim time
     const schedulesResult = await sql`
       SELECT s.*, a.user_id
       FROM account_schedules s
@@ -195,7 +199,6 @@ class PostingJobQueue {
       WHERE s.is_active = true
         AND a.platform = ${platform}
         AND ${dayOfWeek} = ANY(s.days_of_week)
-        AND s.start_time <= ${currentMinutes}
     `;
 
     if (schedulesResult.rows.length === 0) return 0;

@@ -96,7 +96,7 @@ export default function PersonasPage() {
     setScheduleDialogOpen(true);
   };
 
-  const handleSaveSchedules = async (forms: { days_of_week: number[]; start_time: number }[]) => {
+  const handleSaveSchedules = async (forms: { days_of_week: number[]; start_time: number; timezone: string }[]) => {
     if (!schedulePersonaId || !selectedAccount) return;
     
     const persona = personas.find(p => p.id === schedulePersonaId);
@@ -115,6 +115,7 @@ export default function PersonasPage() {
           start_time: form.start_time,
           end_time: form.start_time + 60, // FIXED: Zero-minute window eliminated
           is_active: true,
+          timezone: form.timezone,
         };
         
         let res;

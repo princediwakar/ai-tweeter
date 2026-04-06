@@ -19,6 +19,7 @@ export interface PersonaSchedule {
   days_of_week: number[];
   start_time: number;
   is_active: boolean;
+  timezone?: string;
 }
 
 export interface PersonaEditorProps {
@@ -48,6 +49,7 @@ export interface EditablePersona {
 export interface ScheduleFormData {
   days_of_week: number[];
   start_time: number;
+  timezone: string;
 }
 
 export interface Day {

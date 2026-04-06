@@ -25,6 +25,11 @@ export default function ScheduleDialog({
   const [formScheduleIds, setFormScheduleIds] = useState<(string | null)[]>([null]);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [localTimezone, setLocalTimezone] = useState('');
+
+  useEffect(() => {
+    setLocalTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -32,6 +37,7 @@ export default function ScheduleDialog({
         setForms(schedules.map(s => ({
           days_of_week: s.days_of_week,
           start_time: s.start_time,
+          timezone: s.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         })));
         setFormScheduleIds(schedules.map(s => s.id));
       } else {
@@ -103,8 +109,13 @@ export default function ScheduleDialog({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-gray-900">Schedule Posting Times</h3>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Schedule Posting Times</h3>
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Set your schedules below (defaults to local timezone)
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -156,17 +167,31 @@ export default function ScheduleDialog({
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
-                <input
-                  type="time"
-                  value={formatTime(form.start_time)}
-                  onChange={(e) => {
-                    const [hours, mins] = e.target.value.split(':').map(Number);
-                    handleChange(index, { start_time: hours * 60 + mins });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                  <input
+                    type="time"
+                    value={formatTime(form.start_time)}
+                    onChange={(e) => {
+                      const [hours, mins] = e.target.value.split(':').map(Number);
+                      handleChange(index, { start_time: hours * 60 + mins });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                  <select
+                    value={form.timezone}
+                    onChange={(e) => handleChange(index, { timezone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {Intl.supportedValuesOf('timeZone').map(tz => (
+                      <option key={tz} value={tz}>{tz}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           ))}

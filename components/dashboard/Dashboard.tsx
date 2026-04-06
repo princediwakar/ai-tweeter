@@ -78,6 +78,7 @@ export default function Dashboard() {
         onPostTweet={postTweet}
         onDeleteTweet={deleteTweet}
         loading={loading}
+        accounts={accounts}
       />
     </div>
   );

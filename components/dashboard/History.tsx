@@ -2,26 +2,37 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Zap, Send, Trash2, Clock, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Zap, Send, Trash2, Clock, AlertTriangle, Copy, Check, Linkedin, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tweet } from '@/types/dashboard';
+import { ConnectedAccount } from '@/lib/types';
 
 interface HistoryProps {
   tweets: Tweet[];
-  onPostTweet: (id: string) => void;
+  onPostTweet: (id: string, platform: 'twitter' | 'linkedin') => void;
   onDeleteTweet: (id: string) => void;
   loading: boolean;
+  accounts: ConnectedAccount[];
 }
 
 export function History({
   tweets,
   onPostTweet,
   onDeleteTweet,
-  loading
+  loading,
+  accounts
 }: HistoryProps) {
   // STATE: Track which tweet is currently being asked for deletion confirmation
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = async (content: string, id: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   if (tweets.length === 0) {
     return (
@@ -63,7 +74,10 @@ export function History({
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-900 leading-normal line-clamp-3 mb-2">
+                <p 
+                  className={`text-sm text-gray-900 leading-normal mb-2 cursor-pointer hover:text-indigo-600 transition-colors ${expandedId === tweet.id ? '' : 'line-clamp-3'}`}
+                  onClick={() => setExpandedId(expandedId === tweet.id ? null : tweet.id)}
+                >
                   {tweet.content}
                 </p>
                 <div className="flex items-center gap-3">
@@ -115,16 +129,55 @@ export function History({
                 ) : (
                   <>
                     {tweet.status === 'ready' && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onPostTweet(tweet.id)}
-                        disabled={loading}
-                        className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
-                      >
-                        <Send size={14} />
-                      </Button>
+                      <div className="relative group">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={loading}
+                          className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg"
+                        >
+                          <Send size={14} />
+                        </Button>
+                        <div className="absolute right-0 top-0 mt-8 w-40 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                          <button
+                            onClick={() => {
+                              const twitterAccount = accounts.find(a => a.platform === 'twitter' && a.is_active);
+                              if (twitterAccount) {
+                                onPostTweet(tweet.id, 'twitter');
+                              }
+                            }}
+                            disabled={loading || !accounts.some(a => a.platform === 'twitter' && a.is_active)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-t-lg"
+                          >
+                            <Twitter size={14} className="text-sky-500" />
+                            Post to Twitter
+                          </button>
+                          <button
+                            onClick={() => {
+                              const linkedinAccount = accounts.find(a => a.platform === 'linkedin' && a.is_active);
+                              if (linkedinAccount) {
+                                onPostTweet(tweet.id, 'linkedin');
+                              }
+                            }}
+                            disabled={loading || !accounts.some(a => a.platform === 'linkedin' && a.is_active)}
+                            className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed rounded-b-lg"
+                          >
+                            <Linkedin size={14} className="text-blue-700" />
+                            Post to LinkedIn
+                          </button>
+                        </div>
+                      </div>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleCopy(tweet.content, tweet.id)}
+                      disabled={loading}
+                      className="h-8 w-8 p-0 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                      title="Copy content"
+                    >
+                      {copiedId === tweet.id ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"

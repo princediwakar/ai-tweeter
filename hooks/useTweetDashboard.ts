@@ -243,7 +243,7 @@ export function useTweetDashboard() {
     }
   }, [loading, generateForm, fetchTweets]);
 
-  const postTweet = useCallback(async (tweetId: string) => {
+  const postTweet = useCallback(async (tweetId: string, platform: 'twitter' | 'linkedin' = 'twitter') => {
     if (actionLoadingId === tweetId) return;
     
     // FIXED: Lock this specific tweet so the user can't spam the button
@@ -253,13 +253,13 @@ export function useTweetDashboard() {
       const response = await fetch(`/api/tweets/${tweetId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'post' })
+        body: JSON.stringify({ action: 'post', platform })
       });
       
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Tweet posted!');
+        toast.success(platform === 'linkedin' ? 'Posted to LinkedIn!' : 'Tweet posted!');
         await fetchTweets();
       } else {
         toast.error(data.error || 'Failed to post tweet');
@@ -381,6 +381,7 @@ export function useTweetDashboard() {
       ready: tweets.filter(t => t.status === 'ready').length,
       posted: tweets.filter(t => t.status === 'posted').length,
     },
+    accounts,
     accounts,
     selectedAccount,
     setSelectedTweets,

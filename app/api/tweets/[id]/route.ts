@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getAllTweets, saveTweet, deleteTweet } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
 import { postTweet } from '@/lib/twitter';
+import { postToLinkedIn, refreshAccessToken, LinkedInCredentials } from '@/lib/linkedin';
+import { sql } from '@vercel/postgres';
 
 export async function GET(
   _request: Request,
@@ -53,6 +55,8 @@ export async function PUT(
     }
 
     if (action === 'post') {
+      const platform = body.platform || 'twitter';
+      
       try {
         // Get account credentials for posting
         const accountId = tweet.connected_account_id || tweet.account_id;
@@ -64,22 +68,80 @@ export async function PUT(
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
 
-        const credentials = {
-          apiKey: account.twitter_api_key || '',
-          apiSecret: account.twitter_api_secret || '',
-          accessToken: account.twitter_access_token || '',
-          accessSecret: account.twitter_access_token_secret || ''
-        };
+        if (platform === 'linkedin') {
+          // Handle LinkedIn posting
+          if (!account.linkedin_enabled || !account.linkedin_access_token) {
+            return NextResponse.json({ error: 'LinkedIn not connected for this account' }, { status: 400 });
+          }
 
-        const result = await postTweet(tweet.content, credentials);
-        tweet.status = 'posted';
-        tweet.posted_at = new Date().toISOString();
-        tweet.twitter_id = result.data.id; // Store the Twitter tweet ID
-        await saveTweet(tweet);
-        return NextResponse.json({ 
-          ...tweet, 
-          twitterUrl: `https://x.com/user/status/${result.data.id}`
-        });
+          // Refresh token if needed
+          if (account.linkedin_refresh_token && account.linkedin_token_expires_at) {
+            const expiresAt = new Date(account.linkedin_token_expires_at);
+            const shouldRefresh = Date.now() > expiresAt.getTime() - 60000; // Refresh 1 min before expiry
+            if (shouldRefresh) {
+              try {
+                const { accessToken, refreshToken, expiresAt: newExpiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
+                await accountService.updateAccount(accountId, {
+                  linkedin_access_token: accessToken,
+                  linkedin_refresh_token: refreshToken,
+                  linkedin_token_expires_at: newExpiresAt.toISOString(),
+                } as any);
+                account.linkedin_access_token = accessToken;
+                account.linkedin_refresh_token = refreshToken;
+                account.linkedin_token_expires_at = newExpiresAt.toISOString();
+              } catch (refreshError) {
+                console.error('Failed to refresh LinkedIn token:', refreshError);
+              }
+            }
+          }
+
+          const linkedinCreds: LinkedInCredentials = {
+            accessToken: account.linkedin_access_token,
+            refreshToken: account.linkedin_refresh_token,
+            expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
+            userId: account.linkedin_user_id,
+            orgId: account.linkedin_org_id,
+          };
+
+          // Strip @ mentions for LinkedIn
+          let content = tweet.content.replace(/@/g, '');
+          if (tweet.hashtags && tweet.hashtags.length > 0) {
+            const formattedTags = tweet.hashtags.map((tag: string) => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+            content = `${content}\n\n${formattedTags}`;
+          }
+
+          const result = await postToLinkedIn(content, linkedinCreds, tweet.image_url || undefined);
+          
+          // Update tweet status and store LinkedIn ID
+          tweet.status = 'posted';
+          tweet.posted_at = new Date().toISOString();
+          await sql`UPDATE tweets SET linkedin_id = ${result.id}, posted_at = ${tweet.posted_at}, status = 'posted' WHERE id = ${tweet.id}`;
+          await saveTweet(tweet);
+          
+          return NextResponse.json({ 
+            ...tweet, 
+            platform: 'linkedin',
+            linkedinUrl: `https://www.linkedin.com/feed/update/${result.id}`
+          });
+        } else {
+          // Handle Twitter posting (existing code)
+          const credentials = {
+            apiKey: account.twitter_api_key || '',
+            apiSecret: account.twitter_api_secret || '',
+            accessToken: account.twitter_access_token || '',
+            accessSecret: account.twitter_access_token_secret || ''
+          };
+
+          const result = await postTweet(tweet.content, credentials);
+          tweet.status = 'posted';
+          tweet.posted_at = new Date().toISOString();
+          tweet.twitter_id = result.data.id;
+          await saveTweet(tweet);
+          return NextResponse.json({ 
+            ...tweet, 
+            twitterUrl: `https://x.com/user/status/${result.data.id}`
+          });
+        }
       } catch (error) {
         tweet.status = 'failed';
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';

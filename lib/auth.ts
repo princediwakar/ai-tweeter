@@ -73,20 +73,14 @@ export const authOptions: NextAuthOptions = {
 
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.email) {
     return null;
   }
   
-  // Primary: id baked into JWT by the jwt callback
-  const tokenId = (session.user as any).id;
-  if (tokenId) return tokenId;
-  
-  // Fallback: look up user by email (handles old tokens issued before id was baked in)
-  const email = session.user.email;
-  if (!email) return null;
-  
+  // ALWAYS look up user by email to ensure we have the fresh DB UUID, 
+  // preventing issues when JWT tokens hold stale IDs after DB resets or migrations
   try {
-    const result = await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`;
+    const result = await sql`SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1`;
     return result.rows[0]?.id || null;
   } catch {
     return null;
@@ -95,17 +89,15 @@ export async function getUserIdFromRequest(request: NextRequest): Promise<string
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.email) {
     return null;
   }
   
-  const userId = (session.user as any).id;
-  if (!userId) return null;
-
   const result = await sql`
     SELECT id, name, email, image
     FROM users 
-    WHERE id = ${userId}
+    WHERE email = ${session.user.email}
+    LIMIT 1
   `;
 
   if (result.rows.length === 0) return null;

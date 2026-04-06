@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax' as const,
-      maxAge: 600 // 10 minutes
+      maxAge: 600, // 10 minutes
+      path: '/'
     };
 
     cookieStore.set('twitter_oauth_state', state, cookieOptions);

@@ -434,7 +434,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
 
   // Get all accounts with active schedules for today (we'll deduplicate via DB slot claiming)
   const accountsWithSchedules = await sql`
-    SELECT a.id, a.name, a.twitter_handle, a.platform, a.personas, a.branding
+    SELECT a.id, a.name, a.account_username as twitter_handle, a.platform, a.personas, a.branding
     FROM connected_accounts a
     JOIN account_schedules s ON s.connected_account_id = a.id
     WHERE a.is_active = true

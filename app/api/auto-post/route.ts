@@ -22,9 +22,8 @@ export async function GET(request: NextRequest) {
     logger.info(`🔍 [GET] Auto-post check at ${currentHourIST}:${currentMinuteIST} IST`, 'auto-post');
 
     // SCALABLE: Query ONLY accounts due in this time window (not all accounts)
-    // This replaces the old approach of iterating all accounts
     const accountsDue = await sql`
-      SELECT a.id, a.name, a.twitter_handle, a.platform
+      SELECT a.id, a.name, a.account_username as twitter_handle, a.platform
       FROM connected_accounts a
       JOIN account_schedules s ON s.connected_account_id = a.id
       WHERE a.is_active = true

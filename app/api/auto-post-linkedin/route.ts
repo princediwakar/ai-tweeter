@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // SCALABLE: Query ONLY LinkedIn accounts due in this time window
     const accountsDue = await sql`
-      SELECT a.id, a.name, a.linkedin_enabled, a.linkedin_access_token,
+      SELECT a.id, a.name, a.account_username as twitter_handle, a.linkedin_enabled, a.linkedin_access_token,
              a.linkedin_refresh_token, a.linkedin_token_expires_at,
              a.linkedin_user_id, a.linkedin_org_id
       FROM connected_accounts a

@@ -60,27 +60,35 @@ export async function PUT(
       try {
         // Get account credentials for posting
         const accountId = tweet.connected_account_id || tweet.account_id;
-        console.log('Posting tweet:', { tweetId: id, accountId, platform, tweetAccountId: tweet.connected_account_id, tweetAccountIdAlt: tweet.account_id });
         if (!accountId) {
           return NextResponse.json({ error: 'No account linked to this tweet' }, { status: 400 });
         }
         const account = await accountService.getAccount(accountId);
-        console.log('Account fetched:', { accountId: account?.id, platform: account?.platform, linkedin_enabled: account?.linkedin_enabled, hasAccessToken: !!account?.linkedin_access_token });
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
 
         if (platform === 'linkedin') {
           // Handle LinkedIn posting
-          console.log('LinkedIn check:', {
-            linkedin_enabled: account.linkedin_enabled,
-            linkedin_access_token: account.linkedin_access_token ? 'exists' : 'missing',
-            platform: account.platform,
-            account_id: account.id
-          });
+          // Check if the specific account has LinkedIn, or find any account with LinkedIn connected
+          let linkedInAccount = account;
+          
           if (!account.linkedin_enabled || !account.linkedin_access_token) {
-            return NextResponse.json({ error: 'LinkedIn not connected for this account' }, { status: 400 });
+            // Try to find any account with LinkedIn connected for this user
+            const userId = account.user_id;
+            if (userId) {
+              const userAccounts = await accountService.getAccountsByUserId(userId);
+              linkedInAccount = userAccounts.find(a => a.linkedin_enabled && a.linkedin_access_token);
+            }
           }
+
+          if (!linkedInAccount || !linkedInAccount.linkedin_enabled || !linkedInAccount.linkedin_access_token) {
+            return NextResponse.json({ error: 'LinkedIn not connected for this account. Please connect LinkedIn in Settings.' }, { status: 400 });
+          }
+
+          // Use the found LinkedIn account
+          account = linkedInAccount;
+          console.log('Using LinkedIn account:', { accountId: account.id, userId: account.user_id });
 
           // Refresh token if needed
           if (account.linkedin_refresh_token && account.linkedin_token_expires_at) {

@@ -2,7 +2,10 @@ import { sql } from '@vercel/postgres';
 import { accountService } from './accountService';
 import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
-import { getCurrentISTHour, getCurrentISTDay, getCurrentISTMinute } from './utils';
+import { getCurrentISTHour, getCurrentISTDay, getCurrentISTMinute, getCurrentTimeInIST } from './utils';
+
+const GENERATION_WINDOW_MINUTES = 10;  // ±10 minutes from scheduled time (broader to catch more cron runs)
+const POSTING_WINDOW_MINUTES = 10;     // end_time - 10 to end_time
 
 interface ScheduleRow {
   id: string;
@@ -27,77 +30,7 @@ export interface Schedule {
   generation_personas: string[];
   posting_personas: string[];
   batch_size?: number;
-}
-
-const GENERATION_WINDOW_MINUTES = 5;   // ±5 minutes from scheduled time
-const POSTING_WINDOW_MINUTES = 10;     // end_time - 10 to end_time
-
-function isWithinGenerationWindow(currentMinutes: number, targetMinutes: number): boolean {
-  return currentMinutes >= targetMinutes - GENERATION_WINDOW_MINUTES && 
-         currentMinutes <= targetMinutes + GENERATION_WINDOW_MINUTES;
-}
-
-function isWithinPostingWindow(currentMinutes: number, targetMinutes: number): boolean {
-  return currentMinutes >= targetMinutes - POSTING_WINDOW_MINUTES && 
-         currentMinutes <= targetMinutes;
-}
-
-function isSameDay(date1: Date, date2: Date): boolean {
-  return date1.getFullYear() === date2.getFullYear() &&
-    date1.getMonth() === date2.getMonth() &&
-    date1.getDate() === date2.getDate();
-}
-
-async function claimGenerationSchedule(
-  accountId: string,
-  dayOfWeek: number,
-  currentMinutes: number
-): Promise<ScheduleRow | null> {
-  const now = new Date();
-  const result = await sql<ScheduleRow>`
-    UPDATE account_schedules
-    SET last_generated_at = ${now.toISOString()}
-    WHERE id IN (
-      SELECT id FROM account_schedules
-      WHERE connected_account_id = ${accountId}
-        AND is_active = true
-        AND ${dayOfWeek} = ANY(days_of_week)
-        AND ${currentMinutes} >= start_time - ${GENERATION_WINDOW_MINUTES}
-        AND ${currentMinutes} <= start_time + ${GENERATION_WINDOW_MINUTES}
-        AND (last_generated_at IS NULL OR (last_generated_at AT TIME ZONE 'Asia/Kolkata')::date != (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
-      ORDER BY start_time
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING *
-  `;
-  return result.rows[0] || null;
-}
-
-async function claimPostingSchedule(
-  accountId: string,
-  dayOfWeek: number,
-  currentMinutes: number
-): Promise<ScheduleRow | null> {
-  const now = new Date();
-  const result = await sql<ScheduleRow>`
-    UPDATE account_schedules
-    SET last_posted_at = ${now.toISOString()}
-    WHERE id IN (
-      SELECT id FROM account_schedules
-      WHERE connected_account_id = ${accountId}
-        AND is_active = true
-        AND ${dayOfWeek} = ANY(days_of_week)
-        AND ${currentMinutes} >= end_time - ${POSTING_WINDOW_MINUTES}
-        AND ${currentMinutes} <= end_time
-        AND (last_posted_at IS NULL OR (last_posted_at AT TIME ZONE 'Asia/Kolkata')::date != (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date)
-      ORDER BY start_time
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    )
-    RETURNING *
-  `;
-  return result.rows[0] || null;
+  reason?: string; // For debugging why generation/posting was skipped
 }
 
 export async function getGenerationBatchInfo(
@@ -125,36 +58,75 @@ export async function getGenerationBatchInfo(
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
+      reason: 'Account not found',
     };
   }
 
-  const hour = getCurrentISTHour(now);
-  const minute = getCurrentISTMinute(now);
-  const dayOfWeek = getCurrentISTDay(now);
-  const currentTimeInMinutes = hour * 60 + minute;
+  // Generate signature for current time slot (hour:minute)
+  const currentHour = new Date().getUTCHours();
+  const currentMinute = new Date().getUTCMinutes();
+  const today = new Date().toISOString().split('T')[0];
 
-  // Atomically claim a schedule for generation using row locking
-  const claimedSchedule = await claimGenerationSchedule(account.id, dayOfWeek, currentTimeInMinutes);
-  if (!claimedSchedule) {
+  // Atomically claim generation slot - only allow ONCE per account/date/hour/minute
+  const result = await sql`
+    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
+    VALUES (${account.id}, ${today}, ${currentHour}, ${currentMinute}, 1, NOW(), NOW(), NOW())
+    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
+    DO NOTHING
+    RETURNING generation_count
+  `;
+
+  // If no row returned, slot already exists - generation already attempted
+  if (result.rows.length === 0) {
     return {
       should_generate: false,
       should_post: false,
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
+      reason: 'Generation already attempted for this slot today',
     };
   }
 
-  // If schedule has a specific persona_id, only use that persona
-  // Otherwise fall back to account.personas (which are persona keys)
-  let personas: string[] = [];
+  // Find active schedule that matches current time window
+  const scheduleResult = await sql`
+    SELECT s.*
+    FROM account_schedules s
+    WHERE s.connected_account_id = ${account.id}
+      AND s.is_active = true
+      AND s.start_time IS NOT NULL
+      AND (
+        EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) * 60 +
+        EXTRACT(MINUTE FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone))
+        BETWEEN s.start_time - ${GENERATION_WINDOW_MINUTES}
+        AND s.start_time + ${GENERATION_WINDOW_MINUTES}
+      )
+      AND EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) = ANY(s.days_of_week)
+    ORDER BY s.start_time
+    LIMIT 1
+  `;
+
+  if (scheduleResult.rows.length === 0) {
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 5,
+      reason: 'No schedule matches current time window',
+    };
+  }
+
+  const claimedSchedule = scheduleResult.rows[0];
+  
+  const personas: string[] = [];
   if (claimedSchedule.persona_id) {
     const dbPersona = await getPersonaById(claimedSchedule.persona_id);
     if (dbPersona?.key) {
-      personas = [dbPersona.key];
+      personas.push(dbPersona.key);
     }
   } else {
-    personas = account.personas?.filter(Boolean) || [];
+    personas.push(...(account.personas?.filter(Boolean) || []));
   }
 
   const scheduleConfig = claimedSchedule.schedule_config as Record<string, unknown> || {};
@@ -170,6 +142,7 @@ export async function getGenerationBatchInfo(
 export interface PostingSchedule {
   should_post: boolean;
   personas: string[];
+  reason?: string;
 }
 
 export async function getPostingBatchInfo(
@@ -178,20 +151,64 @@ export async function getPostingBatchInfo(
 ): Promise<PostingSchedule> {
   const account = await accountService.getAccountByTwitterHandle(twitterHandle);
   if (!account) {
-    return { should_post: false, personas: [] };
+    return { should_post: false, personas: [], reason: 'Account not found' };
   }
 
-  const hour = getCurrentISTHour(now);
-  const minute = getCurrentISTMinute(now);
-  const dayOfWeek = getCurrentISTDay(now);
-  const currentTimeInMinutes = hour * 60 + minute;
+  const currentHour = new Date().getUTCHours();
+  const currentMinute = new Date().getUTCMinutes();
+  const today = new Date().toISOString().split('T')[0];
 
-  // Atomically claim a schedule for posting using row locking
-  const claimedSchedule = await claimPostingSchedule(account.id, dayOfWeek, currentTimeInMinutes);
-  if (!claimedSchedule) {
-    return { should_post: false, personas: [] };
+  // Atomically claim posting slot - only allow ONCE per account/date/hour/minute
+  const postingResult = await sql`
+    INSERT INTO generation_slots (connected_account_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
+    VALUES (${account.id}, ${today}, ${currentHour}, ${currentMinute}, 1, NOW(), NOW(), NOW())
+    ON CONFLICT (connected_account_id, slot_date, slot_hour, slot_minute)
+    DO NOTHING
+    RETURNING posting_count
+  `;
+
+  // If no row returned, slot already exists - posting already attempted
+  if (postingResult.rows.length === 0) {
+    return { 
+      should_post: false, 
+      personas: [], 
+      reason: 'Posting already attempted for this slot today' 
+    };
   }
 
+  const result = await sql`
+    UPDATE account_schedules
+    SET last_posted_at = NOW()
+    WHERE id IN (
+      SELECT s.id FROM account_schedules s
+      WHERE s.connected_account_id = ${account.id}
+        AND s.is_active = true
+        AND EXTRACT(DOW FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) = ANY(s.days_of_week)
+        AND (
+          EXTRACT(HOUR FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)) * 60 +
+          EXTRACT(MINUTE FROM (CURRENT_TIMESTAMP AT TIME ZONE s.timezone))
+          BETWEEN s.end_time - ${POSTING_WINDOW_MINUTES}
+          AND s.end_time
+        )
+        AND (s.last_posted_at IS NULL OR
+             (s.last_posted_at AT TIME ZONE s.timezone)::date !=
+             (CURRENT_TIMESTAMP AT TIME ZONE s.timezone)::date)
+      ORDER BY s.start_time
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    RETURNING *
+  `;
+
+  if (result.rows.length === 0) {
+    return { 
+      should_post: false, 
+      personas: [], 
+      reason: 'No posting schedule matches current time window' 
+    };
+  }
+
+  const claimedSchedule = result.rows[0];
   let personas: string[] = [];
   if (claimedSchedule.persona_id) {
     const dbPersona = await getPersonaById(claimedSchedule.persona_id);

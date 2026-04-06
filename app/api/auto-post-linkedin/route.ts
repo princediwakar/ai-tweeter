@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { logger } from '@/lib/logger';
-import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/utils';
-import {
-  getScheduledPersonasForLinkedInPosting,
-  isLinkedInPostingScheduled,
-  getPostingBatchInfo
-} from '@/lib/schedule';
+import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
+import { getPostingBatchInfo } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
-import {
-  postToLinkedIn,
-  refreshAccessToken,
-  shouldRefreshToken,
-  LinkedInCredentials
-} from '@/lib/linkedin';
-import { Tweet } from '@/lib/types';
 import { postingJobQueue } from '@/lib/postingJobQueue';
+import { postSingleContent } from '@/lib/postingService';
 
 const BATCH_SIZE = 5;
 
@@ -26,62 +16,52 @@ async function processLinkedInJob(job: { id: string; account_id: string }): Prom
   }
 
   const nowIST = getCurrentTimeInIST();
-  const dayOfWeek = getCurrentISTDay(nowIST);
-  const currentHourIST = getCurrentISTHour(nowIST);
-
-  // Check if we should post right now (deduplication)
   const postingInfo = await getPostingBatchInfo(account.twitter_handle, nowIST);
   
-  if (!postingInfo.should_post) {
-    logger.info(`⏳ ${account.name}: Already posted or not in posting window`, 'auto-post-linkedin');
+  if (!postingInfo.should_post || postingInfo.personas.length === 0) {
+    logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting`, 'auto-post-linkedin');
     return { posted: 0, errors: 0 };
   }
 
-  if (!(await isLinkedInPostingScheduled(account.twitter_handle, nowIST))) {
-    logger.info(`⏳ ${account.name}: Not scheduled for LinkedIn posting at this hour`, 'auto-post-linkedin');
-    return { posted: 0, errors: 0 };
-  }
-
-  const scheduledPersonas = await getScheduledPersonasForLinkedInPosting(account.twitter_handle, dayOfWeek, currentHourIST);
-  if (scheduledPersonas.length === 0) {
-    logger.info(`⏳ ${account.name}: No personas scheduled for LinkedIn posting`, 'auto-post-linkedin');
-    return { posted: 0, errors: 0 };
-  }
-
-  if (account.linkedin_refresh_token && account.linkedin_token_expires_at && shouldRefreshToken(new Date(account.linkedin_token_expires_at))) {
-    logger.info(`🔄 ${account.name}: Refreshing LinkedIn token`, 'auto-post-linkedin');
-    try {
-      const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
-      await accountService.updateAccount(account.id, {
-        linkedin_access_token: accessToken,
-        linkedin_refresh_token: refreshToken,
-        linkedin_token_expires_at: expiresAt,
-      } as never);
-      account.linkedin_access_token = accessToken;
-      account.linkedin_refresh_token = refreshToken;
-      account.linkedin_token_expires_at = expiresAt.toISOString();
-    } catch (error) {
-      throw new Error(`Failed to refresh LinkedIn token: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  const result = await sql<Tweet>`
-    SELECT * FROM tweets
-    WHERE connected_account_id = ${account.id}
-    AND status IN ('ready', 'posted')
-    AND linkedin_id IS NULL
-    AND content_type = 'single_tweet'
-    ORDER BY created_at ASC
-  `;
-
-  const eligibleTweets = result.rows.filter(tweet => scheduledPersonas.includes(tweet.persona));
+  const personas = postingInfo.personas as string[];
   
-  if (eligibleTweets.length === 0) {
-    logger.info(`📋 ${account.name}: No tweets ready for LinkedIn posting`, 'auto-post-linkedin');
+  // Use new atomic claiming for LinkedIn
+  const result = await postSingleContent(account.id, personas, 'linkedin', BATCH_SIZE);
+  
+  // For cross-posting (tweets already posted to Twitter but not LinkedIn)
+  if (result.posted === 0 && result.errors === 0) {
+    const crossPostResult = await processLinkedInCrossPost(account, postingInfo.personas);
+    return crossPostResult;
+  }
+  
+  return result;
+}
+
+async function processLinkedInCrossPost(account: any, personas: string[]): Promise<{ posted: number; errors: number }> {
+  if (personas.length === 0) {
     return { posted: 0, errors: 0 };
   }
 
-  const linkedinCredentials: LinkedInCredentials = {
+  // Find tweets already posted to Twitter but not yet cross-posted to LinkedIn
+  const result = await sql.query(
+    `SELECT * FROM tweets
+     WHERE connected_account_id = $1
+       AND status = 'posted'
+       AND linkedin_id IS NULL
+       AND content_type = 'single_tweet'
+       AND persona = ANY($2::text[])
+     ORDER BY posted_at ASC
+     LIMIT $3`,
+    [account.id, personas, BATCH_SIZE]
+  );
+
+  if (result.rows.length === 0) {
+    return { posted: 0, errors: 0 };
+  }
+
+  const { postToLinkedIn } = await import('@/lib/linkedin');
+  
+  const linkedinCredentials = {
     accessToken: account.linkedin_access_token!,
     refreshToken: account.linkedin_refresh_token,
     expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
@@ -92,34 +72,26 @@ async function processLinkedInJob(job: { id: string; account_id: string }): Prom
   let posted = 0;
   let errors = 0;
 
-  for (const tweet of eligibleTweets) {
+  for (const tweet of result.rows) {
     try {
       const contentForLinkedIn = tweet.content.replace(/@/g, '');
       const fullContent = tweet.hashtags?.length > 0
-        ? `${contentForLinkedIn}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}`
+        ? `${contentForLinkedIn}\n\n${tweet.hashtags.map((tag: string) => `${tag}`).join(' ')}`
         : contentForLinkedIn;
 
       const linkedinResult = await postToLinkedIn(fullContent, linkedinCredentials, tweet.image_url);
 
       await sql`
         UPDATE tweets
-        SET
-          linkedin_id = ${linkedinResult.id},
-          posted_at = COALESCE(posted_at, NOW()),
-          status = CASE
-            WHEN persona = 'linkedin_analyst' THEN 'posted'
-            WHEN twitter_id IS NOT NULL THEN 'posted'
-            ELSE status
-          END
+        SET linkedin_id = ${linkedinResult.id}
         WHERE id = ${tweet.id}
       `;
 
       posted++;
-      logger.info(`✅ ${account.name}: Posted to LinkedIn: ${tweet.content.substring(0, 30)}...`, 'auto-post-linkedin');
+      logger.info(`✅ ${account.name}: Cross-posted to LinkedIn: ${tweet.content.substring(0, 30)}...`, 'auto-post-linkedin');
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`❌ ${account.name}: Failed to post to LinkedIn: ${errorMsg}`, 'auto-post-linkedin', error as Error);
-      await sql`UPDATE tweets SET error_message = ${`LinkedIn: ${errorMsg}`} WHERE id = ${tweet.id}`;
+      logger.error(`❌ ${account.name}: Failed to cross-post to LinkedIn: ${errorMsg}`, 'auto-post-linkedin', error as Error);
       errors++;
     }
   }
@@ -137,10 +109,10 @@ export async function GET(request: NextRequest) {
     const debugMode = process.env.DEBUG_MODE === 'true';
     const nowIST = getCurrentTimeInIST();
     const currentHourIST = getCurrentISTHour(nowIST);
-    const dayOfWeek = getCurrentISTDay(nowIST);
 
     logger.info(`🔍 [LinkedIn] Auto-post check at ${currentHourIST}:00 IST${debugMode ? ' (DEBUG MODE)' : ''}`, 'auto-post-linkedin');
 
+    // 1. Process pending jobs from queue
     const claimedJobs = await postingJobQueue.claimJobs('linkedin', BATCH_SIZE);
     
     if (claimedJobs.length > 0) {
@@ -174,6 +146,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 2. Handle stale jobs
     const staleJobs = await postingJobQueue.getProcessingJobs('linkedin', BATCH_SIZE);
     if (staleJobs.length > 0) {
       logger.info(`🔄 Reclaiming ${staleJobs.length} stale LinkedIn jobs`, 'auto-post-linkedin');
@@ -188,19 +161,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Synchronize scheduled jobs (Check what's due today and enqueue missing ones)
-    const enqueued = await postingJobQueue.syncScheduledJobs('linkedin');
-    if (enqueued > 0) {
-      logger.info(`📝 Enqueued ${enqueued} new accounts for LinkedIn posting`, 'auto-post-linkedin');
-    }
+    // Note: syncScheduledJobs removed - now runs daily via /api/cron/sync
 
     const stats = await postingJobQueue.getQueueStats('linkedin');
     return NextResponse.json({ 
       success: true, 
       message: stats.pending === 0 
         ? `⏳ No pending LinkedIn jobs.` 
-        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
-      enqueued,
+        : `Queue: ${stats.pending} pending.`,
       queue: stats
     });
 

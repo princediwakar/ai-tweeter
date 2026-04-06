@@ -14,5 +14,10 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "outputDirectory": ".next",
-  "crons": []
+  "crons": [
+    { "path": "/api/generate", "schedule": "*/15 * * * *" },
+    { "path": "/api/auto-post", "schedule": "*/15 * * * *" },
+    { "path": "/api/auto-post-linkedin", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/sync", "schedule": "0 0 * * *" }
+  ]
 }

@@ -289,11 +289,25 @@ export async function createThreadWithRetry(
 
 export async function saveTweet(tweet: Tweet): Promise<void> {
   try {
+    // Check for duplicate content within last 24 hours
+    const duplicateCheck = await sqlWithRetry`
+      SELECT id FROM tweets
+      WHERE connected_account_id = ${tweet.connected_account_id}
+        AND content = ${tweet.content}
+        AND created_at > NOW() - INTERVAL '24 hours'
+      LIMIT 1
+    `;
+
+    if (duplicateCheck.rows.length > 0) {
+      console.log(`[Duplicate Detection] Skipping duplicate tweet for account ${tweet.connected_account_id}: "${tweet.content.substring(0, 50)}..."`);
+      return;
+    }
+
     await sqlWithRetry`
       INSERT INTO tweets (
-        id, connected_account_id, content, hashtags, persona, status, created_at, 
-        posted_at, twitter_id, twitter_url, error_message, image_url, 
-        thread_id, thread_sequence, parent_twitter_id, content_type, 
+        id, connected_account_id, content, hashtags, persona, status, created_at,
+        posted_at, twitter_id, twitter_url, error_message, image_url,
+        thread_id, thread_sequence, parent_twitter_id, content_type,
         image_status, card_data, source_url
       ) VALUES (
         ${tweet.id},
@@ -313,10 +327,10 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         ${tweet.parent_twitter_id || null},
         ${tweet.content_type || 'single_tweet'},
         ${tweet.image_status || 'none'},
-        ${tweet.card_data || null}, 
+        ${tweet.card_data || null},
         ${tweet.source_url || null}
       )
-      ON CONFLICT (id) 
+      ON CONFLICT (id)
       DO UPDATE SET
         connected_account_id = EXCLUDED.connected_account_id,
         content = EXCLUDED.content,
@@ -1209,5 +1223,200 @@ export async function getRecentCricketStorytellerSources(accountId: string, days
   } catch (error) {
     console.error('[Neon] Error getting recent cricket_storyteller sources:', error);
     return []; // Return empty array on error to allow generation to proceed
+  }
+}
+
+// ============================================
+// ATOMIC CLAIMING FUNCTIONS (Phase 1 Fixes)
+// ============================================
+
+/**
+ * Atomically claims a tweet for posting using SELECT FOR UPDATE SKIP LOCKED.
+ * Prevents duplicate posting when multiple workers run concurrently.
+ * Returns the claimed tweet or null if none available.
+ */
+export async function claimTweetForPosting(
+  accountId: string,
+  persona?: string
+): Promise<Tweet | null> {
+  try {
+    const now = new Date().toISOString();
+    
+    let query;
+    let params: any[];
+
+    if (persona) {
+      query = `
+        UPDATE tweets 
+        SET status = 'posting', started_at = $2
+        WHERE id = (
+          SELECT id FROM tweets 
+          WHERE connected_account_id = $1 
+            AND status = 'ready' 
+            AND persona = $3
+            AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
+          ORDER BY created_at ASC
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+      `;
+      params = [accountId, now, persona];
+    } else {
+      query = `
+        UPDATE tweets 
+        SET status = 'posting', started_at = $2
+        WHERE id = (
+          SELECT id FROM tweets 
+          WHERE connected_account_id = $1 
+            AND status = 'ready' 
+            AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
+          ORDER BY created_at ASC
+          LIMIT 1
+          FOR UPDATE SKIP LOCKED
+        )
+        RETURNING *
+      `;
+      params = [accountId, now];
+    }
+
+    const result = await sql.query(query, params);
+
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      connected_account_id: row.connected_account_id,
+      content: row.content,
+      hashtags: row.hashtags || [],
+      persona: row.persona,
+      status: row.status,
+      created_at: row.created_at,
+      posted_at: row.posted_at,
+      twitter_id: row.twitter_id,
+      twitter_url: row.twitter_url,
+      error_message: row.error_message,
+      image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
+      source_url: row.source_url,
+      thread_id: row.thread_id,
+      thread_sequence: row.thread_sequence,
+      parent_twitter_id: row.parent_twitter_id,
+      content_type: row.content_type || 'single_tweet',
+    };
+  } catch (error) {
+    console.error('[Neon] Error claiming tweet for posting:', error);
+    return null;
+  }
+}
+
+/**
+ * Atomically claims multiple tweets for posting (batch mode).
+ * Uses SELECT FOR UPDATE SKIP LOCKED to prevent race conditions.
+ */
+export async function claimTweetsForPosting(
+  accountId: string,
+  personas: string[],
+  limit: number = 5
+): Promise<Tweet[]> {
+  if (personas.length === 0) {
+    return [];
+  }
+  
+  try {
+    const now = new Date().toISOString();
+    
+    const result = await sql.query(
+      `UPDATE tweets 
+       SET status = 'posting', started_at = $2
+       WHERE id IN (
+         SELECT id FROM tweets 
+         WHERE connected_account_id = $1 
+           AND status = 'ready' 
+           AND persona = ANY($3::text[])
+           AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
+         ORDER BY created_at ASC
+         LIMIT $4
+         FOR UPDATE SKIP LOCKED
+       )
+       RETURNING *`,
+      [accountId, now, personas, limit]
+    );
+
+    return result.rows.map(row => ({
+      id: row.id,
+      connected_account_id: row.connected_account_id,
+      content: row.content,
+      hashtags: row.hashtags || [],
+      persona: row.persona,
+      status: row.status,
+      created_at: row.created_at,
+      posted_at: row.posted_at,
+      twitter_id: row.twitter_id,
+      twitter_url: row.twitter_url,
+      error_message: row.error_message,
+      image_url: row.image_url,
+      image_status: row.image_status,
+      card_data: row.card_data,
+      source_url: row.source_url,
+      thread_id: row.thread_id,
+      thread_sequence: row.thread_sequence,
+      parent_twitter_id: row.parent_twitter_id,
+      content_type: row.content_type || 'single_tweet',
+    }));
+  } catch (error) {
+    console.error('[Neon] Error claiming tweets for posting:', error);
+    return [];
+  }
+}
+
+/**
+ * Marks a claimed tweet as posted or failed, releasing the lock.
+ */
+export async function finalizeTweetPosting(
+  tweetId: string,
+  status: 'posted' | 'failed',
+  twitterId?: string,
+  twitterUrl?: string,
+  errorMessage?: string
+): Promise<void> {
+  try {
+    await sql`
+      UPDATE tweets 
+      SET 
+        status = ${status},
+        posted_at = CASE WHEN ${status} = 'posted' THEN NOW() ELSE posted_at END,
+        twitter_id = COALESCE(twitter_id, ${twitterId || null}),
+        twitter_url = COALESCE(twitter_url, ${twitterUrl || null}),
+        error_message = ${errorMessage || null},
+        started_at = NULL
+      WHERE id = ${tweetId}
+    `;
+  } catch (error) {
+    console.error('[Neon] Error finalizing tweet posting:', error);
+    throw error;
+  }
+}
+
+/**
+ * Releases locked tweets back to ready status (for failed jobs).
+ */
+export async function releaseStaleTweets(accountId: string): Promise<number> {
+  try {
+    const result = await sql`
+      UPDATE tweets 
+      SET status = 'ready', started_at = NULL
+      WHERE connected_account_id = ${accountId}
+        AND status = 'posting'
+        AND started_at < NOW() - INTERVAL '15 minutes'
+    `;
+    return result.rowCount ?? 0;
+  } catch (error) {
+    console.error('[Neon] Error releasing stale tweets:', error);
+    return 0;
   }
 }

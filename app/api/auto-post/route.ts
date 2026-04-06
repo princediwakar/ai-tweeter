@@ -1,104 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  getReadyTweetsByAccount, 
-  saveTweet, 
-  getReadyThreads
-} from '@/lib/db';
-import { postCompleteThread } from '@/lib/instantThreadService';
+import { getReadyThreads } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTDay } from '@/lib/utils';
-import {
-  getScheduledPersonasForPosting,
-  getScheduledTwitterHandles,
-  isPostingScheduled,
-  getPostingBatchInfo
-} from '@/lib/schedule';
-import { getAllPersonas } from '@/lib/personas';
+import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
+import { getPostingBatchInfo } from '@/lib/schedule';
 import { accountService } from '@/lib/accountService';
-import { postTweet, postTweetWithImage } from '@/lib/twitter';
-import { refreshAccessToken } from '@/lib/twitter-oauth';
-import type { Tweet } from '@/lib/types';
-import { ConnectedAccount, getConnectedAccountByAccountId, updateConnectedAccountToken } from '@/lib/connectedAccounts';
-import { shouldRefreshToken } from '@/lib/twitter-oauth';
-import { platformSettings } from '@/lib/platformSettings';
+import { postCompleteThread } from '@/lib/instantThreadService';
 import { postingJobQueue } from '@/lib/postingJobQueue';
-
-type AccountWithCredentials = ConnectedAccount;
+import { postSingleContent } from '@/lib/postingService';
 
 const BATCH_SIZE = 5;
-
-async function fetchImageFromUrl(imageUrl: string): Promise<Buffer | null> {
-  try {
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
-    }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (error) {
-    console.error('❌ Failed to fetch image from URL:', error);
-    return null;
-  }
-}
-
-function isTweetReadyForPosting(tweet: Tweet): boolean {
-  if (!tweet.image_status || tweet.image_status === 'none') {
-    return true;
-  }
-  return tweet.image_status === 'completed' || tweet.image_status === 'failed';
-}
-
-function getFullTweetContent(tweet: Tweet): string {
-  return tweet.hashtags?.length > 0 
-    ? `${tweet.content}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}` 
-    : tweet.content;
-}
-
-function isTweetValidForPosting(tweet: Tweet): boolean {
-  const ready = isTweetReadyForPosting(tweet);
-  if (!ready) return false;
-  
-  const fullContent = getFullTweetContent(tweet);
-  if (fullContent.length > 280) {
-    logger.info(`📋 Skipping tweet ${tweet.id}: too long (${fullContent.length} > 280 chars).`, 'auto-post');
-    return false;
-  }
-  if (fullContent.trim().length === 0) {
-    logger.info(`📋 Skipping tweet ${tweet.id}: content is empty.`, 'auto-post');
-    return false;
-  }
-  return true;
-}
-
-async function getTwitterCredentialsForAccount(account: AccountWithCredentials) {
-  return {
-    apiKey: account.twitter_api_key || '',
-    apiSecret: account.twitter_api_secret || '',
-    accessToken: account.twitter_access_token || '',
-    accessSecret: account.twitter_access_token_secret || '',
-  };
-}
-
-async function postSingleTweet(tweet: Tweet, account: AccountWithCredentials) {
-  const credentials = await getTwitterCredentialsForAccount(account);
-  const fullContent = getFullTweetContent(tweet);
-
-  if (tweet.image_url && tweet.image_status === 'completed') {
-    logger.info(`🖼️ ${account.name}: Tweet has completed image. Fetching from: ${tweet.image_url}`, 'auto-post');
-    try {
-      const imageBuffer = await fetchImageFromUrl(tweet.image_url);
-      if (imageBuffer) {
-        logger.info(`🖼️ ${account.name}: Posting tweet with attached image.`, 'auto-post');
-        return await postTweetWithImage(fullContent, imageBuffer, credentials);
-      }
-    } catch (imageError) {
-      logger.error(`⚠️ ${account.name}: Error fetching Cloudinary image, falling back to text-only.`, 'auto-post', imageError as Error);
-    }
-  }
-
-  logger.info(`📝 ${account.name}: Posting as a text-only tweet.`, 'auto-post');
-  return await postTweet(fullContent, credentials);
-}
 
 async function processJob(job: { id: string; account_id: string }): Promise<{ posted: number; errors: number }> {
   const account = await accountService.getAccount(job.account_id);
@@ -107,41 +17,17 @@ async function processJob(job: { id: string; account_id: string }): Promise<{ po
   }
 
   const nowIST = getCurrentTimeInIST();
-  const dayOfWeek = getCurrentISTDay(nowIST);
-  const currentHourIST = getCurrentISTHour(nowIST);
-
-  const readyTweets = await getReadyTweetsByAccount(account.id);
-  const accountScheduledPersonas = await getScheduledPersonasForPosting(account.twitter_handle, dayOfWeek, currentHourIST);
+  const postingInfo = await getPostingBatchInfo(account.twitter_handle, nowIST);
   
-  const scheduledTweets = readyTweets
-    .filter(tweet => accountScheduledPersonas.includes(tweet.persona))
-    .filter(tweet => isTweetValidForPosting(tweet));
-
-  logger.info(`📝 Found ${scheduledTweets.length} valid tweets for ${account.name}`, 'auto-post');
-
-  let posted = 0;
-  let errors = 0;
-
-  for (const tweet of scheduledTweets) {
-    try {
-      await postSingleTweet(tweet, account);
-      const updatedTweet: Tweet = {
-        ...tweet,
-        status: 'posted',
-        posted_at: new Date().toISOString()
-      };
-      await saveTweet(updatedTweet);
-      posted++;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.error(`❌ Failed to post tweet ${tweet.id}: ${errorMsg}`, 'auto-post', error as Error);
-      const failedTweet: Tweet = { ...tweet, status: 'failed', error_message: errorMsg };
-      await saveTweet(failedTweet);
-      errors++;
-    }
+  if (!postingInfo.should_post || postingInfo.personas.length === 0) {
+    logger.info(`⏭️ ${account.name}: Not scheduled for posting`, 'auto-post');
+    return { posted: 0, errors: 0 };
   }
 
-  return { posted, errors };
+  const result = await postSingleContent(account.id, postingInfo.personas, 'twitter', BATCH_SIZE);
+  logger.info(`📝 ${account.name}: Posted ${result.posted}, errors ${result.errors}`, 'auto-post');
+  
+  return result;
 }
 
 export async function GET(request: NextRequest) {
@@ -153,10 +39,10 @@ export async function GET(request: NextRequest) {
 
     const nowIST = getCurrentTimeInIST();
     const currentHourIST = getCurrentISTHour(nowIST);
-    const dayOfWeek = getCurrentISTDay(nowIST);
 
     logger.info(`🔍 [GET] Auto-post check at ${currentHourIST}:00 IST`, 'auto-post');
 
+    // 1. Process pending jobs from queue
     const claimedJobs = await postingJobQueue.claimJobs('twitter', BATCH_SIZE);
     
     if (claimedJobs.length > 0) {
@@ -190,6 +76,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 2. Handle stale jobs
     const staleJobs = await postingJobQueue.getProcessingJobs('twitter', BATCH_SIZE);
     if (staleJobs.length > 0) {
       logger.info(`🔄 Reclaiming ${staleJobs.length} stale jobs`, 'auto-post');
@@ -204,19 +91,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Synchronize scheduled jobs (Check what's due today and enqueue missing ones)
-    const enqueued = await postingJobQueue.syncScheduledJobs('twitter');
-    if (enqueued > 0) {
-      logger.info(`📝 Enqueued ${enqueued} new accounts for Twitter posting`, 'auto-post');
-    }
+    // Note: syncScheduledJobs removed - now runs daily via /api/cron/sync
 
     const stats = await postingJobQueue.getQueueStats('twitter');
     return NextResponse.json({ 
       success: true, 
       message: stats.pending === 0 
         ? `⏳ No pending Twitter jobs.` 
-        : `Queue: ${stats.pending} pending. Enqueued ${enqueued} new ones.`,
-      enqueued,
+        : `Queue: ${stats.pending} pending.`,
       queue: stats
     });
 
@@ -238,7 +120,7 @@ export async function POST(request: NextRequest) {
     const nowIST = getCurrentTimeInIST();
     logger.info(`🚀 [POST] Instant thread posting check${debugMode ? ' (DEBUG MODE)' : ''}`, 'auto-post');
 
-    let accountsToProcess: AccountWithCredentials[] = [];
+    let accountsToProcess: any[] = [];
     if (requestBody.twitter_handle) {
       const account = await accountService.getAccountByTwitterHandle(requestBody.twitter_handle);
       if (account) accountsToProcess.push(account);
@@ -247,18 +129,17 @@ export async function POST(request: NextRequest) {
        const account = allAccounts.find(a => a.id === requestBody.account_id);
        if(account) accountsToProcess.push(account);
     } else {
-      const scheduledTwitterHandles = await getScheduledTwitterHandles();
       const allAccounts = await accountService.getAllAccounts();
       if (debugMode) {
-        accountsToProcess = allAccounts.filter(acc => scheduledTwitterHandles.includes(acc.twitter_handle));
-        logger.info(`🔍 [POST] Debug mode: Processing ${accountsToProcess.length} accounts regardless of schedule`, 'auto-post');
+        accountsToProcess = allAccounts.filter(acc => acc.platform === 'twitter');
       } else {
         const results = await Promise.all(allAccounts.map(async acc => {
-          if (!scheduledTwitterHandles.includes(acc.twitter_handle)) return null;
-          if (await isPostingScheduled(acc.twitter_handle, nowIST)) return acc;
+          if (acc.platform !== 'twitter') return null;
+          const postingInfo = await getPostingBatchInfo(acc.twitter_handle, nowIST);
+          if (postingInfo.should_post) return acc;
           return null;
         }));
-        accountsToProcess = results.filter((acc): acc is AccountWithCredentials => acc !== null);
+        accountsToProcess = results.filter((acc): acc is any => acc !== null);
       }
     }
 
@@ -273,7 +154,6 @@ export async function POST(request: NextRequest) {
     for (const account of accountsToProcess) {
       logger.info(`🏢 Processing account: ${account.name} (@${account.twitter_handle})`, 'auto-post');
       try {
-        // Check if we should post right now (deduplication)
         const postingInfo = await getPostingBatchInfo(account.twitter_handle, nowIST);
         
         if (!postingInfo.should_post && !debugMode) {
@@ -283,11 +163,11 @@ export async function POST(request: NextRequest) {
 
         let scheduledPersonas = postingInfo.personas;
         
-        // In debug mode, get all available personas from DB if none scheduled
+        // In debug mode, get all personas
         if (debugMode && scheduledPersonas.length === 0) {
+          const { getAllPersonas } = await import('@/lib/personas');
           const allPersonas = await getAllPersonas();
           scheduledPersonas = allPersonas.map(p => p.key).filter((k): k is string => !!k);
-          logger.info(`🔍 [POST] Debug mode: Using all ${scheduledPersonas.length} personas from DB`, 'auto-post');
         }
         
         const readyThreads = await getReadyThreads(account.id);
@@ -295,7 +175,12 @@ export async function POST(request: NextRequest) {
 
         if (scheduledThread) {
           logger.info(`🚀 ${account.name}: Posting thread "${scheduledThread.title}"`, 'auto-post');
-          const credentials = await getTwitterCredentialsForAccount(account);
+          const credentials = {
+            apiKey: account.twitter_api_key || '',
+            apiSecret: account.twitter_api_secret || '',
+            accessToken: account.twitter_access_token || '',
+            accessSecret: account.twitter_access_token_secret || '',
+          };
 
           const threadResult = await postCompleteThread(
             scheduledThread.id,
@@ -315,36 +200,16 @@ export async function POST(request: NextRequest) {
           continue; 
         }
 
-        const readyTweets = await getReadyTweetsByAccount(account.id);
+        // Use new atomic claiming for single tweets
+        const result = await postSingleContent(account.id, scheduledPersonas, 'twitter', 1);
         
-        const scheduledTweet = readyTweets.find(t => 
-          scheduledPersonas.includes(t.persona) && 
-          t.content_type === 'single_tweet' &&
-          isTweetValidForPosting(t)
-        );
-
-        if (scheduledTweet) {
-          logger.info(`📤 ${account.name}: No threads ready. Posting valid single tweet (<= 280 chars)...`, 'auto-post');
-          try {
-            const result = await postSingleTweet(scheduledTweet, account);
-            const updatedTweet: Tweet = {
-              ...scheduledTweet,
-              status: 'posted',
-              posted_at: new Date().toISOString(),
-              twitter_id: result.data.id,
-              twitter_url: `https://x.com/${account.twitter_handle}/status/${result.data.id}`
-            };
-            await saveTweet(updatedTweet);
-            totalPosted++;
-          } catch(error) {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              logger.error(`❌ ${account.name}: Failed to post single tweet ${scheduledTweet.id}: ${errorMsg}`, 'auto-post', error as Error);
-              const failedTweet: Tweet = { ...scheduledTweet, status: 'failed', error_message: errorMsg };
-              await saveTweet(failedTweet);
-              totalErrors++;
-          }
+        if (result.posted > 0) {
+          totalPosted += result.posted;
+          logger.info(`📤 ${account.name}: Posted ${result.posted} single tweet(s)`, 'auto-post');
+        } else if (result.errors > 0) {
+          totalErrors += result.errors;
         } else {
-          logger.info(`📋 ${account.name}: No ready threads or valid single tweets (<= 280 chars) found.`, 'auto-post');
+          logger.info(`📋 ${account.name}: No valid tweets found for posting.`, 'auto-post');
         }
       } catch(error) {
         logger.error(`❌ Failed to process account ${account.name}`, 'auto-post', error as Error);

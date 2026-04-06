@@ -76,12 +76,19 @@ class PostingJobQueue {
   }
 
   async getPendingJobs(platform: 'twitter' | 'linkedin', limit: number = BATCH_SIZE): Promise<PostingJob[]> {
+    // With exponential backoff: jobs retry after 2^attempts minutes (max 60 min)
     const result = await sql`
       SELECT * FROM posting_jobs
       WHERE platform = ${platform}
         AND status = 'pending'
         AND attempts < max_attempts
-      ORDER BY created_at ASC
+        AND (
+          attempts = 0 
+          OR created_at < NOW() - (INTERVAL '1 minute' * (2 ^ attempts))
+        )
+      ORDER BY 
+        CASE WHEN attempts = 0 THEN 0 ELSE 1 END,
+        created_at ASC
       LIMIT ${limit}
     `;
 

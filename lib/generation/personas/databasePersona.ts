@@ -24,8 +24,16 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
     const sourceLogic = String(personaConfig.source_logic || 'Select relevant content sources.');
     const voiceDna = String(personaConfig.voice_dna || 'Write in a clear, engaging voice.');
     const antiPatterns = String(personaConfig.anti_patterns || 'Avoid generic filler words.');
-    const structuralArchetypes = (personaConfig.structural_archetypes as Array<{ name: string; description: string; example: string }>) || [];
-    const validationChecklist = (personaConfig.validation_checklist as string[]) || [];
+    
+    // STRICT TYPE CHECKING: Prevent .map() crashes from bad DB data
+    const rawArchetypes = personaConfig.structural_archetypes;
+    const structuralArchetypes = Array.isArray(rawArchetypes) ? rawArchetypes : [];
+    
+    const rawChecklist = personaConfig.validation_checklist;
+    const validationChecklist = Array.isArray(rawChecklist) ? rawChecklist : [];
+
+    // Decision flag for images
+    const wantsImage = config.generationFormat === 'image';
 
     // 1. Identity & Goal
     let prompt = `
@@ -60,11 +68,14 @@ STRUCTURAL ARCHETYPES (ROTATION)
 ━━━━━━━━━━━━━━━━━━━━━
 Choose ONE of these formats to execute based on the data:
 
-${structuralArchetypes.map((arch, i) => `
-**Format ${i + 1}: ${arch.name}**
-- Description: ${arch.description}
-- Example: "${arch.example}"
-`).join('\n')}
+${structuralArchetypes.length > 0 
+  ? structuralArchetypes.map((arch: any, i: number) => `
+**Format ${i + 1}: ${arch.name || 'Unnamed'}**
+- Description: ${arch.description || ''}
+- Example: "${arch.example || ''}"
+`).join('\n')
+  : '**Format 1: General Post**\n- Write a high-signal, engaging post based on the context.'
+}
 
 ━━━━━━━━━━━━━━━━━━━━━
 OUTPUT CONSTRUCTION
@@ -83,19 +94,28 @@ OUTPUT CONSTRUCTION
     "yourAngle": "<why this matters>",
     "formatUsed": "<Format Name>"
   },
-  "tweetText": "<The complete tweet content>",
-  "selectedHeadlineNumber": <same as selectedArticle>,
-  "imageContent": "<Optional: If generating an image, include the visually descriptive text here. Max 240 chars.>"
-}
-`;
+  "tweetText": "<The complete text content>",
+  "selectedHeadlineNumber": <same as selectedArticle>`
 
-    // Add validation checklist
+  // FIXED: Tell the AI exactly how to output the cardData so the parser actually picks it up.
+  if (wantsImage) {
+    prompt += `,
+  "cardData": {
+    "imagePrompt": "<Highly descriptive visual prompt for an AI image generator. Max 240 chars.>"
+  }
+}`;
+  } else {
+    prompt += `\n}`;
+  }
+
+    // Add validation checklist safely
     if (validationChecklist.length > 0) {
       prompt += `
+
 ━━━━━━━━━━━━━━━━━━━━━
 FINAL VALIDATION CHECKLIST
 ━━━━━━━━━━━━━━━━━━━━━
-${validationChecklist.map((item: string) => `□ ${item}`).join('\n')}
+${validationChecklist.map((item: any) => `□ ${String(item)}`).join('\n')}
 `;
     }
 

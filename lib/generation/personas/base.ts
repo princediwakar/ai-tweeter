@@ -1,5 +1,4 @@
 // lib/generation/personas/base.ts
-// Base classes for persona prompt generation - config should come from DB
 import type { TweetGenerationConfig, GenerationContext } from '../types';
 
 export interface PersonaGenerator {
@@ -28,8 +27,8 @@ CRITICAL OUTPUT RULES
 • Going over ${maxChars} chars = content gets truncated and ruined
 
 📋 FORMAT REQUIREMENTS:
-• Return valid JSON object only
-• Use exact field names from instructions (tweetText, selectedHeadlineNumber, etc.)
+• Return a valid JSON object ONLY. No markdown wrapping.
+• Use exact field names from instructions (tweetText, selectedHeadlineNumber, cardData, etc.)
 • NO hashtags in tweet text unless specifically instructed
 • Connect clauses directly - minimize unnecessary punctuation
 

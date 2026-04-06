@@ -90,19 +90,21 @@ export async function getGenerationBatchInfo(
     LIMIT 1
   `;
 
-  console.log(`[DEBUG] Found ${scheduleResult.rows.length} schedules matching [${currentMinutes - 60}, ${currentMinutes + 60}]`);
+  console.log(`[DEBUG] Found ${scheduleResult.rows.length} schedules in window [${currentMinutes - 60}, ${currentMinutes + 60}]`);
+  if (scheduleResult.rows.length > 0) {
+    console.log(`[DEBUG] Schedule: start_time=${scheduleResult.rows[0].start_time}, days_of_week=${JSON.stringify(scheduleResult.rows[0].days_of_week)}`);
+  }
   
   const activeSchedule = scheduleResult.rows[0];
   
   if (!activeSchedule) {
-    console.log(`[Schedule] No schedule found. Window was: ${currentMinutes - 60} to ${currentMinutes}`);
     return {
       should_generate: false,
       should_post: false,
       generation_personas: [],
       posting_personas: [],
       batch_size: 5,
-      reason: 'No schedule matches current generation window',
+      reason: `No schedule in window [${currentMinutes - 60}, ${currentMinutes + 60}]. Current: ${currentMinutes}, day: ${dayOfWeek}`,
     };
   }
   

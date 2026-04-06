@@ -146,7 +146,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     logger.info(`[Enhanced:${callId}] Generation skipped by schedule. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
       success: true,
-      message: `⏳ No generation scheduled for account ${accountId} (check schedule window)`,
+      message: batchInfo.reason || `No generation scheduled for account ${accountId}`,
       accountId,
       batchInfo,
       timestamp: new Date().toISOString()

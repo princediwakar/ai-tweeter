@@ -4,7 +4,7 @@ import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
 import { getCurrentISTHour, getCurrentISTDay, getCurrentISTMinute, getCurrentTimeInIST } from './utils';
 
-const GENERATION_WINDOW_MINUTES = 10;  // ±10 minutes from scheduled time (broader to catch more cron runs)
+const GENERATION_WINDOW_MINUTES = 60;  // Extended to capture schedules that started in the last hour
 const POSTING_WINDOW_MINUTES = 10;     // end_time - 10 to end_time
 
 interface ScheduleRow {

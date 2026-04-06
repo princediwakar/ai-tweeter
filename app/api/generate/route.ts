@@ -433,7 +433,6 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
   const dayOfWeek = Math.floor((nowIST.getDay() + 6) % 7) + 1;
 
   // Get all accounts with active schedules for today where schedule time has PASSED
-  // This ensures we catch schedules at 1:20 when cron runs at 1:32 (not just in current window)
   const accountsWithSchedules = await sql`
     SELECT a.id, a.name, a.account_username as twitter_handle, a.platform, a.personas, a.branding
     FROM connected_accounts a
@@ -445,6 +444,9 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     GROUP BY a.id
     LIMIT 100
   `;
+
+  console.log(`[Generate] Current time: ${currentHourIST}:${currentMinuteIST} (${currentMinutes} min), dayOfWeek: ${dayOfWeek}`);
+  console.log(`[Generate] Found ${accountsWithSchedules.rows.length} accounts with schedules`);
 
   if (accountsWithSchedules.rows.length === 0) {
     logger.info(`[Session:${sessionId}] No accounts due for generation in this window.`, 'generate-multi-skip');

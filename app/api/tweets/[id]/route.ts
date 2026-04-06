@@ -63,7 +63,7 @@ export async function PUT(
         if (!accountId) {
           return NextResponse.json({ error: 'No account linked to this tweet' }, { status: 400 });
         }
-        const account = await connectedAccountsService.getById(accountId);
+        let account = await connectedAccountsService.getById(accountId);
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
@@ -73,7 +73,7 @@ export async function PUT(
           // Check if the specific account has LinkedIn, or find any account with LinkedIn connected
           let linkedInAccount = account;
           
-          if (!account.linkedin_enabled || !account.linkedin_access_token) {
+          if (!account?.linkedin_enabled || !account?.linkedin_access_token) {
             // Try to find any account with LinkedIn connected for this user
             const userId = account.user_id;
             if (userId) {
@@ -101,7 +101,7 @@ export async function PUT(
                   linkedin_access_token: accessToken,
                   linkedin_refresh_token: refreshToken,
                   linkedin_token_expires_at: newExpiresAt.toISOString(),
-                } as any);
+                });
                 account.linkedin_access_token = accessToken;
                 account.linkedin_refresh_token = refreshToken;
                 account.linkedin_token_expires_at = newExpiresAt.toISOString();

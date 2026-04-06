@@ -8,7 +8,6 @@ import { History } from './History';
 import { HeaderSkeleton } from './Header';
 import { ComposerSkeleton } from './Composer';
 import { HistorySkeleton } from './History';
-import OnboardingFlow from '@/components/onboarding/OnboardingFlow';
 
 export default function Dashboard() {
   const {
@@ -30,14 +29,7 @@ export default function Dashboard() {
     BULK_GENERATION_CONFIG,
   } = useTweetDashboard();
 
-  const hasAccounts = accounts.length > 0;
-
-  // Show onboarding only after initial load completes AND no accounts exist
-  if (!initialLoading && !hasAccounts) {
-    return <OnboardingFlow />;
-  }
-
-  // Show loading skeletons during initial data fetch only
+  // Loading state while fetching accounts
   if (initialLoading) {
     return (
       <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-6">

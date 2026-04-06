@@ -28,7 +28,18 @@ export default function SignInPage() {
       if (result?.error) {
         setError(result.error);
       } else {
-        router.push('/');
+        // Check if onboarding is complete
+        try {
+          const statusRes = await fetch('/api/onboarding/status');
+          const status = await statusRes.json();
+          if (status.completed) {
+            router.push('/');
+          } else {
+            router.push('/onboarding');
+          }
+        } catch {
+          router.push('/');
+        }
         router.refresh();
       }
     } catch (err) {

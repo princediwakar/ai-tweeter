@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   Users,
@@ -76,9 +76,25 @@ function UserDropdown() {
 }
 
 export default function NavigationLayout({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Onboarding guard — redirect users who haven't completed setup
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    if (pathname === '/onboarding') return;
+
+    fetch('/api/onboarding/status')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.completed) {
+          router.push('/onboarding');
+        }
+      })
+      .catch(() => {}); // Fail silently if migration not run yet
+  }, [status, pathname, router]);
 
   if (!session) {
     return <>{children}</>;

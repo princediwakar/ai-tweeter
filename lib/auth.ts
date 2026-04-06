@@ -87,10 +87,12 @@ export const authOptions: NextAuthOptions = {
 
 export async function getUserIdFromRequest(request: NextRequest): Promise<string | null> {
   const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  if (!session?.user?.email) {
     return null;
   }
-  return (session.user as any).id || null;
+  // Resolve from DB by email — avoids stale JWT token.id mismatches
+  const result = await sql`SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1`;
+  return result.rows[0]?.id || null;
 }
 
 export async function getCurrentUser() {

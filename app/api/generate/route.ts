@@ -132,7 +132,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     }, { status: 404 });
   }
 
-  const batchInfo = await getGenerationBatchInfo(account.twitter_handle, nowIST, debugMode);
+  const batchInfo = await getGenerationBatchInfo(account.account_username || account.twitter_handle, nowIST, debugMode);
 
   // ... (Persona Override and Skip Logic remains the same)
   if (debugMode && personaOverride) {

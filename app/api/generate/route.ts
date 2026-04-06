@@ -7,11 +7,12 @@ import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
-import { getCurrentTimeInIST, getCurrentISTHour } from '@/lib/utils';
+import { getCurrentTimeInIST, getCurrentISTHour, getCurrentISTMinute } from '@/lib/utils';
 import { logger } from '@/lib/logger';
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { TweetGenerationConfig, ThreadGenerationResult, Tweet } from '@/lib/types';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
+import { sql } from '@vercel/postgres';
 
 
 // MODIFIED: Added sourceUrl to the info type
@@ -417,22 +418,45 @@ type AccountGenerationResult = {
 };
 
 /**
- * Enhanced multi-account orchestration
+ * Enhanced multi-account orchestration - SCALABLE VERSION
+ * Queries only accounts due for generation in current time window
  */
 async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = false) {
   const sessionId = Math.random().toString(36).substring(2, 8);
-  const activeAccounts = await accountService.getAllAccounts();
+  
+  // Get current time in IST
+  const nowIST = getCurrentTimeInIST();
+  const currentHourIST = getCurrentISTHour(nowIST);
+  const currentMinuteIST = getCurrentISTMinute(nowIST);
+  const currentMinutes = currentHourIST * 60 + currentMinuteIST;
+  const dayOfWeek = Math.floor((nowIST.getDay() + 6) % 7) + 1;
 
-  if (activeAccounts.length === 0) {
-    logger.info(`[Session:${sessionId}] No active accounts found for generation.`, 'generate-multi-skip');
+  // SCALABLE: Query ONLY accounts due for generation in this time window
+  const accountsDue = await sql`
+    SELECT a.id, a.name, a.twitter_handle, a.platform, a.personas, a.branding
+    FROM connected_accounts a
+    JOIN account_schedules s ON s.connected_account_id = a.id
+    WHERE a.is_active = true
+      AND s.is_active = true
+      AND ${dayOfWeek} = ANY(s.days_of_week)
+      AND s.start_time <= ${currentMinutes}
+      AND s.start_time > ${currentMinutes - 15}
+    GROUP BY a.id
+    LIMIT 100
+  `;
+
+  if (accountsDue.rows.length === 0) {
+    logger.info(`[Session:${sessionId}] No accounts due for generation in this window.`, 'generate-multi-skip');
     return NextResponse.json({
         success: true,
-        message: 'No active accounts found.'
+        message: 'No accounts due for generation in this time window.'
     });
-   }
+  }
+
+  logger.info(`[Session:${sessionId}] Found ${accountsDue.rows.length} accounts due for generation`, 'generate-multi');
 
   // Fire off all account generations in parallel
-  const accountPromises = activeAccounts.map(account =>
+  const accountPromises = accountsDue.rows.map(account =>
     generateForAccountEnhanced(account.id, request, debugMode)
       .then(res => res.json())
       .catch(error => {
@@ -458,7 +482,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     success: true,
     message: `Multi-account generation complete: ${totalGenerated} content units generated across ${accountsWithGeneration} accounts.`,
     sessionId,
-    totalAccounts: activeAccounts.length,
+    totalAccounts: accountsDue.rows.length,
     successfulAccounts,
     accountsWithGeneration,
     totalGenerated,

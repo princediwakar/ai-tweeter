@@ -1,3 +1,4 @@
+// components/personas/PersonaCard.tsx
 'use client';
 
 import { Edit2, Trash2, Clock, Calendar, Plus } from 'lucide-react';

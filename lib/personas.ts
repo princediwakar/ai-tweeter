@@ -45,8 +45,10 @@ export async function getAllowedPersonasForHandle(twitterHandle: string): Promis
   return [];
 }
 
-export function isPersonaAllowedForHandle(_personaKey: string, _twitterHandle: string): boolean {
-  return true;
+// FIXED: Actually checking permissions now. It is now ASYNC.
+export async function isPersonaAllowedForHandle(personaKey: string, twitterHandle: string): Promise<boolean> {
+  const allowedPersonas = await getAllowedPersonasForHandle(twitterHandle);
+  return allowedPersonas.includes(personaKey);
 }
 
 export async function getRandomPersonaForHandle(twitterHandle: string, personaKeys?: string[]): Promise<Persona> {

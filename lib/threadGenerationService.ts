@@ -1,3 +1,4 @@
+// lib/threadGenerationService.ts
 import OpenAI from 'openai';
 import { createThread, saveTweet, generateTweetId, updateThread } from './db';
 import { accountService } from './accountService';

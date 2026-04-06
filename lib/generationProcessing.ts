@@ -40,17 +40,19 @@ export async function generateTweetPrompt(
     }
   }
 
-  const rssPersonaKeys = (async () => {
-    const all = await getAllPersonas();
-    return all.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
-  })();
+  // CLEANED: Removed unnecessary IIFE, kept it simple and readable
+  const allPersonas = await getAllPersonas();
+  const rssPersonaKeys = allPersonas
+    .filter(p => p.rss_sources && p.rss_sources.length > 0)
+    .map(p => p.key);
   
-  const isRssPersona = config.persona ? (await rssPersonaKeys).includes(config.persona) : false;
+  const isRssPersona = config.persona ? rssPersonaKeys.includes(config.persona) : false;
   let useRSSSources = shouldUseRSSSources(account);
   
   if (!useRSSSources && config.persona) {
     useRSSSources = isRssPersona;
   }
+
   console.log(
     `📰 RSS sources ${useRSSSources ? "enabled" : "disabled"} for account: ${
       account?.name || "unknown"
@@ -108,16 +110,20 @@ export async function generateTweetPrompt(
     throw new Error("Invalid persona specified or found in database");
   }
 
+  // FIXED: Clone config to prevent mutating shared state across batch generations
+  const safeConfig = { ...config };
+
   // Decision logic for image vs text - read from DB config
   const pConfig = (persona.config as Record<string, unknown>) || {};
   const imageProbability = Number(pConfig.image_probability) || 0;
-  if (!config.generationFormat && imageProbability > 0) {
-    config.generationFormat = Math.random() < imageProbability ? "image" : "text-only";
+  
+  if (!safeConfig.generationFormat && imageProbability > 0) {
+    safeConfig.generationFormat = Math.random() < imageProbability ? "image" : "text-only";
   }
 
   const personaGenerator = getPersonaGenerator(persona);
   const context: GenerationContext = { account, useRSSSources, rssContext };
-  const prompt = personaGenerator.generatePrompt(config, context, { timeMarker, tokenMarker });
+  const prompt = personaGenerator.generatePrompt(safeConfig, context, { timeMarker, tokenMarker });
 
   return { prompt, persona, rssContext };
 }
@@ -143,22 +149,37 @@ export function parseAndValidateTweetResponse(
     let cardData: CardData | null = null;
     let tweetContent = data.tweetText || data.content;
 
-    // Source extraction for RSS-based personas - dynamic based on rssContext presence
-    if (rssContext && data.selectedHeadlineNumber) {
-      if (data.selectedHeadlineNumber) {
-        const num = data.selectedHeadlineNumber;
+    if (!tweetContent || typeof tweetContent !== 'string') {
+      throw new Error("AI returned an invalid or missing tweet content string.");
+    }
+
+    // FIXED: Strict source extraction and hallucination validation
+    if (rssContext && data.selectedHeadlineNumber !== undefined) {
+      const num = parseInt(data.selectedHeadlineNumber, 10);
+
+      // Validate against hallucinations! Throw error so the retry loop can catch it.
+      if (actualHeadlineCount && (isNaN(num) || num < 1 || num > actualHeadlineCount)) {
+        throw new Error(`AI hallucinated article number ${data.selectedHeadlineNumber}. Max valid is ${actualHeadlineCount}.`);
+      }
+
+      if (!isNaN(num)) {
         const articleRegex = new RegExp(`### ARTICLE ${num}\n({[\\s\\S]*?})\n### END ARTICLE ${num}`, "m");
         const match = rssContext.match(articleRegex);
+        
         if (match?.[1]) {
            try {
              sourceUrl = JSON.parse(match[1]).url;
-           } catch { /* ignore */ }
+           } catch {
+             console.warn(`⚠️ Failed to parse URL from RSS Context for article ${num}`);
+           }
+        } else {
+           throw new Error(`Could not find expected ARTICLE ${num} block in RSS Context despite AI selecting it.`);
         }
       }
     }
 
-    // Mapping card data - dynamically check if cardData exists in response
-    if (data.cardData) {
+    // Mapping card data safely
+    if (data.cardData && typeof data.cardData === 'object') {
       cardData = { ...data.cardData };
     }
 
@@ -176,7 +197,8 @@ export function parseAndValidateTweetResponse(
       reasoning: data.reasoning
     };
   } catch (error) {
-    console.error("Failed to parse AI response:", error);
-    return null;
+    console.error("Failed to parse AI response:", error instanceof Error ? error.message : error);
+    // Returning null here will trigger the circuit breaker retry in the generationService
+    return null; 
   }
 }

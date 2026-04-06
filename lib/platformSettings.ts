@@ -1,3 +1,4 @@
+// lib/platformSettings.ts
 import { sql } from '@vercel/postgres';
 import { sqlWithRetry } from './db';
 import crypto from 'crypto';

@@ -1,6 +1,6 @@
 // app/api/engage/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { isEngagementScheduled } from '@/lib/schedule';
+import { sql } from '@vercel/postgres';
 import { accountService } from '@/lib/accountService';
 import { getEngagementConfigForAccount } from '@/lib/engagement/targets';
 import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithTweet } from '@/lib/db';
@@ -28,12 +28,35 @@ export async function GET(request: NextRequest) {
   
   console.log(`[Engage API] Received request for ${twitterHandle}.${debugMode ? ' (DEBUG MODE)' : ''}`);
 
-  // 2. Check if in active window (Bypassable with debug mode)
-  if (!debugMode && !isEngagementScheduled(twitterHandle)) {
-    console.log(`[Engage API] Skipping: ${twitterHandle} is not within a scheduled engagement window.`);
-    return NextResponse.json({ success: false, message: 'Engagement is not scheduled for this hour.' });
-  }
-  if (debugMode) {
+  // 2. Check if in active window using Native Postgres Timezone Math
+  if (!debugMode) {
+    const scheduleCheck = await sql`
+      WITH current_local AS (
+        SELECT 
+          s.start_time, s.end_time, s.days_of_week,
+          (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) as local_minutes,
+          EXTRACT(DOW FROM timezone(s.timezone, NOW())) as local_dow
+        FROM account_schedules s
+        JOIN connected_accounts a ON s.connected_account_id = a.id
+        WHERE a.account_username = ${twitterHandle} 
+          AND a.is_active = true 
+          AND s.is_active = true
+      )
+      SELECT 1
+      FROM current_local
+      WHERE local_dow = ANY(days_of_week)
+        AND local_minutes >= start_time 
+        AND local_minutes <= end_time
+      LIMIT 1
+    `;
+
+    const isScheduled = scheduleCheck.rows.length > 0;
+
+    if (!isScheduled) {
+      console.log(`[Engage API] Skipping: ${twitterHandle} is not within a scheduled engagement window in their local timezone.`);
+      return NextResponse.json({ success: false, message: 'Engagement is not scheduled for this time.' });
+    }
+  } else {
     console.log('[Engage API] Bypassing schedule check due to debug mode.');
   }
 

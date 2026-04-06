@@ -1,3 +1,4 @@
+// lib/personaService.ts
 import { sql } from '@vercel/postgres';
 import type { Persona, PersonaConfigDNA } from './types';
 export type { Persona, PersonaConfigDNA };
@@ -100,7 +101,6 @@ class PersonaService {
       `;
 
       if (result.rows.length > 0) {
-        // Success
         await sql`
           UPDATE connected_accounts
           SET personas = COALESCE(personas, '[]'::jsonb) || jsonb_build_array(${key}::text)
@@ -110,7 +110,6 @@ class PersonaService {
         return this.mapRow(result.rows[0]);
       }
 
-      // Conflict occurred, generate a new key
       key = await this.ensureUniqueKey(`${baseKey}-${Date.now()}`);
       attempts++;
     }
@@ -134,12 +133,10 @@ class PersonaService {
       if (result.rows.length === 0) {
         return candidate;
       }
-      // Generate new candidate with random suffix
       const suffix = Math.random().toString(36).substring(2, 7);
       candidate = `${baseKey}-${suffix}`;
       attempts++;
     }
-    // If all attempts fail, fallback to timestamp
     return `${baseKey}-${Date.now()}`;
   }
 
@@ -271,11 +268,17 @@ class PersonaService {
 
   private mapRow(row: Record<string, unknown>): Persona {
     let topics: string[] | undefined;
+    
+    // FIXED: Correct string manipulation to prevent data mutilation
     if (row.topics) {
       if (Array.isArray(row.topics)) {
         topics = row.topics as string[];
       } else if (typeof row.topics === 'string') {
-        topics = row.topics.slice(1, -1).split(',').map(t => t.trim().slice(1, -1));
+        topics = row.topics
+          .replace(/^{|}$/g, '') // Strip postgres array brackets
+          .split(',')
+          .map(t => t.trim().replace(/^"|"$/g, '')) // Strip whitespace and quotes
+          .filter(Boolean); // Drop empty strings
       }
     }
 

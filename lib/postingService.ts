@@ -1,3 +1,4 @@
+// lib/postingService.ts
 import { sql } from '@vercel/postgres';
 import { accountService } from './accountService';
 import { postToLinkedIn, refreshAccessToken, shouldRefreshToken, LinkedInCredentials } from './linkedin';
@@ -83,10 +84,14 @@ export async function postToPlatform(
 function getFullTweetContent(tweet: Tweet, platform: 'twitter' | 'linkedin'): string {
   let baseContent = tweet.content;
   if (platform === 'linkedin') {
+    // Strip @ mentions for LinkedIn to prevent broken tags
     baseContent = baseContent.replace(/@/g, '');
   }
-  if (tweet.hashtags?.length > 0) {
-    return `${baseContent}\n\n${tweet.hashtags.map(tag => `${tag}`).join(' ')}`;
+  
+  if (tweet.hashtags && tweet.hashtags.length > 0) {
+    // FIXED: Safely ensure every tag actually starts with a # symbol
+    const formattedTags = tweet.hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+    return `${baseContent}\n\n${formattedTags}`;
   }
   return baseContent;
 }
@@ -210,12 +215,15 @@ export async function postSingleContent(
     const result = await postToPlatform(tweet, account, platform, credentials);
 
     if (result.success) {
-      const twitterUrl = result.twitterId 
-        ? `https://x.com/${account.twitter_handle}/status/${result.twitterId}` 
-        : undefined;
-      await finalizeTweetPosting(tweet.id, 'posted', result.twitterId, twitterUrl);
-      
-      if (platform === 'linkedin') {
+      // Twitter finalize logic
+      if (platform === 'twitter') {
+        const twitterUrl = result.twitterId 
+          ? `https://x.com/${account.twitter_handle}/status/${result.twitterId}` 
+          : undefined;
+        await finalizeTweetPosting(tweet.id, 'posted', result.twitterId, twitterUrl);
+      } else {
+        // LinkedIn finalize logic (Bolt-on workaround)
+        await finalizeTweetPosting(tweet.id, 'posted'); // Just clear the claim and set status
         await sql`
           UPDATE tweets 
           SET linkedin_id = ${result.linkedinId}, posted_at = COALESCE(posted_at, NOW())

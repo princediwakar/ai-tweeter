@@ -1,52 +1,32 @@
+// app/api/accounts/[accountId]/personas/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { personaService } from '@/lib/personaService';
+import { personaService, CreatePersonaInput } from '@/lib/personaService';
 import { getUserIdFromRequest } from '@/lib/auth';
 import { sql } from '@vercel/postgres';
 
-/**
- * @deprecated Use /api/personas instead (new SaaS API)
- * This endpoint is for backward compatibility with the old account-based system.
- * The accountId parameter is treated as connected_account_id.
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
     const userId = await getUserIdFromRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { accountId } = await params;
-
-    // Verify that the connected account belongs to the user
-    const accountCheck = await sql`
-      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
-    `;
-    if (accountCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const accountCheck = await sql`SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}`;
+    if (accountCheck.rows.length === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const personas = await personaService.getPersonasByAccount(accountId);
+    const scheduleRows = await sql`SELECT * FROM account_schedules WHERE connected_account_id = ${accountId}`;
     
-    // Fetch schedules for this account
-    const scheduleRows = await sql`
-      SELECT * FROM account_schedules WHERE connected_account_id = ${accountId}
-    `;
-    
-    // Map schedules by persona_id
     const scheduleMap = new Map<string, typeof scheduleRows.rows[0][]>();
     scheduleRows.rows.forEach((row: typeof scheduleRows.rows[0]) => {
       if (row.persona_id) {
-        if (!scheduleMap.has(row.persona_id)) {
-          scheduleMap.set(row.persona_id, []);
-        }
+        if (!scheduleMap.has(row.persona_id)) scheduleMap.set(row.persona_id, []);
         scheduleMap.get(row.persona_id)!.push(row);
       }
     });
 
-    // Attach schedules to each persona
     const personasWithSchedules = personas.map(persona => ({
       ...persona,
       schedules: (scheduleMap.get(persona.id) || []).map(schedule => ({
@@ -70,23 +50,40 @@ export async function POST(
 ) {
   try {
     const userId = await getUserIdFromRequest(request);
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const { accountId } = await params;
-
-    // Verify that the connected account belongs to the user
-    const accountCheck = await sql`
-      SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}
-    `;
-    if (accountCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    const accountCheck = await sql`SELECT id FROM connected_accounts WHERE id = ${accountId} AND user_id = ${userId}`;
+    if (accountCheck.rows.length === 0) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
+
+    // RUTHLESS VALIDATION
+    const safeData: Partial<CreatePersonaInput> = {};
+    if (typeof body.name === 'string') safeData.name = body.name;
+    if (typeof body.description === 'string') safeData.description = body.description;
+    if (typeof body.tone === 'string') safeData.tone = body.tone;
+    if (typeof body.min_length === 'number') safeData.min_length = body.min_length;
+    if (typeof body.max_length === 'number') safeData.max_length = body.max_length;
+    if (typeof body.is_active === 'boolean') safeData.is_active = body.is_active;
+    if (typeof body.is_default === 'boolean') safeData.is_default = body.is_default;
+    
+    if (Array.isArray(body.topics) && body.topics.every((t: any) => typeof t === 'string')) {
+      safeData.topics = body.topics;
+    }
+    if (Array.isArray(body.rss_sources) && body.rss_sources.every((r: any) => typeof r === 'string')) {
+      safeData.rss_sources = body.rss_sources;
+    }
+    if (body.config && typeof body.config === 'object') {
+      safeData.config = body.config; // Assume DB merging handles default structures safely
+    }
+
+    if (!safeData.name) {
+      return NextResponse.json({ error: 'Persona name is required' }, { status: 400 });
+    }
+
     const persona = await personaService.createPersona({
-      ...body,
+      ...(safeData as CreatePersonaInput),
       connected_account_id: accountId,
     });
 

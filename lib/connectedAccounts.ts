@@ -1,3 +1,4 @@
+// lib/connectedAccounts.ts
 import { sql } from '@vercel/postgres';
 import crypto from 'crypto';
 import { sqlWithRetry } from './db';

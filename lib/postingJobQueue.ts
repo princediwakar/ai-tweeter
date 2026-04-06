@@ -1,5 +1,5 @@
+// lib/postingJobQueue.ts
 import { sql } from '@vercel/postgres';
-import { getCurrentISTDay, getCurrentISTHour, getCurrentISTMinute } from './utils';
 import crypto from 'crypto';
 
 export interface PostingJob {
@@ -76,7 +76,6 @@ class PostingJobQueue {
   }
 
   async getPendingJobs(platform: 'twitter' | 'linkedin', limit: number = BATCH_SIZE): Promise<PostingJob[]> {
-    // With exponential backoff: jobs retry after 2^attempts minutes (max 60 min)
     const result = await sql`
       SELECT * FROM posting_jobs
       WHERE platform = ${platform}
@@ -108,22 +107,21 @@ class PostingJobQueue {
     return result.rows.map(this.mapRow);
   }
 
+  // FIXED: Native Database Timezone resolution. Corrected the bounds.
   async claimJobs(platform: 'twitter' | 'linkedin', limit: number = BATCH_SIZE): Promise<PostingJob[]> {
-    const now = new Date();
-    const currentHour = getCurrentISTHour(now);
-    const currentMinute = getCurrentISTMinute(now);
-    const currentMinutes = currentHour * 60 + currentMinute;
+    const now = new Date().toISOString();
     
     const result = await sql`
       UPDATE posting_jobs
-      SET status = 'processing', started_at = ${now.toISOString()}, attempts = attempts + 1
+      SET status = 'processing', started_at = ${now}, attempts = attempts + 1
       WHERE id IN (
         SELECT pj.id FROM posting_jobs pj
         JOIN account_schedules s ON pj.schedule_id = s.id
         WHERE pj.platform = ${platform}
           AND pj.status = 'pending'
           AND pj.attempts < pj.max_attempts
-          AND (s.end_time <= ${currentMinutes} OR s.end_time > 1440)
+          AND (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) >= s.start_time
+          AND (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) <= s.end_time
         ORDER BY pj.created_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -180,39 +178,28 @@ class PostingJobQueue {
     return result.rowCount ?? 0;
   }
 
-  /**
-   * Synchronizes scheduled jobs for a specific platform.
-   * Queries ALL active schedules for today (regardless of time), not just "due now".
-   * Jobs will be created but execution time is determined at claim time.
-   */
+  // FIXED: Native Database Timezone resolution for scheduling.
   async syncScheduledJobs(platform: 'twitter' | 'linkedin'): Promise<number> {
-    const now = new Date();
-    const dayOfWeek = getCurrentISTDay(now);
-    const todayDate = now.toISOString().split('T')[0];
+    const todayDate = new Date().toISOString().split('T')[0];
 
-    // 1. Fetch ALL active schedules for today (no time restriction)
-    // We'll create jobs for all of them - execution time checked at claim time
     const schedulesResult = await sql`
       SELECT s.*, a.user_id
       FROM account_schedules s
       JOIN connected_accounts a ON s.connected_account_id = a.id
       WHERE s.is_active = true
         AND a.platform = ${platform}
-        AND ${dayOfWeek} = ANY(s.days_of_week)
+        AND EXTRACT(DOW FROM timezone(s.timezone, NOW())) = ANY(s.days_of_week)
     `;
 
     if (schedulesResult.rows.length === 0) return 0;
 
     let enqueuedCount = 0;
+    const timestamp = new Date().toISOString();
 
     for (const schedule of schedulesResult.rows) {
       const jobId = crypto.randomUUID();
-      const timestamp = new Date().toISOString();
 
       try {
-        // 2. Insert into posting_jobs with unique constraint check
-        // The unique constraint (account_id, platform, schedule_id, scheduled_date)
-        // ensures we only enqueue one job per schedule per day.
         const result = await sql`
           INSERT INTO posting_jobs (
             id, user_id, account_id, platform, schedule_id, scheduled_date,
@@ -231,73 +218,11 @@ class PostingJobQueue {
           enqueuedCount++;
         }
       } catch (error) {
-        // Silently ignore or log if needed, as ON CONFLICT handles most duplicates
+        // Silently ignore unique constraint violations
       }
     }
 
     return enqueuedCount;
-  }
-
-  /** @deprecated Use syncScheduledJobs instead */
-  async enqueueAccountsForPlatform(
-    accounts: { id: string; twitter_handle?: string; account_username?: string }[],
-    platform: 'twitter' | 'linkedin',
-    currentHourIST: number,
-    dayOfWeek: number
-  ): Promise<number> {
-    if (accounts.length === 0) return 0;
-
-    const now = new Date().toISOString();
-    const jobs: CreateJobInput[] = [];
-
-    const accountsToQueue = accounts.filter(acc => {
-      const handle = platform === 'twitter' ? acc.twitter_handle : acc.account_username;
-      return this.isAccountScheduledForHour(handle, currentHourIST, dayOfWeek);
-    });
-
-    for (const account of accountsToQueue) {
-      jobs.push({
-        account_id: account.id,
-        platform,
-        batch_index: 0,
-        tweets_count: 0
-      });
-    }
-
-    if (jobs.length === 0) return 0;
-
-    let inserted = 0;
-    for (const job of jobs) {
-      await sql`
-        INSERT INTO posting_jobs (account_id, platform, status, batch_index, tweets_count, attempts, max_attempts, created_at, updated_at)
-        VALUES (${job.account_id}, ${job.platform}, 'pending', 0, 0, '0', '3', ${now}, ${now})
-        ON CONFLICT DO NOTHING
-      `;
-      inserted++;
-    }
-
-    return inserted;
-  }
-
-  private isAccountScheduledForHour(
-    handle: string | undefined,
-    currentHourIST: number,
-    dayOfWeek: number
-  ): boolean {
-    if (!handle) return false;
-    const hash = this.hashString(handle);
-    const scheduledHour = hash % 24;
-    return scheduledHour === currentHourIST;
-  }
-
-  private hashString(str: string): number {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return Math.abs(hash);
   }
 
   private mapRow(row: Record<string, unknown>): PostingJob {

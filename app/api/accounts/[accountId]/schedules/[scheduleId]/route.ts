@@ -1,9 +1,11 @@
+// app/api/accounts/[accountId]/schedules/[scheduleId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
-import { scheduleService } from '@/lib/scheduleService';
+import { scheduleService, CreateScheduleInput } from '@/lib/scheduleService';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+// Helper function to keep controllers lean
 async function getUserId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return null;
@@ -23,6 +25,7 @@ export async function PATCH(
 
     const { accountId, scheduleId } = await params;
 
+    // Verify ownership before allowing updates
     const accountResult = await sql`
       SELECT id FROM connected_accounts 
       WHERE id = ${accountId} AND user_id = ${userId}
@@ -33,7 +36,31 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    await scheduleService.updateSchedule({ id: scheduleId, ...body });
+
+    // STRICT VALIDATION: Only extract known, safe fields of the correct type.
+    const safeUpdateData: Partial<CreateScheduleInput> = {};
+    
+    if (typeof body.name === 'string') safeUpdateData.name = body.name;
+    if (typeof body.timezone === 'string') safeUpdateData.timezone = body.timezone;
+    if (typeof body.start_time === 'number') safeUpdateData.start_time = body.start_time;
+    if (typeof body.end_time === 'number') safeUpdateData.end_time = body.end_time;
+    if (typeof body.is_active === 'boolean') safeUpdateData.is_active = body.is_active;
+    if (typeof body.persona_id === 'string') safeUpdateData.persona_id = body.persona_id;
+    
+    // Validate days_of_week array strictly (must be an array of numbers between 0 and 6)
+    if (
+      Array.isArray(body.days_of_week) && 
+      body.days_of_week.every((d: any) => typeof d === 'number' && d >= 0 && d <= 6)
+    ) {
+      safeUpdateData.days_of_week = body.days_of_week;
+    }
+
+    // If payload was completely garbage, reject it
+    if (Object.keys(safeUpdateData).length === 0) {
+      return NextResponse.json({ error: 'No valid update data provided' }, { status: 400 });
+    }
+
+    await scheduleService.updateSchedule({ id: scheduleId, ...safeUpdateData });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -54,6 +81,7 @@ export async function DELETE(
 
     const { accountId, scheduleId } = await params;
 
+    // Verify ownership before allowing deletion
     const accountResult = await sql`
       SELECT id FROM connected_accounts 
       WHERE id = ${accountId} AND user_id = ${userId}

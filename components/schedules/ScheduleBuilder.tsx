@@ -38,18 +38,21 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
   const [showForm, setShowForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Dynamically capture the user's actual local timezone
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
   const [formData, setFormData] = useState<CreateScheduleInput>({
     connected_account_id: accountId,
     name: '',
-    timezone: 'Asia/Kolkata',
+    timezone: userTimezone, // FIXED: No longer hardcoded to Asia/Kolkata
     days_of_week: [1, 2, 3, 4, 5, 6, 0],
     start_time: 540,
-    end_time: 540,
+    end_time: 600, // FIXED: 60 minute window representation
     is_active: true,
     persona_id: '',
   });
 
-  // Single parallel data fetch on mount - only fetch if accountId exists
   useEffect(() => {
     if (!accountId) return;
     
@@ -84,7 +87,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
       });
   };
 
-  // Reset form when accountId changes
   useEffect(() => {
     setFormData(prev => ({ ...prev, connected_account_id: accountId }));
   }, [accountId]);
@@ -112,12 +114,15 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
 
       setShowForm(false);
       setEditingId(null);
+      
+      // Reset with proper timezone and window
       setFormData({
         connected_account_id: accountId,
         name: '',
+        timezone: userTimezone,
         days_of_week: [1, 2, 3, 4, 5, 6, 0],
         start_time: 540,
-        end_time: 540,
+        end_time: 600, 
         is_active: true,
         persona_id: '',
       });
@@ -135,7 +140,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
     setFormData({
       connected_account_id: schedule.connected_account_id,
       name: schedule.name,
-      timezone: schedule.timezone,
+      timezone: schedule.timezone || userTimezone,
       days_of_week: schedule.days_of_week,
       start_time: schedule.start_time,
       end_time: schedule.end_time,
@@ -199,12 +204,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
     return <span className={`text-xs px-2 py-0.5 rounded ${styles}`}>{label}</span>;
   };
 
-  const getPersonaName = (personaId: string | undefined) => {
-    if (!personaId) return null;
-    const persona = personas.find(p => p.id === personaId);
-    return persona?.name || null;
-  };
-
   const getPersonaEmoji = (personaId: string | undefined) => {
     if (!personaId) return null;
     const persona = personas.find(p => p.id === personaId);
@@ -218,7 +217,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
   };
 
   const currentAccount = accounts.find(a => a.id === accountId);
-  const selectedPersona = personas.find(p => p.id === formData.persona_id);
 
   if (loading) {
     return (
@@ -254,12 +252,13 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
           onClick={() => {
             setShowForm(true);
             setEditingId(null);
-              setFormData({
+            setFormData({
               connected_account_id: accountId,
               name: '',
+              timezone: userTimezone, // FIXED Reset
               days_of_week: [1, 2, 3, 4, 5, 6, 0],
               start_time: 540,
-              end_time: 540,
+              end_time: 600, // FIXED Reset
               is_active: true,
               persona_id: personas[0]?.id || '',
             });
@@ -336,11 +335,7 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-lg">
-                        {persona.name?.includes('Vocabulary') ? '🏆' : 
-                         persona.name?.includes('Business') ? '📈' : 
-                         persona.name?.includes('Cricket') ? '🏏' :
-                         persona.name?.includes('Signal') ? '💡' :
-                         persona.name?.includes('Pattern') ? '🔍' : '🎭'}
+                        {getPersonaEmoji(persona.id)}
                       </span>
                       <span className="font-medium text-gray-900 text-sm">{persona.name}</span>
                       {formData.persona_id === persona.id && (
@@ -350,11 +345,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
                   </button>
                 ))}
               </div>
-              {personas.length === 0 && (
-                <p className="text-sm text-amber-600 mt-2">
-                  Create a persona first from the Personas tab.
-                </p>
-              )}
             </div>
 
             <div>
@@ -388,7 +378,11 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
               <input
                 type="time"
                 value={formatTime(formData.start_time || 540)}
-                onChange={e => setFormData({ ...formData, start_time: parseTime(e.target.value), end_time: parseTime(e.target.value) })}
+                onChange={e => {
+                  const start = parseTime(e.target.value);
+                  // FIXED: Make end_time 60 minutes after start to represent a real window
+                  setFormData({ ...formData, start_time: start, end_time: start + 60 });
+                }}
                 className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               />
             </div>
@@ -418,7 +412,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
 
       <div className="space-y-3">
         {schedules.map(schedule => {
-          const scheduleAccount = accounts.find(a => a.id === schedule.connected_account_id);
           const persona = personas.find(p => p.id === schedule.persona_id);
           
           return (
@@ -476,7 +469,6 @@ export default function ScheduleBuilder(props: ScheduleBuilderProps) {
         })}
       </div>
 
-      {/* Delete Confirmation Modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">

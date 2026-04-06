@@ -1,9 +1,11 @@
+// app/api/accounts/[accountId]/schedules/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { scheduleService } from '@/lib/scheduleService';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+// Helper function actually being used now
 async function getUserId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return null;
@@ -16,16 +18,11 @@ export async function GET(
   { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    // FIXED: Using helper
+    const userId = await getUserId();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const userId = userResult.rows[0].id;
 
     const { accountId } = await params;
 
@@ -51,16 +48,11 @@ export async function POST(
   { params }: { params: Promise<{ accountId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    // FIXED: Using helper
+    const userId = await getUserId();
+    if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const userId = userResult.rows[0].id;
 
     const { accountId } = await params;
 

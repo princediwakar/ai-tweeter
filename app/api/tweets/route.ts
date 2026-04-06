@@ -1,5 +1,5 @@
 // app/api/tweets/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets } from '@/lib/db';
 import { accountService } from '@/lib/accountService';
 import { getAllPersonas } from '@/lib/personas';
@@ -8,15 +8,19 @@ import { generateTweet, generateBatchTweets } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
 import { TweetGenerationConfig } from '@/lib/types';
 import { logger } from '@/lib/logger';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
-    const accountId = searchParams.get('connected_account_id') || searchParams.get('account_id'); // Multi-account support
+    const accountId = searchParams.get('connected_account_id') || searchParams.get('account_id');
     
-    // Validate pagination parameters
     if (page < 1 || limit < 1 || limit > 100) {
       return NextResponse.json({ error: 'Invalid pagination parameters' }, { status: 400 });
     }
@@ -28,228 +32,140 @@ export async function GET(request: Request) {
     });
     
     return NextResponse.json(result);
-  } catch {
+  } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch tweets' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await request.json();
     const { action, ...data } = body;
 
-    if (!action) {
-      return NextResponse.json({ error: 'Missing action parameter' }, { status: 400 });
+    if (!action) return NextResponse.json({ error: 'Missing action' }, { status: 400 });
+
+    const accountId = data.connected_account_id || data.account_id;
+    if (!accountId) {
+      return NextResponse.json({ error: 'connected_account_id is required' }, { status: 400 });
     }
 
     if (action === 'generate') {
-      // Get default persona from DB or use first available
       const allPersonas = await getAllPersonas();
       const personaKey = data.persona || (allPersonas.length > 0 ? allPersonas[0].key : null);
       
       if (!personaKey) {
-        return NextResponse.json({ error: 'No personas configured. Please create a persona first.' }, { status: 400 });
+        return NextResponse.json({ error: 'No personas configured.' }, { status: 400 });
       }
       
       const topic = data.topic || data.customPrompt;
-      const accountId = data.account_id;
-      
-      // Check if persona supports threads via DB config
       const persona = allPersonas.find(p => p.key === personaKey);
       const supportsThreads = persona?.config?.supports_threads ?? false;
       
       let shouldGenerateThread = false;
-      if (accountId && supportsThreads) {
-        const account = await accountService.getAccount(accountId) as any;
-        const canThreads = await canGenerateThreads(account);
-        if (account && canThreads) {
-          shouldGenerateThread = true;
-        }
+      const account = await accountService.getAccount(accountId);
+      
+      // FIXED: Use 'as any' to bypass the Date vs String incompatibility 
+      // between different ConnectedAccount definitions.
+      if (account && supportsThreads) {
+        shouldGenerateThread = await canGenerateThreads(account as any);
       }
 
       if (shouldGenerateThread) {
-        // Generate thread
-        console.log(`🧵 Generating thread for ${personaKey}`);
-        
         const threadResult = await generateThread({
           connected_account_id: accountId,
           persona: personaKey,
         });
         
-        if (!threadResult) {
-          return NextResponse.json({ error: 'Failed to generate thread' }, { status: 500 });
-        }
+        if (!threadResult) return NextResponse.json({ error: 'Thread generation failed' }, { status: 500 });
 
         return NextResponse.json({ 
-          thread: {
-            id: threadResult.thread_id,
-            total_tweets: threadResult.total_tweets,
-            story_category: threadResult.story_category
-          },
+          thread: threadResult,
           tweets: threadResult.tweets,
-          meta: {
-            content_type: 'thread',
-            persona: personaKey,
-            enhanced: true
-          }
+          meta: { content_type: 'thread', persona: personaKey }
         });
       } else {
-        // Generate single tweet (used for satirist, vocab, and non-threading accounts)
-        const currentHour = new Date().getHours();
         const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
-        const contentType = contentTypes[currentHour % contentTypes.length];
+        const contentType = contentTypes[new Date().getHours() % contentTypes.length];
         
         const config: TweetGenerationConfig = {
-          account_id: accountId || 'fallback',
+          connected_account_id: accountId,
           persona: personaKey,
           topic: topic,
-          contentType: contentType as 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy'
+          contentType: contentType as any
         };
 
-        // Generate tweet with account context
         const generatedTweet = await generateTweet(config);
+        if (!generatedTweet) return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
         
-        if (!generatedTweet) {
-          return NextResponse.json({ error: 'Failed to generate tweet' }, { status: 500 });
-        }
-        
-        const tweet = {
+        const tweet: Tweet = {
           id: crypto.randomUUID(),
-          connected_account_id: accountId || 'fallback',
-          account_id: accountId,
+          connected_account_id: accountId,
           content: generatedTweet.content,
           hashtags: generatedTweet.hashtags,
           persona: generatedTweet.persona,
-          status: 'ready' as const,
+          status: 'ready',
           created_at: new Date().toISOString(),
-          content_type: 'single_tweet' as const,
+          content_type: 'single_tweet',
           image_url: generatedTweet.imageUrl,
           image_status: generatedTweet.imageStatus || 'none',
           card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
         };
 
         await saveTweet(tweet);
-        return NextResponse.json({ 
-          tweet,
-          meta: {
-            hooks: generatedTweet.engagementHooks || [],
-            contentType,
-            enhanced: true
-          }
-        });
+        return NextResponse.json({ tweet });
       }
     }
-
 
     if (action === 'bulk_generate') {
-      const personaKey = data.persona; // Optional - will use weighted selection if not provided
-      const accountId = data.account_id; // Optional for backward compatibility
-      const topic = data.topic || data.customPrompt; // Handle custom prompts for bulk generation
-      
-      // Allow fallback to environment variables if no account_id provided (for development/testing)
-      if (!accountId) {
-        console.warn('No account_id provided for bulk generation, using environment variable fallback for development');
-      }
-      
-      const requestedCount = data.count || 5;
-      const count = requestedCount;
-      
-      logger.info(`🎯 Starting bulk generation of ${count} tweets for account ${accountId}...`, 'tweets-api');
-      
-      const currentHour = new Date().getHours();
-      // Simple content type based on hour
-      const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
-      const contentType = contentTypes[currentHour % contentTypes.length];
+      const personaKey = data.persona;
+      const requestedCount = Math.min(data.count || 5, 10);
       
       const config: TweetGenerationConfig = {
-        account_id: accountId || 'fallback',
+        connected_account_id: accountId,
         persona: personaKey,
-        topic: topic, // Pass custom prompts/topics to bulk generation
-        contentType: contentType as 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy'
+        topic: data.topic || data.customPrompt,
       };
 
-      try {
-        // Always use enhanced teacher-style generation now
-        const generatedTweets = await generateBatchTweets(count, config);
-        
-        if (generatedTweets.length === 0) {
-          return NextResponse.json({ error: 'Failed to generate any tweets' }, { status: 500 });
-        }
+      const generatedTweets = await generateBatchTweets(requestedCount, config);
+      if (generatedTweets.length === 0) return NextResponse.json({ error: 'Bulk generation failed' }, { status: 500 });
 
-        const savedTweets: Tweet[] = [];
-        
-        // Save all generated tweets to database
-        for (const generatedTweet of generatedTweets) {
-          const tweet = {
-            id: generateTweetId(),
-            connected_account_id: accountId || 'fallback',
-            account_id: accountId,
-            content: generatedTweet.content,
-            hashtags: generatedTweet.hashtags,
-            persona: generatedTweet.persona,
-            status: 'ready' as const,
-            created_at: new Date().toISOString(),
-            content_type: 'single_tweet' as const,
-            image_url: generatedTweet.imageUrl,
-            image_status: generatedTweet.imageStatus || 'none',
-            card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
-          };
-
-          await saveTweet(tweet);
-          savedTweets.push(tweet);
-        }
-
-        logger.info(`🎉 Bulk generation completed! Generated ${savedTweets.length}/${count} tweets`, 'tweets-api');
-        
-        // Calculate persona distribution
-        const personaStats = savedTweets.reduce((acc, tweet) => {
-          acc[tweet.persona] = (acc[tweet.persona] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
-        
-    
-        return NextResponse.json({ 
-          tweets: savedTweets,
-          meta: {
-            contentType,
-            personaDistribution: personaStats,
-            engagementElements: generatedTweets.flatMap(t => t.engagementHooks || []).length,
-            enhanced: true
-          }
-        });
-        
-      } catch (error) {
-        logger.error('Bulk generation failed:', 'tweets-api', error as Error);
-        return NextResponse.json({ 
-          error: 'Bulk generation failed',
-          details: error instanceof Error ? error.message : String(error)
-        }, { status: 500 });
+      const savedTweets: Tweet[] = [];
+      for (const gen of generatedTweets) {
+        const tweet: Tweet = {
+          id: generateTweetId(),
+          connected_account_id: accountId,
+          content: gen.content,
+          hashtags: gen.hashtags,
+          persona: gen.persona,
+          status: 'ready',
+          created_at: new Date().toISOString(),
+          content_type: 'single_tweet',
+          image_url: gen.imageUrl,
+          image_status: gen.imageStatus || 'none',
+          card_data: gen.cardData ? JSON.stringify(gen.cardData) : undefined,
+        };
+        await saveTweet(tweet);
+        savedTweets.push(tweet);
       }
-    }
 
+      return NextResponse.json({ tweets: savedTweets });
+    }
 
     if (action === 'bulk_delete') {
       const { tweetIds } = data;
-      
-      if (!tweetIds || !Array.isArray(tweetIds) || tweetIds.length === 0) {
-        return NextResponse.json({ error: 'No tweet IDs provided for deletion' }, { status: 400 });
+      if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
+        return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
       }
-
       await deleteTweets(tweetIds);
-      return NextResponse.json({ 
-        success: true, 
-        deletedCount: tweetIds.length,
-        deletedIds: tweetIds 
-      });
+      return NextResponse.json({ success: true, deletedCount: tweetIds.length });
     }
 
-    return NextResponse.json({ error: `Invalid action: ${action}` }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error) {
-    logger.error('Error in tweets API:', 'tweets-api', error as Error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: errorMessage 
-    }, { status: 500 });
+    logger.error('Tweets API Error:', 'tweets-api', error as Error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

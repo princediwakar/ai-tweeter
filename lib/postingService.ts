@@ -1,8 +1,8 @@
-// lib/postingService.ts
 import { sql } from '@vercel/postgres';
+import { TwitterApi, TweetV2PostTweetResult } from 'twitter-api-v2';
 import { accountService } from './accountService';
 import { postToLinkedIn, refreshAccessToken, shouldRefreshToken, LinkedInCredentials } from './linkedin';
-import { claimTweetForPosting, claimTweetsForPosting, finalizeTweetPosting, releaseStaleTweets } from './db';
+import { claimTweetsForPosting, finalizeTweetPosting, releaseStaleTweets } from './db';
 import { logger } from './logger';
 import type { Tweet } from './types';
 
@@ -98,11 +98,17 @@ function getFullTweetContent(tweet: Tweet, platform: 'twitter' | 'linkedin'): st
 
 async function postToTwitter(tweet: Tweet, content: string, credentials: PostingCredentials): Promise<PostingResult> {
   try {
-    const { postTweet, postTweetWithImage } = await import('./twitter');
+    const client = new TwitterApi({
+      appKey: credentials.apiKey || '',
+      appSecret: credentials.apiSecret || '',
+      accessToken: credentials.accessToken || '',
+      accessSecret: credentials.accessSecret || '',
+    });
     
     if (tweet.image_url && tweet.image_status === 'completed') {
       const imageBuffer = await fetchImageFromUrl(tweet.image_url);
       if (imageBuffer) {
+        const { postTweetWithImage } = await import('./twitter');
         const result = await postTweetWithImage(content, imageBuffer, {
           apiKey: credentials.apiKey || '',
           apiSecret: credentials.apiSecret || '',
@@ -113,13 +119,13 @@ async function postToTwitter(tweet: Tweet, content: string, credentials: Posting
       }
     }
 
-    const result = await postTweet(content, {
-      apiKey: credentials.apiKey || '',
-      apiSecret: credentials.apiSecret || '',
-      accessToken: credentials.accessToken || '',
-      accessSecret: credentials.accessSecret || '',
-    });
-    return { success: true, twitterId: result.data.id };
+    // FIXED: Explicit type annotation for 'result' and 'twitterId' to solve TS circular reference
+    const result: TweetV2PostTweetResult = await client.v2.tweet(content);
+    const twitterId: string = result.data.id;
+    
+    if (!twitterId) throw new Error('No ID returned from Twitter');
+    
+    return { success: true, twitterId };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
@@ -184,9 +190,7 @@ export async function postSingleContent(
   maxTweets: number = 5
 ): Promise<{ posted: number; errors: number }> {
   const account = await accountService.getAccount(accountId);
-  if (!account) {
-    throw new Error(`Account not found: ${accountId}`);
-  }
+  if (!account) throw new Error(`Account not found: ${accountId}`);
 
   if (platform === 'linkedin' && (!account.linkedin_enabled || !account.linkedin_access_token)) {
     throw new Error(`LinkedIn not enabled for account: ${accountId}`);
@@ -215,7 +219,6 @@ export async function postSingleContent(
     const result = await postToPlatform(tweet, account, platform, credentials);
 
     if (result.success) {
-      // Twitter finalize logic
       if (platform === 'twitter') {
         const twitterUrl = result.twitterId 
           ? `https://x.com/${account.twitter_handle}/status/${result.twitterId}` 
@@ -223,7 +226,7 @@ export async function postSingleContent(
         await finalizeTweetPosting(tweet.id, 'posted', result.twitterId, twitterUrl);
       } else {
         // LinkedIn finalize logic (Bolt-on workaround)
-        await finalizeTweetPosting(tweet.id, 'posted'); // Just clear the claim and set status
+        await finalizeTweetPosting(tweet.id, 'posted'); 
         await sql`
           UPDATE tweets 
           SET linkedin_id = ${result.linkedinId}, posted_at = COALESCE(posted_at, NOW())

@@ -323,7 +323,7 @@ export default function QueuePage() {
                                   {persona ? getPersonaEmoji(persona.name) : '🤖'}
                                 </span>
                                 <span className="text-sm font-medium text-zinc-700">
-                                  {persona?.name || 'AI Agent'}
+                                  {persona?.name || 'Profile'}
                                 </span>
                               </div>
                               <p className="text-sm text-zinc-700 line-clamp-3 leading-relaxed">

@@ -273,7 +273,7 @@ function AIProfilesContent() {
 
   return (
     <NavigationLayout>
-      <div className="space-y-10 animate-in fade-in duration-500 max-w-4xl mx-auto">
+      <div className="space-y-10 max-w-4xl mx-auto">
 
         {/* Header & Account Connection */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-zinc-200">

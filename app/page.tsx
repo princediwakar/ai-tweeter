@@ -190,7 +190,7 @@ export default function HomePage() {
     try {
       const activePersona = personas[0];
       if (!activePersona) {
-        toast.error('No active personas found');
+        toast.error('No active brand voices found');
         return;
       }
 
@@ -212,14 +212,14 @@ export default function HomePage() {
           ...prev.slice(0, 8),
         ]);
         setQuickIdea('');
-        toast.success('Tweet generated!');
+        toast.success('Content generated!');
       } else {
         const err = await res.json();
         toast.error(err.error || 'Failed to generate');
       }
     } catch (error) {
       console.error('Generation failed:', error);
-      toast.error('Failed to generate tweet');
+      toast.error('Failed to generate content');
     } finally {
       setGenerating(false);
     }
@@ -246,7 +246,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center py-12">
               <div className="flex items-center gap-3 text-zinc-500">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="text-sm font-medium">Initializing AI agents...</span>
+                <span className="text-sm font-medium">Launching your brand voices...</span>
               </div>
             </div>
           )}
@@ -262,23 +262,23 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              {activePersonas.length} AI Agent{activePersonas.length !== 1 ? 's' : ''} Online
+              {activePersonas.length} Brand Voice{activePersonas.length !== 1 ? 's' : ''} Online
             </span>
           </div>
           <h1 className="text-3xl font-semibold text-zinc-900 tracking-tight">
             {getGreeting()}, {session?.user?.name?.split(' ')[0] || 'there'}
           </h1>
           <p className="text-zinc-500">
-            Here&apos;s what your AI agents are working on.
+            Here&apos;s what your brand voices are creating for you.
           </p>
         </div>
 
         {latestTweets.length === 0 ? (
           <div className="border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl p-12 text-center">
             <Sparkles className="h-8 w-8 text-zinc-400 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-zinc-900 mb-2">No drafts yet</h2>
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">Start building your brand presence</h2>
             <p className="text-sm text-zinc-500 mb-6">
-              Connect an account and create a persona to get started.
+              Connect your social channels and create your first brand voice to begin.
             </p>
           </div>
         ) : (
@@ -299,7 +299,7 @@ export default function HomePage() {
                         {persona ? getPersonaEmoji(persona.name) : '🤖'}
                       </span>
                       <span className="font-semibold text-sm text-zinc-900">
-                        {persona?.name || 'AI Agent'}
+                        {persona?.name || 'Brand Voice'}
                       </span>
                     </div>
                     <span className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-sm border ${status.color}`}>
@@ -342,7 +342,7 @@ export default function HomePage() {
                 value={quickIdea}
                 onChange={(e) => setQuickIdea(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleQuickGenerate()}
-                placeholder="Quick idea for your AI..."
+                placeholder="Inspiration for your brand voice..."
                 className="w-full px-4 py-2.5 bg-zinc-50 border-0 rounded-xl text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200"
               />
             </div>

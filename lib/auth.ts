@@ -59,31 +59,36 @@ export const authOptions: NextAuthOptions = {
         }
 
         const { email, password } = credentials;
-        
-        const result = await sql`
-          SELECT id, name, email, image, hashed_password as "hashedPassword"
-          FROM users 
-          WHERE email = ${email}
-        `;
 
-        if (result.rows.length === 0) {
+        try {
+          const result = await sql`
+            SELECT id, name, email, image, hashed_password as "hashedPassword"
+            FROM users
+            WHERE email = ${email}
+          `;
+
+          if (result.rows.length === 0) {
+            return null;
+          }
+
+          const user = result.rows[0];
+
+          const isValid = await bcrypt.compare(password, user.hashedPassword);
+
+          if (!isValid) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+          };
+        } catch (error) {
+          console.error('Database error in authorize:', error);
           return null;
         }
-
-        const user = result.rows[0];
-        
-        const isValid = await bcrypt.compare(password, user.hashedPassword);
-
-        if (!isValid) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          image: user.image,
-        };
       }
     }),
     ...(await getOAuthProviders()),

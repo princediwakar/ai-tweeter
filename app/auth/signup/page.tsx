@@ -85,11 +85,11 @@ export default function SignUpPage() {
               <span className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">AutoGrowth AI</span>
             </div>
             <h2 className="text-4xl font-semibold tracking-tight text-white leading-tight">
-              Scale your social presence.<br />Zero manual effort.
+              Build your brand.<br />Grow your influence. Automatically.
             </h2>
             <p className="text-lg text-zinc-400 leading-relaxed">
-              Stop paying for expensive scheduling tools that still require your time. 
-              Our AI engages, grows, and builds relationships for you natively.
+              Build your personal brand with AI-powered content that captures your authentic voice.
+              Grow your audience and establish authority while you focus on what matters.
             </p>
           </div>
 
@@ -97,24 +97,24 @@ export default function SignUpPage() {
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">Hyper-Personalized AI</h4>
-                <p className="text-zinc-400 mt-1">Context-aware engagement that sounds exactly like you, not a bot.</p>
+                <h4 className="font-semibold text-white">Authentic Brand Voice</h4>
+                <p className="text-zinc-400 mt-1">Content that captures your unique voice and resonates with your audience.</p>
               </div>
             </div>
             
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">24/7 Autonomous Growth</h4>
-                <p className="text-zinc-400 mt-1">Your account builds authority and audience while you focus on deep work.</p>
+                <h4 className="font-semibold text-white">Continuous Brand Growth</h4>
+                <p className="text-zinc-400 mt-1">Your brand builds authority and audience while you focus on what matters most.</p>
               </div>
             </div>
             
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">Frictionless Setup</h4>
-                <p className="text-zinc-400 mt-1">Connect your account, define your niche, and see results in hours.</p>
+                <h4 className="font-semibold text-white">Simple Setup</h4>
+                <p className="text-zinc-400 mt-1">Connect your channels, define your brand, and see your influence grow.</p>
               </div>
             </div>
           </div>
@@ -127,7 +127,7 @@ export default function SignUpPage() {
           <div className="text-center lg:text-left">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Create an account</h1>
             <p className="mt-2 text-sm text-zinc-500">
-              Start building your presence on LinkedIn and Twitter automatically.
+              Start building your brand on LinkedIn and Twitter automatically.
             </p>
           </div>
 

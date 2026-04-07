@@ -68,8 +68,8 @@ function SystemInitialization() {
           <Loader2 className="h-6 w-6 text-zinc-900 animate-spin" />
         </div>
         <div className="text-center space-y-2">
-          <h3 className="text-lg font-medium text-zinc-900">Initializing Workspace</h3>
-          <p className="text-sm text-zinc-500">Establishing secure connection to infrastructure...</p>
+          <h3 className="text-lg font-medium text-zinc-900">Setting up your brand studio</h3>
+          <p className="text-sm text-zinc-500">Preparing your brand growth tools...</p>
         </div>
       </div>
     </div>
@@ -91,11 +91,10 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
 
           <div className="space-y-3 max-w-xl mx-auto">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
-              Connect your primary channel
+              Connect your first social channel
             </h1>
             <p className="text-zinc-500 leading-relaxed">
-              AutoGrowth AI requires secure access to your account to operate autonomously. 
-              We use official APIs and strict rate limiting to ensure your account remains safe and compliant.
+              AutoGrowth AI helps you build your brand by creating authentic content for your channels.
             </p>
           </div>
 
@@ -113,7 +112,7 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
               ) : (
                 <>
                   <Twitter className="h-5 w-5" />
-                  Authorize Twitter Account
+                  Connect Twitter Account
                 </>
               )}
             </button>
@@ -123,7 +122,7 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
             <div className="space-y-2">
               <ShieldCheck className="h-5 w-5 text-zinc-900" />
               <h4 className="text-sm font-semibold text-zinc-900">Secure</h4>
-              <p className="text-xs text-zinc-500">OAuth 2.0 integration. We never see or store your password.</p>
+              <p className="text-xs text-zinc-500">Secure OAuth 2.0 integration keeps your accounts safe.</p>
             </div>
             <div className="space-y-2">
               <Zap className="h-5 w-5 text-zinc-900" />
@@ -155,15 +154,15 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-          <p className="text-sm text-zinc-500">Your content at a glance</p>
+          <h1 className="text-2xl font-semibold text-zinc-900">Brand Studio</h1>
+          <p className="text-sm text-zinc-500">Your brand's content at a glance</p>
         </div>
         <button
           onClick={onAddMore}
           className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
         >
           <Twitter className="h-4 w-4" />
-          Add account
+          Add channel
         </button>
       </div>
 
@@ -175,9 +174,9 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
             </div>
-            <span className="text-sm font-medium text-zinc-700">System Operational</span>
+            <span className="text-sm font-medium text-zinc-700">All systems go</span>
           </div>
-          <span className="text-xs text-zinc-500 font-mono">{activeAccounts} NODE(S) ACTIVE</span>
+          <span className="text-xs text-zinc-500 font-mono">{activeAccounts} CHANNELS ACTIVE</span>
         </div>
         
         <div className="p-6 sm:p-8">
@@ -225,7 +224,7 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
 
       {/* Connected Accounts List */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-zinc-900">Active Nodes</h2>
+        <h2 className="text-lg font-semibold text-zinc-900">Connected Channels</h2>
         <div className="grid gap-4">
           {accounts.map((account) => (
             <div key={account.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl shadow-sm">
@@ -242,12 +241,12 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
                 {account.twitter_oauth2_enabled ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-100">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Running
+                    Active
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 text-xs font-medium border border-amber-100">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                    Disconnected
+                    Inactive
                   </span>
                 )}
                 <button className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors rounded-lg hover:bg-zinc-50">

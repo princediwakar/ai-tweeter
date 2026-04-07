@@ -5,12 +5,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, LogOut, User, ChevronDown, Menu, X, Zap, Cpu } from 'lucide-react';
+import { Home, Users, LogOut, User, ChevronDown, Menu, X, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'My Voices', href: '/personas', icon: Cpu },
+  { name: 'AI Profiles', href: '/profiles', icon: User },
   { name: 'Accounts', href: '/accounts', icon: Users },
 ];
 

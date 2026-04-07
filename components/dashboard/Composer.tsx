@@ -53,7 +53,7 @@ export function Composer({
             <div className="flex items-center gap-2 px-2 py-1">
               <AlertCircle size={14} className="text-amber-500" />
               <span className="text-xs text-amber-600 font-medium">No voice set up yet</span>
-              <Link href="/personas" className="text-xs text-zinc-900 hover:underline font-semibold">
+              <Link href="/profiles" className="text-xs text-zinc-900 hover:underline font-semibold">
                 Set up
               </Link>
             </div>
@@ -114,7 +114,7 @@ export function Composer({
         <div className="flex items-center gap-3">
           {hasNoPersonas ? (
             <Button
-              onClick={() => router.push('/personas')}
+              onClick={() => router.push('/profiles')}
               className="h-10 px-6 bg-zinc-900 text-white text-sm font-semibold rounded-xl hover:bg-zinc-800 transition-all active:scale-95"
             >
               Set up your voice first

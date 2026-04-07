@@ -69,7 +69,7 @@ export function useTweetDashboard() {
     try {
       const [accountsRes, personasRes] = await Promise.all([
         fetch('/api/accounts'),
-        fetch('/api/personas')
+        fetch('/api/profiles')
       ]);
       
       const accountsData = accountsRes.ok ? await accountsRes.json() : { accounts: [] };
@@ -338,7 +338,7 @@ export function useTweetDashboard() {
     setGenerateForm(prev => ({ ...prev, account_id: accountId }));
     
     try {
-      const response = await fetch('/api/personas');
+      const response = await fetch('/api/profiles');
       if (response.ok) {
         const data = await response.json();
         const accountPersonas = (data.personas || [])

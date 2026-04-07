@@ -1,14 +1,14 @@
-// app/personas/page.tsx
+// app/profiles/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, Clock, Cpu, User, Zap } from 'lucide-react';
-import PersonaEditor from '@/components/personas/PersonaEditor';
+import { Pencil, Trash2, Clock, User, Zap } from 'lucide-react';
+import PersonaEditor from '@/components/profiles/PersonaEditor';
 import NavigationLayout from '@/components/NavigationLayout';
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
-import { Persona, PersonaSchedule } from '@/components/personas/types';
-import DeleteConfirmDialog from '@/components/personas/DeleteConfirmDialog';
-import ScheduleDialog from '@/components/personas/ScheduleDialog';
+import { Persona, PersonaSchedule } from '@/components/profiles/types';
+import DeleteConfirmDialog from '@/components/profiles/DeleteConfirmDialog';
+import ScheduleDialog from '@/components/profiles/ScheduleDialog';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -41,7 +41,7 @@ export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   
   useEffect(() => {
-    fetch(`/api/personas`)
+    fetch(`/api/profiles`)
       .then(res => res.json())
       .then(data => {
         setPersonas(data.personas || []);
@@ -70,7 +70,7 @@ export default function PersonasPage() {
   const handleDeletePersona = () => {
     if (!deletingId) return;
     
-    fetch(`/api/personas?id=${deletingId}`, { 
+    fetch(`/api/profiles?id=${deletingId}`, { 
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' }
     })
@@ -139,7 +139,7 @@ export default function PersonasPage() {
         }
       }
       
-      const res = await fetch(`/api/personas`);
+      const res = await fetch(`/api/profiles`);
       const data = await res.json();
       setPersonas(data.personas || []);
       setScheduleDialogOpen(false);
@@ -160,7 +160,7 @@ export default function PersonasPage() {
       
       setCurrentSchedules(prev => prev.filter(s => s.id !== scheduleId));
       
-      const updatedPersonas = await fetch(`/api/personas`).then(r => r.json());
+      const updatedPersonas = await fetch(`/api/profiles`).then(r => r.json());
       setPersonas(updatedPersonas.personas || []);
     } catch (error) {
       console.error('Error deleting cadence:', error);
@@ -198,10 +198,10 @@ export default function PersonasPage() {
         <div className="pb-6 border-b border-zinc-200 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Cpu className="h-5 w-5 text-zinc-900" />
-              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">My Voices</h1>
+              <User className="h-5 w-5 text-zinc-900" />
+              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">AI Profiles</h1>
             </div>
-            <p className="text-zinc-500 text-sm">Create and manage your content voices.</p>
+            <p className="text-zinc-500 text-sm">Create and manage your content AI Profiles.</p>
           </div>
         </div>
 
@@ -225,7 +225,7 @@ export default function PersonasPage() {
                   editingPersona={editingPersona}
                   onEditComplete={() => {
                     setEditingPersona(null);
-                    fetch(`/api/personas`).then(res => res.json()).then(data => setPersonas(data.personas || []));
+                    fetch(`/api/profiles`).then(res => res.json()).then(data => setPersonas(data.personas || []));
                   }}
                 />
               </div>
@@ -234,7 +234,7 @@ export default function PersonasPage() {
         )}
 
         <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-zinc-900">Your Voices</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Your AI Profiles</h2>
           
           {accounts.length === 0 ? (
             <p className="text-zinc-400 text-sm italic">No accounts connected yet.</p>

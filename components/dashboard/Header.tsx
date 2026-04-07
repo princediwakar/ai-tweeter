@@ -72,10 +72,10 @@ export function Header({
         </Button>
       </div>
 
-      {/* Active Personas for Current Account */}
+      {/* Active AI Profiles for Current Account */}
       {activePersonas && activePersonas.length > 0 && (
         <div className="flex items-center gap-3">
-          <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest whitespace-nowrap">Active Personas:</span>
+          <span className="text-[10px] font-black uppercase text-gray-300 tracking-widest whitespace-nowrap">Active AI Profiles:</span>
           <div className="flex flex-wrap gap-2">
             {activePersonas.map((p) => (
               <div 

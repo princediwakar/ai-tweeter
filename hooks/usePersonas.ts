@@ -12,7 +12,7 @@ export function usePersonas() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/personas');
+      const response = await fetch('/api/profiles');
       if (!response.ok) throw new Error('Failed to fetch personas');
       const data = await response.json();
       setPersonas(data.personas || []);
@@ -41,7 +41,7 @@ export function usePersonas() {
     is_default?: boolean;
   }) => {
     try {
-      const response = await fetch('/api/personas', {
+      const response = await fetch('/api/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -64,7 +64,7 @@ export function usePersonas() {
 
   const updatePersona = useCallback(async (id: string, data: Partial<UserPersona>) => {
     try {
-      const response = await fetch('/api/personas', {
+      const response = await fetch('/api/profiles', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...data }),
@@ -87,7 +87,7 @@ export function usePersonas() {
 
   const deletePersona = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/personas?id=${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/profiles?id=${id}`, { method: 'DELETE' });
       
       // FIXED: Read backend error
       if (!response.ok) {

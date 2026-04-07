@@ -12,8 +12,8 @@ export default function DeleteConfirmDialog({
   open,
   onClose,
   onConfirm,
-  title = 'Delete Persona?',
-  message = 'This action cannot be undone. The persona will be permanently deleted.',
+  title = 'Delete AI Profile?',
+  message = 'This action cannot be undone. The AI Profile will be permanently deleted.',
 }: DeleteConfirmDialogProps) {
   if (!open) return null;
 

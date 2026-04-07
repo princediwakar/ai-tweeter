@@ -1,4 +1,4 @@
-// components/personas/PersonaEditor.tsx
+// components/profiles/PersonaEditor.tsx
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -46,7 +46,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     
     setLoading(true);
     
-    fetch('/api/personas')
+    fetch('/api/profiles')
       .then(res => res.json())
       .then(data => {
         const filtered = (data.personas || []).filter((p: Persona) => p.connected_account_id === currentAccountId);
@@ -94,7 +94,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     generationInProgress.current = true;
     
     try {
-      const res = await fetch('/api/personas/generate', {
+      const res = await fetch('/api/profiles/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -108,7 +108,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       const data = await res.json();
       
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to generate persona');
+        throw new Error(data.error || 'Failed to generate profile');
       }
       
       setGeneratedPreview({
@@ -124,7 +124,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       });
     } catch (error) {
       console.error('Error generating persona:', error);
-      alert(error instanceof Error ? error.message : 'Failed to generate persona');
+      alert(error instanceof Error ? error.message : 'Failed to generate profile');
     } finally {
       setIsGenerating(false);
       generationInProgress.current = false;
@@ -137,7 +137,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     setIsCreating(true);
     
     try {
-      const res = await fetch('/api/personas', {
+      const res = await fetch('/api/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -162,7 +162,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       // FIXED: Actually read the API error message instead of ignoring it
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to save persona');
+        throw new Error(errorData.error || 'Failed to save profile');
       }
       
       setPrompt('');
@@ -173,7 +173,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       }
     } catch (error) {
       console.error('Error saving persona:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save persona');
+      alert(error instanceof Error ? error.message : 'Failed to save profile');
     } finally {
       setIsCreating(false);
     }
@@ -182,7 +182,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   const confirmDelete = () => {
     if (!deletingId) return;
     
-    fetch(`/api/personas?id=${deletingId}`, { 
+    fetch(`/api/profiles?id=${deletingId}`, { 
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' }
     })
@@ -194,7 +194,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     })
     .catch(error => {
       console.error('Error deleting persona:', error);
-      alert(error instanceof Error ? error.message : 'Failed to delete persona');
+      alert(error instanceof Error ? error.message : 'Failed to delete profile');
     })
     .finally(() => {
       setDeletingId(null);
@@ -221,7 +221,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     if (!editingId) return;
     
     try {
-      const res = await fetch('/api/personas', {
+      const res = await fetch('/api/profiles', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -242,7 +242,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       onEditComplete?.();
     } catch (error) {
       console.error('Error updating persona:', error);
-      alert(error instanceof Error ? error.message : 'Failed to update persona');
+      alert(error instanceof Error ? error.message : 'Failed to update profile');
     }
   };
 
@@ -331,35 +331,35 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">Create a new voice</h2>
+        <h2 className="text-xl font-bold text-zinc-900">Create an AI Profile</h2>
       </div>
 
-        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-indigo-900">AI Voice Generator</h3>
-          </div>
+      <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="w-5 h-5 text-zinc-600" />
+          <h3 className="text-lg font-semibold text-zinc-900">AI Persona Generator</h3>
+        </div>
 
-          {accounts && accounts.length > 1 && (
-            <div className="flex items-center gap-4 mb-4">
-              <label className="text-sm font-medium text-gray-700">Account:</label>
-              <select
-                value={currentAccountId}
-                onChange={(e) => onAccountChange?.(e.target.value)}
-                className="flex-1 max-w-xs border border-indigo-200 rounded-lg px-3 py-2 text-sm bg-white"
-              >
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          
-          <p className="text-sm text-indigo-700 mb-4">
-            Describe what kind of content you want to post. The AI will create a custom voice tailored to your goals.
-          </p>
+        {accounts && accounts.length > 1 && (
+          <div className="flex items-center gap-4 mb-4">
+            <label className="text-sm font-medium text-zinc-700">Account:</label>
+            <select
+              value={currentAccountId}
+              onChange={(e) => onAccountChange?.(e.target.value)}
+              className="flex-1 max-w-xs border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white"
+            >
+              {accounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        
+        <p className="text-sm text-zinc-600 mb-4">
+          Describe what kind of content you want to post. The AI will create a custom persona tailored to your goals.
+        </p>
         
         <textarea
           value={prompt}
@@ -368,20 +368,20 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
             ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
             : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
           }
-          className="w-full px-4 py-3 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
+          className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white text-zinc-900"
           rows={3}
           disabled={isGenerating}
         />
         
           <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-indigo-500">
+            <span className="text-xs text-zinc-500">
               {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to go'}
             </span>
             <button
               type="button"
               onClick={handleGenerate}
               disabled={isGenerating || prompt.trim().length < 10}
-              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+              className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
             >
               {isGenerating ? (
                 <>
@@ -391,20 +391,20 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4" />
-                  Create Voice
+                  Create Persona
                 </>
               )}
             </button>
           </div>
         
         {generatedPreview && (
-          <div className="mt-6 bg-white border border-indigo-200 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
+          <div className="mt-6 bg-white border border-zinc-300 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-indigo-900">Review your voice</h4>
+              <h4 className="font-semibold text-zinc-900">Review your AI Profile</h4>
               <button
                 type="button"
                 onClick={() => setGeneratedPreview(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded"
               >
                 ×
               </button>
@@ -412,11 +412,11 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
             
             <PersonaForm data={generatedPreview} onChange={setGeneratedPreview} prefix="preview" />
             
-            <div className="mt-6 pt-4 border-t border-indigo-100 flex justify-end gap-3">
+            <div className="mt-6 pt-4 border-t border-zinc-200 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setGeneratedPreview(null)}
-                className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg font-medium"
+                className="px-5 py-2.5 text-zinc-600 hover:bg-zinc-100 rounded-lg font-medium"
               >
                 Cancel
               </button>
@@ -424,7 +424,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
                 type="button"
                 onClick={handleConfirmCreate}
                 disabled={isCreating}
-                className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 flex items-center gap-2 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isCreating ? (
                   <>
@@ -432,7 +432,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
                     Saving...
                   </>
                 ) : (
-                  'Save Voice'
+                  'Save Persona'
                 )}
               </button>
             </div>
@@ -441,10 +441,10 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       </div>
 
       {editingId && (
-        <div id="edit-persona-form" className="bg-white border-2 border-indigo-500 rounded-xl p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Persona</h3>
+        <div id="edit-persona-form" className="bg-white border-2 border-zinc-900 rounded-xl p-5">
+          <h3 className="text-lg font-semibold text-zinc-900 mb-4">Edit Persona</h3>
           <PersonaForm data={editData} onChange={setEditData} prefix="edit" />
-          <div className="mt-6 pt-4 border-t border-gray-200 flex justify-end gap-3">
+          <div className="mt-6 pt-4 border-t border-zinc-200 flex justify-end gap-3">
             <button
               type="button"
               onClick={() => {

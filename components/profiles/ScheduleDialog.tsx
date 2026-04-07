@@ -1,4 +1,4 @@
-// components/personas/ScheduleDialog.tsx
+// components/profiles/ScheduleDialog.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -108,15 +108,15 @@ export default function ScheduleDialog({
       <div className="bg-white rounded-2xl p-6 w-full max-w-lg mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h3 className="text-xl font-bold text-gray-900">Schedule Posting Times</h3>
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" /> Set your schedules below (defaults to local timezone)
+            <h3 className="text-xl font-bold text-zinc-900">Set posting schedule</h3>
+            <p className="text-sm text-zinc-500 mt-1 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Choose when your content should be posted
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -124,15 +124,14 @@ export default function ScheduleDialog({
 
         <div className="space-y-6">
           {forms.map((form, index) => (
-            <div key={index} className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+            <div key={index} className="p-4 bg-zinc-50 rounded-xl border border-zinc-200">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-gray-700">Schedule #{index + 1}</span>
-                {/* FIXED: Trash can is now always available, even for unsaved forms */}
+                <span className="text-sm font-semibold text-zinc-700">Schedule {index + 1}</span>
                 <button
                   type="button"
                   onClick={() => handleDelete(index)}
-                disabled={deletingId === forms[index].id && deletingId !== null}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                  disabled={deletingId === forms[index].id && deletingId !== null}
+                  className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                   title="Delete schedule"
                 >
                   <Trash className="w-4 h-4" />
@@ -140,7 +139,7 @@ export default function ScheduleDialog({
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-zinc-700 mb-2">
                   Days <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2">
@@ -151,8 +150,8 @@ export default function ScheduleDialog({
                       onClick={() => handleToggleDay(index, day.value)}
                       className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
                         form.days_of_week.includes(day.value)
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-white border border-gray-200 text-gray-600 hover:border-indigo-300'
+                          ? 'bg-zinc-900 text-white'
+                          : 'bg-white border border-zinc-200 text-zinc-600 hover:border-zinc-400'
                       }`}
                     >
                       {day.label}
@@ -166,7 +165,7 @@ export default function ScheduleDialog({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Time</label>
                   <input
                     type="time"
                     value={formatTime(form.start_time)}
@@ -174,15 +173,15 @@ export default function ScheduleDialog({
                       const [hours, mins] = e.target.value.split(':').map(Number);
                       handleChange(index, { start_time: hours * 60 + mins });
                     }}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                  <label className="block text-sm font-medium text-zinc-700 mb-2">Timezone</label>
                   <select
                     value={form.timezone}
                     onChange={(e) => handleChange(index, { timezone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   >
                     {Intl.supportedValuesOf('timeZone').map(tz => (
                       <option key={tz} value={tz}>{tz}</option>
@@ -196,18 +195,18 @@ export default function ScheduleDialog({
           <button
             type="button"
             onClick={handleAdd}
-            className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 border-2 border-dashed border-zinc-200 rounded-xl text-zinc-500 font-medium hover:border-zinc-400 hover:text-zinc-700 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
             Add Another Schedule
           </button>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-200 flex gap-3">
+        <div className="mt-6 pt-4 border-t border-zinc-200 flex gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+            className="flex-1 py-3 px-4 border border-zinc-200 text-zinc-700 rounded-xl font-medium hover:bg-zinc-50 transition-colors"
           >
             Cancel
           </button>
@@ -215,7 +214,7 @@ export default function ScheduleDialog({
             type="button"
             onClick={handleSave}
             disabled={saving || !isFormValid}
-            className="flex-1 py-3 px-4 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 py-3 px-4 bg-zinc-900 text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
               <Loader2 className="w-5 h-5 animate-spin" />

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Activity } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
 import { OnboardingState } from '@/types/onboarding';
 import WelcomeStep from '@/components/onboarding/steps/WelcomeStep';
 import ConnectStep from '@/components/onboarding/steps/ConnectStep';
@@ -11,7 +11,7 @@ import PromptStep from '@/components/onboarding/steps/PromptStep';
 import ReviewStep from '@/components/onboarding/steps/ReviewStep';
 import ScheduleStep from '@/components/onboarding/steps/ScheduleStep';
 
-const STEPS = ['Initialization', 'Integrations', 'Calibration', 'Review', 'Deployment'];
+const STEPS = ['Welcome', 'Connect', 'Your Voice', 'Review', 'Schedule'];
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -119,9 +119,9 @@ useEffect(() => {
       <header className="px-8 py-5 border-b border-zinc-200 bg-white flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-            <Activity className="h-4 w-4 text-white" />
+            <Zap className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold text-sm tracking-wide uppercase text-zinc-900">AutoGrowth Engine</span>
+          <span className="font-semibold text-sm tracking-wide text-zinc-900">AutoGrowth</span>
         </div>
         
         <div className="flex items-center gap-2">

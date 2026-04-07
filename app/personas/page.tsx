@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, Clock, Cpu, Server, Activity } from 'lucide-react';
+import { Pencil, Trash2, Clock, Cpu, User, Zap } from 'lucide-react';
 import PersonaEditor from '@/components/personas/PersonaEditor';
 import NavigationLayout from '@/components/NavigationLayout';
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
@@ -199,17 +199,17 @@ export default function PersonasPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Cpu className="h-5 w-5 text-zinc-900" />
-              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">AI Models</h1>
+              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">My Voices</h1>
             </div>
-            <p className="text-zinc-500 text-sm">Configure and manage autonomous generation models.</p>
+            <p className="text-zinc-500 text-sm">Create and manage your content voices.</p>
           </div>
         </div>
 
         {accounts.length === 0 ? (
           <div className="border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl p-12 text-center">
-            <Server className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
-            <p className="text-sm font-medium text-zinc-900">No Routing Nodes Available</p>
-            <p className="text-xs text-zinc-500 mt-1">Initialize a connection to begin generating models.</p>
+            <User className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
+            <p className="text-sm font-medium text-zinc-900">No accounts connected</p>
+            <p className="text-xs text-zinc-500 mt-1">Connect an account to create your voice.</p>
           </div>
         ) : (
           <>
@@ -234,23 +234,21 @@ export default function PersonasPage() {
         )}
 
         <div className="space-y-6">
-          <h2 className="text-lg font-semibold text-zinc-900">Active Configurations</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Your Voices</h2>
           
           {accounts.length === 0 ? (
-            <p className="text-zinc-400 text-sm italic">System idle.</p>
+            <p className="text-zinc-400 text-sm italic">No accounts connected yet.</p>
           ) : (
             <div className="space-y-8">
               {groupedByPlatform.map(({ platform, accounts: platformAccounts }) => (
                 <div key={platform} className="space-y-4">
                   <div className="flex items-center gap-3 border-b border-zinc-100 pb-2">
-                    <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{platform} Routing</span>
-                    <span className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-500 font-bold rounded-sm tracking-widest uppercase">{platformAccounts.length} Nodes</span>
+                    <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{platform}</span>
                   </div>
                   
                   {platformAccounts.map(({ account, personas: accountPersonas }) => (
                     <div key={account.id} className="space-y-3">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-3.5 w-3.5 text-zinc-400" />
                         <span className="text-sm font-medium text-zinc-700">{(account.name || account.account_username)}</span>
                       </div>
                       <PersonaListByAccount 
@@ -297,7 +295,7 @@ function PersonaListByAccount({
   onSchedule?: (id: string) => void;
 }) {
   if (personas.length === 0) {
-    return <p className="text-zinc-400 text-sm pl-6 italic">No models configured for this node.</p>;
+    return <p className="text-zinc-400 text-sm pl-6 italic">No voices created yet.</p>;
   }
 
   return (
@@ -313,20 +311,20 @@ function PersonaListByAccount({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 mr-2 font-mono">
-                [ {persona.topics?.slice(0, 2).join(', ')} ]
+              <span className="text-xs text-zinc-500 mr-2">
+                {persona.topics?.slice(0, 2).join(', ')}
               </span>
               <button
                 onClick={() => onEdit?.(persona)}
                 className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors"
-                title="Modify Parameters"
+                title="Edit"
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onDelete?.(persona.id)}
                 className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                title="Terminate Model"
+                title="Delete"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -338,26 +336,26 @@ function PersonaListByAccount({
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>Cadence:</span>
+                  <span>Posts:</span>
                 </div>
                 {persona.schedules.map(schedule => (
-                  <span key={schedule.id} className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded-md font-mono">
-                    {formatScheduleDays(schedule)} @ {formatScheduleTime(schedule)}
+                  <span key={schedule.id} className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded-md">
+                    {formatScheduleDays(schedule)} at {formatScheduleTime(schedule)}
                   </span>
                 ))}
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
                 <Clock className="w-3.5 h-3.5" />
-                <span>Deployment cadence not configured</span>
+                <span>No posting schedule set</span>
               </div>
             )}
             
             <button
               onClick={() => onSchedule?.(persona.id)}
-              className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors"
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
             >
-              Configure Schedule →
+              Set schedule →
             </button>
           </div>
         </div>

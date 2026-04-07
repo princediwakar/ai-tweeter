@@ -8,7 +8,7 @@ import {
   Loader2, 
   Twitter, 
   Linkedin, 
-  Server, 
+  Users, 
   RefreshCw, 
   Trash2,
   Activity
@@ -58,11 +58,11 @@ function AccountsContent() {
     const connected = searchParams.get('connected');
     const handle = searchParams.get('handle');
     if (connected === 'success') {
-      toast.success(`Connection Established: @${handle}`);
+      toast.success(`Connected @${handle}`);
       router.replace('/accounts');
     } else if (connected === 'error') {
-      const message = searchParams.get('message') || 'Authentication failed';
-      toast.error(`Integration Error: ${message}`);
+      const message = searchParams.get('message') || 'Connection failed';
+      toast.error(message);
       router.replace('/accounts');
     }
   }, [searchParams, router]);
@@ -71,7 +71,7 @@ function AccountsContent() {
     setInitialLoading(true);
     try {
       const response = await fetch('/api/accounts');
-      if (!response.ok) throw new Error('Failed to fetch network nodes');
+      if (!response.ok) throw new Error('Failed to load accounts');
       
       const data = await response.json();
       setAccounts(data.accounts || []);
@@ -83,8 +83,8 @@ function AccountsContent() {
         await Promise.all(healthChecks);
       }
     } catch (error) {
-      console.error('Error fetching nodes:', error);
-      toast.error('Failed to query routing nodes');
+      console.error('Error loading accounts:', error);
+      toast.error('Failed to load accounts');
     } finally {
       setInitialLoading(false);
     }
@@ -134,21 +134,21 @@ function AccountsContent() {
   };
 
   const handleDelete = async (accountId: string) => {
-    if (!confirm('Warning: This will terminate the integration and orphan associated models. Proceed?')) return;
+    if (!confirm('Are you sure you want to remove this account?')) return;
 
     setDeletingId(accountId);
     try {
       const response = await fetch(`/api/accounts/${accountId}`, { method: 'DELETE' });
       
       if (response.ok) {
-        toast.success('Node integration terminated.');
+        toast.success('Account removed.');
         setAccounts(prev => prev.filter(a => a.id !== accountId));
       } else {
         const data = await response.json();
-        toast.error(`Termination failed: ${data.error || 'System error'}`);
+        toast.error(`Failed to remove: ${data.error || 'Please try again'}`);
       }
     } catch {
-      toast.error('Failed to terminate node.');
+      toast.error('Failed to remove account.');
     } finally {
       setDeletingId(null);
     }
@@ -178,10 +178,10 @@ function AccountsContent() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-200">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Server className="h-5 w-5 text-zinc-900" />
-              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">Routing Nodes</h1>
+              <Users className="h-5 w-5 text-zinc-900" />
+              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">Accounts</h1>
             </div>
-            <p className="text-zinc-500 text-sm">Manage API connections to target distribution networks.</p>
+            <p className="text-zinc-500 text-sm">Connect your social accounts to start posting.</p>
           </div>
           
           <div className="flex gap-3">
@@ -191,7 +191,7 @@ function AccountsContent() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm disabled:opacity-50"
             >
               {quickConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Twitter className="h-4 w-4 text-[#1DA1F2]" />}
-              Initialize X Node
+              Connect X
             </button>
             <button 
               onClick={() => handleConnect('linkedin')} 
@@ -199,7 +199,7 @@ function AccountsContent() {
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm disabled:opacity-50"
             >
               {quickConnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Linkedin className="h-4 w-4 text-[#0A66C2]" />}
-              Initialize LinkedIn
+              Connect LinkedIn
             </button>
           </div>
         </div>
@@ -207,15 +207,15 @@ function AccountsContent() {
         {accounts.length === 0 ? (
           <div className="border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl p-12 text-center">
             <Activity className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
-            <h2 className="text-sm font-medium text-zinc-900">System Offline</h2>
-            <p className="text-xs text-zinc-500 mt-1 mb-6">Initialize a routing node to begin deploying content.</p>
+            <h2 className="text-sm font-medium text-zinc-900">No accounts connected</h2>
+            <p className="text-xs text-zinc-500 mt-1 mb-6">Connect your social accounts to start building your presence.</p>
             <button 
               onClick={() => handleConnect('twitter')} 
               disabled={quickConnecting}
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors shadow-sm disabled:opacity-50"
             >
               <Twitter className="h-4 w-4" />
-              Authorize Primary Node
+              Connect Twitter
             </button>
           </div>
         ) : (
@@ -245,8 +245,8 @@ function AccountsContent() {
                         {(account.name || account.account_username)}
                       </p>
                       <p className="text-xs text-zinc-500 font-mono mt-0.5 uppercase tracking-wider">
-                        {account.platform} API 
-                        {isHealthy === false && <span className="text-red-500 lowercase normal-case tracking-normal ml-2">— Disconnected</span>}
+                        {account.platform} 
+                        {isHealthy === false && <span className="text-red-500 lowercase normal-case tracking-normal ml-2">— Not connected</span>}
                       </p>
                     </div>
                   </div>

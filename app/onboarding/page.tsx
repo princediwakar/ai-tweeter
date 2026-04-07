@@ -3,7 +3,7 @@ import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 
 export const metadata: Metadata = {
   title: 'Get Started — AutoGrowth',
-  description: 'Set up your AI-powered social media growth engine in minutes.',
+  description: 'Set up your AI-powered social media presence in minutes.',
 };
 
 export default function OnboardingPage() {

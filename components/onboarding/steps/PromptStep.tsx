@@ -77,19 +77,19 @@ const handleGenerate = async () => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Strategic Directives</h2>
-        <p className="text-sm text-zinc-500">Provide the contextual baseline for the AI model to construct your digital persona.</p>
+        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">What do you want to be known for?</h2>
+        <p className="text-sm text-zinc-500">Tell us about yourself, your industry, and your goals. We'll use this to create content that sounds just like you.</p>
       </div>
 
       <div className="space-y-2">
         <label htmlFor="prompt" className="text-sm font-medium text-zinc-900">
-          Core Objectives & Positioning
+          Your background and goals
         </label>
         <textarea
           id="prompt"
           value={state.prompt}
           onChange={(e) => updateState({ prompt: e.target.value })}
-          placeholder="Enter industry context, target audience, and primary growth objectives (e.g., 'Targeting B2B SaaS founders. Focus on product-led growth and capital efficiency. Tone should be direct and analytical.')"
+          placeholder="e.g., I'm a product manager at a B2B SaaS company. I want to share insights about building great products, leading teams, and navigating career growth. My audience is other PMs and founders. Keep it practical and actionable."
           className="w-full h-40 p-4 border border-zinc-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none transition-all"
         />
       </div>
@@ -109,9 +109,9 @@ const handleGenerate = async () => {
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
           {isGenerating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Compiling Models...</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Creating your voice...</>
           ) : (
-            <><BrainCircuit className="h-4 w-4" /> Generate Models</>
+            <><BrainCircuit className="h-4 w-4" /> Create my voice</>
           )}
         </button>
       </div>

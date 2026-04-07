@@ -62,7 +62,7 @@ export default function SignInPage() {
             </div>
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Welcome back</h1>
             <p className="mt-2 text-sm text-zinc-500">
-              Sign in to manage your automated growth engine.
+              Sign in to continue growing your presence.
             </p>
           </div>
 {/* 
@@ -185,7 +185,7 @@ export default function SignInPage() {
                 <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                 <div className="w-3 h-3 rounded-full bg-green-400"></div>
               </div>
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">System Status: Active</div>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Your content engine</div>
             </div>
             <div className="p-8 space-y-6">
               <div>

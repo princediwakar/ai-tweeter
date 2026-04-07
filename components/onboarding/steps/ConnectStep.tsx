@@ -46,8 +46,8 @@ const handleConnect = async (platform: string) => {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">System Integrations</h2>
-        <p className="text-sm text-zinc-500">Authorize the networks you want the autonomous engine to manage.</p>
+        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Connect your accounts</h2>
+        <p className="text-sm text-zinc-500">Link your social profiles so we can start creating content in your voice.</p>
       </div>
 
       <div className="space-y-4">
@@ -61,7 +61,7 @@ const handleConnect = async (platform: string) => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">Twitter / X</h3>
-              <p className="text-xs text-zinc-500">Thread generation and contextual replies.</p>
+              <p className="text-xs text-zinc-500">Build your audience with threads and engagement.</p>
             </div>
           </div>
           
@@ -92,7 +92,7 @@ const handleConnect = async (platform: string) => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">LinkedIn</h3>
-              <p className="text-xs text-zinc-500">Professional thought leadership routing.</p>
+              <p className="text-xs text-zinc-500">Share your expertise and attract opportunities.</p>
             </div>
           </div>
           
@@ -127,7 +127,7 @@ const handleConnect = async (platform: string) => {
           disabled={!hasConnection}
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
-          Proceed to Calibration <ArrowRight className="h-4 w-4" />
+          Continue <ArrowRight className="h-4 w-4" />
         </button>
       </div>
     </div>

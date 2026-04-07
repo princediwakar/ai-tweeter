@@ -18,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AutoGrowth Engine | Command Center",
-  description: "Autonomous social routing, AI model configuration, and deployment infrastructure.",
+  title: "AutoGrowth | Build Your Voice",
+  description: "Automate your LinkedIn and Twitter content. Build your personal brand and become a top voice in your industry.",
 };
 
 export default function RootLayout({

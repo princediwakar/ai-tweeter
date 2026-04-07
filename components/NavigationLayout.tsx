@@ -5,13 +5,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, LogOut, User, ChevronDown, Menu, X, Activity, Cpu } from 'lucide-react';
+import { Home, Users, LogOut, User, ChevronDown, Menu, X, Zap, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: 'Command Center', href: '/', icon: Home },
-  { name: 'AI Models', href: '/personas', icon: Cpu },
-  { name: 'Routing Nodes', href: '/accounts', icon: Users },
+  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'My Voices', href: '/personas', icon: Cpu },
+  { name: 'Accounts', href: '/accounts', icon: Users },
 ];
 
 function UserDropdown() {
@@ -45,7 +45,7 @@ function UserDropdown() {
             onClick={() => signOut({ callbackUrl: '/auth/signin' })}
           >
             <LogOut size={16} className="mr-3" />
-            <span className="text-sm font-medium">Terminate Session</span>
+            <span className="text-sm font-medium">Sign out</span>
           </button>
         </div>
       )}
@@ -78,7 +78,7 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
         <div className="flex items-center gap-3 text-zinc-500">
           <div className="w-4 h-4 border-2 border-zinc-400 border-t-zinc-900 rounded-full animate-spin" />
-          <span className="text-sm font-medium uppercase tracking-widest">Initializing...</span>
+          <span className="text-sm font-medium uppercase tracking-widest">Loading...</span>
         </div>
       </div>
     );
@@ -111,14 +111,14 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
           <div className="p-6">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shadow-sm">
-                <Activity size={18} className="text-white" />
+                <Zap size={18} className="text-white" />
               </div>
               <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
                 AutoGrowth
               </h1>
             </div>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">
-              System Console
+              Your workspace
             </p>
           </div>
 
@@ -163,7 +163,7 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                     </span>
                     <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                      System Online
+                      Active
                     </span>
                   </div>
                 </div>

@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Twitter, Activity, ShieldCheck, Zap, Settings, Power } from 'lucide-react';
+import { ArrowRight, Loader2, Twitter, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
 
 interface Account {
   id: string;
@@ -122,18 +122,18 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-zinc-100 text-left">
             <div className="space-y-2">
               <ShieldCheck className="h-5 w-5 text-zinc-900" />
-              <h4 className="text-sm font-semibold text-zinc-900">Bank-Grade Security</h4>
-              <p className="text-xs text-zinc-500">OAuth 2.0 integration. We never see or store your actual password.</p>
+              <h4 className="text-sm font-semibold text-zinc-900">Secure</h4>
+              <p className="text-xs text-zinc-500">OAuth 2.0 integration. We never see or store your password.</p>
             </div>
             <div className="space-y-2">
-              <Activity className="h-5 w-5 text-zinc-900" />
-              <h4 className="text-sm font-semibold text-zinc-900">Native Compliance</h4>
-              <p className="text-xs text-zinc-500">Algorithms designed to mimic human behavior and respect platform limits.</p>
+              <Zap className="h-5 w-5 text-zinc-900" />
+              <h4 className="text-sm font-semibold text-zinc-900">Smart</h4>
+              <p className="text-xs text-zinc-500">Content that sounds like you, not a bot.</p>
             </div>
             <div className="space-y-2">
               <Power className="h-5 w-5 text-zinc-900" />
-              <h4 className="text-sm font-semibold text-zinc-900">Full Control</h4>
-              <p className="text-xs text-zinc-500">Pause the engine, adjust parameters, or revoke access at any time.</p>
+              <h4 className="text-sm font-semibold text-zinc-900">You control it</h4>
+              <p className="text-xs text-zinc-500">Pause, adjust, or disconnect anytime.</p>
             </div>
           </div>
 
@@ -155,15 +155,15 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900">Command Center</h1>
-          <p className="text-sm text-zinc-500">Manage your autonomous growth engines</p>
+          <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
+          <p className="text-sm text-zinc-500">Your content at a glance</p>
         </div>
         <button
           onClick={onAddMore}
           className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
         >
-          <Zap className="h-4 w-4" />
-          Deploy New Engine
+          <Twitter className="h-4 w-4" />
+          Add account
         </button>
       </div>
 
@@ -207,14 +207,14 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
 
             {/* AI Status */}
             <div className="space-y-2 md:border-l md:border-zinc-100 md:pl-8">
-              <h3 className="text-sm font-medium text-zinc-500">Engine Status</h3>
+              <h3 className="text-sm font-medium text-zinc-500">Status</h3>
               <div className="flex items-center gap-2 mt-2">
                 <div className="p-2 bg-zinc-100 rounded-lg">
-                  <Activity className="h-5 w-5 text-zinc-700" />
+                  <Zap className="h-5 w-5 text-zinc-700" />
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-zinc-900">Learning Phase</div>
-                  <div className="text-xs text-zinc-500">Analyzing audience graph</div>
+                  <div className="text-sm font-semibold text-zinc-900">Getting started</div>
+                  <div className="text-xs text-zinc-500">Building your content strategy</div>
                 </div>
               </div>
             </div>

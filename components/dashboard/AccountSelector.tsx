@@ -83,7 +83,7 @@ export function ModernAccountSelector({
             <Link 
               href="/accounts"
               className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200"
-              title="Add new node"
+              title="Add new account"
             >
               <Plus className="h-4 w-4" />
             </Link>
@@ -91,7 +91,7 @@ export function ModernAccountSelector({
         </div>
       </div>
       
-      {/* Node Status Line */}
+      {/* Account Status */}
       {currentAccount && (
         <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center gap-4 text-xs">
           <div className="flex items-center gap-2">
@@ -99,12 +99,12 @@ export function ModernAccountSelector({
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span className="text-zinc-500 font-medium">Connection Stable</span>
+            <span className="text-zinc-500 font-medium">Connected</span>
           </div>
           <div className="w-px h-3 bg-zinc-200" />
           <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
             {currentAccount.platform === 'twitter' ? <Twitter size={12} /> : <Linkedin size={12} />}
-            <span className="capitalize">{currentAccount.platform} API</span>
+            <span className="capitalize">{currentAccount.platform}</span>
           </div>
           <div className="ml-auto">
             <Link href="/accounts" className="text-zinc-900 font-semibold hover:underline">

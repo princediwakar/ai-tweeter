@@ -52,11 +52,11 @@ export function Header({
           <div className="hidden md:flex items-center gap-4 text-xs text-gray-400 font-medium">
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-              {stats.ready} Ready
+              {stats.ready} ready to post
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-              {stats.posted} Posted
+              {stats.posted} posted
             </span>
           </div>
         </div>

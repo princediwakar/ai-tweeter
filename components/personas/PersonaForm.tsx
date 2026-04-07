@@ -44,13 +44,13 @@ export default function PersonaForm({ data, onChange, prefix = 'form' }: Persona
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Bio / Description</label>
         <textarea
           value={data.description}
           onChange={(e) => onChange({ ...data, description: e.target.value })}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white text-gray-900 resize-none"
-          rows={8}
-          placeholder="Detailed persona description including identity, source logic, voice DNA, anti-patterns, structural archetypes, and validation checklist."
+          rows={4}
+          placeholder="How should this voice sound? What kind of content do they share?"
         />
       </div>
 

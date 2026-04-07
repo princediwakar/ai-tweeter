@@ -37,24 +37,24 @@ export function Composer({
     <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm mb-8">
       <div className="flex items-center gap-2 mb-4">
         <Terminal className="h-4 w-4 text-zinc-400" />
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Input Directives</h3>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Create content</h3>
       </div>
 
       <div className="relative mb-4">
         <textarea
           value={form.customPrompt}
           onChange={(e) => onFormChange({ customPrompt: e.target.value })}
-          placeholder="Enter content parameters, topics, or context vectors... (Min 10 chars)"
-          className="w-full h-32 p-4 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 resize-none transition-all outline-none font-mono"
+          placeholder="What do you want to write about? Describe the topic, idea, or message you want to share..."
+          className="w-full h-32 p-4 bg-zinc-50 border border-zinc-200 focus:border-zinc-900 focus:bg-white rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 resize-none transition-all outline-none"
         />
         
         <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-white border border-zinc-200 p-1 rounded-lg shadow-sm">
           {hasNoPersonas ? (
             <div className="flex items-center gap-2 px-2 py-1">
               <AlertCircle size={14} className="text-amber-500" />
-              <span className="text-xs text-amber-600 font-medium">No Models Found</span>
+              <span className="text-xs text-amber-600 font-medium">No voice set up yet</span>
               <Link href="/personas" className="text-xs text-zinc-900 hover:underline font-semibold">
-                Configure
+                Set up
               </Link>
             </div>
           ) : (
@@ -66,7 +66,7 @@ export function Composer({
               >
                 {personas.map(p => (
                   <option key={p.id} value={p.id}>
-                    Model: {p.name}
+                    {p.emoji} {p.name}
                   </option>
                 ))}
               </select>
@@ -96,7 +96,7 @@ export function Composer({
                   onChange={(e) => onFormChange({ includeHashtags: e.target.checked })}
                   className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                 />
-                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900">Inject Hashtags</span>
+                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900">Add hashtags</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer select-none group">
                 <input
@@ -105,7 +105,7 @@ export function Composer({
                   onChange={(e) => onFormChange({ useTrendingTopics: e.target.checked })}
                   className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                 />
-                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900">Parse RSS/Trending</span>
+                <span className="text-xs font-medium text-zinc-600 group-hover:text-zinc-900">Use trending topics</span>
               </label>
             </div>
           )}
@@ -117,7 +117,7 @@ export function Composer({
               onClick={() => router.push('/personas')}
               className="h-10 px-6 bg-zinc-900 text-white text-sm font-semibold rounded-xl hover:bg-zinc-800 transition-all active:scale-95"
             >
-              Configure Model First
+              Set up your voice first
             </Button>
           ) : (
             <>
@@ -128,7 +128,7 @@ export function Composer({
                 className="h-10 px-4 text-zinc-700 text-sm font-semibold border-zinc-200 hover:bg-zinc-50 rounded-xl disabled:opacity-50"
               >
                 <Layers className="h-4 w-4 mr-2 text-zinc-400" />
-                Batch Compile ({bulkCount})
+                Generate {bulkCount} posts
               </Button>
               <Button
                 onClick={onGenerate}
@@ -138,7 +138,7 @@ export function Composer({
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  'Compile Directives'
+                  'Create post'
                 )}
               </Button>
             </>

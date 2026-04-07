@@ -331,35 +331,35 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-900">Create Persona</h2>
+        <h2 className="text-xl font-bold text-gray-900">Create a new voice</h2>
       </div>
 
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-5 h-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-indigo-900">AI Persona Generator</h3>
-        </div>
-
-        {accounts && accounts.length > 1 && (
-          <div className="flex items-center gap-4 mb-4">
-            <label className="text-sm font-medium text-gray-700">Account:</label>
-            <select
-              value={currentAccountId}
-              onChange={(e) => onAccountChange?.(e.target.value)}
-              className="flex-1 max-w-xs border border-indigo-200 rounded-lg px-3 py-2 text-sm bg-white"
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
-                </option>
-              ))}
-            </select>
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-lg font-semibold text-indigo-900">AI Voice Generator</h3>
           </div>
-        )}
-        
-        <p className="text-sm text-indigo-700 mb-4">
-          Describe what kind of content you want to post on {currentPlatform === 'linkedin' ? 'LinkedIn' : 'Twitter'}. The AI will create a custom persona with RSS sources and recommended settings.
-        </p>
+
+          {accounts && accounts.length > 1 && (
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-sm font-medium text-gray-700">Account:</label>
+              <select
+                value={currentAccountId}
+                onChange={(e) => onAccountChange?.(e.target.value)}
+                className="flex-1 max-w-xs border border-indigo-200 rounded-lg px-3 py-2 text-sm bg-white"
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          <p className="text-sm text-indigo-700 mb-4">
+            Describe what kind of content you want to post. The AI will create a custom voice tailored to your goals.
+          </p>
         
         <textarea
           value={prompt}
@@ -373,34 +373,34 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
           disabled={isGenerating}
         />
         
-        <div className="mt-4 flex items-center justify-between">
-          <span className="text-xs text-indigo-500">
-            {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to generate'}
-          </span>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={isGenerating || prompt.trim().length < 10}
-            className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Generate Persona
-              </>
-            )}
-          </button>
-        </div>
+          <div className="mt-4 flex items-center justify-between">
+            <span className="text-xs text-indigo-500">
+              {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to go'}
+            </span>
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={isGenerating || prompt.trim().length < 10}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Create Voice
+                </>
+              )}
+            </button>
+          </div>
         
         {generatedPreview && (
           <div className="mt-6 bg-white border border-indigo-200 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-indigo-900">Review & Edit Persona</h4>
+              <h4 className="font-semibold text-indigo-900">Review your voice</h4>
               <button
                 type="button"
                 onClick={() => setGeneratedPreview(null)}
@@ -429,10 +429,10 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
                 {isCreating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Creating...
+                    Saving...
                   </>
                 ) : (
-                  'Create Persona'
+                  'Save Voice'
                 )}
               </button>
             </div>

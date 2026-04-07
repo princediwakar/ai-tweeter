@@ -113,7 +113,7 @@ export default function SignUpPage() {
           <div className="text-center lg:text-left">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Create an account</h1>
             <p className="mt-2 text-sm text-zinc-500">
-              Start building your autonomous social engine today.
+              Start building your presence on LinkedIn and Twitter automatically.
             </p>
           </div>
 

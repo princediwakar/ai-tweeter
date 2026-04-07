@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Send, Trash2, Clock, AlertTriangle, Copy, Check, Linkedin, Twitter, Activity } from 'lucide-react';
+import { CheckCircle2, Send, Trash2, Clock, AlertTriangle, Copy, Check, Linkedin, Twitter, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tweet } from '@/types/dashboard';
 import { ConnectedAccount } from '@/lib/types';
@@ -35,8 +35,8 @@ export function History({
   if (tweets.length === 0) {
     return (
       <div className="text-center py-12 border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/50">
-        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Queue Empty</p>
-        <p className="text-sm text-zinc-500 mt-1">Compile directives to populate the system log.</p>
+        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">No content yet</p>
+        <p className="text-sm text-zinc-500 mt-1">Create your first post above to get started.</p>
       </div>
     );
   }
@@ -44,8 +44,8 @@ export function History({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4 px-1">
-        <Activity className="h-4 w-4 text-zinc-400" />
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Deployment Log</h3>
+        <Zap className="h-4 w-4 text-zinc-400" />
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Your content</h3>
       </div>
       
       <div className="space-y-3">
@@ -86,12 +86,12 @@ export function History({
                   </span>
                   {tweet.status === 'ready' && (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-sm">
-                      QUEUED
+                      Ready
                     </span>
                   )}
                   {tweet.status === 'posted' && (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded-sm">
-                      DEPLOYED
+                      Posted
                     </span>
                   )}
                 </div>

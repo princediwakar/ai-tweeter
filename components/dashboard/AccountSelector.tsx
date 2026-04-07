@@ -1,15 +1,8 @@
 // components/dashboard/AccountSelector.tsx
 'use client';
 
-import { useState } from 'react';
-import { 
-  Users, 
-  RefreshCw, 
-  Plus,
-  ExternalLink
-} from 'lucide-react';
+import { Users, RefreshCw, Plus, Twitter, Linkedin, Server } from 'lucide-react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
 
 interface Account {
   id: string;
@@ -24,33 +17,38 @@ interface ModernAccountSelectorProps {
   selectedAccount: string;
   onSwitchAccount: (accountId: string) => void;
   onRefresh: () => void;
+  stats?: { ready: number; posted: number }; // Merged from your Header.tsx
 }
 
 export function ModernAccountSelector({
   accounts,
   selectedAccount,
   onSwitchAccount,
-  onRefresh
+  onRefresh,
+  stats = { ready: 0, posted: 0 }
 }: ModernAccountSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
   
   const currentAccount = accounts.find(a => a.id === selectedAccount);
   
   return (
-    <div className="bg-card border-2 border-border rounded-2xl p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-500/10 rounded-xl">
-            <Users className="h-5 w-5 text-blue-500" />
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5 mb-8 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-zinc-50 border border-zinc-100 rounded-xl">
+            <Server className="h-5 w-5 text-zinc-900" />
           </div>
           <div>
-            <label className="text-sm font-medium text-foreground">Active Account</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-0.5 block">
+              Active Routing Node
+            </label>
             <div className="flex items-center gap-2">
               <select
                 value={selectedAccount}
                 onChange={(e) => onSwitchAccount(e.target.value)}
-                className="bg-transparent text-lg font-bold text-foreground focus:outline-none cursor-pointer"
+                className="bg-transparent text-lg font-semibold text-zinc-900 focus:outline-none cursor-pointer"
               >
+                {accounts.length === 0 && <option value="">No nodes connected</option>}
                 {accounts.map(account => (
                   <option key={account.id} value={account.id}>
                     {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
@@ -61,47 +59,60 @@ export function ModernAccountSelector({
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onRefresh}
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-            title="Refresh accounts"
-          >
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-          </button>
-          
-          <Link 
-            href="/accounts"
-            className="p-2 hover:bg-muted rounded-lg transition-colors"
-            title="Add new account"
-          >
-            <Plus className="h-4 w-4 text-muted-foreground" />
-          </Link>
+        <div className="flex items-center gap-6">
+          {/* Queue Stats from Header */}
+          <div className="hidden md:flex items-center gap-4 border-r border-zinc-200 pr-6">
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-zinc-900 leading-none">{stats.ready}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1">Queued</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xl font-bold text-zinc-900 leading-none">{stats.posted}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1">Deployed</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRefresh}
+              className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200"
+              title="Refresh connection"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+            <Link 
+              href="/accounts"
+              className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 rounded-lg transition-colors border border-transparent hover:border-zinc-200"
+              title="Add new node"
+            >
+              <Plus className="h-4 w-4" />
+            </Link>
+          </div>
         </div>
       </div>
       
-      {/* Account Status */}
-      <div className="mt-3 pt-3 border-t border-border flex items-center gap-4 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full" />
-          <span className="text-muted-foreground">Twitter</span>
-          <span className="text-foreground font-medium">Connected</span>
+      {/* Node Status Line */}
+      {currentAccount && (
+        <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-zinc-500 font-medium">Connection Stable</span>
+          </div>
+          <div className="w-px h-3 bg-zinc-200" />
+          <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
+            {currentAccount.platform === 'twitter' ? <Twitter size={12} /> : <Linkedin size={12} />}
+            <span className="capitalize">{currentAccount.platform} API</span>
+          </div>
+          <div className="ml-auto">
+            <Link href="/accounts" className="text-zinc-900 font-semibold hover:underline">
+              Node Settings →
+            </Link>
+          </div>
         </div>
-        <div className="w-px h-4 bg-border" />
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-amber-500 rounded-full" />
-          <span className="text-muted-foreground">LinkedIn</span>
-          <span className="text-foreground font-medium">Not connected</span>
-        </div>
-        <div className="ml-auto">
-          <Link 
-            href="/accounts" 
-            className="text-sm text-blue-500 hover:text-blue-600 font-medium"
-          >
-            Manage accounts →
-          </Link>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

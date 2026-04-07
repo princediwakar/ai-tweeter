@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, Trash2, Clock, Plus, Sparkles } from 'lucide-react';
+import { Pencil, Trash2, Clock, Cpu, Server, Activity } from 'lucide-react';
 import PersonaEditor from '@/components/personas/PersonaEditor';
 import NavigationLayout from '@/components/NavigationLayout';
 import { useTweetDashboard } from '@/hooks/useTweetDashboard';
@@ -21,11 +21,11 @@ function formatScheduleTime(schedule: PersonaSchedule): string {
 }
 
 function formatScheduleDays(schedule: PersonaSchedule): string {
-  if (!schedule.days_of_week || schedule.days_of_week.length === 0) return 'No days';
-  if (schedule.days_of_week.length === 7) return 'Every day';
+  if (!schedule.days_of_week || schedule.days_of_week.length === 0) return 'Unscheduled';
+  if (schedule.days_of_week.length === 7) return 'Continuous (Daily)';
   const hasMonToFri = [1,2,3,4,5].every(d => schedule.days_of_week.includes(d));
   const hasSatSun = schedule.days_of_week.includes(0) || schedule.days_of_week.includes(6);
-  if (schedule.days_of_week.length === 5 && hasMonToFri && !hasSatSun) return 'Weekdays';
+  if (schedule.days_of_week.length === 5 && hasMonToFri && !hasSatSun) return 'Business Days';
   if (schedule.days_of_week.length === 2 && schedule.days_of_week.includes(0) && schedule.days_of_week.includes(6)) return 'Weekends';
   return schedule.days_of_week.map(d => DAYS[d]).join(', ');
 }
@@ -52,11 +52,11 @@ export default function PersonasPage() {
   if (initialLoading) {
     return (
       <NavigationLayout>
-        <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <div className="w-full max-w-4xl mx-auto px-4 py-8 space-y-6">
           <div className="space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-48" />
-            <div className="h-12 bg-gray-200 rounded-lg" />
-            <div className="h-64 bg-gray-200 rounded-xl" />
+            <div className="h-8 bg-zinc-100 rounded w-48 animate-pulse" />
+            <div className="h-12 bg-zinc-100 rounded-xl animate-pulse" />
+            <div className="h-64 bg-zinc-50 rounded-xl border border-zinc-200 animate-pulse" />
           </div>
         </div>
       </NavigationLayout>
@@ -76,13 +76,13 @@ export default function PersonasPage() {
     })
     .then(res => {
       if (!res.ok) {
-        return res.json().then(err => { throw new Error(err.error || 'Failed to delete'); });
+        return res.json().then(err => { throw new Error(err.error || 'Failed to terminate model'); });
       }
       setPersonas(prev => prev.filter(p => p.id !== deletingId));
     })
     .catch(error => {
-      console.error('Error deleting persona:', error);
-      alert('Failed to delete persona');
+      console.error('Error terminating model:', error);
+      alert('Failed to terminate model');
     })
     .finally(() => {
       setDeletingId(null);
@@ -109,11 +109,11 @@ export default function PersonasPage() {
         
         const payload = {
           connected_account_id: selectedAccount.id,
-          name: `Schedule ${i + 1}`,
+          name: `Cadence ${i + 1}`,
           persona_id: schedulePersonaId,
           days_of_week: form.days_of_week,
           start_time: form.start_time,
-          end_time: form.start_time + 60, // FIXED: Zero-minute window eliminated
+          end_time: form.start_time + 60,
           is_active: true,
           timezone: form.timezone,
         };
@@ -133,10 +133,9 @@ export default function PersonasPage() {
           });
         }
 
-        // FIXED: Catch API rejections instead of silently ignoring them
         if (!res.ok) {
            const err = await res.json();
-           throw new Error(err.error || `Failed to save Schedule ${i + 1}`);
+           throw new Error(err.error || `Failed to update Cadence ${i + 1}`);
         }
       }
       
@@ -145,8 +144,8 @@ export default function PersonasPage() {
       setPersonas(data.personas || []);
       setScheduleDialogOpen(false);
     } catch (error) {
-      console.error('Error saving schedules:', error);
-      alert(error instanceof Error ? error.message : 'Failed to save schedules');
+      console.error('Error updating cadence:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update cadence');
     }
   };
 
@@ -157,15 +156,15 @@ export default function PersonasPage() {
       const res = await fetch(`/api/accounts/${selectedAccount.id}/schedules/${scheduleId}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error("Failed to delete schedule");
+      if (!res.ok) throw new Error("Failed to delete cadence");
       
       setCurrentSchedules(prev => prev.filter(s => s.id !== scheduleId));
       
       const updatedPersonas = await fetch(`/api/personas`).then(r => r.json());
       setPersonas(updatedPersonas.personas || []);
     } catch (error) {
-      console.error('Error deleting schedule:', error);
-      alert('Failed to delete schedule');
+      console.error('Error deleting cadence:', error);
+      alert('Failed to delete cadence');
     }
   };
 
@@ -193,25 +192,29 @@ export default function PersonasPage() {
     platform: a.platform
   }));
 
-  // ... (The rest of the JSX render function remains identical)
   return (
     <NavigationLayout>
-      <div className="w-full max-w-2xl mx-auto px-4 py-8 space-y-8">
-        <div className="pb-6 border-b border-gray-100 flex items-center justify-between">
+      <div className="w-full max-w-4xl mx-auto space-y-8">
+        <div className="pb-6 border-b border-zinc-200 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI Personas</h1>
-            <p className="text-gray-500 text-sm">Create and manage AI voices</p>
+            <div className="flex items-center gap-2 mb-1">
+              <Cpu className="h-5 w-5 text-zinc-900" />
+              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">AI Models</h1>
+            </div>
+            <p className="text-zinc-500 text-sm">Configure and manage autonomous generation models.</p>
           </div>
         </div>
 
         {accounts.length === 0 ? (
-          <div className="border-2 border-dashed border-gray-200 rounded-2xl p-12 text-center">
-            <p className="text-gray-500">No accounts connected</p>
+          <div className="border border-dashed border-zinc-200 bg-zinc-50/50 rounded-2xl p-12 text-center">
+            <Server className="h-6 w-6 text-zinc-400 mx-auto mb-3" />
+            <p className="text-sm font-medium text-zinc-900">No Routing Nodes Available</p>
+            <p className="text-xs text-zinc-500 mt-1">Initialize a connection to begin generating models.</p>
           </div>
         ) : (
           <>
             {selectedAccount && (
-              <div className="border border-gray-200 rounded-xl p-6">
+              <div className="border border-zinc-200 bg-white rounded-2xl shadow-sm p-6">
                 <PersonaEditor 
                   accountId={selectedAccount.id} 
                   platform={selectedAccount.platform as 'twitter' | 'linkedin'}
@@ -230,24 +233,25 @@ export default function PersonasPage() {
           </>
         )}
 
-        <div className="space-y-8">
-          <h2 className="text-xl font-bold text-gray-900">All Personas</h2>
+        <div className="space-y-6">
+          <h2 className="text-lg font-semibold text-zinc-900">Active Configurations</h2>
           
           {accounts.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No accounts connected</p>
+            <p className="text-zinc-400 text-sm italic">System idle.</p>
           ) : (
             <div className="space-y-8">
               {groupedByPlatform.map(({ platform, accounts: platformAccounts }) => (
-                <div key={platform} className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold text-gray-900 capitalize">{platform}</span>
-                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">{platformAccounts.length} accounts</span>
+                <div key={platform} className="space-y-4">
+                  <div className="flex items-center gap-3 border-b border-zinc-100 pb-2">
+                    <span className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">{platform} Routing</span>
+                    <span className="text-[10px] px-2 py-0.5 bg-zinc-100 text-zinc-500 font-bold rounded-sm tracking-widest uppercase">{platformAccounts.length} Nodes</span>
                   </div>
                   
                   {platformAccounts.map(({ account, personas: accountPersonas }) => (
-                    <div key={account.id} className="space-y-3 pl-4">
-                      <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
-                        <span className="font-medium text-gray-900">{(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})</span>
+                    <div key={account.id} className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-3.5 w-3.5 text-zinc-400" />
+                        <span className="text-sm font-medium text-zinc-700">{(account.name || account.account_username)}</span>
                       </div>
                       <PersonaListByAccount 
                         personas={accountPersonas}
@@ -293,75 +297,69 @@ function PersonaListByAccount({
   onSchedule?: (id: string) => void;
 }) {
   if (personas.length === 0) {
-    return <p className="text-gray-400 text-sm pl-4">No personas</p>;
+    return <p className="text-zinc-400 text-sm pl-6 italic">No models configured for this node.</p>;
   }
 
   return (
-    <div className="space-y-2 pl-4">
+    <div className="space-y-2 pl-6 border-l border-zinc-100 ml-1.5">
       {personas.map(persona => (
-        <div key={persona.id} className="p-3 bg-gray-50 rounded-lg space-y-2">
+        <div key={persona.id} className="p-4 bg-white border border-zinc-200 rounded-xl space-y-3 shadow-sm hover:border-zinc-300 transition-colors">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="font-medium text-gray-800">{persona.name}</span>
-              <span className={`text-xs px-2 py-0.5 rounded ${persona.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                {persona.is_active ? 'Active' : 'Inactive'}
+              <span className="font-semibold text-zinc-900 text-sm">{persona.name}</span>
+              <span className={`flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-sm border ${persona.is_active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-zinc-100 text-zinc-500 border-zinc-200'}`}>
+                {persona.is_active && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>}
+                {persona.is_active ? 'Online' : 'Offline'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 mr-2">
-                {persona.topics?.slice(0, 2).join(', ')}
+              <span className="text-xs text-zinc-500 mr-2 font-mono">
+                [ {persona.topics?.slice(0, 2).join(', ')} ]
               </span>
               <button
                 onClick={() => onEdit?.(persona)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded"
-                title="Edit"
+                className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-md transition-colors"
+                title="Modify Parameters"
               >
-                <Pencil className="w-4 h-4" />
+                <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onDelete?.(persona.id)}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                title="Delete"
+                className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                title="Terminate Model"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
           
-          {persona.schedules && persona.schedules.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <div className="flex items-center gap-1 text-gray-500">
-                <Clock className="w-3 h-3" />
-                <span>Schedules:</span>
+          <div className="flex items-center justify-between pt-3 border-t border-zinc-50">
+            {persona.schedules && persona.schedules.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Cadence:</span>
+                </div>
+                {persona.schedules.map(schedule => (
+                  <span key={schedule.id} className="px-2 py-0.5 bg-zinc-100 text-zinc-700 rounded-md font-mono">
+                    {formatScheduleDays(schedule)} @ {formatScheduleTime(schedule)}
+                  </span>
+                ))}
               </div>
-              {persona.schedules.map(schedule => (
-                <span key={schedule.id} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded">
-                  {formatScheduleDays(schedule)} at {formatScheduleTime(schedule)}
-                </span>
-              ))}
-              <button
-                onClick={() => onSchedule?.(persona.id)}
-                className="ml-2 px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded"
-              >
-                Edit Schedule
-              </button>
-            </div>
-          )}
-          
-          {(!persona.schedules || persona.schedules.length === 0) && (
-            <div className="flex items-center gap-2">
-              <div className="text-xs text-gray-400 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                <span>No schedule set</span>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-amber-600 font-medium">
+                <Clock className="w-3.5 h-3.5" />
+                <span>Deployment cadence not configured</span>
               </div>
-              <button
-                onClick={() => onSchedule?.(persona.id)}
-                className="ml-2 px-2 py-1 text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 rounded"
-              >
-                Set Schedule
-              </button>
-            </div>
-          )}
+            )}
+            
+            <button
+              onClick={() => onSchedule?.(persona.id)}
+              className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors"
+            >
+              Configure Schedule →
+            </button>
+          </div>
         </div>
       ))}
     </div>

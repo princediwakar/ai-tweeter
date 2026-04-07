@@ -1,29 +1,25 @@
+// app/layout.tsx
 import type { Metadata } from "next";
-import { Outfit, Anton, Space_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import AuthProvider from "@/components/AuthProvider";
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
+  display: "swap",
 });
 
-const anton = Anton({
-  weight: "400",
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-anton",
-});
-
-const spaceMono = Space_Mono({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-space",
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "AutoGrowth",
-  description: "AI-powered multi-account Twitter & LinkedIn automation system with custom personas and content generation",
+  title: "AutoGrowth Engine | Command Center",
+  description: "Autonomous social routing, AI model configuration, and deployment infrastructure.",
 };
 
 export default function RootLayout({
@@ -32,13 +28,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="antialiased">
       <body
-        className={`${outfit.variable} ${anton.variable} ${spaceMono.variable} font-sans antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white`}
       >
         <AuthProvider>
           {children}
-          <Toaster />
+          <Toaster 
+            toastOptions={{
+              className: 'border-zinc-200 bg-white text-zinc-900 shadow-sm rounded-xl font-medium',
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

@@ -1,10 +1,11 @@
+// app/auth/signin/page.tsx
 'use client';
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, TrendingUp, ArrowRight, Loader2, Brain, Cpu } from 'lucide-react';
+import { Zap, ArrowRight, Loader2, Twitter } from 'lucide-react';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -26,9 +27,8 @@ export default function SignInPage() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        setError("Invalid email or password.");
       } else {
-        // Check if onboarding is complete
         try {
           const statusRes = await fetch('/api/onboarding/status');
           const status = await statusRes.json();
@@ -43,31 +43,65 @@ export default function SignInPage() {
         router.refresh();
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Zap className="h-8 w-8 text-primary cyber-glow" />
-              <h1 className="text-3xl font-display-brutal text-foreground">AUTO_GROWTH</h1>
+    <div className="min-h-screen flex bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white">
+      {/* Left Column - Auth */}
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-sm w-full space-y-8">
+          <div className="text-center lg:text-left">
+            <div className="flex items-center justify-center lg:justify-start gap-2 mb-6">
+              <div className="bg-zinc-900 p-2 rounded-xl">
+                <Zap className="h-6 w-6 text-white" />
+              </div>
             </div>
-            <p className="text-muted-foreground font-mono-brutal text-sm">
-              AI THAT WORKS WHILE YOU SLEEP
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Welcome back</h1>
+            <p className="mt-2 text-sm text-zinc-500">
+              Sign in to manage your automated growth engine.
             </p>
           </div>
+{/* 
+          <div className="space-y-4">
+            <button 
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900"
+            >
+              <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+              Continue with Twitter
+            </button>
+                        <button 
+              type="button"
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900"
+            >
+              <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.25024 6.60998L5.32028 9.77C6.27525 6.79 9.00028 4.75 12.0003 4.75Z" fill="#EA4335" />
+                <path d="M23.49 12.275C23.49 11.49 23.415 10.73 23.3 10H12V14.51H18.47C18.18 15.99 17.34 17.25 16.08 18.1L20.18 21.28C22.57 19.08 23.49 15.96 23.49 12.275Z" fill="#4285F4" />
+                <path d="M5.26498 14.2949C5.02498 13.5699 4.88501 12.7999 4.88501 11.9999C4.88501 11.1999 5.01998 10.4299 5.26498 9.7049L1.275 6.54998C0.46 8.17998 0 10.0099 0 11.9999C0 13.9899 0.46 15.8199 1.28 17.4499L5.26498 14.2949Z" fill="#FBBC05" />
+                <path d="M12.0004 24C15.2404 24 17.9654 22.935 19.9454 20.995L15.8404 17.815C14.7554 18.575 13.4454 19.03 12.0004 19.03C8.8754 19.03 6.13039 16.825 5.18039 13.825L1.10039 16.985C3.12539 21.055 7.2404 24 12.0004 24Z" fill="#34A853" />
+              </svg>
+              Continue with Google
+            </button>
+          </div>
 
-          <form className="mt-8 space-y-6 border-2 border-border p-6 bg-card brutal-shadow" onSubmit={handleSubmit}>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-zinc-500">Or continue with email</span>
+            </div>
+          </div> */}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-mono-brutal text-foreground mb-2">
-                  EMAIL_ADDRESS
+                <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
+                  Email address
                 </label>
                 <input
                   id="email"
@@ -77,14 +111,19 @@ export default function SignInPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-border bg-background text-foreground font-mono-brutal text-sm focus:outline-none focus:border-primary"
-                  placeholder="you@example.com"
+                  className="w-full px-4 py-2.5 border border-zinc-300 rounded-xl text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all"
+                  placeholder="you@company.com"
                 />
               </div>
               <div>
-                <label htmlFor="password" className="block text-sm font-mono-brutal text-foreground mb-2">
-                  PASSWORD
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
+                    Password
+                  </label>
+                  <Link href="/auth/forgot-password" className="text-sm font-medium text-zinc-500 hover:text-zinc-900">
+                    Forgot password?
+                  </Link>
+                </div>
                 <input
                   id="password"
                   name="password"
@@ -93,118 +132,94 @@ export default function SignInPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-border bg-background text-foreground font-mono-brutal text-sm focus:outline-none focus:border-primary"
+                  className="w-full px-4 py-2.5 border border-zinc-300 rounded-xl text-zinc-900 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition-all"
                   placeholder="••••••••"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="text-destructive font-mono-brutal text-sm text-center border-2 border-destructive p-2">
+              <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">
                 {error}
               </div>
             )}
 
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border-2 border-border bg-primary text-primary-foreground font-mono-brutal text-sm font-bold hover:bg-primary/90 brutal-shadow disabled:opacity-50"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    SIGNING_IN...
-                  </>
-                ) : (
-                  <>
-                    START_GROWING
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-zinc-900 hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </button>
 
-            <div className="text-center">
-              <span className="text-sm font-mono-brutal text-muted-foreground">
-                NEW_HERE?{' '}
-                <Link href="/auth/signup" className="text-primary hover:underline font-bold">
-                  CREATE_ACCOUNT
+            <div className="text-center mt-4">
+              <span className="text-sm text-zinc-600">
+                Don't have an account?{' '}
+                <Link href="/auth/signup" className="font-semibold text-zinc-900 hover:underline">
+                  Sign up
                 </Link>
               </span>
             </div>
           </form>
-
-          <div className="flex items-center justify-center gap-4 text-xs font-mono-brutal text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-secondary rounded-full"></div>
-              <span>NO_CREDIT_CARD</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-destructive rounded-full"></div>
-              <span>FREE_FOREVER</span>
-            </div>
-          </div>
         </div>
       </div>
 
-      <div className="hidden lg:flex lg:flex-1 bg-accent p-12 items-center justify-center border-l-4 border-border">
-        <div className="max-w-lg space-y-8">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Zap className="h-6 w-6 text-primary" />
-              <span className="text-sm font-mono-brutal text-primary">DAVID VS GOLIATH</span>
+      {/* Right Column - Product Context */}
+      <div className="hidden lg:flex lg:flex-1 bg-zinc-100 p-12 items-center justify-center">
+        <div className="max-w-lg w-full">
+          {/* Faux Dashboard Element to build trust */}
+          <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 overflow-hidden">
+            <div className="border-b border-zinc-100 px-6 py-4 flex items-center justify-between">
+              <div className="flex gap-2 items-center">
+                <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                <div className="w-3 h-3 rounded-full bg-amber-400"></div>
+                <div className="w-3 h-3 rounded-full bg-green-400"></div>
+              </div>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">System Status: Active</div>
             </div>
-            <h2 className="text-3xl font-display-brutal text-foreground">
-              SMALL. FAST. DIFFERENT.
-            </h2>
-            <p className="text-muted-foreground">
-              While the big guys (Buffer, Hootsuite, Later) focus on scheduling posts manually, 
-              we built an AI that engages for you. Real-time. Personalized. Hands-free.
-            </p>
-          </div>
+            <div className="p-8 space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-900">Performance Overview</h3>
+                <p className="text-sm text-zinc-500">Last 24 hours of autonomous activity</p>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <div className="text-sm text-zinc-500 mb-1">Engagements</div>
+                  <div className="text-2xl font-semibold text-zinc-900">1,284</div>
+                  <div className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                    <ArrowRight className="h-3 w-3 -rotate-45" /> +12% vs yesterday
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-100">
+                  <div className="text-sm text-zinc-500 mb-1">Profile Visits</div>
+                  <div className="text-2xl font-semibold text-zinc-900">842</div>
+                  <div className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                    <ArrowRight className="h-3 w-3 -rotate-45" /> +24% vs yesterday
+                  </div>
+                </div>
+              </div>
 
-          <div className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 border-2 border-primary bg-primary text-primary-foreground flex items-center justify-center font-mono-brutal text-sm font-bold">
-                1
+              <div className="p-4 rounded-xl bg-zinc-900 text-white flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">AI Engine</div>
+                  <div className="text-xs text-zinc-400">Running optimally</div>
+                </div>
+                <div className="flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </div>
               </div>
-              <div>
-                <h4 className="font-mono-brutal font-bold text-foreground">CONNECT</h4>
-                <p className="text-sm text-muted-foreground">Link your Twitter account</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 border-2 border-secondary bg-secondary text-secondary-foreground flex items-center justify-center font-mono-brutal text-sm font-bold">
-                2
-              </div>
-              <div>
-                <h4 className="font-mono-brutal font-bold text-foreground">CHOOSE NICHE</h4>
-                <p className="text-sm text-muted-foreground">Tech, Finance, Cricket, etc.</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 border-2 border-border bg-card text-foreground flex items-center justify-center font-mono-brutal text-sm font-bold">
-                3
-              </div>
-              <div>
-                <h4 className="font-mono-brutal font-bold text-foreground">FORGET</h4>
-                <p className="text-sm text-muted-foreground">AI grows your account 24/7</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-2 border-primary/50 bg-primary/10 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="font-mono-brutal font-bold text-primary">THE DIFFERENCE</span>
-            </div>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>• Goliaths charge $50-500/mo. We offer <span className="text-primary font-bold">free forever</span>.</p>
-              <p>• Goliaths need your time. We <span className="text-primary font-bold">work while you sleep</span>.</p>
-              <p>• Goliaths post content. We <span className="text-primary font-bold">build relationships</span>.</p>
             </div>
           </div>
         </div>

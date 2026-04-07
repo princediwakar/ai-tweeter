@@ -3,8 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Sparkles, Zap, ArrowRight, Loader2, Brain, CheckCircle, Rocket, Wand2 } from 'lucide-react';
+import { ArrowRight, Loader2, Twitter, Activity, ShieldCheck, Zap, Settings, Power } from 'lucide-react';
 
 interface Account {
   id: string;
@@ -43,245 +42,223 @@ export default function OnboardingFlow() {
 
   const handleConnect = () => {
     setConnecting(true);
+    // Redirect to your actual OAuth flow
     router.push('/accounts');
   };
 
   if (loading) {
-    return <MagicLoader />;
+    return <SystemInitialization />;
   }
 
   if (accounts.length === 0) {
-    return <MagicOnboarding onConnect={handleConnect} connecting={connecting} />;
+    return <AccountConnection onConnect={handleConnect} connecting={connecting} />;
   }
 
-  return <MagicDashboard accounts={accounts} onAddMore={handleConnect} />;
+  return <EngineOverview accounts={accounts} onAddMore={handleConnect} />;
 }
 
-function MagicLoader() {
+// ----------------------------------------------------------------------
+// 1. Loading State: Professional, calm, system-focused
+// ----------------------------------------------------------------------
+function SystemInitialization() {
   return (
-    <div className="flex flex-col items-center justify-center h-96 relative">
-      <div className="relative">
-        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-          <Brain className="h-16 w-16 text-primary" />
+    <div className="min-h-[60vh] flex flex-col items-center justify-center">
+      <div className="space-y-6 flex flex-col items-center">
+        <div className="relative flex items-center justify-center w-16 h-16 bg-zinc-100 rounded-2xl border border-zinc-200">
+          <Loader2 className="h-6 w-6 text-zinc-900 animate-spin" />
         </div>
-        <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping"></div>
-        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2">
-          <div className="flex gap-1">
-            {[0, 1, 2].map(i => (
-              <div 
-                key={i} 
-                className="w-2 h-2 rounded-full bg-primary animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
+        <div className="text-center space-y-2">
+          <h3 className="text-lg font-medium text-zinc-900">Initializing Workspace</h3>
+          <p className="text-sm text-zinc-500">Establishing secure connection to infrastructure...</p>
         </div>
       </div>
-      <p className="mt-8 font-mono-brutal text-sm text-muted-foreground">ANALYZING_YOUR_ACCOUNT...</p>
     </div>
   );
 }
 
-function MagicOnboarding({ onConnect, connecting }: { onConnect: () => void; connecting: boolean }) {
-  const [hovered, setHovered] = useState(false);
-
+// ----------------------------------------------------------------------
+// 2. Empty State: High trust, clear value proposition, frictionless
+// ----------------------------------------------------------------------
+function AccountConnection({ onConnect, connecting }: { onConnect: () => void; connecting: boolean }) {
   return (
-    <div className="relative overflow-hidden">
-      {/* Ambient background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-radial from-primary/15 via-primary/5 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-radial from-secondary/10 to-transparent rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-2xl mx-auto text-center relative z-10 py-16">
-        {/* Hero icon */}
-        <div className="relative inline-block mb-8">
-          <div className="w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center brutal-shadow-lg">
-            <Wand2 className="h-12 w-12 text-primary-foreground" />
+    <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+      <div className="bg-white rounded-3xl shadow-sm border border-zinc-200 overflow-hidden">
+        <div className="p-8 sm:p-12 text-center space-y-8">
+          
+          <div className="w-16 h-16 mx-auto bg-zinc-900 rounded-2xl flex items-center justify-center shadow-lg">
+            <Twitter className="h-8 w-8 text-white" />
           </div>
-          <div className="absolute -right-2 -bottom-2">
-            <Sparkles className="h-6 w-6 text-secondary animate-pulse" />
+
+          <div className="space-y-3 max-w-xl mx-auto">
+            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
+              Connect your primary channel
+            </h1>
+            <p className="text-zinc-500 leading-relaxed">
+              AutoGrowth requires secure access to your account to operate autonomously. 
+              We use official APIs and strict rate limiting to ensure your account remains safe and compliant.
+            </p>
           </div>
-        </div>
 
-        {/* Main headline */}
-        <h1 className="text-4xl font-display-brutal text-foreground mb-4">
-          GROW <span className="gradient-text-shimmer">WITHOUT</span> THE GRIND
-        </h1>
-        <p className="text-lg text-muted-foreground mb-8 max-w-md mx-auto">
-          Connect your Twitter. That's it. Our AI handles everything else - 
-          finding content, engaging, and growing your presence.
-        </p>
-
-        {/* CTA Button */}
-        <div className="inline-block">
-          <Button
-            onClick={onConnect}
-            disabled={connecting}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            className="group relative px-8 py-4 bg-primary text-primary-foreground font-mono-brutal text-lg font-bold brutal-shadow-lg hover:translate-y-[-2px] transition-all duration-300"
-          >
-            <span className="relative z-10 flex items-center gap-3">
+          <div className="pt-4 pb-8 max-w-sm mx-auto">
+            <button
+              onClick={onConnect}
+              disabled={connecting}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white rounded-xl font-medium transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1DA1F2] disabled:opacity-50"
+            >
               {connecting ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  CONNECTING...
+                  Authenticating...
                 </>
               ) : (
                 <>
-                  <Rocket className={`h-5 w-5 transition-transform ${hovered ? 'rotate-45' : ''}`} />
-                  START_GROWING_FREE
+                  <Twitter className="h-5 w-5" />
+                  Authorize Twitter Account
                 </>
               )}
-              <ArrowRight className={`h-5 w-5 transition-transform ${hovered ? 'translate-x-1' : ''}`} />
-            </span>
-            
-            {/* Shine effect */}
-            <div className="absolute inset-0 overflow-hidden rounded-inherit">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-8 border-t border-zinc-100 text-left">
+            <div className="space-y-2">
+              <ShieldCheck className="h-5 w-5 text-zinc-900" />
+              <h4 className="text-sm font-semibold text-zinc-900">Bank-Grade Security</h4>
+              <p className="text-xs text-zinc-500">OAuth 2.0 integration. We never see or store your actual password.</p>
             </div>
-          </Button>
-        </div>
+            <div className="space-y-2">
+              <Activity className="h-5 w-5 text-zinc-900" />
+              <h4 className="text-sm font-semibold text-zinc-900">Native Compliance</h4>
+              <p className="text-xs text-zinc-500">Algorithms designed to mimic human behavior and respect platform limits.</p>
+            </div>
+            <div className="space-y-2">
+              <Power className="h-5 w-5 text-zinc-900" />
+              <h4 className="text-sm font-semibold text-zinc-900">Full Control</h4>
+              <p className="text-xs text-zinc-500">Pause the engine, adjust parameters, or revoke access at any time.</p>
+            </div>
+          </div>
 
-        {/* Trust indicators */}
-        <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-secondary" />
-            <span className="font-mono-brutal">NO_CREDIT_CARD</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------
+// 3. Active Dashboard: Metrics, status, professional control center
+// ----------------------------------------------------------------------
+function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMore: () => void }) {
+  const activeAccounts = accounts.filter(a => a.twitter_oauth2_enabled).length;
+
+  return (
+    <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+      
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-zinc-900">Command Center</h1>
+          <p className="text-sm text-zinc-500">Manage your autonomous growth engines</p>
+        </div>
+        <button
+          onClick={onAddMore}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
+        >
+          <Zap className="h-4 w-4" />
+          Deploy New Engine
+        </button>
+      </div>
+
+      {/* Main Status Card */}
+      <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 overflow-hidden">
+        <div className="border-b border-zinc-100 px-6 py-4 flex items-center justify-between bg-zinc-50/50">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </div>
+            <span className="text-sm font-medium text-zinc-700">System Operational</span>
           </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-secondary" />
-            <span className="font-mono-brutal">SET_AND_FORGET</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-secondary" />
-            <span className="font-mono-brutal">100%_FREE</span>
+          <span className="text-xs text-zinc-500 font-mono">{activeAccounts} NODE(S) ACTIVE</span>
+        </div>
+        
+        <div className="p-6 sm:p-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            
+            {/* Metric 1 */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-zinc-500">Total Engagements</h3>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-semibold text-zinc-900">
+                  {activeAccounts > 0 ? 'Calibrating...' : '0'}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400">Past 24 hours</p>
+            </div>
+
+            {/* Metric 2 */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-zinc-500">Network Growth</h3>
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-semibold text-zinc-900">
+                  {activeAccounts > 0 ? 'Calibrating...' : '0'}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400">Past 24 hours</p>
+            </div>
+
+            {/* AI Status */}
+            <div className="space-y-2 md:border-l md:border-zinc-100 md:pl-8">
+              <h3 className="text-sm font-medium text-zinc-500">Engine Status</h3>
+              <div className="flex items-center gap-2 mt-2">
+                <div className="p-2 bg-zinc-100 rounded-lg">
+                  <Activity className="h-5 w-5 text-zinc-700" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-zinc-900">Learning Phase</div>
+                  <div className="text-xs text-zinc-500">Analyzing audience graph</div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
+      </div>
 
-        {/* Magic steps - shown as magic happening */}
-        <div className="mt-16 grid grid-cols-3 gap-4 max-w-lg mx-auto">
-          {[
-            { icon: Zap, title: 'CONNECT', desc: 'One click' },
-            { icon: Brain, title: 'LEARN', desc: 'AI studies your niche' },
-            { icon: Rocket, title: 'GROW', desc: 'Works 24/7' }
-          ].map((step, i) => (
-            <div 
-              key={i}
-              className="p-4 border-2 border-border/50 bg-card/30 backdrop-blur-sm rounded-lg"
-            >
-              <step.icon className="h-6 w-6 mx-auto mb-2 text-primary" />
-              <p className="font-mono-brutal text-xs font-bold">{step.title}</p>
-              <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
+      {/* Connected Accounts List */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-zinc-900">Active Nodes</h2>
+        <div className="grid gap-4">
+          {accounts.map((account) => (
+            <div key={account.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center">
+                  <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-zinc-900">{account.name || 'Twitter Account'}</h4>
+                  <p className="text-xs text-zinc-500">@{account.account_username || 'username'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                {account.twitter_oauth2_enabled ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium border border-emerald-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    Running
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 text-xs font-medium border border-amber-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    Disconnected
+                  </span>
+                )}
+                <button className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors rounded-lg hover:bg-zinc-50">
+                  <Settings className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       </div>
-    </div>
-  );
-}
 
-function MagicDashboard({ accounts, onAddMore }: { 
-  accounts: Account[]; 
-  onAddMore: () => void;
-}) {
-  const totalAccounts = accounts.length;
-  const activeAccounts = accounts.filter(a => a.twitter_oauth2_enabled).length;
-
-  return (
-    <div className="space-y-8 relative">
-      {/* Ambient glow */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-primary/10 to-transparent rounded-full blur-3xl pointer-events-none"></div>
-
-      {/* Main Status Card */}
-      <div className="relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/5 to-transparent rounded-2xl blur-xl"></div>
-        <div className="relative border-2 border-primary/30 bg-card/50 backdrop-blur-sm rounded-2xl p-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
-                <span className="font-mono-brutal text-primary text-sm">MAGIC_ACTIVE</span>
-              </div>
-              <h2 className="text-2xl font-display-brutal text-foreground">
-                {activeAccounts > 0 ? `${activeAccounts} ACCOUNT${activeAccounts > 1 ? 'S' : ''} GROWING` : 'READY TO GROW'}
-              </h2>
-              <p className="text-muted-foreground mt-2">
-                {activeAccounts > 0 
-                  ? 'AI is engaging with your niche. Check back tomorrow for results.'
-                  : 'Connect your Twitter account to start the magic.'}
-              </p>
-            </div>
-            
-            {activeAccounts === 0 && (
-              <Button
-                onClick={onAddMore}
-                className="px-6 py-3 bg-primary text-primary-foreground font-mono-brutal font-bold brutal-shadow hover:translate-y-[-2px] transition-all"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                CONNECT_ACCOUNT
-              </Button>
-            )}
-          </div>
-
-          {/* Live stats when active */}
-          {activeAccounts > 0 && (
-            <div className="grid grid-cols-3 gap-4 mt-8 pt-6 border-t border-border/50">
-              <div className="text-center">
-                <p className="text-3xl font-display-brutal text-primary">-</p>
-                <p className="text-xs text-muted-foreground font-mono-brutal mt-1">ENGAGEMENTS</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-display-brutal text-secondary">-</p>
-                <p className="text-xs text-muted-foreground font-mono-brutal mt-1">FOLLOWERS</p>
-              </div>
-              <div className="text-center">
-                <p className="text-3xl font-display-brutal text-foreground">{activeAccounts}</p>
-                <p className="text-xs text-muted-foreground font-mono-brutal mt-1">ACTIVE_ACCOUNTS</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Quick Actions -  */}
-      {activeAccounts > 0 && (
-        <div className="flex gap-4">
-          <Button
-            onClick={onAddMore}
-            variant="outline"
-            className="border-2 border-border bg-card font-mono-brutal"
-          >
-            <Zap className="h-4 w-4 mr-2" />
-            ADD_ANOTHER_ACCOUNT
-          </Button>
-        </div>
-      )}
-
-      {/* What happens next - educational but  */}
-      {activeAccounts > 0 && (
-        <div className="border border-border/30 bg-card/30 rounded-xl p-6">
-          <h3 className="font-mono-brutal text-sm font-bold text-foreground mb-4 flex items-center gap-2">
-            <Brain className="h-4 w-4 text-primary" />
-            WHILE_YOU_SLEEP
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-            <div className="flex items-start gap-2">
-              <span className="text-primary">→</span>
-              <span>AI finds relevant content in your niche</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-secondary">→</span>
-              <span>Generates personalized replies</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="text-primary">→</span>
-              <span>Builds relationships automatically</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

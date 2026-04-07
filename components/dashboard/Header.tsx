@@ -1,3 +1,4 @@
+// components/dashboard/Header.tsx
 import { RefreshCw, Users, Twitter, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Persona } from '@/types/dashboard';

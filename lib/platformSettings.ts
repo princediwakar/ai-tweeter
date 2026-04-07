@@ -1,5 +1,4 @@
 // lib/platformSettings.ts
-import { sql } from '@vercel/postgres';
 import { sqlWithRetry } from './db';
 import crypto from 'crypto';
 
@@ -192,11 +191,19 @@ class PlatformSettingsService {
   }
 
   getRedirectUri(platform: 'twitter' | 'linkedin'): string {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
     if (platform === 'twitter') {
       return `${baseUrl}/api/connected-accounts/twitter-callback`;
     }
     return `${baseUrl}/api/connected-accounts/linkedin-callback`;
+  }
+
+  getNextAuthRedirectUri(platform: 'twitter' | 'linkedin'): string {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    if (platform === 'twitter') {
+      return `${baseUrl}/api/auth/callback/twitter`;
+    }
+    return `${baseUrl}/api/auth/callback/linkedin`;
   }
 
   clearCache(): void {

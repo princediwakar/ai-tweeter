@@ -58,10 +58,23 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+      } else if (token.email) {
+        try {
+          const result = await sql`SELECT id FROM users WHERE email = ${token.email} LIMIT 1`;
+          if (result.rows.length === 0) {
+            return null;
+          }
+          token.id = result.rows[0].id;
+        } catch {
+          return null;
+        }
       }
       return token;
     },
     async session({ session, token }) {
+      if (!token.id) {
+        return { ...session, user: null };
+      }
       if (session.user) {
         (session.user as any).id = token.id;
       }

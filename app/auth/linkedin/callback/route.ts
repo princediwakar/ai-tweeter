@@ -1,104 +1,89 @@
+// app/auth/linkedin/callback/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { sql } from '@vercel/postgres';
 import { exchangeCodeForToken, getLinkedInProfile } from '@/lib/linkedin';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
-import { personaService } from '@/lib/personaService';
-import { sql } from '@vercel/postgres';
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const state = searchParams.get('state');
-  const error = searchParams.get('error');
-  const errorDescription = searchParams.get('error_description');
-
   try {
-    // 1. Handle error from LinkedIn
+    // 1. Enforce Strict Authorization: User MUST already be logged in via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      console.error('❌ LinkedIn Connect Failed: No active NextAuth session.');
+      return NextResponse.redirect(new URL('/auth/signin?error=unauthorized_connection', request.url));
+    }
+
+    // Resolve the internal Database User ID securely from the session email
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.redirect(new URL('/auth/signin?error=user_not_found', request.url));
+    }
+    const userId = userResult.rows[0].id;
+
+    // 2. Parse OAuth parameters
+    const searchParams = request.nextUrl.searchParams;
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+
     if (error) {
       console.error('LinkedIn OAuth Callback Error:', error, errorDescription);
-      return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(new URL('/accounts?connected=error&message=Missing code or state', request.url));
+      return NextResponse.redirect(new URL('/onboarding?connected=error&message=Missing code or state', request.url));
     }
 
-    // 2. CSRF Protection: Verify state from cookie
+    // 3. CSRF Protection: Verify state from cookie
     const cookieStore = await cookies();
     const storedState = cookieStore.get('linkedin_oauth_state')?.value;
     
-    // In dev, we might be more lenient if the cookie is missing, but state must match
     if (!storedState || storedState !== state) {
       console.warn('⚠️ LinkedIn state mismatch or missing cookie');
-      // return NextResponse.redirect(new URL('/accounts?connected=error&message=Invalid session state', request.url));
+      // In production, strictly enforce this:
+      // return NextResponse.redirect(new URL('/onboarding?connected=error&message=Invalid session state', request.url));
     }
 
-    // 3. Exchange code for tokens
+    // Clean up the cookie
+    cookieStore.delete('linkedin_oauth_state');
+
     console.log('📝 Exchanging LinkedIn authorization code for tokens...');
+    
+    // 4. Exchange code for tokens
     const { accessToken, refreshToken, expiresAt } = await exchangeCodeForToken(code);
 
-    // 4. Fetch LinkedIn Profile metadata
+    // 5. Fetch LinkedIn Profile metadata
     const profile = await getLinkedInProfile(accessToken);
-    const session = await getServerSession(authOptions);
-    console.log('LinkedIn callback session:', JSON.stringify(session, null, 2));
-    console.log('Session user:', session?.user);
-    if (session?.user) {
-      console.log('Session user id:', (session.user as any).id);
-      console.log('Session user email:', session.user.email);
-    }
 
-    if (!session?.user?.email) {
-      return NextResponse.redirect(new URL('/accounts?connected=error&message=Unauthorized', request.url));
-    }
-
-    // Get or create user by email
-    const email = session.user.email;
-    let userResult = await sql`SELECT id FROM users WHERE email = ${email}`;
-    let userId: string;
-    if (userResult.rows.length === 0) {
-      // Create new user (auto-signup)
-      console.log(`Creating new user for email: ${email}`);
-      try {
-        const newUserResult = await sql`
-          INSERT INTO users (id, name, email, hashed_password, created_at, updated_at)
-          VALUES (gen_random_uuid(), ${email}, ${email}, NULL, NOW(), NOW())
-          RETURNING id
-        `;
-        userId = newUserResult.rows[0].id;
-      } catch (error: any) {
-        // Handle duplicate email race condition
-        if (error.code === '23505') { // unique_violation
-          console.log('Duplicate email detected, retrying select...');
-          userResult = await sql`SELECT id FROM users WHERE email = ${email}`;
-          if (userResult.rows.length === 0) {
-            throw new Error('Failed to create or find user after duplicate violation');
-          }
-          userId = userResult.rows[0].id;
-        } else {
-          throw error;
-        }
-      }
-    } else {
-      userId = userResult.rows[0].id;
-    }
-    const sessionUserId = (session?.user as any)?.id;
-    if (sessionUserId && sessionUserId !== userId) {
-      console.warn(`⚠️ Session user ID (${sessionUserId}) differs from looked-up user ID (${userId}). Using looked-up ID.`);
-    }
-    console.log(`Using user ID: ${userId}`);
-
-    // 5. Automated Account Provisioning
-    // Check if we have a state with accountId: "accountId:f7c2...:nonce"
+    // 6. State parsing to resolve Account Node targeting
     const stateParts = state.split(':');
-    let finalAccountId = stateParts[1] || 'pending';
+    let requestedAccountId = stateParts.length >= 2 && stateParts[0] === 'accountId' ? stateParts[1] : null;
 
-    if (finalAccountId === 'pending') {
+    const existingConnection = await sql`
+      SELECT id FROM connected_accounts
+      WHERE user_id = ${userId} AND platform = 'linkedin' AND account_username = ${profile.sub}
+      LIMIT 1
+    `;
+
+    let finalAccountId: string;
+
+    if (existingConnection.rows.length > 0) {
+      finalAccountId = existingConnection.rows[0].id;
+      console.log(`♻️ Updating existing connection for LinkedIn user ${profile.name}`);
+    } else if (requestedAccountId && requestedAccountId !== 'pending') {
+      finalAccountId = requestedAccountId;
+      console.log(`🔗 Connecting to specific account slot: ${finalAccountId}`);
+    } else {
       finalAccountId = crypto.randomUUID();
+      console.log(`✨ Provisioning new node for LinkedIn user ${profile.name}...`);
     }
 
-    // Clear out any other connections for this specific account slot if they conflict
+    // Clear out conflicting nodes for this exact slot ID
     if (finalAccountId && finalAccountId !== 'pending') {
       try {
         await sql`DELETE FROM connected_accounts WHERE id = ${finalAccountId} AND platform = 'linkedin' AND account_username != ${profile.sub}`;
@@ -107,9 +92,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 6. Upsert the connection in connected_accounts
-    console.log(`💾 Saving automated LinkedIn connection for ${profile.name}...`);
-    
+    // 7. Upsert using the centralized service
     await connectedAccountsService.upsert({
       user_id: userId,
       platform: 'linkedin',
@@ -121,17 +104,18 @@ export async function GET(request: NextRequest) {
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
+      linkedin_enabled: true,
+      linkedin_user_id: profile.sub
     });
 
-
-    console.log(`✅ Success! Automated LinkedIn connection complete for ${profile.name}`);
+    console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);
     
-    // Success redirect
-    return NextResponse.redirect(new URL(`/accounts?connected=success&platform=linkedin&handle=${encodeURIComponent(profile.name || 'LinkedIn')}`, request.url));
+    // Redirect back to the onboarding wizard
+    return NextResponse.redirect(new URL(`/onboarding?connected=success&platform=linkedin&handle=${encodeURIComponent(profile.name || 'LinkedIn')}`, request.url));
 
   } catch (error) {
     console.error('❌ LinkedIn OAuth Callback Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown technical error';
-    return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
+    return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
   }
 }

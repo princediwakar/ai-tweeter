@@ -36,7 +36,7 @@ interface LinkedInProfileResponse {
  */
 function getRedirectUri(): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  return `${baseUrl}/api/connected-accounts/linkedin-callback`;
+  return `${baseUrl}/auth/linkedin/callback`; // CORRECT!
 }
 
 /**

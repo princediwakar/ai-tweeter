@@ -1,65 +1,61 @@
 // app/auth/twitter/callback/route.ts
-// Twitter OAuth callback handler
-
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { sql } from '@vercel/postgres';
 import { exchangeCodeForToken, getTwitterUserProfile } from '@/lib/twitter-oauth';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { platformSettings } from '@/lib/platformSettings';
-import { sql } from '@vercel/postgres';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // 1. Enforce Strict Authorization: User MUST already be logged in via NextAuth
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      console.error('❌ Twitter Connect Failed: No active NextAuth session.');
+      return NextResponse.redirect(new URL('/auth/signin?error=unauthorized_connection', request.url));
+    }
+
+    // Resolve the internal Database User ID securely from the session email
+    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1`;
+    if (userResult.rows.length === 0) {
+      return NextResponse.redirect(new URL('/auth/signin?error=user_not_found', request.url));
+    }
+    const userId = userResult.rows[0].id;
+
+    // 2. Parse OAuth parameters
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
     const state = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
-    // Handle OAuth errors
     if (error) {
       console.error('Twitter OAuth error:', error, errorDescription);
-      return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
     }
 
-    // Validate required parameters
     if (!code || !state) {
-      return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent('Missing authorization code or state')}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent('Missing authorization code or state')}`, request.url));
     }
 
-    // Retrieve code verifier from persistent cookie
+    // 3. Verify PKCE from the Initiation Route
     const cookieStore = await cookies();
     const codeVerifier = cookieStore.get('twitter_oauth_code_verifier')?.value;
     
     if (!codeVerifier) {
       console.error('❌ PKCE Verifier not found in cookies for state:', state);
-      return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent('Invalid or expired session. Please try again.')}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent('Invalid or expired session. Please try again.')}`, request.url));
     }
 
-    // Clean up the verifier cookie
+    // Clean up the verifier cookie immediately
     cookieStore.delete('twitter_oauth_code_verifier');
 
     console.log('📝 Exchanging Twitter authorization code for tokens...');
 
-    // Get current user session
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
-    // Get user from DB
-    const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
-    if (userResult.rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    const userId = userResult.rows[0].id;
-
-    // Get platform credentials for the exchange
+    // 4. Exchange code using Platform Credentials
     const platformCreds = await platformSettings.getTwitterCredentials();
-
-    // Exchange code for tokens
     const { accessToken, refreshToken, expiresAt } = await exchangeCodeForToken(
       code, 
       codeVerifier,
@@ -67,17 +63,14 @@ export async function GET(request: NextRequest) {
       platformCreds.client_secret
     );
 
-    // Get Twitter profile information
+    // 5. Fetch the Twitter Profile payload
     const profile = await getTwitterUserProfile(accessToken);
-    const twitterHandle = `@${profile.username}`;
 
-    // --- Automated Account Provisioning ---
-    
-    // Parse state parameter: "accountId:${accountId}:${randomNonce}"
+    // 6. State parsing to resolve Account Node targeting
     const stateParts = state.split(':');
     let requestedAccountId = stateParts.length >= 2 && stateParts[0] === 'accountId' ? stateParts[1] : null;
 
-    // 1. Check if this Twitter account is already connected for this user
+    // Check if this specific Twitter account is already connected for this user
     const existingConnection = await sql`
       SELECT id FROM connected_accounts
       WHERE user_id = ${userId} AND platform = 'twitter' AND account_username = ${profile.username}
@@ -87,21 +80,17 @@ export async function GET(request: NextRequest) {
     let finalAccountId: string;
 
     if (existingConnection.rows.length > 0) {
-      // Re-connecting an existing account
       finalAccountId = existingConnection.rows[0].id;
-      console.log(`♻️ Found existing connection for @${profile.username}, using id: ${finalAccountId}`);
+      console.log(`♻️ Updating existing connection for @${profile.username}`);
     } else if (requestedAccountId && requestedAccountId !== 'pending') {
-      // Connecting to a specific pre-existing slot
       finalAccountId = requestedAccountId;
       console.log(`🔗 Connecting to specific account slot: ${finalAccountId}`);
     } else {
-      // "One-Click" case: Generate a new ID automatically
       finalAccountId = crypto.randomUUID();
-      console.log(`✨ Automating account provisioning for @${profile.username}...`);
+      console.log(`✨ Provisioning new node for @${profile.username}...`);
     }
 
-    // 2. Clear out any other connections for this specific account slot if they conflict
-    // (Ensure this account slot only has one Twitter connection)
+    // Clear out conflicting nodes for this exact slot ID to prevent data corruption
     if (finalAccountId && finalAccountId !== 'pending') {
       try {
         await sql`DELETE FROM connected_accounts WHERE id = ${finalAccountId} AND platform = 'twitter' AND account_username != ${profile.username}`;
@@ -110,9 +99,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 3. Upsert the connection using the centralized service
-    console.log(`💾 Saving automated connection for @${profile.username}...`);
-
+    // 7. Upsert using the centralized service
     await connectedAccountsService.upsert({
       user_id: userId,
       platform: 'twitter',
@@ -125,17 +112,17 @@ export async function GET(request: NextRequest) {
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
       profile_image_url: profile.profile_image_url,
+      twitter_oauth2_enabled: true,
     });
 
-
-    console.log(`✅ Success! Automated connection complete for @${profile.username}`);
+    console.log(`✅ Success! Node secured for @${profile.username}`);
     
-    // Success redirect
-    return NextResponse.redirect(new URL(`/accounts?connected=success&handle=${encodeURIComponent(profile.username)}`, request.url));
+    // Redirect back to the onboarding wizard or dashboard
+    return NextResponse.redirect(new URL(`/onboarding?connected=success&platform=twitter&handle=${encodeURIComponent(profile.username)}`, request.url));
 
   } catch (error) {
     console.error('❌ Twitter OAuth Callback Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown technical error';
-    return NextResponse.redirect(new URL(`/accounts?connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
+    return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
   }
 }

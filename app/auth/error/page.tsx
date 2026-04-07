@@ -1,12 +1,15 @@
-'use client';
-
-import { useSearchParams } from 'next/navigation';
+// app/auth/error/page.tsx
 import Link from 'next/link';
-import { Suspense } from 'react';
 
-function ErrorContent() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+export const dynamic = 'force-dynamic';
+
+interface ErrorPageProps {
+  searchParams: Promise<{ error?: string }>;
+}
+
+export default async function ErrorPage({ searchParams }: ErrorPageProps) {
+  const resolvedParams = await searchParams;
+  const error = resolvedParams?.error;
 
   const errorMessages: Record<string, string> = {
     default: 'An unexpected error occurred during authentication.',
@@ -16,7 +19,7 @@ function ErrorContent() {
     credentials: 'Invalid email or password.',
   };
 
-  const errorMessage = error ? errorMessages[error] || errorMessages.default : errorMessages.default;
+  const errorMessage = error && errorMessages[error] ? errorMessages[error] : errorMessages.default;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -43,13 +46,5 @@ function ErrorContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function ErrorPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-      <ErrorContent />
-    </Suspense>
   );
 }

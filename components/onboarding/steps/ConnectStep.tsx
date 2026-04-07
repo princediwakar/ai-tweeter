@@ -1,5 +1,5 @@
+// components/onboarding/steps/ConnectStep.tsx
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { ArrowLeft, ArrowRight, Loader2, Twitter, Linkedin, CheckCircle2, Link2 } from 'lucide-react';
 
 export default function ConnectStep({ 
@@ -13,16 +13,11 @@ export default function ConnectStep({
 }) {
   const [connecting, setConnecting] = useState<string | null>(null);
 
-  const handleConnect = async (platform: string) => {
+  const handleConnect = (platform: string) => {
     setConnecting(platform);
-    
-    try {
-      // Use NextAuth signIn for consistent OAuth flow
-      await signIn(platform, { callbackUrl: '/onboarding?connected=success' });
-    } catch (error) {
-      console.error(`Failed to initialize ${platform} OAuth:`, error);
-      setConnecting(null);
-    }
+    // Bypass NextAuth entirely for connecting secondary accounts
+    // Redirect to our custom OAuth initiation route
+    window.location.href = `/api/oauth/initiate?platform=${platform}`;
   };
 
   const hasConnection = connectedPlatforms.length > 0;

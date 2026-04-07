@@ -1,7 +1,7 @@
 // components/onboarding/OnboardingWizard.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Zap } from 'lucide-react';
 import { OnboardingState } from '@/types/onboarding';
@@ -29,16 +29,9 @@ export default function OnboardingWizard() {
 useEffect(() => {
     const initializeWorkspace = async () => {
       try {
-        // Check for OAuth redirect first - need to wait for session to be established
         const url = new URL(window.location.href);
         const connectedParam = url.searchParams.get('connected');
         
-        // If returning from OAuth, we need to wait a moment for session to be ready
-        if (connectedParam === 'success') {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        // Fetch both onboarding progress and connected accounts simultaneously
         const [statusRes, accountsRes] = await Promise.all([
           fetch('/api/onboarding/status'),
           fetch('/api/accounts'),
@@ -47,22 +40,20 @@ useEffect(() => {
         const status = await statusRes.json();
         const accountsData = await accountsRes.json();
 
-        // Map the platforms that are successfully connected
         const platforms = (accountsData.accounts || []).map((a: { platform: string }) => a.platform);
 
-        // Check if we are waking up from an OAuth redirect
         let currentStep = status.step || 1;
 
-        if (connectedParam === 'success' && platforms.length > 0) {
-          // The user just returned from a successful OAuth flow. 
-          // Fast-forward them to the Calibration step.
-          currentStep = 3;
+        // Force UI to remain on ConnectStep if we just returned from OAuth
+        if (connectedParam === 'success' || platforms.length > 0) {
+          currentStep = Math.max(currentStep, 2);
           
-          // Scrub the URL parameter so a manual page refresh doesn't trigger this again
-          window.history.replaceState({}, '', '/onboarding');
+          // Clean up URL without triggering a re-render
+          if (connectedParam) {
+            window.history.replaceState({}, '', '/onboarding');
+          }
         }
 
-        // Hydrate the state machine
         setState(prev => ({
           ...prev,
           step: currentStep,
@@ -80,7 +71,6 @@ useEffect(() => {
 
     initializeWorkspace();
   }, []);
-
 // Replace your old updateState, nextStep, and prevStep with this block
 
   const updateState = (updates: Partial<OnboardingState>) => {

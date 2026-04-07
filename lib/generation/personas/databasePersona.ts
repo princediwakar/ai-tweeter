@@ -25,105 +25,75 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
     const voiceDna = String(personaConfig.voice_dna || 'Write in a clear, engaging voice.');
     const antiPatterns = String(personaConfig.anti_patterns || 'Avoid generic filler words.');
     
-    // STRICT TYPE CHECKING: Prevent .map() crashes from bad DB data
     const rawArchetypes = personaConfig.structural_archetypes;
     const structuralArchetypes = Array.isArray(rawArchetypes) ? rawArchetypes : [];
     
     const rawChecklist = personaConfig.validation_checklist;
     const validationChecklist = Array.isArray(rawChecklist) ? rawChecklist : [];
 
-    // Decision flag for images
     const wantsImage = config.generationFormat === 'image';
 
-    // 1. Identity & Goal
     let prompt = `
-# MISSION: ${this.persona.name}
-${identityContext}
+You are ${this.persona.name}. ${identityContext}
 
-## YOUR GOAL
-${this.persona.description || 'Generate engaging content.'}
+${this.persona.description}
 
-━━━━━━━━━━━━━━━━━━━━━
-SOURCE SELECTION (SIGNAL VS NOISE)
-━━━━━━━━━━━━━━━━━━━━━
-${sourceLogic}
-
-**CURRENT CONTEXT:**
+Right now you have this fresh context from your sources:
 ${rssSourceContext}
 
 ${config.previousHeadlines && config.previousHeadlines.length > 0
-  ? `Already used article numbers: ${config.previousHeadlines.join(', ')}. Pick a different article.`
+  ? `You've already used these headlines: ${config.previousHeadlines.join(', ')}. Pick something new.\n`
   : ''}
-
 ${config.usedSourceUrls && config.usedSourceUrls.length > 0
-  ? `**ALREADY POSTED - DO NOT USE:**\n${config.usedSourceUrls.map(url => `- ${url}`).join('\n')}\nPick a different article from the available sources.`
+  ? `Do not use these articles again:\n${config.usedSourceUrls.map(url => `- ${url}`).join('\n')}\n`
   : ''}
 
-━━━━━━━━━━━━━━━━━━━━━
-VOICE DNA (THE HUMAN PATTERN)
-━━━━━━━━━━━━━━━━━━━━━
+Follow these rules exactly:
+${sourceLogic}
+
+Write exactly like a real person would — short paragraphs, natural rhythm, first person. Mix short punchy sentences with slightly longer ones. Use contractions. Sound like you're texting a smart colleague who gets it.
+
 ${voiceDna}
 
-**BANNED PATTERNS:**
+Never do this:
 ${antiPatterns}
 
-━━━━━━━━━━━━━━━━━━━━━
-STRUCTURAL ARCHETYPES (ROTATION)
-━━━━━━━━━━━━━━━━━━━━━
-Choose ONE of these formats to execute based on the data:
-
+You usually structure your posts in one of these natural ways (pick whichever fits the insight best — don't force it):
 ${structuralArchetypes.length > 0 
-  ? structuralArchetypes.map((arch: any, i: number) => `
-**Format ${i + 1}: ${arch.name || 'Unnamed'}**
-- Description: ${arch.description || ''}
-- Example: "${arch.example || ''}"
-`).join('\n')
-  : '**Format 1: General Post**\n- Write a high-signal, engaging post based on the context.'
-}
+  ? structuralArchetypes.map((arch: any) => 
+      `- ${arch.name}: ${arch.description}\n  Example: ${arch.example}`
+    ).join('\n')
+  : '- Just write a clear, human insight in short paragraphs.'}
 
-━━━━━━━━━━━━━━━━━━━━━
-OUTPUT CONSTRUCTION
-━━━━━━━━━━━━━━━━━━━━━
-- Tone: ${this.persona.tone || 'Analytical'}
-- Max Length: ${this.persona.max_length || 280} chars
-- Topics: ${this.persona.topics?.join(', ') || 'General'}
+Before you output, quickly check:
+${validationChecklist.length > 0 
+  ? validationChecklist.map((item: any) => `- ${String(item)}`).join('\n')
+  : '- Does this sound like something a real person would actually post?'}
 
-**CRITICAL: Output ONLY valid JSON.**
+Output ONLY valid JSON. Nothing else.
 
-**REQUIRED JSON STRUCTURE:**
 {
   "reasoning": {
     "selectedArticle": <number>,
-    "keyMetric": "<the specific data point>",
-    "yourAngle": "<why this matters>",
-    "formatUsed": "<Format Name>"
+    "keyMetric": "<specific data point>",
+    "yourAngle": "<why this matters to you>",
+    "formatUsed": "<the natural format you chose>"
   },
-  "tweetText": "<The complete text content>",
-  "selectedHeadlineNumber": <same as selectedArticle>`
-
-  // FIXED: Tell the AI exactly how to output the cardData so the parser actually picks it up.
-  if (wantsImage) {
-    prompt += `,
-  "cardData": {
-    "imagePrompt": "<Highly descriptive visual prompt for an AI image generator. Max 240 chars.>"
-  }
-}`;
-  } else {
-    prompt += `\n}`;
-  }
-
-    // Add validation checklist safely
-    if (validationChecklist.length > 0) {
-      prompt += `
-
-━━━━━━━━━━━━━━━━━━━━━
-FINAL VALIDATION CHECKLIST
-━━━━━━━━━━━━━━━━━━━━━
-${validationChecklist.map((item: any) => `□ ${String(item)}`).join('\n')}
+  "tweetText": "<the complete post text — short paragraphs, human voice>"
 `;
+
+    if (wantsImage) {
+      prompt += `,
+  "cardData": {
+    "imagePrompt": "<short, vivid description for an image — max 200 characters>"
+  }`;
     }
 
-    prompt += `\n-[${timeMarker}-${tokenMarker}]\n`;
+    prompt += `
+}
+
+-[${timeMarker}-${tokenMarker}]
+`;
 
     return this.addCommonSuffix(prompt, this.persona.max_length || 280);
   }

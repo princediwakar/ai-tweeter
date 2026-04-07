@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AutoGrowth | Build Your AI Profile",
+  title: "AutoGrowth AI | Build Your AI Profile",
   description: "Automate your LinkedIn and Twitter content. Build your personal brand and become a top voice in your industry.",
 };
 

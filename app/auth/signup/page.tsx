@@ -68,7 +68,7 @@ export default function SignUpPage() {
               <div className="bg-white/10 p-2 rounded-xl">
                 <Zap className="h-6 w-6 text-white" />
               </div>
-              <span className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">AutoGrowth</span>
+              <span className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">AutoGrowth AI</span>
             </div>
             <h2 className="text-4xl font-semibold tracking-tight text-white leading-tight">
               Scale your social presence.<br />Zero manual effort.

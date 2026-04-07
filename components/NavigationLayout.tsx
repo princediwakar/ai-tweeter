@@ -114,7 +114,7 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
                 <Zap size={18} className="text-white" />
               </div>
               <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
-                AutoGrowth
+                AutoGrowth AI
               </h1>
             </div>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">

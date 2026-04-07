@@ -94,7 +94,7 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
               Connect your primary channel
             </h1>
             <p className="text-zinc-500 leading-relaxed">
-              AutoGrowth requires secure access to your account to operate autonomously. 
+              AutoGrowth AI requires secure access to your account to operate autonomously. 
               We use official APIs and strict rate limiting to ensure your account remains safe and compliant.
             </p>
           </div>

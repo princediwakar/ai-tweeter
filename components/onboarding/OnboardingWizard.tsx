@@ -121,7 +121,7 @@ useEffect(() => {
           <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
             <Zap className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold text-sm tracking-wide text-zinc-900">AutoGrowth</span>
+          <span className="font-semibold text-sm tracking-wide text-zinc-900">AutoGrowth AI</span>
         </div>
         
         <div className="flex items-center gap-2">

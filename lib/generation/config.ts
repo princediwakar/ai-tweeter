@@ -10,6 +10,7 @@ export const GENERATION_CONFIG = {
   fetching: {
     cacheTTL: 5 * 60 * 1000, // 5 minutes
     apiTimeout: 4000,
+    rssTimeout: 15000,
     articlePageTimeout: 5000,
     homepageTimeout: 5000,
   },

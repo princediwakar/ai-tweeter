@@ -49,7 +49,7 @@ export async function getGenerationBatchInfo(
         should_post: false,
         generation_personas: [],
         posting_personas: [],
-        batch_size: 5,
+        batch_size: 1,
         reason: 'No personas available for debug mode',
       };
     }
@@ -59,7 +59,8 @@ export async function getGenerationBatchInfo(
       should_post: true,
       generation_personas: debugPersonas,
       posting_personas: debugPersonas,
-      batch_size: 5,
+      batch_size: 1,
+      reason: 'Debug mode',
     };
   }
 
@@ -70,7 +71,7 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
-      batch_size: 5,
+      batch_size: 1,
       reason: 'Account not found',
     };
   }
@@ -102,7 +103,7 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
-      batch_size: 5,
+      batch_size: 1,
       reason: 'No schedule matches current generation window in local timezone',
     };
   }
@@ -135,7 +136,7 @@ export async function getGenerationBatchInfo(
       should_post: false,
       generation_personas: [],
       posting_personas: [],
-      batch_size: 5,
+      batch_size: 1,
       reason: 'Generation already completed for all matching schedules today',
     };
   }
@@ -166,7 +167,7 @@ export async function getGenerationBatchInfo(
     generation_personas: personas,
     posting_personas: personas,
     schedule_ids: scheduleIds,
-    batch_size: 5,
+    batch_size: 1,
   };
 }
 

@@ -71,7 +71,7 @@ export async function fetchFromRssFeeds(
     try {
       const response = await fetchFn(feed, {
         headers: { 'User-Agent': userAgent },
-        signal: AbortSignal.timeout(GENERATION_CONFIG.fetching.apiTimeout)
+        signal: AbortSignal.timeout(GENERATION_CONFIG.fetching.rssTimeout)
       });
       if (!response.ok) return [];
 

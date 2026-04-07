@@ -5,13 +5,13 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, LogOut, User, ChevronDown, Menu, X, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Home, Users, LogOut, User, ChevronDown, Menu, X, ListChecks, Zap } from 'lucide-react';
+import { Button } from './ui/button';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Queue', href: '/queue', icon: ListChecks },
   { name: 'AI Profiles', href: '/profiles', icon: User },
-  { name: 'Accounts', href: '/accounts', icon: Users },
 ];
 
 function UserDropdown() {

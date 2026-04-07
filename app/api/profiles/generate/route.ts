@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     if (!prompt || prompt.trim().length < 10) {
       return NextResponse.json({ error: 'Please describe what kind of content you want to post (at least 10 characters)' }, { status: 400 });
     }
-    if (prompt.length > 2000) {
-      return NextResponse.json({ error: 'Prompt is too long. Please keep it under 2000 characters.' }, { status: 400 });
+    if (prompt.length > 5000) {
+      return NextResponse.json({ error: 'Prompt is too long. Please keep it under 5000 characters.' }, { status: 400 });
     }
 
     if (!connected_account_id) {

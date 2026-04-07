@@ -35,10 +35,8 @@ interface LinkedInProfileResponse {
  * Get redirect URI based on environment
  */
 function getRedirectUri(): string {
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://aitweeter.vercel.app/auth/linkedin/callback';
-  }
-  return 'http://localhost:3000/auth/linkedin/callback';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  return `${baseUrl}/api/connected-accounts/linkedin-callback`;
 }
 
 /**

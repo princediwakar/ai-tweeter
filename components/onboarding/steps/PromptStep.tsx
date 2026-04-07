@@ -1,3 +1,4 @@
+// components/onboarding/steps/PromptStep.tsx
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Loader2, BrainCircuit } from 'lucide-react';
 import { OnboardingState } from '@/types/onboarding';

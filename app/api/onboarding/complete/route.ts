@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 interface PersonaData {
   accountId: string;
+  platform: string; // Make sure you are passing this from the frontend
   persona: {
     name: string;
     description: string;
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
     const safeFrequency = Number(frequency) || 3;
     const safePostTime = postTime || 'morning';
 
+    // 1. Update User State
     await sql`
       UPDATE users 
       SET 
@@ -48,8 +50,31 @@ export async function POST(request: NextRequest) {
       WHERE email = ${session.user.email}
     `;
 
+    // 2. Determine Days of Week
+    let daysOfWeek = [1, 3, 5]; // 3x / week (Mon, Wed, Fri) default
+    if (safeFrequency === 1) daysOfWeek = [3]; 
+    else if (safeFrequency === 5) daysOfWeek = [1, 2, 3, 4, 5]; 
+    else if (safeFrequency === 7) daysOfWeek = [0, 1, 2, 3, 4, 5, 6]; 
+
+    // 3. Determine Time Boundaries (in minutes from midnight)
+    let minTime = 480; // 8:00 AM
+    let maxTime = 600; // 10:00 AM
+    let scheduleNamePrefix = 'Morning';
+
+    if (safePostTime === 'afternoon') {
+      minTime = 720; // 12:00 PM
+      maxTime = 840; // 2:00 PM
+      scheduleNamePrefix = 'Afternoon';
+    } else if (safePostTime === 'evening') {
+      minTime = 1020; // 5:00 PM
+      maxTime = 1140; // 7:00 PM
+      scheduleNamePrefix = 'Evening';
+    }
+
+    // 4. Create Personas and their specific Schedules synchronously
     for (const p of personas as PersonaData[]) {
-      await personaService.createPersona({
+      // Create Persona
+      const newPersona = await personaService.createPersona({
         connected_account_id: p.accountId,
         name: p.persona.name,
         description: p.persona.description,
@@ -60,38 +85,18 @@ export async function POST(request: NextRequest) {
         max_length: p.persona.max_length,
         is_active: true,
       });
-    }
 
-    // Create default schedules for each unique connected account
-    const uniqueAccountIds = Array.from(new Set(personas.map((p: PersonaData) => p.accountId)));
-    
-    let startTime = 540; // 9:00 AM
-    let endTime = 600;   // 10:00 AM
-    let scheduleName = 'Morning Schedule';
+      // Generate a specific random minute within the boundary for THIS specific persona
+      const randomSpecificTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
 
-    if (safePostTime === 'afternoon') {
-      startTime = 840; // 2:00 PM
-      endTime = 900;   // 3:00 PM
-      scheduleName = 'Afternoon Schedule';
-    } else if (safePostTime === 'evening') {
-      startTime = 1140; // 7:00 PM
-      endTime = 1200;   // 8:00 PM
-      scheduleName = 'Evening Schedule';
-    }
-
-    // Determine days of week based on frequency
-    let daysOfWeek = [1, 3, 5]; // 3x / week (Mon, Wed, Fri)
-    if (safeFrequency === 1) daysOfWeek = [3]; // 1x / week (Wed)
-    else if (safeFrequency === 5) daysOfWeek = [1, 2, 3, 4, 5]; // 5x / week (Mon-Fri)
-    else if (safeFrequency === 7) daysOfWeek = [0, 1, 2, 3, 4, 5, 6]; // Daily
-
-    for (const accountId of uniqueAccountIds) {
+      // Create Schedule tied directly to the newly created persona ID
       await scheduleService.createSchedule({
-        connected_account_id: accountId,
-        name: scheduleName,
+        connected_account_id: p.accountId,
+        persona_id: newPersona.id, // THE CRITICAL MISSING LINK
+        name: `${scheduleNamePrefix} Schedule - ${p.persona.name}`,
         days_of_week: daysOfWeek,
-        start_time: startTime,
-        end_time: endTime,
+        start_time: randomSpecificTime,
+        end_time: randomSpecificTime + 5, // 5 minute window for cron job to pick it up
         is_active: true,
       });
     }

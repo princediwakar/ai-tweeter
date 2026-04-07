@@ -1,3 +1,4 @@
+// components/onboarding/steps/ScheduleStep.tsx
 import { ArrowLeft, ArrowRight, Loader2, Calendar, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { OnboardingState } from '@/types/onboarding';

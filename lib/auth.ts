@@ -1,3 +1,4 @@
+// lib/auth.ts
 import { NextAuthOptions, getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { sql } from '@vercel/postgres';
@@ -54,26 +55,29 @@ export const authOptions: NextAuthOptions = {
     signIn: '/auth/signin',
     error: '/auth/error',
   },
-  callbacks: {
+callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-      } else if (token.email) {
+      } else if (token.email && !token.id) {
+        // Only run the DB check if we don't already have the token.id
         try {
           const result = await sql`SELECT id FROM users WHERE email = ${token.email} LIMIT 1`;
-          if (result.rows.length === 0) {
-            return null;
+          if (result.rows.length > 0) {
+            token.id = result.rows[0].id;
           }
-          token.id = result.rows[0].id;
-        } catch {
-          return null;
+          // Notice there is no 'return null' here anymore. 
+        } catch (error) {
+          console.error("Failed to sync JWT with DB:", error);
+          // Do not return null. Let it fall through.
         }
       }
+      // ALWAYS return the token
       return token;
     },
     async session({ session, token }) {
       if (!token.id) {
-        return { ...session, user: null };
+        return { ...session, user: undefined }; // Better to use undefined than null for TS compatibility
       }
       if (session.user) {
         (session.user as any).id = token.id;

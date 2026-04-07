@@ -15,6 +15,7 @@ async function getOAuthProviders() {
   try {
     const twitterCreds = await platformSettings.getTwitterCredentials();
     if (twitterCreds.client_id && twitterCreds.client_secret) {
+      const callbackUrl = `${baseUrl}/api/auth/callback/twitter`;
       providers.push(
         TwitterProvider({
           clientId: twitterCreds.client_id,
@@ -29,7 +30,7 @@ async function getOAuthProviders() {
           token: 'https://api.twitter.com/2/oauth2/token',
         })
       );
-      console.log('[Auth] Twitter OAuth 2.0 configured, callback:', `${baseUrl}/api/auth/callback/twitter`);
+      console.log('[Auth] Twitter OAuth 2.0 configured, callback:', callbackUrl);
     }
   } catch (e) {
     console.warn('Twitter OAuth config error:', e);
@@ -38,14 +39,29 @@ async function getOAuthProviders() {
   try {
     const linkedinCreds = await platformSettings.getLinkedInCredentials();
     if (linkedinCreds.client_id && linkedinCreds.client_secret) {
+      const callbackUrl = `${baseUrl}/api/auth/callback/linkedin`;
       providers.push(
         LinkedInProvider({
           clientId: linkedinCreds.client_id,
           clientSecret: linkedinCreds.client_secret,
-          issuer: 'https://www.linkedin.com/oauth',
+          wellKnown: 'https://www.linkedin.com/oauth/.well-known/openid-configuration',
+          authorization: { 
+            params: { 
+              scope: 'openid profile email w_member_social' 
+            } 
+          },
+          profileUrl: 'https://api.linkedin.com/v2/userinfo',
+          async profile(profile) {
+            return {
+              id: profile.sub,
+              name: profile.name,
+              email: profile.email,
+              image: profile.picture,
+            };
+          },
         })
       );
-      console.log('[Auth] LinkedIn OAuth configured, callback:', `${baseUrl}/api/auth/callback/linkedin`);
+      console.log('[Auth] LinkedIn OAuth configured, callback:', callbackUrl);
     }
   } catch (e) {
     console.warn('LinkedIn OAuth config error:', e);
@@ -176,21 +192,27 @@ callbacks: {
           : (profile as any)?.sub || user.name;
         const accountName = user.name || accountUsername;
         const platformUserId = account.providerAccountId;
+        
+        const tokenExpiresAt = account.expires_at 
+          ? new Date(account.expires_at * 1000).toISOString()
+          : null;
 
-        await sql`
-          INSERT INTO connected_accounts (
-            user_id, platform, account_username, account_name, platform_user_id,
-            is_active, connected_at
-          )
-          VALUES (${userId}, ${platform}, ${accountUsername}, ${accountName}, ${platformUserId}, true, NOW())
-          ON CONFLICT (user_id, platform, account_username) 
-          DO UPDATE SET 
-            platform_user_id = ${platformUserId},
-            is_active = true,
-            last_used_at = NOW()
-        `;
+        // Use connectedAccountsService for proper encryption and schema
+        const { connectedAccountsService } = await import('@/lib/connectedAccounts');
+        
+        await connectedAccountsService.upsert({
+          user_id: userId,
+          platform,
+          account_username: accountUsername,
+          name: accountName,
+          platform_user_id: platformUserId,
+          access_token: account.access_token || null,
+          refresh_token: account.refresh_token || null,
+          token_expires_at: tokenExpiresAt,
+          is_active: true,
+        });
 
-        console.log(`[OAuth] Connected ${platform} account for user ${userId}`);
+        console.log(`[OAuth] Connected ${platform} account for user ${userId} via NextAuth`);
       } catch (error) {
         console.error('[OAuth] Failed to connect account:', error);
       }

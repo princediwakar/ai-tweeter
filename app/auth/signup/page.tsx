@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Zap, ArrowRight, Loader2, CheckCircle2, Github, Twitter } from 'lucide-react';
+import { Zap, ArrowRight, Loader2, CheckCircle2, Twitter, Linkedin } from 'lucide-react';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -13,6 +13,20 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [oauthLoading, setOauthLoading] = useState<'twitter' | 'linkedin' | null>(null);
+
+  const handleOAuthSignUp = async (provider: 'twitter' | 'linkedin') => {
+    setOauthLoading(provider);
+    setError('');
+    
+    try {
+      await signIn(provider, { callbackUrl: '/onboarding' });
+    } catch (err) {
+      setError(`Failed to sign up with ${provider}. Please try again.`);
+      setOauthLoading(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,25 +131,32 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          {/* <div className="space-y-4">
+          <div className="space-y-4">
             <button 
               type="button"
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900"
+              onClick={() => handleOAuthSignUp('twitter')}
+              disabled={!!oauthLoading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Twitter className="h-5 w-5 text-[#1DA1F2]" />
-              Continue with Twitter
+              {oauthLoading === 'twitter' ? (
+                <Loader2 className="h-5 w-5 animate-spin text-[#1DA1F2]" />
+              ) : (
+                <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+              )}
+              {oauthLoading === 'twitter' ? 'Connecting...' : 'Continue with Twitter'}
             </button>
             <button 
               type="button"
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900"
+              onClick={() => handleOAuthSignUp('linkedin')}
+              disabled={!!oauthLoading}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 hover:text-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="h-5 w-5" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M12.0003 4.75C13.7703 4.75 15.3553 5.36002 16.6053 6.54998L20.0303 3.125C17.9502 1.19 15.2353 0 12.0003 0C7.31028 0 3.25527 2.69 1.25024 6.60998L5.32028 9.77C6.27525 6.79 9.00028 4.75 12.0003 4.75Z" fill="#EA4335" />
-                <path d="M23.49 12.275C23.49 11.49 23.415 10.73 23.3 10H12V14.51H18.47C18.18 15.99 17.34 17.25 16.08 18.1L20.18 21.28C22.57 19.08 23.49 15.96 23.49 12.275Z" fill="#4285F4" />
-                <path d="M5.26498 14.2949C5.02498 13.5699 4.88501 12.7999 4.88501 11.9999C4.88501 11.1999 5.01998 10.4299 5.26498 9.7049L1.275 6.54998C0.46 8.17998 0 10.0099 0 11.9999C0 13.9899 0.46 15.8199 1.28 17.4499L5.26498 14.2949Z" fill="#FBBC05" />
-                <path d="M12.0004 24C15.2404 24 17.9654 22.935 19.9454 20.995L15.8404 17.815C14.7554 18.575 13.4454 19.03 12.0004 19.03C8.8754 19.03 6.13039 16.825 5.18039 13.825L1.10039 16.985C3.12539 21.055 7.2404 24 12.0004 24Z" fill="#34A853" />
-              </svg>
-              Continue with Google
+              {oauthLoading === 'linkedin' ? (
+                <Loader2 className="h-5 w-5 animate-spin text-[#0A66C2]" />
+              ) : (
+                <Linkedin className="h-5 w-5 text-[#0A66C2]" />
+              )}
+              {oauthLoading === 'linkedin' ? 'Connecting...' : 'Continue with LinkedIn'}
             </button>
           </div> 
           
@@ -146,7 +167,7 @@ export default function SignUpPage() {
             <div className="relative flex justify-center text-sm">
               <span className="px-2 bg-white text-zinc-500">Or continue with email</span>
             </div>
-          </div> */}
+          </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-4">

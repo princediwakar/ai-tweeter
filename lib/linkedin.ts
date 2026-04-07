@@ -160,8 +160,18 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   refreshToken: string;
   expiresAt: Date;
 }> {
-  const clientId = process.env.LINKEDIN_CLIENT_ID;
-  const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+  let clientId = process.env.LINKEDIN_CLIENT_ID;
+  let clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+  
+  if (!clientId || !clientSecret) {
+    try {
+      const creds = await platformSettings.getLinkedInCredentials();
+      clientId = creds.client_id;
+      clientSecret = creds.client_secret;
+    } catch (e) {
+      throw new Error('LinkedIn OAuth credentials not configured');
+    }
+  }
 
   if (!clientId || !clientSecret) {
     throw new Error('LinkedIn OAuth credentials not configured');

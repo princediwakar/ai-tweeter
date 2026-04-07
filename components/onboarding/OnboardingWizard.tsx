@@ -29,6 +29,15 @@ export default function OnboardingWizard() {
 useEffect(() => {
     const initializeWorkspace = async () => {
       try {
+        // Check for OAuth redirect first - need to wait for session to be established
+        const url = new URL(window.location.href);
+        const connectedParam = url.searchParams.get('connected');
+        
+        // If returning from OAuth, we need to wait a moment for session to be ready
+        if (connectedParam === 'success') {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
         // Fetch both onboarding progress and connected accounts simultaneously
         const [statusRes, accountsRes] = await Promise.all([
           fetch('/api/onboarding/status'),
@@ -42,9 +51,6 @@ useEffect(() => {
         const platforms = (accountsData.accounts || []).map((a: { platform: string }) => a.platform);
 
         // Check if we are waking up from an OAuth redirect
-        const url = new URL(window.location.href);
-        const connectedParam = url.searchParams.get('connected');
-
         let currentStep = status.step || 1;
 
         if (connectedParam === 'success' && platforms.length > 0) {

@@ -55,7 +55,7 @@ export default function SignInPage() {
     setError('');
     
     try {
-      await signIn(provider, { callbackUrl: '/' });
+      await signIn(provider, { callbackUrl: '/onboarding' });
     } catch (err) {
       setError(`Failed to sign in with ${provider}. Please try again.`);
       setOauthLoading(null);

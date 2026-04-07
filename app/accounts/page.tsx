@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { 
   Loader2, 
@@ -114,21 +115,21 @@ function AccountsContent() {
   const handleConnect = async (platform: 'twitter' | 'linkedin') => {
     setQuickConnecting(true);
     try {
-      const response = await fetch(`/api/accounts/quick-connect/${platform}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountId: 'pending' })
-      });
-      
-      const data = await response.json();
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      } else {
-        toast.error(`OAuth Initialization Failed: ${data.error || 'Unknown parameter'}`);
-        setQuickConnecting(false);
-      }
-    } catch {
-      toast.error(`Connection timeout for ${platform} API.`);
+      await signIn(platform, { callbackUrl: '/accounts?connected=success' });
+    } catch (error) {
+      console.error(`Failed to initiate ${platform} OAuth:`, error);
+      toast.error(`Failed to connect ${platform}`);
+      setQuickConnecting(false);
+    }
+  };
+
+  const handleReconnect = async (platform: 'twitter' | 'linkedin') => {
+    setQuickConnecting(true);
+    try {
+      await signIn(platform, { callbackUrl: '/accounts?reconnected=success' });
+    } catch (error) {
+      console.error(`Failed to reconnect ${platform}:`, error);
+      toast.error(`Failed to reconnect ${platform}`);
       setQuickConnecting(false);
     }
   };
@@ -259,6 +260,14 @@ function AccountsContent() {
                       title="Ping Node"
                     >
                       <RefreshCw className={`h-4 w-4 ${isLoadingHealth ? 'animate-spin' : ''}`} />
+                    </button>
+                    <button 
+                      onClick={() => handleReconnect(account.platform)}
+                      disabled={quickConnecting}
+                      className="p-2 text-zinc-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      title="Reconnect"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${quickConnecting ? 'animate-spin' : ''}`} />
                     </button>
                     <button 
                       onClick={() => handleDelete(account.id)} 

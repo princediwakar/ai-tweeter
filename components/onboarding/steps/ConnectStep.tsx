@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { signIn } from 'next-auth/react';
 import { ArrowLeft, ArrowRight, Loader2, Twitter, Linkedin, CheckCircle2, Link2 } from 'lucide-react';
 
 export default function ConnectStep({ 
@@ -12,29 +13,12 @@ export default function ConnectStep({
 }) {
   const [connecting, setConnecting] = useState<string | null>(null);
 
-const handleConnect = async (platform: string) => {
+  const handleConnect = async (platform: string) => {
     setConnecting(platform);
     
     try {
-      const res = await fetch(`/api/accounts/quick-connect/${platform}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          accountId: 'pending', 
-          returnTo: '/onboarding?connected=success' // Ensures they route back to the wizard
-        }),
-      });
-      
-      const data = await res.json();
-      
-      if (data.authUrl) {
-        // Redirect to the OAuth provider
-        window.location.href = data.authUrl;
-      } else {
-        console.error('Missing auth URL in response:', data);
-        setConnecting(null);
-        // Depending on your UI, you might want to show a toast/error state here
-      }
+      // Use NextAuth signIn for consistent OAuth flow
+      await signIn(platform, { callbackUrl: '/onboarding?connected=success' });
     } catch (error) {
       console.error(`Failed to initialize ${platform} OAuth:`, error);
       setConnecting(null);

@@ -11,7 +11,7 @@ import PromptStep from '@/components/onboarding/steps/PromptStep';
 import ReviewStep from '@/components/onboarding/steps/ReviewStep';
 import ScheduleStep from '@/components/onboarding/steps/ScheduleStep';
 
-const STEPS = ['Welcome', 'Connect', 'Your Voice', 'Review', 'Schedule'];
+const STEPS = ['Welcome', 'Connect', 'Your AI Profile', 'Review', 'Schedule'];
 
 export default function OnboardingWizard() {
   const router = useRouter();

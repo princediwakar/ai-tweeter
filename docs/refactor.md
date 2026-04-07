@@ -9,7 +9,7 @@ Here is your ruthlessly prioritized redesign plan to get V1 out the door.
 Phase 1: Navigation & Architecture Cleanup
 You are stripping away the bloat. The user only needs three places to go.
 
-Delete /dashboard entirely. * Overwrite /app/page.tsx to be the new Home (Observation Deck).
+Delete /dashboard entirely. \* Overwrite /app/page.tsx to be the new Home (Observation Deck).
 
 Create /app/queue/page.tsx for the Timeline view.
 
@@ -18,13 +18,14 @@ Refactor /app/profiles/page.tsx to be the single source of truth for Accounts, P
 Update NavigationLayout.tsx: Remove all references to "Accounts" and "Dashboard". The sidebar is now strictly: Home, Queue, and AI Profiles.
 
 Phase 2: The Core Component Build-Out
+
 1. Home (/app/page.tsx) - The Observation Deck
 
 Data Strategy: GET /api/tweets. On the frontend, reduce this array to only keep the tweet with the most recent created_at timestamp for each unique persona_id.
 
 First-Timer Trigger: Check if the returned array is empty. If yes, render the "Initializing AI" skeleton and immediately fire POST /api/tweets (with whatever payload triggers your generation logic) for each active persona.
 
-UI Elements: * Hero greeting.
+UI Elements: \* Hero greeting.
 
 A grid of "Latest Draft" cards showing the text, the persona, and the status (Posted/Scheduled).
 
@@ -60,7 +61,7 @@ Top: "Connect New Node" (Twitter/LinkedIn OAuth buttons).
 
 Body: List of connected accounts. Under each account, list its active Personas.
 
-Actions: Next to each Persona, have "Edit Voice" (opens prompt modal) and "Set Cadence" (opens schedule modal).
+Actions: Next to each Persona, have "Edit AI Profile" (opens prompt modal) and "Set Schedule" (opens schedule modal).
 
 Phase 3: Order of Operations (Execution)
 Do not try to build this all at once. Build it in this exact order to maintain a working application state:

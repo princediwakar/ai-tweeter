@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
+import { ClientToaster } from "@/components/ui/ClientToaster";
 import AuthProvider from "@/components/AuthProvider";
 
 const inter = Inter({
@@ -34,11 +34,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
-          <Toaster 
-            toastOptions={{
-              className: 'border-zinc-200 bg-white text-zinc-900 shadow-sm rounded-xl font-medium',
-            }}
-          />
+          <ClientToaster />
         </AuthProvider>
       </body>
     </html>

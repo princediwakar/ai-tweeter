@@ -337,7 +337,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
       <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-zinc-600" />
-          <h3 className="text-lg font-semibold text-zinc-900">AI Persona Generator</h3>
+          <h3 className="text-lg font-semibold text-zinc-900">AI Profile Generator</h3>
         </div>
 
         {accounts && accounts.length > 1 && (

@@ -31,7 +31,7 @@ export function getDefaultEditablePersona(): EditablePersona {
 }
 
 export function getDefaultScheduleForm(): ScheduleFormData {
-  return { days_of_week: [1, 2, 3, 4, 5], start_time: 540, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  return { days_of_week: [1, 3, 5], start_time: 540, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
 }
 
 type EditablePersona = {

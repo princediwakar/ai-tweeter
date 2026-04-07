@@ -171,6 +171,19 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
               <UserDropdown />
             </div>
           </div>
+          <div className="p-3 border-t border-zinc-100 text-center">
+            <div className="flex flex-wrap justify-center gap-3 text-[10px] text-zinc-500">
+              <Link href="/privacy" className="hover:text-zinc-900 transition-colors">
+                Privacy
+              </Link>
+              <Link href="/terms" className="hover:text-zinc-900 transition-colors">
+                Terms
+              </Link>
+              <a href="mailto:support@autogrowth.ai" className="hover:text-zinc-900 transition-colors">
+                Support
+              </a>
+            </div>
+          </div>
         </div>
       </aside>
 

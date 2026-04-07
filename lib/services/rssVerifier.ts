@@ -13,11 +13,7 @@ interface RssVerificationResult {
   error?: string;
 }
 
-interface TopicSuggestion {
-  topic: string;
-  suggestedRssUrls: string[];
-  confidence: number;
-}
+
 
 /**
  * Verify a single RSS URL - try to fetch headlines

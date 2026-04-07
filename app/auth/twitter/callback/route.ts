@@ -6,7 +6,6 @@ import { cookies } from 'next/headers';
 import { exchangeCodeForToken, getTwitterUserProfile } from '@/lib/twitter-oauth';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { platformSettings } from '@/lib/platformSettings';
-import { personaService } from '@/lib/personaService';
 import { sql } from '@vercel/postgres';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';

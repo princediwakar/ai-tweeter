@@ -4,12 +4,6 @@ import { authOptions } from '@/lib/auth';
 import { sql } from '@vercel/postgres';
 import { randomBytes } from 'crypto';
 import { platformSettings } from '@/lib/platformSettings';
-import crypto from 'crypto';
-
-function encryptToken(text: string): string {
-  const key = crypto.scryptSync(process.env.NEXTAUTH_SECRET || 'default', 'salt', 32);
-  return Buffer.from(key).toString('base64').slice(0, 32);
-}
 
 /**
  * POST /api/connected-accounts/oauth

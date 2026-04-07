@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Loader2, Twitter, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
+import { Loader2, Twitter, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
 
 interface Account {
   id: string;

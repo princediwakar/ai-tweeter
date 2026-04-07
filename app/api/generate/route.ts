@@ -203,7 +203,6 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   let imageIsNeeded = false;
 
   const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
-  const generationStart = performance.now();
   
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);

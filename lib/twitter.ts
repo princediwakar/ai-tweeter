@@ -3,7 +3,6 @@
 import crypto from 'crypto';
 import { refreshAccessToken, shouldRefreshToken } from './twitter-oauth';
 import type { AccountWithCredentials } from './types';
-import { decrypt } from './connectedAccounts';
 export interface TweetV2 {
   id: string;
   text: string;

@@ -2,7 +2,7 @@
 'use client';
 
 import { Edit2, Trash2, Clock, Calendar, Plus } from 'lucide-react';
-import { Persona, PersonaSchedule } from './types';
+import { Persona } from './types';
 import { formatScheduleSummaryShort } from './utils';
 
 interface PersonaCardProps {

@@ -9,7 +9,7 @@ import { GENERATION_CONFIG } from './generation/config';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas'; 
 import { getPersonaGenerator } from './generation/personas';
 import type { Account, Tweet } from './types'; // FIXED: Added Account type
-import type { GenerationContext, TweetGenerationConfig } from './generation/types';
+import type { GenerationContext } from './generation/types';
 
 // ... (Client Init Logic)
 let deepseekClientInstance: OpenAI | null = null;

@@ -1,5 +1,4 @@
 // lib/services/personaDesigner.ts
-import OpenAI from "openai";
 import { PersonaConfigDNA } from "../types";
 import { getDeepseekClientAsync } from "../generationService";
 

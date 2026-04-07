@@ -6,8 +6,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { createCanvas } from 'canvas';
 import { getPersona } from '@/lib/db';
-import { getAllPersonas } from '@/lib/personas';
-import type { Account, Tweet } from '../types';
 export interface ImageTemplate {
   name: string;
   description: string;

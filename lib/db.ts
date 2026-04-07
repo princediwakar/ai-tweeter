@@ -1,7 +1,6 @@
 import { sql } from '@vercel/postgres';
 import type { QueryResult, QueryResultRow } from '@vercel/postgres';
 import type { Tweet, Persona, PersonaConfigDNA } from './types';
-import { GENERATION_CONFIG } from './generation/config';
 import type { RecentPattern } from './generation/types';
 
 // In-memory storage for testing when database is not available

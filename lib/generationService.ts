@@ -7,7 +7,6 @@ import { EnhancedTweet } from "./types";
 // --- END MODIFIED ---
 import type {
   TweetGenerationConfig,
-  RecentPattern,
 } from "./generation/types";
 // --- MODIFIED ---
 // Import the new helper functions

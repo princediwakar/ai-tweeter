@@ -6,23 +6,6 @@ import { getPersonaById } from './db';
 
 const GENERATION_WINDOW_MINUTES = 60;
 
-interface ScheduleRow {
-  id: string;
-  connected_account_id: string;
-  name: string;
-  persona_id?: string | null;
-  timezone: string;
-  schedule_config: Record<string, unknown>;
-  days_of_week: number[];
-  start_time: number;
-  end_time: number;
-  is_active: boolean;
-  last_generated_at?: Date | null;
-  last_posted_at?: Date | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
 export interface Schedule {
   should_generate: boolean;
   should_post: boolean;

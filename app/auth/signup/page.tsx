@@ -216,6 +216,23 @@ export default function SignUpPage() {
                 </Link>
               </span>
             </div>
+
+            <div className="pt-6 mt-6 border-t border-zinc-200 text-center">
+              <div className="flex flex-wrap justify-center gap-4 text-xs text-zinc-500">
+                <Link href="/privacy" className="hover:text-zinc-900 transition-colors">
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="hover:text-zinc-900 transition-colors">
+                  Terms of Service
+                </Link>
+                <a href="mailto:support@autogrowth.ai" className="hover:text-zinc-900 transition-colors">
+                  Contact
+                </a>
+              </div>
+              <p className="mt-3 text-xs text-zinc-400">
+                © {new Date().getFullYear()} AutoGrowth AI. All rights reserved.
+              </p>
+            </div>
           </form>
         </div>
       </div>

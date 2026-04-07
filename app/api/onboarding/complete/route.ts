@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { sql } from '@vercel/postgres';
 import { authOptions } from '@/lib/auth';
 import { personaService } from '@/lib/personaService';
-import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { scheduleService } from '@/lib/scheduleService';
 
 export const dynamic = 'force-dynamic';

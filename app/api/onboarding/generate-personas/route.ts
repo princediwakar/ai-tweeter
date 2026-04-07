@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { sql } from '@vercel/postgres';
 import { authOptions } from '@/lib/auth';
-import { generatePersona, PersonaGenerationResult } from '@/lib/personaGeneration';
+import { generatePersona } from '@/lib/personaGeneration';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 
 export const dynamic = 'force-dynamic';

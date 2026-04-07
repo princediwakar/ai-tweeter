@@ -116,15 +116,29 @@ export async function getGenerationBatchInfo(
   const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
 
   for (const schedule of activeSchedules) {
+    // First check if generation already completed for this schedule today (generation_count >= 1)
+    const existingSlot = await sql`
+      SELECT generation_count FROM generation_slots
+      WHERE connected_account_id = ${account.id}
+        AND schedule_id = ${schedule.id}
+        AND slot_date = ${today}
+    `;
+
+    if (existingSlot.rows[0]?.generation_count >= 1) {
+      // Already generated today, skip
+      continue;
+    }
+
+    // Insert new slot only if it doesn't exist (first attempt today)
     const result = await sql`
       INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
       VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
       ON CONFLICT (connected_account_id, schedule_id, slot_date)
-      DO UPDATE SET generation_count = generation_slots.generation_count + 1, last_generated_at = NOW()
+      DO NOTHING
       RETURNING generation_count
     `;
 
-    // Only generate if this is the FIRST run for this schedule today (count == 1)
+    // If insert succeeded (or returned existing row), check if we should generate
     if (result.rows[0]?.generation_count === 1) {
       schedulesToGenerate.push({ scheduleId: schedule.id, personaId: schedule.persona_id || null });
     }

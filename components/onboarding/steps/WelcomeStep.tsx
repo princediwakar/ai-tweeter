@@ -9,7 +9,7 @@ export default function WelcomeStep({ onNext }: { onNext: () => void }) {
 
       <div className="space-y-4">
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">
-          Let's build your voice
+          Let's build your AI Profile
         </h1>
         <p className="text-zinc-500 leading-relaxed max-w-lg">
           Connect your LinkedIn and Twitter, tell us about your goals, and we'll help you become a recognized voice in your space — automatically.

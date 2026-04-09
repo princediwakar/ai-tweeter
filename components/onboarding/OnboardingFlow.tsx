@@ -3,7 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, Twitter, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
+import { Loader2, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 
 interface Account {
   id: string;
@@ -86,7 +87,7 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
         <div className="p-8 sm:p-12 text-center space-y-8">
           
           <div className="w-16 h-16 mx-auto bg-zinc-900 rounded-2xl flex items-center justify-center shadow-lg">
-            <Twitter className="h-8 w-8 text-white" />
+            <PlatformIcon platform="twitter" className="h-8 w-8 text-white" />
           </div>
 
           <div className="space-y-3 max-w-xl mx-auto">
@@ -102,7 +103,7 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
             <button
               onClick={onConnect}
               disabled={connecting}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white rounded-xl font-medium transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1DA1F2] disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-black hover:bg-zinc-800 text-white rounded-xl font-medium transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50"
             >
               {connecting ? (
                 <>
@@ -111,8 +112,8 @@ function AccountConnection({ onConnect, connecting }: { onConnect: () => void; c
                 </>
               ) : (
                 <>
-                  <Twitter className="h-5 w-5" />
-                  Connect Twitter Account
+                  <PlatformIcon platform="twitter" className="h-5 w-5 text-white" />
+                  Connect X Account
                 </>
               )}
             </button>
@@ -161,7 +162,7 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
           onClick={onAddMore}
           className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-zinc-200 rounded-lg text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors shadow-sm"
         >
-          <Twitter className="h-4 w-4" />
+          <PlatformIcon platform="twitter" className="h-4 w-4" />
           Add channel
         </button>
       </div>
@@ -230,7 +231,7 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
             <div key={account.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl shadow-sm">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center">
-                  <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+                  <PlatformIcon platform="twitter" className="h-5 w-5" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-zinc-900">{account.name || 'Twitter Account'}</h4>

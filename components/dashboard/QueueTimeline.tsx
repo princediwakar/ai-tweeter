@@ -2,7 +2,8 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Send, Trash2, Clock, AlertTriangle, Copy, Check, Linkedin, Twitter, Zap } from 'lucide-react';
+import { CheckCircle2, Send, Trash2, Clock, AlertTriangle, Copy, Check, Zap } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import { Button } from '@/components/ui/button';
 import { Tweet } from '@/types/dashboard';
 import { ConnectedAccount } from '@/lib/types';
@@ -150,15 +151,15 @@ export function QueueTimeline({
                                 disabled={loading}
                                 className="w-full px-2 py-2 text-left text-xs font-medium flex items-center gap-2 hover:bg-zinc-50 rounded-md disabled:opacity-50"
                               >
-                                <Twitter size={14} className="text-[#1DA1F2]" />
-                                Route to Twitter
+                                <PlatformIcon platform="twitter" className="w-3.5 h-3.5" />
+                                Route to X
                               </button>
                               <button
                                 onClick={() => onPostTweet(tweet.id, 'linkedin')}
                                 disabled={loading}
                                 className="w-full px-2 py-2 text-left text-xs font-medium flex items-center gap-2 hover:bg-zinc-50 rounded-md disabled:opacity-50 mt-1"
                               >
-                                <Linkedin size={14} className="text-[#0A66C2]" />
+                                <PlatformIcon platform="linkedin" className="w-3.5 h-3.5" />
                                 Route to LinkedIn
                               </button>
                             </div>

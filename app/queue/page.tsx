@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { ListChecks, Clock, Twitter, Linkedin, Ghost, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ListChecks, Clock, Ghost, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import NavigationLayout from '@/components/NavigationLayout';
 
 interface Tweet {
@@ -290,11 +291,7 @@ export default function QueuePage() {
                               </div>
                               {item.account && (
                                 <div className="flex items-center gap-1 text-xs text-zinc-400">
-                                  {item.account.platform === 'twitter' ? (
-                                    <Twitter className="h-3 w-3 text-[#1DA1F2]" />
-                                  ) : (
-                                    <Linkedin className="h-3 w-3 text-[#0A66C2]" />
-                                  )}
+                                  <PlatformIcon platform={item.account.platform as 'twitter' | 'linkedin'} className="h-3 w-3" />
                                   <span>@{item.account.account_username}</span>
                                 </div>
                               )}
@@ -331,13 +328,7 @@ export default function QueuePage() {
                               </p>
                             </div>
                             {account && (
-                              <div className="flex items-center gap-1 text-xs text-zinc-400 shrink-0">
-                                {account.platform === 'twitter' ? (
-                                  <Twitter className="h-3 w-3 text-[#1DA1F2]" />
-                                ) : (
-                                  <Linkedin className="h-3 w-3 text-[#0A66C2]" />
-                                )}
-                              </div>
+                              <PlatformIcon platform={account.platform as 'twitter' | 'linkedin'} className="h-3 w-3" />
                             )}
                           </div>
                         </div>

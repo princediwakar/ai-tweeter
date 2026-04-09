@@ -54,10 +54,25 @@ export async function POST(request: NextRequest) {
 
     if (action === 'generate') {
       const allPersonas = await getAllPersonas();
-      const personaKey = data.persona || (allPersonas.length > 0 ? allPersonas[0].key : null);
+      
+      // Support both persona_id (DB UUID) and persona_key (unique key)
+      let personaKey = data.persona_key || data.persona;
+      
+      // If we have a persona ID but no key, look up the key
+      if (!personaKey && data.persona_id) {
+        const personaById = allPersonas.find(p => p.id === data.persona_id);
+        if (personaById) {
+          personaKey = personaById.key;
+        }
+      }
+      
+      // Fallback to first available persona
+      if (!personaKey && allPersonas.length > 0) {
+        personaKey = allPersonas[0].key;
+      }
       
       if (!personaKey) {
-        return NextResponse.json({ error: 'No personas configured.' }, { status: 400 });
+        return NextResponse.json({ error: 'No voices configured. Create a voice first.' }, { status: 400 });
       }
       
       const topic = data.topic || data.customPrompt;

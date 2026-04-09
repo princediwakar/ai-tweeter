@@ -327,122 +327,122 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
     );
   }
 
-  // ... (The rest of the JSX render function remains identical)
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-zinc-900">Create an AI Profile</h2>
+        <h2 className="text-xl font-bold text-zinc-900">{editingPersona ? 'Edit AI Profile' : 'Create an AI Profile'}</h2>
       </div>
 
-      <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-5 h-5 text-zinc-600" />
-          <h3 className="text-lg font-semibold text-zinc-900">AI Profile Generator</h3>
-        </div>
+      {!editingPersona && (
+        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-zinc-600" />
+            <h3 className="text-lg font-semibold text-zinc-900">AI Profile Generator</h3>
+          </div>
 
-        {accounts && accounts.length > 1 && (
-          <div className="flex items-center gap-4 mb-4">
-            <label className="text-sm font-medium text-zinc-700">Account:</label>
-            <select
-              value={currentAccountId}
-              onChange={(e) => onAccountChange?.(e.target.value)}
-              className="flex-1 max-w-xs border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white"
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        
-        <p className="text-sm text-zinc-600 mb-4">
-          Describe what kind of content you want to post. The AI will create a custom persona tailored to your goals.
-        </p>
-        
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder={currentPlatform === 'linkedin' 
-            ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
-            : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
-          }
-          className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white text-zinc-900"
-          rows={3}
-          disabled={isGenerating}
-        />
-        
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs text-zinc-500">
-              {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to go'}
-            </span>
-            <button
-              type="button"
-              onClick={handleGenerate}
-              disabled={isGenerating || prompt.trim().length < 10}
-              className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  Create Persona
-                </>
-              )}
-            </button>
-          </div>
-        
-        {generatedPreview && (
-          <div className="mt-6 bg-white border border-zinc-300 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-zinc-900">Review your AI Profile</h4>
-              <button
-                type="button"
-                onClick={() => setGeneratedPreview(null)}
-                className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded"
+          {accounts && accounts.length > 1 && (
+            <div className="flex items-center gap-4 mb-4">
+              <label className="text-sm font-medium text-zinc-700">Account:</label>
+              <select
+                value={currentAccountId}
+                onChange={(e) => onAccountChange?.(e.target.value)}
+                className="flex-1 max-w-xs border border-zinc-300 rounded-lg px-3 py-2 text-sm bg-white"
               >
-                ×
-              </button>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                  </option>
+                ))}
+              </select>
             </div>
-            
-            <PersonaForm data={generatedPreview} onChange={setGeneratedPreview} prefix="preview" />
-            
-            <div className="mt-6 pt-4 border-t border-zinc-200 flex justify-end gap-3">
+          )}
+          
+          <p className="text-sm text-zinc-600 mb-4">
+            Describe what kind of content you want to post. The AI will create a custom persona tailored to your goals.
+          </p>
+          
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={currentPlatform === 'linkedin' 
+              ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
+              : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
+            }
+            className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white text-zinc-900"
+            rows={3}
+            disabled={isGenerating}
+          />
+          
+            <div className="mt-4 flex items-center justify-between">
+              <span className="text-xs text-zinc-500">
+                {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to go'}
+              </span>
               <button
                 type="button"
-                onClick={() => setGeneratedPreview(null)}
-                className="px-5 py-2.5 text-zinc-600 hover:bg-zinc-100 rounded-lg font-medium"
+                onClick={handleGenerate}
+                disabled={isGenerating || prompt.trim().length < 10}
+                className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmCreate}
-                disabled={isCreating}
-                className="px-5 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 flex items-center gap-2 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isCreating ? (
+                {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    Creating...
                   </>
                 ) : (
-                  'Save Persona'
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Create Persona
+                  </>
                 )}
               </button>
             </div>
-          </div>
-        )}
-      </div>
+          
+          {generatedPreview && (
+            <div className="mt-6 bg-white border border-zinc-300 rounded-lg p-6 animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold text-zinc-900">Review your AI Profile</h4>
+                <button
+                  type="button"
+                  onClick={() => setGeneratedPreview(null)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 rounded"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <PersonaForm data={generatedPreview} onChange={setGeneratedPreview} prefix="preview" />
+              
+              <div className="mt-6 pt-4 border-t border-zinc-200 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setGeneratedPreview(null)}
+                  className="px-5 py-2.5 text-zinc-600 hover:bg-zinc-100 rounded-lg font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCreate}
+                  disabled={isCreating}
+                  className="px-5 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 flex items-center gap-2 font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Persona'
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {editingId && (
         <div id="edit-persona-form" className="bg-white border-2 border-zinc-900 rounded-xl p-5">
-          <h3 className="text-lg font-semibold text-zinc-900 mb-4">Edit Persona</h3>
           <PersonaForm data={editData} onChange={setEditData} prefix="edit" />
           <div className="mt-6 pt-4 border-t border-zinc-200 flex justify-end gap-3">
             <button

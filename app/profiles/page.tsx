@@ -6,7 +6,8 @@ import { signIn } from 'next-auth/react';
 import NavigationLayout from '@/components/NavigationLayout';
 import PersonaEditor from '@/components/profiles/PersonaEditor';
 import ScheduleDialog from '@/components/profiles/ScheduleDialog';
-import { Twitter, Linkedin, Plus, Settings2, Clock, Trash2, UserCircle, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Settings2, Clock, Trash2, UserCircle, Sparkles, Loader2 } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Persona, PersonaSchedule } from '@/components/profiles/types';
@@ -147,7 +148,7 @@ function AIProfilesContent() {
         throw new Error(err.error || 'Failed to delete persona');
       }
 
-      toast.success('Persona deleted');
+      toast.success('AI Profile deleted');
       fetchData();
     } catch (error) {
       console.error('Error deleting persona:', error);
@@ -290,9 +291,9 @@ function AIProfilesContent() {
             <Button
               onClick={() => handleConnect('twitter')}
               disabled={quickConnecting}
-              className="bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white shadow-sm rounded-xl h-10 px-4"
+              className="bg-black hover:bg-zinc-800 text-white shadow-sm rounded-xl h-10 px-4"
             >
-              {quickConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Twitter className="w-4 h-4 mr-2" />}
+              {quickConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlatformIcon platform="twitter" className="w-4 h-4 mr-2 text-white" />}
               Connect X
             </Button>
             <Button
@@ -300,7 +301,7 @@ function AIProfilesContent() {
               disabled={quickConnecting}
               className="bg-[#0A66C2] hover:bg-[#0958a8] text-white shadow-sm rounded-xl h-10 px-4"
             >
-              {quickConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Linkedin className="w-4 h-4 mr-2" />}
+              {quickConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlatformIcon platform="linkedin" className="w-4 h-4 mr-2 text-white" />}
               Connect LinkedIn
             </Button>
           </div>
@@ -336,8 +337,8 @@ function AIProfilesContent() {
                 disabled={quickConnecting}
                 className="bg-zinc-900 text-white hover:bg-zinc-800"
               >
-                <Twitter className="w-4 h-4 mr-2" />
-                Connect Twitter
+                <PlatformIcon platform="twitter" className="w-4 h-4 mr-2 text-white" />
+                Connect X
               </Button>
             </div>
           ) : (
@@ -348,9 +349,9 @@ function AIProfilesContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
-                      account.platform === 'twitter' ? 'bg-[#1DA1F2]' : 'bg-[#0A66C2]'
+                      account.platform === 'twitter' ? 'bg-black' : 'bg-[#0A66C2]'
                     }`}>
-                      {account.platform === 'twitter' ? <Twitter className="w-5 h-5 text-white" /> : <Linkedin className="w-5 h-5 text-white" />}
+                      <PlatformIcon platform={account.platform} className="w-5 h-5 text-white" />
                     </div>
                     <div>
                       <h2 className="text-sm font-semibold text-zinc-900">{account.name}</h2>
@@ -375,7 +376,7 @@ function AIProfilesContent() {
                 <div className="grid gap-4 pl-4 border-l-2 border-zinc-100 ml-4">
                   {account.personas.length === 0 ? (
                     <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 text-center">
-                      <p className="text-sm text-zinc-500">No personas yet. Create your first voice!</p>
+                      <p className="text-sm text-zinc-500">No AI Profiles yet. Create your first one!</p>
                     </div>
                   ) : (
                     account.personas.map((persona) => (
@@ -390,9 +391,10 @@ function AIProfilesContent() {
                               <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-emerald-600 tracking-widest bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 ml-2">
                                 {persona.is_active ? 'Active' : 'Inactive'}
                               </span>
+                              <PlatformIcon platform={account.platform} className="w-3 h-3 text-zinc-400" />
                             </div>
                             <p className="text-xs text-zinc-500 mb-3">
-                              Focus: <span className="font-medium text-zinc-700">{persona.topics?.slice(0, 3).join(' • ') || 'General'}</span>
+                              Focus: <span className="font-medium text-zinc-700">{persona.topics?.slice(0, 3).join(' �� ') || 'General'}</span>
                             </p>
                             <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 bg-zinc-50 border border-zinc-100 inline-flex px-2.5 py-1 rounded-md">
                               <Clock className="w-3.5 h-3.5 text-zinc-400" />
@@ -441,12 +443,12 @@ function AIProfilesContent() {
 
       </div>
 
-      {/* Edit Persona Modal */}
+      {/* Edit AI Profile Modal */}
       {editingPersona && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold text-zinc-900">Edit Persona</h3>
+              <h3 className="text-xl font-bold text-zinc-900">Edit AI Profile</h3>
               <Button
                 variant="ghost"
                 size="icon"
@@ -481,9 +483,9 @@ function AIProfilesContent() {
       {deletingId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold text-zinc-900 mb-2">Delete Persona</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-2">Delete AI Profile</h3>
             <p className="text-sm text-zinc-600 mb-6">
-              Are you sure you want to delete this persona? This action cannot be undone.
+              Are you sure you want to delete this AI Profile? This action cannot be undone.
             </p>
             <div className="flex gap-3">
               <Button

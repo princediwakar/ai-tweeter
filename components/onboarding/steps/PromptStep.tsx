@@ -110,9 +110,9 @@ const handleGenerate = async () => {
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
           {isGenerating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Creating your voice...</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Creating your AI Profile...</>
           ) : (
-            <><BrainCircuit className="h-4 w-4" /> Create my voice</>
+            <><BrainCircuit className="h-4 w-4" /> Create my AI Profile</>
           )}
         </button>
       </div>

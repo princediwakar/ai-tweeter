@@ -38,7 +38,7 @@ function formatAccount(account: any): any {
     status: account.status,
     personas: account.personas || [],
     branding: account.branding,
-    created_at: account.created_at,
+    connected_at: account.connected_at,
     updated_at: account.updated_at,
     profile_image_url: account.profile_image_url,
     credentials_configured: !!(account.access_token || account.twitter_access_token),
@@ -49,6 +49,7 @@ function formatAccount(account: any): any {
 function formatPersona(persona: any): any {
   return {
     id: persona.id,
+    key: persona.key,
     name: persona.name,
     emoji: getPersonaEmoji(persona.name),
     description: persona.description || '',
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
     const userId = await getUserIdFromRequest(request);
     if (!userId) {
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'Authentication required', personas: [], accounts: [] },
         { status: 401 }
       ) as any;
     }
@@ -118,14 +119,19 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
         `
       ]);
     } else {
+      // Get all tweets for accounts owned by this user
       [tweetsResult, totalResult] = await Promise.all([
         sql<any>`
-          SELECT * FROM tweets
-          ORDER BY created_at DESC
+          SELECT t.* FROM tweets t
+          INNER JOIN connected_accounts ca ON t.connected_account_id = ca.id
+          WHERE ca.user_id = ${userId}
+          ORDER BY t.created_at DESC
           LIMIT ${limit} OFFSET ${(page - 1) * limit}
         `,
         sql<any>`
-          SELECT COUNT(*) as count FROM tweets
+          SELECT COUNT(*) as count FROM tweets t
+          INNER JOIN connected_accounts ca ON t.connected_account_id = ca.id
+          WHERE ca.user_id = ${userId}
         `
       ]);
     }
@@ -134,7 +140,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
       sql<any>`
         SELECT * FROM connected_accounts 
         WHERE user_id = ${userId}
-        ORDER BY created_at DESC
+        ORDER BY connected_at DESC
       `,
       sql<any>`
         SELECT p.* FROM personas p
@@ -145,9 +151,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
     ]);
 
     const accounts = accountsResult.rows.map(formatAccount);
-    const personas = personasResult.rows
-      .filter(p => p.is_active)
-      .map(formatPersona);
+    const personas = personasResult.rows.map(formatPersona);
     const tweets = tweetsResult.rows.map(formatTweet);
     const total = parseInt(totalResult.rows[0].count);
 

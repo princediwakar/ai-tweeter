@@ -52,7 +52,7 @@ export function Composer({
           {hasNoPersonas ? (
             <div className="flex items-center gap-2 px-2 py-1">
               <AlertCircle size={14} className="text-amber-500" />
-              <span className="text-xs text-amber-600 font-medium">No voice set up yet</span>
+              <span className="text-xs text-amber-600 font-medium">No AI Profile set up yet</span>
               <Link href="/profiles" className="text-xs text-zinc-900 hover:underline font-semibold">
                 Set up
               </Link>

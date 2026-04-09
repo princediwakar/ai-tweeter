@@ -1,7 +1,8 @@
 // components/dashboard/AccountSelector.tsx
 'use client';
 
-import { Users, RefreshCw, Plus, Twitter, Linkedin, Server } from 'lucide-react';
+import { Users, RefreshCw, Plus, Server } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import Link from 'next/link';
 
 interface Account {
@@ -103,7 +104,7 @@ export function ModernAccountSelector({
           </div>
           <div className="w-px h-3 bg-zinc-200" />
           <div className="flex items-center gap-1.5 text-zinc-500 font-medium">
-            {currentAccount.platform === 'twitter' ? <Twitter size={12} /> : <Linkedin size={12} />}
+            <PlatformIcon platform={currentAccount.platform === 'linkedin' ? 'linkedin' : 'twitter'} className="w-3 h-3" />
             <span className="capitalize">{currentAccount.platform}</span>
           </div>
           <div className="ml-auto">

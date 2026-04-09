@@ -1,6 +1,7 @@
 // components/onboarding/steps/ConnectStep.tsx
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Loader2, Twitter, Linkedin, CheckCircle2, Link2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, CheckCircle2, Link2 } from 'lucide-react';
+import { PlatformIcon } from '@/components/ui/PlatformIcon';
 
 export default function ConnectStep({ 
   connectedPlatforms, 
@@ -36,7 +37,7 @@ export default function ConnectStep({
         }`}>
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center">
-              <Twitter className="h-5 w-5 text-[#1DA1F2]" />
+              <PlatformIcon platform="twitter" className="h-5 w-5" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">Twitter / X</h3>
@@ -67,7 +68,7 @@ export default function ConnectStep({
         }`}>
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center">
-              <Linkedin className="h-5 w-5 text-[#0A66C2]" />
+              <PlatformIcon platform="linkedin" className="h-5 w-5" />
             </div>
             <div>
               <h3 className="text-sm font-semibold text-zinc-900">LinkedIn</h3>

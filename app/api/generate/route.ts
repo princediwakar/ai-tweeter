@@ -247,7 +247,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       content: generatedTweet.content,
       hashtags: generatedTweet.hashtags,
       persona: generatedTweet.persona,
-      status: 'ready',
+      status: 'draft',
       created_at: new Date().toISOString(),
       content_type: 'single_tweet',
       image_url: generatedTweet.imageUrl,

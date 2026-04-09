@@ -13,6 +13,7 @@ import {
 } from "./types";
 import { connectedAccountsService, type ConnectedAccount as Account } from "./connectedAccounts";
 import { getDynamicContext } from "./contentSource";
+import { fetchFromGoogle } from "./contentSource/fetchers/google";
 import {
   generateVariationMarkers,
   shouldUseRSSSources,
@@ -61,7 +62,23 @@ export async function generateTweetPrompt(
 
   let rssContext = config.rssContext || "";
 
-  if (!rssContext && useRSSSources && config.persona) {
+  // Fetch Google News context when user provides a topic
+  let userTopicContext = "";
+  if (config.topic && config.skipRSS) {
+    try {
+      const googleHeadlines = await fetchFromGoogle(config.topic);
+      if (googleHeadlines.length > 0) {
+        userTopicContext = googleHeadlines.map(h => 
+          `### TOPIC SOURCE ${googleHeadlines.indexOf(h) + 1}\n${h.headline}\n${h.url || ''}\n### END SOURCE`
+        ).join('\n\n');
+        console.log(`🔍 (Google Fetch) Fetched ${googleHeadlines.length} results for "${config.topic}"`);
+      }
+    } catch (error) {
+      console.warn("⚠️ Failed to fetch from Google, continuing without it:", error);
+    }
+  }
+
+  if (!rssContext && useRSSSources && config.persona && !config.skipRSS && !config.topic) {
     try {
       rssContext = await getDynamicContext(
         config.persona,
@@ -122,7 +139,7 @@ export async function generateTweetPrompt(
   }
 
   const personaGenerator = getPersonaGenerator(persona);
-  const context: GenerationContext = { account, useRSSSources, rssContext };
+  const context: GenerationContext = { account, useRSSSources, rssContext, userTopicContext };
   const prompt = personaGenerator.generatePrompt(safeConfig, context, { timeMarker, tokenMarker });
 
   return { prompt, persona, rssContext };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { ListChecks, Clock, Ghost, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ListChecks, Clock, Ghost, Loader2, ChevronLeft, ChevronRight, Trash2, Send, ExternalLink, X } from 'lucide-react';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import NavigationLayout from '@/components/NavigationLayout';
 
@@ -16,11 +16,15 @@ interface Tweet {
   connected_account_id?: string;
   platform?: string;
   image_url?: string;
+  source_url?: string;
+  twitter_url?: string;
+  linkedin_id?: string;
 }
 
 interface Persona {
   id: string;
   name: string;
+  key: string;
   is_active: boolean;
   connected_account_id: string;
   schedules: {
@@ -57,6 +61,23 @@ function getPersonaEmoji(name: string): string {
   if (name.includes('Pattern')) return '🔍';
   if (name.includes('LinkedIn')) return '📊';
   return '🗣️';
+}
+
+function getStatusColor(status: string): { bg: string; text: string; label: string } {
+  switch (status) {
+    case 'draft':
+      return { bg: 'bg-zinc-100', text: 'text-zinc-600', label: 'Draft' };
+    case 'ready':
+      return { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'Ready' };
+    case 'scheduled':
+      return { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Scheduled' };
+    case 'posted':
+      return { bg: 'bg-zinc-100', text: 'text-zinc-500', label: 'Posted' };
+    case 'failed':
+      return { bg: 'bg-red-100', text: 'text-red-700', label: 'Failed' };
+    default:
+      return { bg: 'bg-zinc-100', text: 'text-zinc-600', label: status };
+  }
 }
 
 function formatTime(date: Date): string {
@@ -125,7 +146,7 @@ function calculateNext7DaysSchedules(
 
 function mergeTimeline(tweets: Tweet[], ghostItems: TimelineItem[]): TimelineItem[] {
   const tweetItems: TimelineItem[] = tweets
-    .filter(t => t.status === 'ready' || t.status === 'scheduled')
+    .filter(t => t.status !== 'posted')
     .map(tweet => {
       let itemDate: Date;
       if (tweet.scheduled_for) {
@@ -170,6 +191,9 @@ export default function QueuePage() {
   const [tweets, setTweets] = useState<Tweet[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [expandedTweetId, setExpandedTweetId] = useState<string | null>(null);
+  const [postingTweetId, setPostingTweetId] = useState<string | null>(null);
+  const [deletingTweetId, setDeletingTweetId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -195,6 +219,55 @@ export default function QueuePage() {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handlePostTweet(tweetId: string) {
+    setPostingTweetId(tweetId);
+    try {
+      const tweet = tweets.find(t => t.id === tweetId);
+      if (!tweet) return;
+      
+      const account = accounts.find(a => a.id === tweet.connected_account_id);
+      const platform = account?.platform || 'twitter';
+      
+      const res = await fetch(`/api/tweets/${tweetId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'post', platform }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`Failed to post: ${data.error || data.details}`);
+      } else {
+        setTweets(prev => prev.map(t => 
+          t.id === tweetId ? { ...t, status: 'posted', posted_at: new Date().toISOString() } : t
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to post tweet:', error);
+      alert('Failed to post tweet');
+    } finally {
+      setPostingTweetId(null);
+    }
+  }
+
+  async function handleDeleteTweet(tweetId: string) {
+    if (!confirm('Are you sure you want to delete this tweet?')) return;
+    setDeletingTweetId(tweetId);
+    try {
+      const res = await fetch(`/api/tweets/${tweetId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(`Failed to delete: ${data.error}`);
+      } else {
+        setTweets(prev => prev.filter(t => t.id !== tweetId));
+      }
+    } catch (error) {
+      console.error('Failed to delete tweet:', error);
+      alert('Failed to delete tweet');
+    } finally {
+      setDeletingTweetId(null);
     }
   }
 
@@ -302,7 +375,13 @@ export default function QueuePage() {
 
                       const tweet = item.tweet!;
                       const account = accounts.find(a => a.id === tweet.connected_account_id);
-                      const persona = personas.find(p => p.id === tweet.persona);
+                      const persona = personas.find(p => p.key === tweet.persona);
+                      const statusStyle = getStatusColor(tweet.status);
+                      const isExpanded = expandedTweetId === tweet.id;
+                      const isPosting = postingTweetId === tweet.id;
+                      const isDeleting = deletingTweetId === tweet.id;
+                      const canDelete = tweet.status === 'draft' || tweet.status === 'ready' || tweet.status === 'failed';
+                      const canPost = tweet.status === 'draft' || tweet.status === 'ready';
 
                       return (
                         <div
@@ -311,25 +390,85 @@ export default function QueuePage() {
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Clock className="h-3.5 w-3.5 text-zinc-400" />
-                                <span className="text-xs font-medium text-zinc-500">
-                                  {formatTime(item.date)}
-                                </span>
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="text-lg">
                                   {persona ? getPersonaEmoji(persona.name) : '🤖'}
                                 </span>
                                 <span className="text-sm font-medium text-zinc-700">
-                                  {persona?.name || 'Profile'}
+                                  {persona?.name || tweet.persona || 'Unknown'}
                                 </span>
+                                <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                                <span className="text-xs font-medium text-zinc-500">
+                                  {formatTime(item.date)}
+                                </span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${statusStyle.bg} ${statusStyle.text}`}>
+                                  {statusStyle.label}
+                                </span>
+                                
                               </div>
-                              <p className="text-sm text-zinc-700 line-clamp-3 leading-relaxed">
-                                {tweet.content}
-                              </p>
+                              <div 
+                                className="text-sm text-zinc-700 leading-relaxed cursor-pointer"
+                                onClick={() => setExpandedTweetId(isExpanded ? null : tweet.id)}
+                              >
+                                <span className={isExpanded ? '' : 'line-clamp-3'}>
+                                  {tweet.content}
+                                </span>
+                                {tweet.content.length > 200 && (
+                                  <span className="text-blue-500 text-xs ml-1">
+                                    {isExpanded ? '(click to collapse)' : '(click to expand)'}
+                                  </span>
+                                )}
+                              </div>
+                              {tweet.source_url && (
+                                <a 
+                                  href={tweet.source_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-500 hover:underline mt-1 block truncate max-w-xs"
+                                >
+                                  📰 {tweet.source_url}
+                                </a>
+                              )}
                             </div>
-                            {account && (
-                              <PlatformIcon platform={account.platform as 'twitter' | 'linkedin'} className="h-3 w-3" />
-                            )}
+                            <div className="flex flex-col items-end gap-2">
+                              {/* {account && (
+                                <PlatformIcon platform={account.platform as 'twitter' | 'linkedin'} className="h-3 w-3" />
+                              )} */}
+                              <div className="flex gap-1">
+                                {canPost && (
+                                  <button
+                                    onClick={() => handlePostTweet(tweet.id)}
+                                    disabled={isPosting}
+                                    className="p-1.5 rounded-md bg-emerald-100 text-emerald-700 hover:bg-emerald-200 disabled:opacity-50 flex items-center gap-1"
+                                    title={`Post on ${account?.platform || 'twitter'}`}
+                                  >
+                                    {isPosting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                                    <PlatformIcon platform={account?.platform as 'twitter' | 'linkedin' || 'twitter'} className="h-3 w-3" />
+                                  </button>
+                                )}
+                                {canDelete && (
+                                  <button
+                                    onClick={() => handleDeleteTweet(tweet.id)}
+                                    disabled={isDeleting}
+                                    className="p-1.5 rounded-md bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50"
+                                    title="Delete"
+                                  >
+                                    {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                  </button>
+                                )}
+                                {tweet.status === 'posted' && (tweet.twitter_url || tweet.linkedin_id) && (
+                                  <a
+                                    href={tweet.twitter_url || `https://www.linkedin.com/feed/update/${tweet.linkedin_id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                    title="View posted"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       );

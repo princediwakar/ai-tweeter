@@ -109,7 +109,8 @@ export async function POST(request: NextRequest) {
           connected_account_id: accountId,
           persona: personaKey,
           topic: topic,
-          contentType: contentType as any
+          contentType: contentType as any,
+          skipRSS: true,
         };
 
         const generatedTweet = await generateTweet(config);
@@ -121,12 +122,13 @@ export async function POST(request: NextRequest) {
           content: generatedTweet.content,
           hashtags: generatedTweet.hashtags,
           persona: generatedTweet.persona,
-          status: 'ready',
+          status: 'draft',
           created_at: new Date().toISOString(),
           content_type: 'single_tweet',
           image_url: generatedTweet.imageUrl,
           image_status: generatedTweet.imageStatus || 'none',
           card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
+          source_url: generatedTweet.sourceUrl || undefined,
         };
 
         await saveTweet(tweet);
@@ -155,7 +157,7 @@ export async function POST(request: NextRequest) {
           content: gen.content,
           hashtags: gen.hashtags,
           persona: gen.persona,
-          status: 'ready',
+          status: 'draft',
           created_at: new Date().toISOString(),
           content_type: 'single_tweet',
           image_url: gen.imageUrl,

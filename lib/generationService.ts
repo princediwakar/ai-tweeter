@@ -73,32 +73,6 @@ function recordFailure(): void {
   }
 }
 
-function getDeepseekClient(): OpenAI {
-  if (deepseekClientInstance) {
-    return deepseekClientInstance;
-  }
-  
-  // If already initializing, wait for that promise
-  if (clientInitPromise) {
-    throw new Error('Client initialization in progress');
-  }
-  
-  clientInitPromise = (async () => {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      clientInitPromise = null;
-      throw new Error("DEEPSEEK_API_KEY is not defined in environment variables");
-    }
-    deepseekClientInstance = new OpenAI({
-      apiKey,
-      baseURL: "https://api.deepseek.com",
-    });
-    clientInitPromise = null;
-    return deepseekClientInstance;
-  })();
-  
-  throw new Error('Client initialization in progress');
-}
 
 // Async version that properly waits for initialization
 export async function getDeepseekClientAsync(): Promise<OpenAI> {

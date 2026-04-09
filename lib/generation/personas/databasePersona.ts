@@ -19,6 +19,8 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
     const { timeMarker, tokenMarker } = markers;
     const personaConfig = (this.persona.config as Record<string, unknown>) || {};
     const rssSourceContext = context.rssContext || "";
+    const userTopicContext = context.userTopicContext || "";
+    const userTopic = config.topic;
 
     const identityContext = String(personaConfig.identity_context || 'You are an AI content generator.');
     const sourceLogic = String(personaConfig.source_logic || 'Select relevant content sources.');
@@ -38,7 +40,21 @@ You are ${this.persona.name}. ${identityContext}
 
 ${this.persona.description}
 
-Right now you have this fresh context from your sources:
+`;
+
+    if (userTopic && userTopicContext) {
+      prompt += `USER REQUEST: Write a post about "${userTopic}"
+
+Here's some context from recent news about this topic:
+${userTopicContext}
+
+`;
+    } else if (userTopic) {
+      prompt += `USER REQUEST: Write a post about "${userTopic}"
+
+`;
+    } else if (rssSourceContext) {
+      prompt += `Right now you have this fresh context from your sources:
 ${rssSourceContext}
 
 ${config.previousHeadlines && config.previousHeadlines.length > 0
@@ -47,9 +63,11 @@ ${config.previousHeadlines && config.previousHeadlines.length > 0
 ${config.usedSourceUrls && config.usedSourceUrls.length > 0
   ? `Do not use these articles again:\n${config.usedSourceUrls.map(url => `- ${url}`).join('\n')}\n`
   : ''}
+`;
+    }
 
-Follow these rules exactly:
-${sourceLogic}
+    prompt += `Follow these rules exactly:
+${userTopic ? 'Write about the topic the user requested. If you need to include facts or data, make sure they are accurate and verifiable.' : sourceLogic}
 
 Write exactly like a real person would — short paragraphs, natural rhythm, first person. Mix short punchy sentences with slightly longer ones. Use contractions. Sound like you're texting a smart colleague who gets it.
 
@@ -74,9 +92,8 @@ Output ONLY valid JSON. Nothing else.
 
 {
   "reasoning": {
-    "selectedArticle": <number>,
-    "keyMetric": "<specific data point>",
-    "yourAngle": "<why this matters to you>",
+    "keyMetric": "<specific data point if applicable>",
+    "yourAngle": "<why this matters to you or your audience>",
     "formatUsed": "<the natural format you chose>"
   },
   "tweetText": "<the complete post text — short paragraphs, human voice>"

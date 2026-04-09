@@ -1,3 +1,4 @@
+// app/api/onboarding/generate-personas/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { sql } from '@vercel/postgres';

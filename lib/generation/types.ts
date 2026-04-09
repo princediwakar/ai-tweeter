@@ -21,6 +21,7 @@ export interface TweetGenerationConfig {
   usedSourceUrls?: string[];
   rssContext?: string;
   generationFormat?: 'image' | 'text-only';
+  skipRSS?: boolean;
 }
 
 export interface RecentPattern {
@@ -32,6 +33,7 @@ export interface GenerationContext {
   account: Account | null;
   useRSSSources: boolean;
   rssContext: string;
+  userTopicContext?: string;
 }
 
 export interface PersonaGenerationResult {

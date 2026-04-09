@@ -237,6 +237,7 @@ export interface TweetGenerationConfig {
   category?: string;
   topic?: string;
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
+  skipRSS?: boolean;
 }
 
 // NEW: Added the complete type definition for the object returned by generateThread

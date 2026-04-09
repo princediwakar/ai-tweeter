@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getAllTweets, saveTweet, deleteTweet } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
-import { postTweet } from '@/lib/twitter';
-import { postToLinkedIn, refreshAccessToken, LinkedInCredentials } from '@/lib/linkedin';
-import { sql } from '@vercel/postgres';
+import { postTweet, buildTwitterCredentialsFromAccount } from '@/lib/twitter';
+import { postToLinkedIn, LinkedInCredentials } from '@/lib/linkedin';
 
 export async function GET(
   _request: Request,
@@ -55,72 +54,32 @@ export async function PUT(
     }
 
     if (action === 'post') {
-      const platform = body.platform || 'twitter';
-      
       try {
-        // Get account credentials for posting
-        const accountId = tweet.connected_account_id || tweet.account_id;
+        const accountId = tweet.connected_account_id;
         if (!accountId) {
           return NextResponse.json({ error: 'No account linked to this tweet' }, { status: 400 });
         }
-        let account = await connectedAccountsService.getById(accountId);
+        
+        const account = await connectedAccountsService.getById(accountId);
         if (!account) {
           return NextResponse.json({ error: 'Account not found for this tweet' }, { status: 404 });
         }
 
+        const platform = account.platform;
+        
         if (platform === 'linkedin') {
-          // Handle LinkedIn posting
-          // Check if the specific account has LinkedIn, or find any account with LinkedIn connected
-          let linkedInAccount = account;
+          if (!account.access_token) {
+            return NextResponse.json({ error: 'LinkedIn access token not found. Please reconnect LinkedIn in Settings.' }, { status: 400 });
+          }
           
-          if (!account?.linkedin_enabled || !account?.linkedin_access_token) {
-            // Try to find any account with LinkedIn connected for this user
-            const userId = account?.user_id;
-            if (userId) {
-              const userAccounts = await connectedAccountsService.getByUserId(userId);
-              const foundAccount = userAccounts.find(a => a.linkedin_enabled && a.linkedin_access_token);
-              if (foundAccount) linkedInAccount = foundAccount;
-            }
-          }
-
-          if (!linkedInAccount || !linkedInAccount.linkedin_enabled || !linkedInAccount.linkedin_access_token) {
-            return NextResponse.json({ error: 'LinkedIn not connected for this account. Please connect LinkedIn in Settings.' }, { status: 400 });
-          }
-
-          // Use the found LinkedIn account
-          account = linkedInAccount;
-          console.log('Using LinkedIn account:', { accountId: account.id, userId: account.user_id });
-
-          // Refresh token if needed
-          if (account.linkedin_refresh_token && account.linkedin_token_expires_at) {
-            const expiresAt = new Date(account.linkedin_token_expires_at);
-            const shouldRefresh = Date.now() > expiresAt.getTime() - 60000; // Refresh 1 min before expiry
-            if (shouldRefresh) {
-              try {
-                const { accessToken, refreshToken, expiresAt: newExpiresAt } = await refreshAccessToken(account.linkedin_refresh_token);
-                await connectedAccountsService.update(accountId, {
-                  linkedin_access_token: accessToken,
-                  linkedin_refresh_token: refreshToken,
-                  linkedin_token_expires_at: newExpiresAt.toISOString(),
-                });
-                account.linkedin_access_token = accessToken;
-                account.linkedin_refresh_token = refreshToken;
-                account.linkedin_token_expires_at = newExpiresAt.toISOString();
-              } catch (refreshError) {
-                console.error('Failed to refresh LinkedIn token:', refreshError);
-              }
-            }
-          }
-
           const linkedinCreds: LinkedInCredentials = {
-            accessToken: account.linkedin_access_token ?? '',
-            refreshToken: account.linkedin_refresh_token ?? undefined,
-            expiresAt: account.linkedin_token_expires_at ? new Date(account.linkedin_token_expires_at) : undefined,
-            userId: account.linkedin_user_id ?? undefined,
-            orgId: account.linkedin_org_id ?? undefined,
+            accessToken: account.access_token,
+            refreshToken: account.refresh_token || undefined,
+            expiresAt: account.token_expires_at ? new Date(account.token_expires_at) : undefined,
+            userId: account.linkedin_user_id || undefined,
+            orgId: account.linkedin_org_id || undefined,
           };
 
-          // Strip @ mentions for LinkedIn
           let content = tweet.content.replace(/@/g, '');
           if (tweet.hashtags && tweet.hashtags.length > 0) {
             const formattedTags = tweet.hashtags.map((tag: string) => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
@@ -129,10 +88,9 @@ export async function PUT(
 
           const result = await postToLinkedIn(content, linkedinCreds, tweet.image_url || undefined);
           
-          // Update tweet status and store LinkedIn ID
           tweet.status = 'posted';
           tweet.posted_at = new Date().toISOString();
-          await sql`UPDATE tweets SET linkedin_id = ${result.id}, posted_at = ${tweet.posted_at}, status = 'posted' WHERE id = ${tweet.id}`;
+          tweet.linkedin_id = result.id;
           await saveTweet(tweet);
           
           return NextResponse.json({ 
@@ -141,13 +99,11 @@ export async function PUT(
             linkedinUrl: `https://www.linkedin.com/feed/update/${result.id}`
           });
         } else {
-          // Handle Twitter posting (existing code)
-          const credentials = {
-            apiKey: account.twitter_api_key || '',
-            apiSecret: account.twitter_api_secret || '',
-            accessToken: account.twitter_access_token || '',
-            accessSecret: account.twitter_access_token_secret || ''
-          };
+          if (!account.access_token) {
+            return NextResponse.json({ error: 'Twitter access token not found. Please reconnect Twitter in Settings.' }, { status: 400 });
+          }
+
+          const credentials = buildTwitterCredentialsFromAccount(account);
 
           const result = await postTweet(tweet.content, credentials);
           tweet.status = 'posted';
@@ -165,7 +121,6 @@ export async function PUT(
         tweet.error_message = errorMessage;
         await saveTweet(tweet);
         
-        // Return detailed error for better user experience
         return NextResponse.json({ 
           error: 'Failed to post tweet',
           details: errorMessage,

@@ -35,7 +35,8 @@ export async function getGenerationBatchInfo(
     return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Account not found' };
   }
 
-  // FIXED: ISODOW (1-7), COALESCE timezone, and widened generation window to pre-generate up to 3 hours before.
+// lib/schedule.ts (Inside getGenerationBatchInfo)
+
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
@@ -49,9 +50,9 @@ export async function getGenerationBatchInfo(
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 180 -- PRE-GENERATE: Up to 3 hours before start_time
+        (start_time - local_minutes + 1440) % 1440 <= 5 -- JIT GENERATION: Only look 15 minutes ahead
         OR 
-        (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after (if cron missed it)
+        (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after
       )
     ORDER BY start_time ASC
   `;

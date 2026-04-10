@@ -274,7 +274,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       persona: selectedPersonaKey,
       schedule_id: scheduleId,
       content: enhancedTweet.content,
-      status: 'draft', 
+      status: 'ready', 
       content_type: 'single_tweet', 
       hashtags: enhancedTweet.hashtags || [],
       image_url: enhancedTweet.imageUrl,
@@ -350,8 +350,8 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
         a.id, a.name, a.account_username as twitter_handle, a.platform, a.personas, a.branding,
         s.start_time,
         s.days_of_week,
-        (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) as local_minutes,
-        EXTRACT(DOW FROM timezone(s.timezone, NOW())) as local_dow
+        (EXTRACT(HOUR FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(s.timezone, 'UTC'), NOW()))) as local_minutes,
+        EXTRACT(ISODOW FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) as local_dow
       FROM connected_accounts a
       JOIN account_schedules s ON s.connected_account_id = a.id
       WHERE a.is_active = true AND s.is_active = true
@@ -359,8 +359,11 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     SELECT id, name, twitter_handle, platform, personas, branding
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
-      AND (local_minutes - start_time + 1440) % 1440 >= 0
-      AND (local_minutes - start_time + 1440) % 1440 < 60
+      AND (
+        (start_time - local_minutes + 1440) % 1440 <= 5 -- JIT GENERATION: Only look 5 minutes ahead
+        OR 
+        (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after (if cron missed it)
+      )
     GROUP BY id, name, twitter_handle, platform, personas, branding
     LIMIT 100
   `;

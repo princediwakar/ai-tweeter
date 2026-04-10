@@ -1,9 +1,9 @@
 // app/api/generate/route.ts
-import { NextRequest, NextResponse, after } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
-export const maxDuration = 300; // Extend Vercel limit for background execution
+export const maxDuration = 300; // 5-minute Vercel limit
 
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -73,43 +73,24 @@ export async function GET(request: NextRequest) {
     const personaOverride = searchParams.get('persona');
 
     if (accountId) {
-      if (debugMode) {
-        return await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
-      }
-      after(async () => {
-        await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
-      });
-      return NextResponse.json({ success: true, message: `Async generation started for account ${accountId}` }, { status: 202 });
+      const result = await generateForAccountEnhanced(accountId, request, debugMode, personaOverride);
+      return result;
     }
 
     if (twitterHandle) {
       const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
       if (!account) {
-        return NextResponse.json({
-          error: `Account not found for Twitter handle: ${twitterHandle}`
-        }, { status: 404 });
+        return NextResponse.json({ error: `Account not found for handle: ${twitterHandle}` }, { status: 404 });
       }
-      if (debugMode) {
-        return await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
-      }
-      after(async () => {
-        await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
-      });
-      return NextResponse.json({ success: true, message: `Async generation started for handle ${twitterHandle}` }, { status: 202 });
+      const result = await generateForAccountEnhanced(account.id, request, debugMode, personaOverride);
+      return result;
     }
 
-    if (debugMode) {
-      return await generateForAllAccountsEnhanced(request, debugMode);
-    }
-    
-    after(async () => {
-      await generateForAllAccountsEnhanced(request, debugMode);
-    });
-    return NextResponse.json({ success: true, message: "Async multi-account generation started" }, { status: 202 });
+    const result = await generateForAllAccountsEnhanced(request, debugMode);
+    return result;
 
   } catch (error) {
     logger.error('Enhanced generation failed', 'generate', error as Error);
-
     return NextResponse.json({
       success: false,
       error: 'Failed to start enhanced generation',
@@ -127,41 +108,27 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   const account = await connectedAccountsService.getById(accountId) as any;
   if (!account) {
-    return NextResponse.json({
-      success: false,
-      error: `Account ${accountId} not found`
-    }, { status: 404 });
+    return NextResponse.json({ success: false, error: `Account ${accountId} not found` }, { status: 404 });
   }
 
   const batchInfo = await getGenerationBatchInfo(account.account_username || account.twitter_handle, debugMode);
 
   if (debugMode && personaOverride) {
     batchInfo.generation_personas = [personaOverride];
-    logger.info(`[Enhanced:${callId}] Debug mode: overriding persona to ${personaOverride}`, 'generate-debug');
   }
 
   if (!batchInfo.should_generate && !debugMode) {
-    logger.info(`[Enhanced:${callId}] Generation skipped by schedule. Time elapsed: ${((performance.now() - startTime) / 1000).toFixed(2)}s`, 'generate-skip');
     return NextResponse.json({
-      success: true,
-      message: `⏳ No generation scheduled for account ${accountId} at this time.`,
-      accountId,
-      batchInfo,
-      timestamp: new Date().toISOString()
+      success: true, message: `⏳ No generation scheduled.`, accountId, batchInfo
     });
   }
 
   if (account.status !== 'active') {
-    return NextResponse.json({
-      success: false,
-      error: `Account ${accountId} is inactive`
-    }, { status: 404 });
+    return NextResponse.json({ success: false, error: `Account inactive` }, { status: 404 });
   }
 
-  const dbReadStart = performance.now();
   const accountTweets = await getTweetsByAccount(accountId);
   const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
-  logger.info(`[Enhanced:${callId}] DB read time: ${((performance.now() - dbReadStart) / 1000).toFixed(2)}s. Pending tweets: ${pendingTweets.length}`, 'generate-timing');
 
   const maxPipelineSize = account.branding?.max_pipeline_size || 30;
   const canThreads = await canGenerateThreads(account);
@@ -169,25 +136,15 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
   if (pendingTweets.length >= maxPipelineSize) {
     return NextResponse.json({
-      success: true,
-      message: `✅ Account pipeline is healthy with ${pendingTweets.length} tweets. No generation needed.`,
-      accountId,
-      currentPipeline: pendingTweets.length,
-      maxPipeline: maxPipelineSize,
-      batchInfo,
-      generated: 0,
-      timestamp: new Date().toISOString()
+      success: true, message: `✅ Pipeline healthy.`, generated: 0
     });
   }
 
-  let targetBatchSize = Math.min(batchInfo.batch_size || 5, maxPipelineSize - pendingTweets.length);
+  let targetBatchSize = Math.min(batchInfo.batch_size || 1, maxPipelineSize - pendingTweets.length);
   const selectedPersonaKey = batchInfo.generation_personas[0];
   
   if (!selectedPersonaKey) {
-    return NextResponse.json({
-      success: false,
-      error: 'No persona available for generation.'
-    }, { status: 400 });
+    return NextResponse.json({ success: false, error: 'No persona available.' }, { status: 400 });
   }
 
   const persona = await getPersonaByKey(selectedPersonaKey);
@@ -195,19 +152,9 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const scheduleId = batchInfo.schedule_ids?.[0]; 
   const allPersonas = await getAllPersonas();
   const threadPersonas = allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key);
-  const shouldGenerateThreads = supportsThreading && threadPersonas.includes(selectedPersonaKey);
-
-  if (shouldGenerateThreads) {
-    targetBatchSize = 1; 
-  }
-
-  if (targetBatchSize <= 0) {
-    return NextResponse.json({
-      success: true,
-      message: `✅ Account pipeline is healthy. No new tweets needed at this time.`,
-      generated: 0,
-    });
-  }
+  
+  // Boolean just checks if the persona *is capable* of threads
+  const personaSupportsThreads = supportsThreading && threadPersonas.includes(selectedPersonaKey);
 
   const generatedTweets: GeneratedTweetInfo[] = [];
   const generatedThreads: ThreadGenerationResult[] = [];
@@ -219,7 +166,16 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
-    if (shouldGenerateThreads) {
+    // FIX #2 IMPLEMENTED: Randomize the content type BEFORE deciding to run thread generation
+    let selectedContentType = 'single_tweet';
+    
+    if (personaSupportsThreads) {
+        // 80% chance for a single tweet, 20% chance for a thread
+        const threadProbability = 0.20; 
+        selectedContentType = Math.random() < threadProbability ? 'thread' : 'single_tweet';
+    }
+
+    if (selectedContentType === 'thread') {
       const { getDynamicContext } = await import('@/lib/contentSource');
       const sourceContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey);
 
@@ -231,42 +187,30 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
 
       if (threadResult) {
         if (debugMode) {
-          await saveDebugOutput({
-            content: threadResult.tweets.map(t => t.content),
-            persona: selectedPersonaKey,
-            source: threadResult.sourceUrl,
-            created_at: new Date().toISOString()
-          });
+          await saveDebugOutput({ content: threadResult.tweets.map(t => t.content), persona: selectedPersonaKey, source: threadResult.sourceUrl, created_at: new Date().toISOString() });
         }
         return { type: 'thread', data: threadResult };
       } else {
-        throw new Error(`Thread generation failed for persona ${selectedPersonaKey}`);
+         // Fallback if thread generation silently fails
+         selectedContentType = 'single_tweet';
       }
     }
 
-// Inside generationPromises loop, right below the Thread generation block...
-
-    const contentType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
-    
-    // FETCH THE DATA: We must pull the extracted text for single tweets too!
+    // Generate Single Tweet
     const { getDynamicContext } = await import('@/lib/contentSource');
-    const sourceContext = await getDynamicContext(selectedPersonaKey, contentType, accountId, selectedPersonaKey);
+    const sourceContext = await getDynamicContext(selectedPersonaKey, selectedContentType, accountId, selectedPersonaKey);
 
     const config: TweetGenerationConfig = {
       persona: selectedPersonaKey,
       connected_account_id: accountId,
-      topic: contentType,
-      sourceContext: sourceContext // <--- THIS IS THE MISSING FUEL
+      topic: selectedContentType,
+      sourceContext: sourceContext 
     };
 
     const enhancedTweet = await generateTweet(config);
-    
-    if (!enhancedTweet) {
-      throw new Error(`Tweet generation returned null for persona ${selectedPersonaKey}`);
-    }
+    if (!enhancedTweet) throw new Error(`Tweet generation returned null`);
 
     const tweetId = generateTweetId();
-    
     const tweetToSave: Tweet = {
       id: tweetId,
       connected_account_id: accountId,
@@ -287,22 +231,12 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     await saveTweet(tweetToSave);
 
     if (debugMode) {
-      await saveDebugOutput({
-        content: enhancedTweet.content,
-        persona: selectedPersonaKey,
-        source: enhancedTweet.sourceUrl,
-        created_at: new Date().toISOString()
-      });
+      await saveDebugOutput({ content: enhancedTweet.content, persona: selectedPersonaKey, source: enhancedTweet.sourceUrl, created_at: new Date().toISOString() });
     }
 
     return {
       type: 'tweet',
-      data: {
-        persona: selectedPersonaKey,
-        contentType: enhancedTweet.contentType,
-        length: enhancedTweet.content.length,
-        sourceUrl: enhancedTweet.sourceUrl
-      },
+      data: { persona: selectedPersonaKey, contentType: enhancedTweet.contentType, length: enhancedTweet.content.length, sourceUrl: enhancedTweet.sourceUrl },
       needsImage: enhancedTweet.imageStatus === 'pending'
     };
   });
@@ -322,25 +256,17 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
     }
   });
 
-  const timeElapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-  logger.info(`[Enhanced:${callId}] Generation complete in ${timeElapsed}s. Generated ${generatedTweets.length} tweets, ${generatedThreads.length} threads.`, 'generate-complete');
-
   return NextResponse.json({
     success: errors.length < targetBatchSize,
-    message: `Generation complete. ${generatedTweets.length} tweets, ${generatedThreads.length} threads created.`,
+    message: `Complete. ${generatedTweets.length} tweets, ${generatedThreads.length} threads.`,
     accountId,
     batchInfo,
-    generated: {
-      single_tweets: generatedTweets.length,
-      threads: generatedThreads.length,
-      total_content_units: generatedTweets.length + generatedThreads.length
-    },
+    generated: { single_tweets: generatedTweets.length, threads: generatedThreads.length, total_content_units: generatedTweets.length + generatedThreads.length },
     errors: errors.length > 0 ? errors : undefined,
     timestamp: new Date().toISOString()
-  });
+  }, { status: 200 });
 } 
 
-// FIXED: Removed the duplicate function declaration that was causing the trailing '}' errors
 async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = false) {
   const sessionId = Math.random().toString(36).substring(2, 8);
   
@@ -348,8 +274,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     WITH current_local AS (
       SELECT 
         a.id, a.name, a.account_username as twitter_handle, a.platform, a.personas, a.branding,
-        s.start_time,
-        s.days_of_week,
+        s.start_time, s.days_of_week,
         (EXTRACT(HOUR FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(s.timezone, 'UTC'), NOW()))) as local_minutes,
         EXTRACT(ISODOW FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) as local_dow
       FROM connected_accounts a
@@ -360,55 +285,38 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 10 -- JIT GENERATION: Only look 5 minutes ahead
+        (start_time - local_minutes + 1440) % 1440 <= 5 
         OR 
-        (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after (if cron missed it)
+        (local_minutes - start_time + 1440) % 1440 <= 60  
       )
     GROUP BY id, name, twitter_handle, platform, personas, branding
     LIMIT 100
   `;
 
   if (accountsWithSchedules.rows.length === 0) {
-    logger.info(`[Session:${sessionId}] No accounts due for generation in this window.`, 'generate-multi-skip');
-    return NextResponse.json({
-        success: true,
-        message: 'No accounts due for generation in this time window.'
-    });
+    return NextResponse.json({ success: true, message: 'No accounts due.' });
   }
 
-  const accountPromises = accountsWithSchedules.rows.map(account =>
-    generateForAccountEnhanced(account.id, request, debugMode)
-      .then(res => res.json())
-      .catch(error => ({
-          accountId: account.id,
-          accountName: account.name,
-          success: false,
-          generated: { single_tweets: 0, threads: 0, total_content_units: 0 },
-          message: error instanceof Error ? error.message : String(error)
-      }))
-  );
-
-  const results = await Promise.all(accountPromises);
+  // Force awaiting for Vercel limits
+  const results = [];
+  for (const account of accountsWithSchedules.rows) {
+      try {
+          const res = await generateForAccountEnhanced(account.id, request, debugMode);
+          results.push(await res.json());
+      } catch (error) {
+          results.push({ accountId: account.id, success: false, message: error instanceof Error ? error.message : String(error) });
+      }
+  }
 
   const totalGenerated = results.reduce((sum, r) => sum + (r.generated?.total_content_units || 0), 0);
-  const successfulAccounts = results.filter(r => r.success).length;
-  const accountsWithGeneration = results.filter(r => (r.generated?.total_content_units || 0) > 0).length;
-
+  
   return NextResponse.json({
     success: true,
-    message: `Multi-account generation complete: ${totalGenerated} content units generated across ${accountsWithGeneration} accounts.`,
+    message: `Multi-account complete: ${totalGenerated} units generated.`,
     sessionId,
     totalAccounts: accountsWithSchedules.rows.length,
-    successfulAccounts,
-    accountsWithGeneration,
     totalGenerated,
-    results: debugMode ? results : results.map((r: AccountGenerationResult) => ({
-      accountId: r.accountId,
-      accountName: r.accountName,
-      success: r.success,
-      generated: r.generated,
-      message: r.message,
-    })),
+    results,
     timestamp: new Date().toISOString()
-  });
+  }, { status: 200 });
 }

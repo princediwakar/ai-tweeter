@@ -3,7 +3,6 @@ import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from './connectedAccounts';
 import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
-import { logger } from './logger';
 
 export interface Schedule {
   should_generate: boolean;
@@ -36,8 +35,6 @@ export async function getGenerationBatchInfo(
     return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Account not found' };
   }
 
-// lib/schedule.ts (Inside getGenerationBatchInfo)
-
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
@@ -51,7 +48,7 @@ export async function getGenerationBatchInfo(
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 10 -- JIT GENERATION: Only look 5 minutes ahead
+        (start_time - local_minutes + 1440) % 1440 <= 5 -- JIT GENERATION: Only look 5 minutes ahead
         OR 
         (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after
       )
@@ -59,7 +56,6 @@ export async function getGenerationBatchInfo(
   `;
 
   const activeSchedules = scheduleResult.rows;
-  logger.info(`[Schedule] Found ${activeSchedules.length} active schedules in window for account ${account.id}`, 'schedule-window', { activeCount: activeSchedules.length });
 
   if (activeSchedules.length === 0) {
     return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No schedules in generation window' };
@@ -80,9 +76,10 @@ export async function getGenerationBatchInfo(
 
     if (existingSlot.rows[0]?.generation_count >= 1) continue;
 
+    // FIX #1 IMPLEMENTED: Explicitly setting posting_count to 0
     const result = await sql`
-      INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
-      VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
+      INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, posting_count, last_generated_at, created_at, updated_at)
+      VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, 0, NOW(), NOW(), NOW())
       ON CONFLICT (connected_account_id, schedule_id, slot_date)
       DO NOTHING
       RETURNING generation_count
@@ -119,7 +116,7 @@ export async function getGenerationBatchInfo(
     generation_personas: personas,
     posting_personas: personas,
     schedule_ids: scheduleIds,
-    batch_size: 1,
+    batch_size: 1, // Keep this at 1 to respect Vercel timeouts
   };
 }
 
@@ -133,7 +130,6 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
   const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) return { should_post: false, personas: [], reason: 'Account not found' };
 
-  // FIXED: Exact-minute grace period. If a cron fires at 7:05 for a 7:04 post, it will still catch it.
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
@@ -149,8 +145,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
       AND (
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR
-        -- 5-minute grace period for exact pin-point schedules (e.g. 7:04)
-        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 10)
+        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 5)
       )
     ORDER BY start_time
     LIMIT 1
@@ -163,6 +158,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
   const tzResult = await sql`SELECT timezone(${activeSchedule.timezone}, NOW())::date as local_date`;
   const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
 
+  // Because of Fix #1, this UPDATE will now properly mathematically increment 0 + 1 instead of NULL + 1
   const postingResult = await sql`
     INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
     VALUES (${account.id}, ${scheduleId}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
         a.id,
         s.id as schedule_id,
         s.start_time,
+        s.days_of_week,
         (EXTRACT(HOUR FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(s.timezone, 'UTC'), NOW()))) as local_minutes,
         EXTRACT(ISODOW FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) as local_dow
       FROM connected_accounts a
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       ON gs.connected_account_id = cl.id 
       AND gs.schedule_id = cl.schedule_id 
       AND gs.slot_date = CURRENT_DATE
-    WHERE cl.local_dow = ANY(days_of_week)
+    WHERE cl.local_dow = ANY(cl.days_of_week)
       AND (
         (cl.start_time - cl.local_minutes + 1440) % 1440 <= 60 
       )

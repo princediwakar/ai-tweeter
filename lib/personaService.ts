@@ -102,12 +102,6 @@ class PersonaService {
       `;
 
       if (result.rows.length > 0) {
-        await sql`
-          UPDATE connected_accounts
-          SET personas = COALESCE(personas, '[]'::jsonb) || jsonb_build_array(${key}::text)
-          WHERE id = ${input.connected_account_id}
-          AND NOT COALESCE(personas, '[]'::jsonb) @> jsonb_build_array(${key}::text)
-        `;
         return this.mapRow(result.rows[0]);
       }
 
@@ -296,7 +290,7 @@ class PersonaService {
         : row.config as Record<string, unknown>,
       min_length: row.min_length as number,
       max_length: row.max_length as number,
-      tone: row.tone as string | undefined,
+      tone: (row.tone as string | undefined) || null,
       topics,
       is_active: row.is_active as boolean,
       is_default: row.is_default as boolean,

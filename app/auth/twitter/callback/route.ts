@@ -105,14 +105,11 @@ export async function GET(request: NextRequest) {
       platform: 'twitter',
       account_username: profile.username,
       id: finalAccountId,
-      account_name: profile.name,
       name: profile.name,
       platform_user_id: profile.id,
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
-      profile_image_url: profile.profile_image_url,
-      twitter_oauth2_enabled: true,
     });
 
     console.log(`✅ Success! Node secured for @${profile.username}`);

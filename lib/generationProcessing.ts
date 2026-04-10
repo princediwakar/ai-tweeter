@@ -8,16 +8,16 @@ import {
   type Persona,
 } from "@/lib/personas";
 import {
-  EnhancedTweet,
+  EnhancedPost,
   CardData,
 } from "./types";
 import { connectedAccountsService, type ConnectedAccount as Account } from "./connectedAccounts";
 import type {
-  TweetGenerationConfig,
-} from "./generation/types";
+  PostGenerationConfig,
+} from "./types";
 
-export async function generateTweetPrompt(
-  config: TweetGenerationConfig
+export async function generatePostPrompt(
+  config: PostGenerationConfig
 ): Promise<{ prompt: string; persona: Persona; sourceContext?: string }> {
   
   let account: any = null;
@@ -83,13 +83,13 @@ You must return ONLY a valid JSON object matching this exact schema:
   return { prompt, persona, sourceContext };
 }
 
-export function parseAndValidateTweetResponse(
+export function parseAndValidatePostResponse(
   content: string,
   personaKey: string,
   sourceContext?: string,
   actualHeadlineCount?: number // Keeping this in case your generationService still passes it
 ): {
-  tweet: EnhancedTweet;
+  post: EnhancedPost;
   cardData: CardData | null;
   sourceUrl: string | undefined;
   reasoning?: Record<string, string>;
@@ -100,7 +100,7 @@ export function parseAndValidateTweetResponse(
 
     if (data.error) throw new Error(`AI error: ${data.error}`);
 
-    const tweetContent = data.content || data.tweetText || data.tweet; // Catch multiple legacy formats
+    const tweetContent = data.content;
     if (!tweetContent || typeof tweetContent !== 'string') {
       throw new Error("AI returned an invalid or missing tweet content string.");
     }
@@ -135,7 +135,7 @@ export function parseAndValidateTweetResponse(
     }
 
     return {
-      tweet: {
+      post: {
         content: tweetContent,
         persona: personaKey,
         selectedHeadlineNumber: articleNum, 

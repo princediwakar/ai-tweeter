@@ -169,8 +169,6 @@ async signIn({ user, account, profile }) {
             access_token: account.access_token,
             refresh_token: account.refresh_token,
             token_expires_at: tokenExpiresAt,
-            linkedin_enabled: true,
-            linkedin_user_id: platformUserId,
           });
 
           console.log(`[Auth] Magic UX: Auto-provisioned linkedin node for user ${userId}`);

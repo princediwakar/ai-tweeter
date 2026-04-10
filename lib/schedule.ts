@@ -106,7 +106,8 @@ export async function getGenerationBatchInfo(
   }
 
   if (personas.length === 0) {
-    const fallbackPersonas = account.personas?.filter(Boolean) || [];
+    const allPersonas = await getAllPersonas();
+    const fallbackPersonas = allPersonas.filter(p => p.is_active).map(p => p.key);
     personas.push(...fallbackPersonas);
   }
 
@@ -178,7 +179,8 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
     const dbPersona = await getPersonaById(activeSchedule.persona_id);
     if (dbPersona?.key) personas = [dbPersona.key];
   } else {
-    personas = account.personas?.filter(Boolean) || [];
+    const allPersonas = await getAllPersonas();
+    personas = allPersonas.filter(p => p.is_active).map(p => p.key);
   }
 
   return { should_post: true, personas };

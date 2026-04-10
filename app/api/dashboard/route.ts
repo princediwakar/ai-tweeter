@@ -33,16 +33,11 @@ function formatAccount(account: any): any {
     id: account.id,
     name: account.name,
     platform: account.platform || 'twitter',
-    account_username: account.account_username || account.twitter_handle,
-    twitter_handle: account.account_username || account.twitter_handle,
+    account_username: account.account_username,
     status: account.status,
-    personas: account.personas || [],
-    branding: account.branding,
     connected_at: account.connected_at,
     updated_at: account.updated_at,
     profile_image_url: account.profile_image_url,
-    credentials_configured: !!(account.access_token || account.twitter_access_token),
-    persona_count: account.personas?.length || 0
   };
 }
 
@@ -58,7 +53,7 @@ function formatPersona(persona: any): any {
   };
 }
 
-function formatTweet(row: any): any {
+function formatPost(row: any): any {
   return {
     id: row.id,
     connected_account_id: row.connected_account_id,
@@ -66,14 +61,10 @@ function formatTweet(row: any): any {
     hashtags: row.hashtags || [],
     persona: row.persona,
     postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-    twitterId: row.twitter_id,
-    twitterUrl: row.twitter_url,
     errorMessage: row.error_message,
     status: row.status,
     createdAt: new Date(row.created_at),
     posted_at: row.posted_at,
-    twitter_id: row.twitter_id,
-    twitter_url: row.twitter_url,
     error_message: row.error_message,
     image_url: row.image_url,
     image_status: row.image_status,
@@ -81,7 +72,6 @@ function formatTweet(row: any): any {
     created_at: row.created_at,
     thread_id: row.thread_id,
     thread_sequence: row.thread_sequence,
-    parent_twitter_id: row.parent_twitter_id,
     content_type: row.content_type || 'single_tweet',
   };
 }
@@ -108,13 +98,13 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
     if (accountId) {
       [tweetsResult, totalResult] = await Promise.all([
         sql<any>`
-          SELECT * FROM tweets
+          SELECT * FROM posts
           WHERE connected_account_id = ${accountId}
           ORDER BY created_at DESC
           LIMIT ${limit} OFFSET ${(page - 1) * limit}
         `,
         sql<any>`
-          SELECT COUNT(*) as count FROM tweets
+          SELECT COUNT(*) as count FROM posts
           WHERE connected_account_id = ${accountId}
         `
       ]);
@@ -122,14 +112,14 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
       // Get all tweets for accounts owned by this user
       [tweetsResult, totalResult] = await Promise.all([
         sql<any>`
-          SELECT t.* FROM tweets t
+          SELECT t.* FROM posts t
           INNER JOIN connected_accounts ca ON t.connected_account_id = ca.id
           WHERE ca.user_id = ${userId}
           ORDER BY t.created_at DESC
           LIMIT ${limit} OFFSET ${(page - 1) * limit}
         `,
         sql<any>`
-          SELECT COUNT(*) as count FROM tweets t
+          SELECT COUNT(*) as count FROM posts t
           INNER JOIN connected_accounts ca ON t.connected_account_id = ca.id
           WHERE ca.user_id = ${userId}
         `
@@ -152,7 +142,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<DashboardD
 
     const accounts = accountsResult.rows.map(formatAccount);
     const personas = personasResult.rows.map(formatPersona);
-    const tweets = tweetsResult.rows.map(formatTweet);
+    const tweets = tweetsResult.rows.map(formatPost);
     const total = parseInt(totalResult.rows[0].count);
 
     // Determine defaults

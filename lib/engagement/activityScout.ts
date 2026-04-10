@@ -1,5 +1,5 @@
 import { getRecentTweetCounts, getUserIdByUsername, getUserRecentTweets, TweetV2 } from '../twitter';
-import type { AccountWithCredentials } from '../types';
+import type { ConnectedAccountWithCredentials } from '../types';
 import { qualityFilters } from './config';
 import { EngagementTarget } from './targets';
 
@@ -115,19 +115,21 @@ recentTweets = recentTweets.filter(tweet => {
  * Returns tweets with target metadata (single-focus).
  */
 export async function scoutAndFetch(
-  account: AccountWithCredentials,
+  account: ConnectedAccountWithCredentials,
   targets: EngagementTarget[]
 ): Promise<Array<TweetV2 & { targetUsername: string; targetTier: number }>> {
   if (targets.length === 0) {
     return [];
   }
   
+  // Get credentials from account_credentials table
+  const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
+  
   const credentials = {
-    apiKey: account.twitter_api_key || '',
-    apiSecret: account.twitter_api_secret || '',
-    accessToken: account.twitter_access_token || '',
-    accessSecret: account.twitter_access_token_secret || '',
-  };
+    oauth2AccessToken: oauth2Cred?.access_token || '',
+    oauth2RefreshToken: oauth2Cred?.refresh_token || undefined,
+    oauth2ExpiresAt: oauth2Cred?.token_expires_at || undefined,
+  } as any;
   
   const lookbackDate = new Date(Date.now() - qualityFilters.lookback_minutes * 60 * 1000).toISOString();
   

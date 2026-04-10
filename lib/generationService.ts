@@ -1,10 +1,10 @@
 // lib/generationService.ts
 import OpenAI from "openai";
-import { EnhancedTweet } from "./types";
-import type { TweetGenerationConfig } from "./generation/types";
+import { EnhancedPost } from "./types";
+import type { PostGenerationConfig } from "./types";
 import {
-  generateTweetPrompt,
-  parseAndValidateTweetResponse,
+  generatePostPrompt,
+  parseAndValidatePostResponse,
 } from "./generationProcessing";
 import { generateContentHash } from "./generation/utils";
 import { TweetV2 } from "./twitter";
@@ -98,9 +98,9 @@ export async function getDeepseekClientAsync(): Promise<OpenAI> {
 // --- END MODIFIED ---
 
 // 2. UPDATE generateTweet to count and pass actualHeadlineCount
-export async function generateTweet(
-  config: TweetGenerationConfig = {}
-): Promise<EnhancedTweet | null> {
+export async function generatePost(
+  config: PostGenerationConfig = {}
+): Promise<EnhancedPost | null> {
   try {
     // Cache persona list - avoid redundant DB calls
     const allPersonas = await getAllPersonas();
@@ -124,7 +124,7 @@ export async function generateTweet(
     }
 
     // --- MODIFIED: Call imported function ---
-    const { prompt, persona, sourceContext } = await generateTweetPrompt(config);
+    const { prompt, persona, sourceContext } = await generatePostPrompt(config);
 
     // --- MODIFIED: Dynamic RSS-based persona check ---
     let actualHeadlineCount: number | undefined;
@@ -185,7 +185,7 @@ export async function generateTweet(
     }
 
     // --- MODIFIED: Call imported function ---
-    const parsedResponse = parseAndValidateTweetResponse(
+    const parsedResponse = parseAndValidatePostResponse(
       content,
       persona.key,
       sourceContext,
@@ -196,7 +196,7 @@ export async function generateTweet(
 
     // MODIFIED: Destructure sourceUrl from the parsed response
     const {
-      tweet: tweetData,
+      post: postData,
       cardData,
       sourceUrl,
       reasoning,
@@ -232,31 +232,31 @@ export async function generateTweet(
       );
     }
 
-    const contentHash = generateContentHash(tweetData);
+    const contentHash = generateContentHash(postData);
 
     console.log(
-      `✅ Generated enhanced tweet for ${persona.name} on content Hash: ${contentHash}`
+      `✅ Generated enhanced post for ${persona.name} on content Hash: ${contentHash}`
     );
 
     // MODIFIED: Add sourceUrl to the final returned object
     return {
-      ...tweetData,
+      ...postData,
       imageUrl,
       imageStatus,
       cardData: cardData || undefined,
       sourceUrl, // Add the extracted source URL
     };
   } catch (error) {
-    console.error(`❌ Failed to generate enhanced tweet:`, error);
+    console.error(`❌ Failed to generate enhanced post:`, error);
     return null;
   }
 }
 
-export async function generateBatchTweets(
+export async function generateBatchPosts(
   count: number,
-  config: TweetGenerationConfig = {}
-): Promise<EnhancedTweet[]> {
-  const tweets: EnhancedTweet[] = [];
+  config: PostGenerationConfig = {}
+): Promise<EnhancedPost[]> {
+  const posts: EnhancedPost[] = [];
   const usedHeadlines: number[] = [];
 
   // RSS-based personas get recent content for deduplication
@@ -278,7 +278,7 @@ export async function generateBatchTweets(
 
   for (let i = 0; i < count; i++) {
     // Use config.usedSourceUrls which is set above
-    const batchConfig: TweetGenerationConfig = {
+    const batchConfig: PostGenerationConfig = {
       ...config,
       batchPosition: i + 1,
       batchSize: count,
@@ -294,10 +294,10 @@ export async function generateBatchTweets(
       } blocked URLs...`
     );
 
-    const result = await generateTweet(batchConfig);
+    const result = await generatePost(batchConfig);
 
       if (result) {
-        tweets.push(result);
+        posts.push(result);
 
         // Track headline numbers (for RSS-based personas)
         if (
@@ -318,7 +318,7 @@ export async function generateBatchTweets(
   if (config.usedSourceUrls && config.usedSourceUrls.length > 0) {
     console.log(`🚫 Final blocked URLs (total ${config.usedSourceUrls.length})`);
   }
-  return tweets;
+  return posts;
 }
 
 export async function generateEngagementReply(

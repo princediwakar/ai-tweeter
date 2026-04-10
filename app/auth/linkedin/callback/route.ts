@@ -98,14 +98,11 @@ export async function GET(request: NextRequest) {
       platform: 'linkedin',
       account_username: profile.sub,
       id: finalAccountId,
-      account_name: profile.name,
       name: profile.name,
       platform_user_id: profile.sub,
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
-      linkedin_enabled: true,
-      linkedin_user_id: profile.sub
     });
 
     console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);

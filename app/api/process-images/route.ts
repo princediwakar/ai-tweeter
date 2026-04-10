@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         const cardData = JSON.parse(tweet.card_data) as Record<string, unknown>;
         
         // Use connected_account_id (not account_id) to match tweets table schema
-        const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.connected_account_id);
+        const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.connected_account_id || undefined);
         
         if (imageUrl) {
           await updateTweetImage(tweet.id, imageUrl, 'completed');

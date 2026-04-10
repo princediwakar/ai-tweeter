@@ -1,12 +1,12 @@
 // app/api/tweets/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getPaginatedTweets, saveTweet, generateTweetId, deleteTweets } from '@/lib/db';
+import { getPaginatedPosts, savePost, generatePostId, deletePosts } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getAllPersonas } from '@/lib/personas';
-import type { Tweet } from '@/lib/types';
-import { generateTweet, generateBatchTweets } from '@/lib/generationService';
+import type { Post } from '@/lib/types';
+import { generatePost, generateBatchPosts } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
-import { TweetGenerationConfig } from '@/lib/types';
+import { PostGenerationConfig } from '@/lib/types';
 import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid pagination parameters' }, { status: 400 });
     }
 
-    const result = await getPaginatedTweets({ 
+    const result = await getPaginatedPosts({ 
       page, 
       limit, 
       accountId: accountId || undefined 
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
         const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
         const contentType = contentTypes[new Date().getHours() % contentTypes.length];
         
-        const config: TweetGenerationConfig = {
+        const config: PostGenerationConfig = {
           connected_account_id: accountId,
           persona: personaKey,
           topic: topic,
@@ -113,26 +113,33 @@ export async function POST(request: NextRequest) {
           skipRSS: true,
         };
 
-        const generatedTweet = await generateTweet(config);
-        if (!generatedTweet) return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
+        const generatedPost = await generatePost(config);
+        if (!generatedPost) return NextResponse.json({ error: 'Generation failed' }, { status: 500 });
         
-        const tweet: Tweet = {
+        const post: Post = {
           id: crypto.randomUUID(),
           connected_account_id: accountId,
-          content: generatedTweet.content,
-          hashtags: generatedTweet.hashtags,
-          persona: generatedTweet.persona,
+          content: generatedPost.content,
+          hashtags: generatedPost.hashtags,
+          persona: generatedPost.persona,
           status: 'draft',
-          created_at: new Date().toISOString(),
+          created_at: new Date(),
           content_type: 'single_tweet',
-          image_url: generatedTweet.imageUrl,
-          image_status: generatedTweet.imageStatus || 'none',
-          card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
-          source_url: generatedTweet.sourceUrl || undefined,
+          image_url: generatedPost.imageUrl || null,
+          image_status: generatedPost.imageStatus || 'none',
+          card_data: generatedPost.cardData ? JSON.stringify(generatedPost.cardData) : null,
+          source_url: generatedPost.sourceUrl || null,
+          // Required properties
+          posted_at: null,
+          error_message: null,
+          schedule_id: null,
+          persona_id: null,
+          thread_id: null,
+          thread_sequence: null,
         };
 
-        await saveTweet(tweet);
-        return NextResponse.json({ tweet });
+        await savePost(post);
+        return NextResponse.json({ post });
       }
     }
 
@@ -140,35 +147,43 @@ export async function POST(request: NextRequest) {
       const personaKey = data.persona;
       const requestedCount = Math.min(data.count || 5, 10);
       
-      const config: TweetGenerationConfig = {
+      const config: PostGenerationConfig = {
         connected_account_id: accountId,
         persona: personaKey,
         topic: data.topic || data.customPrompt,
       };
 
-      const generatedTweets = await generateBatchTweets(requestedCount, config);
-      if (generatedTweets.length === 0) return NextResponse.json({ error: 'Bulk generation failed' }, { status: 500 });
+      const generatedPosts = await generateBatchPosts(requestedCount, config);
+      if (generatedPosts.length === 0) return NextResponse.json({ error: 'Bulk generation failed' }, { status: 500 });
 
-      const savedTweets: Tweet[] = [];
-      for (const gen of generatedTweets) {
-        const tweet: Tweet = {
-          id: generateTweetId(),
+      const savedPosts: Post[] = [];
+      for (const gen of generatedPosts) {
+        const post: Post = {
+          id: generatePostId(),
           connected_account_id: accountId,
           content: gen.content,
           hashtags: gen.hashtags,
           persona: gen.persona,
           status: 'draft',
-          created_at: new Date().toISOString(),
+          created_at: new Date(),
           content_type: 'single_tweet',
-          image_url: gen.imageUrl,
+          image_url: gen.imageUrl || null,
           image_status: gen.imageStatus || 'none',
-          card_data: gen.cardData ? JSON.stringify(gen.cardData) : undefined,
+          card_data: gen.cardData ? JSON.stringify(gen.cardData) : null,
+          source_url: null,
+          // Required properties
+          posted_at: null,
+          error_message: null,
+          schedule_id: null,
+          persona_id: null,
+          thread_id: null,
+          thread_sequence: null,
         };
-        await saveTweet(tweet);
-        savedTweets.push(tweet);
+        await savePost(post);
+        savedPosts.push(post);
       }
 
-      return NextResponse.json({ tweets: savedTweets });
+      return NextResponse.json({ posts: savedPosts });
     }
 
     if (action === 'bulk_delete') {
@@ -176,7 +191,7 @@ export async function POST(request: NextRequest) {
       if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
         return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
       }
-      await deleteTweets(tweetIds);
+      await deletePosts(tweetIds);
       return NextResponse.json({ success: true, deletedCount: tweetIds.length });
     }
 

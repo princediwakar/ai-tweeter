@@ -1,43 +1,26 @@
 // lib/utils/cloudinaryUtils.ts
 
 import { v2 as cloudinary } from 'cloudinary';
+import { platformSettings } from '../platformSettings';
+import type { ConnectedAccountWithCredentials } from '../types';
 
-import { AccountWithCredentials } from '../types';
-
-/**
- * Configure Cloudinary using account's decrypted credentials
- */
-export function configureCloudinary(account: AccountWithCredentials): boolean {
-  // Check if account has Cloudinary credentials configured
-  if (!account.cloudinary_cloud_name ||
-    !account.cloudinary_api_key ||
-    !account.cloudinary_api_secret) {
-    console.error(`❌ Account ${account.name} missing Cloudinary credentials. Please configure Cloudinary credentials for this account.`);
-    return false;
-  }
-
-  try {
-    cloudinary.config({
-      cloud_name: account.cloudinary_cloud_name,
-      api_key: account.cloudinary_api_key,
-      api_secret: account.cloudinary_api_secret
-    });
-    console.log(`✅ Configured Cloudinary for account: ${account.name}`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Failed to configure Cloudinary for account ${account.name}:`, error);
-    return false;
-  }
+export function configureCloudinary(account: ConnectedAccountWithCredentials): boolean {
+  return false;
 }
 
-/**
- * Upload image buffer to Cloudinary using account-specific credentials
- */
-export async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account: AccountWithCredentials): Promise<string> {
-  if (!configureCloudinary(account)) {
-    throw new Error(`No Cloudinary configuration available for account: ${account.name}`);
+export async function uploadToCloudinary(imageBuffer: Buffer, publicId: string, account: ConnectedAccountWithCredentials): Promise<string> {
+  const creds = await platformSettings.getCloudinaryCredentials();
+  
+  if (!creds.cloud_name || !creds.api_key) {
+    throw new Error(`No Cloudinary configuration available`);
   }
-  // Determine folder based on account
+
+  cloudinary.config({
+    cloud_name: creds.cloud_name,
+    api_key: creds.api_key,
+    api_secret: creds.api_secret,
+  });
+
   const folderName = `${account.account_username.replace('@', '')}-content`;
 
   try {

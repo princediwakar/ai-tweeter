@@ -1,5 +1,5 @@
 // lib/types.ts - All shared types (database + domain)
-// Consolidated from multiple type files
+// Updated to match new normalized schema
 
 // =============================================================================
 // CORE USER TYPES
@@ -27,74 +27,71 @@ export interface Session {
 }
 
 // =============================================================================
-// CONNECTED ACCOUNTS (from connected_accounts table)
+// CONNECTED ACCOUNTS (credentials stored in account_credentials table)
 // =============================================================================
-// Main type matching database schema
+
 export interface ConnectedAccount {
   id: string;
   user_id: string;
   platform: 'twitter' | 'linkedin';
   account_username: string;
   name: string | null;
-  account_name?: string | null;
-  access_token_encrypted?: string | null;
-  refresh_token_encrypted?: string | null;
-  token_expires_at?: Date | null;
+  platform_user_id: string | null;
   is_active: boolean;
-  connected_at?: Date | null;
-  last_used_at?: Date | null;
-  // Twitter API credentials (legacy)
-  account_id?: string | null;
-  twitter_api_key_encrypted?: string | null;
-  twitter_api_secret_encrypted?: string | null;
-  twitter_access_token_encrypted?: string | null;
-  twitter_access_token_secret_encrypted?: string | null;
-  personas?: string[];
-  branding?: Record<string, unknown>;
-  cloudinary_cloud_name_encrypted?: string | null;
-  cloudinary_api_key_encrypted?: string | null;
-  cloudinary_api_secret_encrypted?: string | null;
-  status?: string;
-  profile_image_url?: string | null;
-  // LinkedIn OAuth
-  linkedin_enabled?: boolean;
-  linkedin_user_id?: string | null;
-  linkedin_org_id?: string | null;
-  linkedin_access_token_encrypted?: string | null;
-  linkedin_refresh_token_encrypted?: string | null;
-  linkedin_token_expires_at?: Date | null;
-  // Twitter OAuth 2.0
-  twitter_oauth2_enabled?: boolean;
-  twitter_oauth2_access_token_encrypted?: string | null;
-  twitter_oauth2_refresh_token_encrypted?: string | null;
-  twitter_oauth2_token_expires_at?: Date | null;
+  status: string;
+  connected_at: Date | null;
+  updated_at: Date | null;
+}
+
+// =============================================================================
+// ACCOUNT CREDENTIALS (normalized from connected_accounts)
+// =============================================================================
+
+export type AuthType = 'oauth1' | 'oauth2' | 'api_key';
+
+export interface AccountCredential {
+  id: string;
+  connected_account_id: string;
+  auth_type: AuthType;
+  access_token_encrypted: string | null;
+  refresh_token_encrypted: string | null;
+  token_expires_at: Date | null;
+  api_key_encrypted: string | null;
+  api_secret_encrypted: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
 }
 
 // Decrypted credentials for internal use
-export interface ConnectedAccountWithCredentials extends ConnectedAccount {
-  // Decrypted Twitter credentials
-  twitter_api_key?: string;
-  twitter_api_secret?: string;
-  twitter_access_token?: string;
-  twitter_access_token_secret?: string;
-  // Decrypted LinkedIn credentials
-  linkedin_access_token?: string;
-  linkedin_refresh_token?: string;
-  // Decrypted Twitter OAuth 2.0
-  twitter_oauth2_access_token?: string;
-  twitter_oauth2_refresh_token?: string;
-  // Decrypted Cloudinary
-  cloudinary_cloud_name?: string;
-  cloudinary_api_key?: string;
-  cloudinary_api_secret?: string;
+export interface AccountCredentialDecrypted extends Omit<AccountCredential, 'access_token_encrypted' | 'refresh_token_encrypted' | 'api_key_encrypted' | 'api_secret_encrypted'> {
+  access_token: string | null;
+  refresh_token: string | null;
+  api_key: string | null;
+  api_secret: string | null;
 }
 
-// Backward compatibility alias
-export type Account = ConnectedAccount;
-export type AccountWithCredentials = ConnectedAccountWithCredentials;
+// Account with decrypted credentials (joined view)
+export interface ConnectedAccountWithCredentials extends ConnectedAccount {
+  credentials: AccountCredentialDecrypted[];
+}
 
 // =============================================================================
-// PERSONAS (from personas table)
+// SOCIAL POSTS (platform-specific post IDs)
+// =============================================================================
+
+export interface SocialPost {
+  id: string;
+  post_id: string;
+  platform: 'twitter' | 'linkedin';
+  platform_post_id: string | null;
+  platform_post_url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: Date;
+}
+
+// =============================================================================
+// PERSONAS (tied to connected_account)
 // =============================================================================
 
 export interface PersonaSchedule {
@@ -104,20 +101,13 @@ export interface PersonaSchedule {
   is_active: boolean;
 }
 
-// lib/types.ts
-
 export interface PersonaConfigDNA {
-  // --- The Psychological Core (Keep these) ---
   core_thesis: string;
   the_enemy: string;
   analytical_framework: string;
-  
-  // --- NEW: Executable Mechanics (Replaces the old fluff) ---
-  framing_bias: string;    // How they twist the narrative (e.g., "Always frame big tech wins as losses for innovation.")
-  hook_mechanics: string;  // Specific rules for the first sentence (e.g., "Open with a raw statistic, never a question.")
-  format_rules: string[];  // Absolute structural laws (e.g., ["Max 3 sentences per paragraph", "Zero emojis", "Zero hashtags"])
-  
-  // --- Operational Settings (Keep these) ---
+  framing_bias: string;
+  hook_mechanics: string;
+  format_rules: string[];
   headlines_to_fetch: number;
   headlines_in_prompt: number;
   image_probability: number;
@@ -126,62 +116,72 @@ export interface PersonaConfigDNA {
 
 export interface Persona {
   id: string;
-  user_id?: string | null;  // Can be null - persona tied to account not user
   connected_account_id: string | null;
-  name: string;
-  description?: string | null;
-  config?: PersonaConfigDNA | Record<string, unknown>;
-  min_length?: number;
-  max_length?: number;
-  tone?: string | null;
-  topics?: string[] | null;
-  rss_sources?: string[];
-  is_active?: boolean;
-  is_default?: boolean;
-  created_at?: string | Date;
-  updated_at?: string | Date;
   key: string;
+  name: string;
+  description: string | null;
+  config: PersonaConfigDNA | Record<string, unknown>;
+  min_length: number;
+  max_length: number;
+  tone: string | null | undefined;
+  topics: string[] | null | undefined;
+  rss_sources: string[];
+  is_active: boolean;
+  is_default: boolean;
+  created_at: Date | string;
+  updated_at: Date | string;
   // UI-only fields (not in DB)
   emoji?: string;
   schedules?: PersonaSchedule[];
 }
 
-// Tweet and Content Types
-export interface Tweet {
+// =============================================================================
+// POSTS (renamed from tweets)
+// =============================================================================
+
+export type PostStatus = 'ready' | 'posted' | 'failed' | 'draft' | 'scheduled';
+export type ContentType = 'single_tweet' | 'thread';
+export type ImageStatus = 'none' | 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface Post {
   id: string;
-  connected_account_id: string;
-  account_id?: string; // Deprecated - use connected_account_id
+  connected_account_id?: string | null;
   content: string;
-  hashtags: string[];
+  hashtags?: string[];
   persona: string;
   qualityScore?: {
     overall: number;
     grade: 'A' | 'B' | 'C' | 'D' | 'F';
   };
-  status: 'ready' | 'posted' | 'failed' | 'draft' | 'scheduled';
-  posted_at?: string;
-  twitter_id?: string;
-  twitter_url?: string;
-  error_message?: string;
-  created_at: string;
+  status: PostStatus;
+  posted_at?: Date | null;
+  error_message?: string | null;
+  created_at: Date;
   // Schedule & persona tracking
-  schedule_id?: string; // The schedule that triggered this tweet's generation
-  persona_id?: string;  // The DB id of the persona used to generate this
+  schedule_id?: string | null;
+  persona_id?: string | null;
   // Threading support
-  thread_id?: string;
-  thread_sequence?: number;
-  parent_twitter_id?: string | null;
-  content_type: 'single_tweet' | 'thread';
+  thread_id?: string | null;
+  thread_sequence?: number | null;
+  content_type?: ContentType;
   // Image support
-  image_url?: string; // Cloudinary URL for image-based tweets
-  image_status?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  card_data?: string; // JSON-encoded card data for async image generation
-  source_url?: string;
-  // LinkedIn cross-posting support
-  linkedin_id?: string;
+  image_url?: string | null;
+  image_status?: ImageStatus;
+  card_data?: string | null;
+  source_url?: string | null;
+  
+  // Legacy camelCase aliases (for backward compat)
+  postedAt?: Date | undefined;
+  errorMessage?: string | undefined;
+  createdAt?: Date;
 }
 
-export interface EnhancedTweet {
+// Post with platform-specific IDs
+export interface PostWithSocialPosts extends Post {
+  social_posts: SocialPost[];
+}
+
+export interface EnhancedPost {
   content: string;
   hashtags: string[];
   persona: string;
@@ -189,40 +189,33 @@ export interface EnhancedTweet {
   contentType: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy' | 'single_tweet' | 'thread';
   imageBuffer?: Buffer;
   imageUrl?: string;
-  imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed';
-  cardData?: Record<string, unknown>; // Generic card data from AI (configurable via DB)
+  imageStatus?: ImageStatus;
+  cardData?: Record<string, unknown>;
   sourceUrl?: string;
   selectedHeadlineNumber?: number;
   reasoning?: Record<string, string>;
 }
 
-// Generic card data - structure defined by AI prompt in DB
 export interface CardData {
   [key: string]: unknown;
   type?: string;
 }
 
-// TweetJob - kept for backward compatibility
-export interface TweetJob {
-  id: string;
-  persona: string;
-  generation_date: string;
-  category: string;
-  category_display_name: string;
-  topic: string;
-  topic_display_name: string;
-  content_type: string;
-  step: number;
-  status: 'ready' | 'posted' | 'failed';
-  data: {
-    tweet: EnhancedTweet;
-  };
-  created_at: string;
-  scheduled_for?: string;
-  posted_at?: string;
-  twitter_id?: string;
-  twitter_url?: string;
-  error_message?: string;
+export interface PostGenerationConfig {
+  connected_account_id?: string;
+  persona?: string;
+  category?: string;
+  topic?: string;
+  contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
+  batchPosition?: number;
+  batchSize?: number;
+  previousWords?: string[];
+  previousHeadlines?: number[];
+  recentPatterns?: { text: string; timestamp?: string }[];
+  usedSourceUrls?: string[];
+  generationFormat?: 'image' | 'text-only';
+  skipRSS?: boolean;
+  sourceContext?: string;
 }
 
 export interface VariationMarkers {
@@ -232,24 +225,22 @@ export interface VariationMarkers {
   content_hash: string;
 }
 
-export interface TweetGenerationConfig {
-  connected_account_id?: string; // Multi-account support (use connected_accounts table)
-  account_id?: string; // Deprecated - use connected_account_id
-  persona?: string;
-  category?: string;
-  topic?: string;
-  contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
-  skipRSS?: boolean;
-  sourceContext?: string;
-  
+export interface GenerationContext {
+  account: ConnectedAccount | null;
+  useRSSSources: boolean;
+  sourceContext: string;
+  userTopicContext?: string;
 }
 
-// NEW: Added the complete type definition for the object returned by generateThread
 export interface ThreadGenerationResult {
   thread_id: string;
   total_tweets: number;
   story_category: string;
 }
+
+// =============================================================================
+// IMAGE GENERATION
+// =============================================================================
 
 export interface ImageConfig {
   enabled: boolean;
@@ -271,8 +262,116 @@ export interface ImageConfig {
   };
 }
 
+// =============================================================================
+// SCHEDULES (account_schedules table)
+// =============================================================================
 
-// Form and UI Types
+export interface AccountSchedule {
+  id: string;
+  connected_account_id: string | null;
+  persona_id: string | null;
+  name: string;
+  timezone: string;
+  schedule_config: Record<string, unknown>;
+  days_of_week: number[];
+  start_time: number;
+  end_time: number;
+  is_active: boolean;
+  max_posts_per_day: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface UserSchedule extends AccountSchedule {
+  user_id: string;
+  description?: string;
+}
+
+// =============================================================================
+// PLATFORM SETTINGS (global_integrations table)
+// =============================================================================
+
+export interface GlobalIntegration {
+  id: string;
+  setting_key: string;
+  api_key_encrypted: string | null;
+  api_secret_encrypted: string | null;
+  client_id_encrypted: string | null;
+  client_secret_encrypted: string | null;
+  cloud_name: string | null;
+  extra_settings: Record<string, unknown>;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export type PlatformSettings = GlobalIntegration;
+
+// =============================================================================
+// THREADS
+// =============================================================================
+
+export interface Thread {
+  id: string;
+  connected_account_id: string | null;
+  title: string | null;
+  persona: string | null;
+  total_tweets: number | null;
+  current_tweet: number;
+  parent_tweet_id: string | null;
+  status: string;
+  story_category: string | null;
+  created_at: Date;
+}
+
+// =============================================================================
+// GENERATION SLOTS
+// =============================================================================
+
+export interface GenerationSlot {
+  id: string;
+  connected_account_id: string;
+  schedule_id: string | null;
+  slot_date: Date;
+  slot_hour: number;
+  slot_minute: number;
+  generation_count: number;
+  last_generated_at: Date | null;
+  posting_count: number;
+  last_posted_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+// =============================================================================
+// POSTING JOBS
+// =============================================================================
+
+export type PostingJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface PostingJob {
+  id: string;
+  account_id: string;
+  platform: 'twitter' | 'linkedin';
+  status: PostingJobStatus;
+  batch_index: number;
+  tweets_count: number;
+  attempts: number;
+  max_attempts: number;
+  error_message: string | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+  user_id: string | null;
+  schedule_id: string | null;
+  scheduled_date: Date | null;
+}
+
+// =============================================================================
+// UI Types
+// =============================================================================
+
 export interface GenerateFormState {
   account_id: string;
   persona: string;
@@ -298,36 +397,9 @@ export interface AutoSchedulerStats {
 
 export interface GenerationResult {
   success: boolean;
-  tweet?: EnhancedTweet;
+  post?: EnhancedPost;
   jobId?: string;
   error?: string;
 }
 
-// Re-use standard Persona type
 export type UserPersona = Persona;
-
-// Legacy schedule type - uses account_schedules table
-export interface UserSchedule {
-  id: string;
-  user_id: string;
-  connected_account_id: string;
-  name: string;
-  description?: string;
-  persona_id?: string;
-  timezone: string;
-  schedule_config?: Record<string, unknown>;
-  days_of_week: number[];
-  start_time: number;
-  end_time: number;
-  is_active: boolean;
-  max_posts_per_day?: number;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface PlatformSettings {
-  id: string;
-  setting_key: string;
-  is_active: boolean;
-  cloud_name?: string;
-}

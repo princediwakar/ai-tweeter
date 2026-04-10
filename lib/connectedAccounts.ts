@@ -1,82 +1,46 @@
-// lib/connectedAccounts.ts
+// lib/connectedAccounts.ts - Service for connected accounts with normalized credentials
 import { sql } from '@vercel/postgres';
 import { sqlWithRetry } from './db';
 import { encrypt, decrypt } from './security/crypto';
+import type { ConnectedAccount, AccountCredential, AccountCredentialDecrypted, ConnectedAccountWithCredentials } from './types';
 
-// --- TYPES ---
-export interface ConnectedAccount {
-  id: string;
-  user_id: string;
-  platform: 'twitter' | 'linkedin';
-  account_username: string;
-  twitter_handle?: string | null;
-  name: string | null;
-  platform_user_id: string | null;
-  access_token: string | null;
-  refresh_token: string | null;
-  token_expires_at: string | null;
-  is_active: boolean;
-  status: string;
-  created_at: string | null;
-  updated_at: string | null;
-  last_used_at: string | null;
-  // Twitter Legacy (v1.1)
-  twitter_api_key?: string | null;
-  twitter_api_secret?: string | null;
-  twitter_access_token?: string | null;
-  twitter_access_token_secret?: string | null;
-  // Cloudinary (Image handling)
-  cloudinary_cloud_name?: string | null;
-  cloudinary_api_key?: string | null;
-  cloudinary_api_secret?: string | null;
-  // LinkedIn / Twitter OAuth 2.0 Specifics
-  linkedin_enabled?: boolean;
-  linkedin_user_id?: string | null;
-  linkedin_access_token?: string | null;
-  linkedin_refresh_token?: string | null;
-  linkedin_org_id?: string | null;
-  linkedin_token_expires_at?: string | null;
-  twitter_oauth2_enabled?: boolean;
-  personas?: string[];
-  branding?: Record<string, any>;
-  profile_image_url?: string | null;
-}
+// Re-export types for convenience
+export type { ConnectedAccount, ConnectedAccountWithCredentials, AccountCredential, AccountCredentialDecrypted };
 
-// Internal Database Row Mapping
+// =============================================================================
+// DATABASE ROW TYPES (matching exact DB schema)
+// =============================================================================
+
 interface ConnectedAccountRow {
   id: string;
   user_id: string;
   platform: 'twitter' | 'linkedin';
   account_username: string;
-  account_name: string | null;
   name: string | null;
   platform_user_id: string | null;
-  access_token_encrypted: string | null;
-  refresh_token_encrypted: string | null;
-  token_expires_at: string | null;
   is_active: boolean;
   status: string;
   connected_at: string | null;
   updated_at: string | null;
-  last_used_at: string | null;
-  twitter_api_key_encrypted: string | null;
-  twitter_api_secret_encrypted: string | null;
-  twitter_access_token_encrypted: string | null;
-  twitter_access_token_secret_encrypted: string | null;
-  cloudinary_cloud_name_encrypted: string | null;
-  cloudinary_api_key_encrypted: string | null;
-  cloudinary_api_secret_encrypted: string | null;
-  linkedin_enabled: boolean;
-  linkedin_user_id: string | null;
-  linkedin_access_token: string | null;
-  linkedin_refresh_token: string | null;
-  linkedin_org_id: string | null;
-  linkedin_token_expires_at: string | null;
-  twitter_oauth2_enabled: boolean;
-  personas: string[];
-  branding: any;
-  profile_image_url: string | null;
 }
+
+interface AccountCredentialRow {
+  id: string;
+  connected_account_id: string;
+  auth_type: 'oauth1' | 'oauth2' | 'api_key';
+  access_token_encrypted: string | null;
+  refresh_token_encrypted: string | null;
+  token_expires_at: string | null;
+  api_key_encrypted: string | null;
+  api_secret_encrypted: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// =============================================================================
+// MAPPING FUNCTIONS
+// =============================================================================
 
 function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
   return {
@@ -84,140 +48,220 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
     user_id: row.user_id,
     platform: row.platform,
     account_username: row.account_username,
-    name: row.name || row.account_name,
+    name: row.name,
     platform_user_id: row.platform_user_id,
-    access_token: decrypt(row.access_token_encrypted),
-    refresh_token: decrypt(row.refresh_token_encrypted),
-    token_expires_at: row.token_expires_at,
     is_active: row.is_active,
     status: row.status,
-    created_at: row.connected_at,
-    updated_at: row.updated_at,
-    last_used_at: row.last_used_at,
-    // Twitter Legacy
-    twitter_api_key: decrypt(row.twitter_api_key_encrypted),
-    twitter_api_secret: decrypt(row.twitter_api_secret_encrypted),
-    twitter_access_token: decrypt(row.twitter_access_token_encrypted),
-    twitter_access_token_secret: decrypt(row.twitter_access_token_secret_encrypted),
-    // Cloudinary
-    cloudinary_cloud_name: decrypt(row.cloudinary_cloud_name_encrypted),
-    cloudinary_api_key: decrypt(row.cloudinary_api_key_encrypted),
-    cloudinary_api_secret: decrypt(row.cloudinary_api_secret_encrypted),
-    // Platform features
-    linkedin_enabled: row.linkedin_enabled,
-    linkedin_user_id: decrypt(row.linkedin_user_id),
-    linkedin_access_token: decrypt(row.linkedin_access_token),
-    linkedin_refresh_token: decrypt(row.linkedin_refresh_token),
-    linkedin_org_id: row.linkedin_org_id,
-    linkedin_token_expires_at: row.linkedin_token_expires_at,
-    twitter_oauth2_enabled: row.twitter_oauth2_enabled,
-    personas: row.personas || [],
-    branding: row.branding || {},
-    profile_image_url: row.profile_image_url,
+    connected_at: row.connected_at ? new Date(row.connected_at) : null,
+    updated_at: row.updated_at ? new Date(row.updated_at) : null,
   };
 }
 
-// --- SERVICE METHODS ---
+function mapRowToCredential(row: AccountCredentialRow): AccountCredentialDecrypted {
+  return {
+    id: row.id,
+    connected_account_id: row.connected_account_id,
+    auth_type: row.auth_type,
+    access_token: decrypt(row.access_token_encrypted),
+    refresh_token: decrypt(row.refresh_token_encrypted),
+    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
+    api_key: decrypt(row.api_key_encrypted),
+    api_secret: decrypt(row.api_secret_encrypted),
+    is_active: row.is_active,
+    created_at: new Date(row.created_at),
+    updated_at: new Date(row.updated_at),
+  };
+}
+
+// =============================================================================
+// SERVICE METHODS
+// =============================================================================
+
 export const connectedAccountsService = {
+  /**
+   * Get account by Twitter handle
+   */
   async getByTwitterHandle(twitterHandle: string): Promise<ConnectedAccount | null> {
-    const { rows } = await sqlWithRetry<ConnectedAccountRow>`SELECT * FROM connected_accounts WHERE account_username = ${twitterHandle} LIMIT 1`;
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts 
+      WHERE account_username = ${twitterHandle} LIMIT 1
+    `;
     return rows[0] ? mapRowToConnectedAccount(rows[0]) : null;
   },
 
-  async upsert(data: Partial<ConnectedAccountRow> & { access_token?: string; refresh_token?: string }): Promise<ConnectedAccount> {
-    const id = data.id || crypto.randomUUID();
-    const { rows } = await sql`
+  /**
+   * Get account with credentials (joined from account_credentials table)
+   */
+  async getWithCredentials(id: string): Promise<ConnectedAccountWithCredentials | null> {
+    const { rows: accountRows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts WHERE id = ${id}
+    `;
+    
+    if (!accountRows[0]) return null;
+    
+    const { rows: credentialRows } = await sqlWithRetry<AccountCredentialRow>`
+      SELECT * FROM account_credentials 
+      WHERE connected_account_id = ${id} AND is_active = true
+    `;
+    
+    return {
+      ...mapRowToConnectedAccount(accountRows[0]),
+      credentials: credentialRows.map(mapRowToCredential),
+    };
+  },
+
+  /**
+   * Get active credentials for an account (for posting)
+   */
+  async getActiveCredentials(accountId: string): Promise<AccountCredentialDecrypted[]> {
+    const { rows } = await sqlWithRetry<AccountCredentialRow>`
+      SELECT * FROM account_credentials 
+      WHERE connected_account_id = ${accountId} AND is_active = true
+    `;
+    return rows.map(mapRowToCredential);
+  },
+
+  /**
+   * Create or update account with credentials
+   */
+  async upsert(data: {
+    id?: string;
+    user_id: string;
+    platform: 'twitter' | 'linkedin';
+    account_username: string;
+    name?: string;
+    platform_user_id?: string;
+    access_token?: string;
+    refresh_token?: string;
+    token_expires_at?: string;
+    auth_type?: 'oauth1' | 'oauth2' | 'api_key';
+  }): Promise<ConnectedAccountWithCredentials> {
+    const accountId = data.id || crypto.randomUUID();
+    const now = new Date().toISOString();
+    
+    // Upsert connected_account
+    const { rows: accountRows } = await sql`
       INSERT INTO connected_accounts (
         id, user_id, platform, account_username, name, platform_user_id,
-        access_token_encrypted, refresh_token_encrypted, token_expires_at,
-        status, is_active, connected_at, updated_at, linkedin_enabled, twitter_oauth2_enabled, linkedin_org_id
+        is_active, status, connected_at, updated_at
       ) VALUES (
-        ${id}, ${data.user_id}, ${data.platform}, ${data.account_username}, ${data.name}, ${data.platform_user_id},
-        ${encrypt(data.access_token || null)}, ${encrypt(data.refresh_token || null)}, ${data.token_expires_at},
-        ${data.status || 'active'}, true, NOW(), NOW(), ${data.linkedin_enabled || false}, ${data.twitter_oauth2_enabled || false}, ${data.linkedin_org_id || null}
+        ${accountId}, ${data.user_id}, ${data.platform}, ${data.account_username}, 
+        ${data.name || null}, ${data.platform_user_id || null},
+        true, 'active', NOW(), NOW()
       )
       ON CONFLICT (user_id, platform, account_username) DO UPDATE SET
         name = EXCLUDED.name,
         platform_user_id = EXCLUDED.platform_user_id,
-        access_token_encrypted = EXCLUDED.access_token_encrypted,
-        refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-        token_expires_at = EXCLUDED.token_expires_at,
-        status = EXCLUDED.status,
         is_active = EXCLUDED.is_active,
         updated_at = NOW()
       RETURNING *
     `;
-    return mapRowToConnectedAccount(rows[0] as ConnectedAccountRow);
+    
+    // Upsert credentials if provided
+    const authType = data.auth_type || 'oauth2';
+    if (data.access_token) {
+      await sql`
+        INSERT INTO account_credentials (
+          connected_account_id, auth_type, access_token_encrypted, 
+          refresh_token_encrypted, token_expires_at, is_active, created_at, updated_at
+        ) VALUES (
+          ${accountId}, ${authType}, ${encrypt(data.access_token)}, 
+          ${encrypt(data.refresh_token || null)}, ${data.token_expires_at || null},
+          true, NOW(), NOW()
+        )
+        ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
+          access_token_encrypted = EXCLUDED.access_token_encrypted,
+          refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
+          token_expires_at = EXCLUDED.token_expires_at,
+          updated_at = NOW()
+      `;
+    }
+    
+    // Return with credentials
+    return this.getWithCredentials(accountId) as Promise<ConnectedAccountWithCredentials>;
   },
 
+  /**
+   * Get account for user
+   */
   async getForUser(userId: string, accountId: string): Promise<ConnectedAccount | null> {
-    const { rows } = await sqlWithRetry<ConnectedAccountRow>`SELECT * FROM connected_accounts WHERE user_id = ${userId} AND id = ${accountId}`;
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts 
+      WHERE user_id = ${userId} AND id = ${accountId}
+    `;
     return rows[0] ? mapRowToConnectedAccount(rows[0]) : null;
   },
 
+  /**
+   * Get all accounts for user
+   */
   async getByUserId(userId: string): Promise<ConnectedAccount[]> {
-    const { rows } = await sqlWithRetry<ConnectedAccountRow>`SELECT * FROM connected_accounts WHERE user_id = ${userId}`;
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts WHERE user_id = ${userId}
+    `;
     return rows.map(mapRowToConnectedAccount);
   },
 
+  /**
+   * Get account by ID
+   */
   async getById(id: string): Promise<ConnectedAccount | null> {
-    return this.getAccount(id);
-  },
-
-  async getAccount(id: string): Promise<ConnectedAccount | null> {
-    const { rows } = await sqlWithRetry<ConnectedAccountRow>`SELECT * FROM connected_accounts WHERE id = ${id}`;
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts WHERE id = ${id}
+    `;
     return rows[0] ? mapRowToConnectedAccount(rows[0]) : null;
   },
 
-  async create(data: Partial<ConnectedAccountRow> & { access_token?: string }): Promise<ConnectedAccount> {
+  /**
+   * Get account with credentials by ID
+   */
+  async getByIdWithCredentials(id: string): Promise<ConnectedAccountWithCredentials | null> {
+    return this.getWithCredentials(id);
+  },
+
+  /**
+   * Create new account (without credentials)
+   */
+  async create(data: {
+    id?: string;
+    user_id: string;
+    platform: 'twitter' | 'linkedin';
+    account_username: string;
+    name?: string;
+    access_token?: string;
+  }): Promise<ConnectedAccount> {
     const id = data.id || crypto.randomUUID();
+    
     const { rows } = await sql`
       INSERT INTO connected_accounts (
-        id, user_id, platform, account_username, name, 
-        access_token_encrypted, status, is_active, connected_at, updated_at
+        id, user_id, platform, account_username, name,
+        is_active, status, connected_at, updated_at
       ) VALUES (
-        ${id}, ${data.user_id}, ${data.platform}, ${data.account_username}, ${data.name},
-        ${encrypt(data.access_token || null)}, ${data.status || 'active'}, true, NOW(), NOW()
+        ${id}, ${data.user_id}, ${data.platform}, ${data.account_username}, ${data.name || null},
+        true, 'active', NOW(), NOW()
       ) RETURNING *
     `;
+    
     return mapRowToConnectedAccount(rows[0] as ConnectedAccountRow);
   },
 
-  async update(id: string, data: any): Promise<ConnectedAccount | null> {
+  /**
+   * Update account fields
+   */
+  async update(id: string, data: Partial<ConnectedAccount>): Promise<ConnectedAccount | null> {
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let paramIndex = 1;
 
-    // Direct mapping for unencrypted fields
-    const plainFields = ['name', 'status', 'is_active', 'profile_image_url', 'token_expires_at', 'linkedin_enabled', 'twitter_oauth2_enabled', 'linkedin_org_id'];
-    for (const field of plainFields) {
-      if (data[field] !== undefined) {
+    const allowedFields = ['name', 'status', 'is_active', 'platform_user_id'];
+    for (const field of allowedFields) {
+      if (data[field as keyof ConnectedAccount] !== undefined) {
         updates.push(`${field} = $${paramIndex++}`);
-        values.push(data[field]);
+        values.push(data[field as keyof ConnectedAccount]);
       }
     }
 
-    // Encrypted field mapping
-    const secretFields: Record<string, string> = {
-      access_token: 'access_token_encrypted',
-      refresh_token: 'refresh_token_encrypted',
-      twitter_api_key: 'twitter_api_key_encrypted',
-      twitter_api_secret: 'twitter_api_secret_encrypted',
-      twitter_access_token: 'twitter_access_token_encrypted',
-      twitter_access_token_secret: 'twitter_access_token_secret_encrypted',
-      cloudinary_cloud_name: 'cloudinary_cloud_name_encrypted',
-      cloudinary_api_key: 'cloudinary_api_key_encrypted',
-      cloudinary_api_secret: 'cloudinary_api_secret_encrypted'
-    };
-
-    for (const [key, column] of Object.entries(secretFields)) {
-      if (data[key] !== undefined) {
-        updates.push(`${column} = $${paramIndex++}`);
-        values.push(encrypt(data[key]));
-      }
-    }
-
-    if (updates.length === 0) return this.getAccount(id);
+    if (updates.length === 0) return this.getById(id);
 
     values.push(id);
     const query = `UPDATE connected_accounts SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${paramIndex} RETURNING *`;
@@ -226,25 +270,93 @@ export const connectedAccountsService = {
     return rows[0] ? mapRowToConnectedAccount(rows[0]) : null;
   },
 
+  /**
+   * Delete account (cascades to credentials)
+   */
   async delete(id: string): Promise<void> {
     await sql`DELETE FROM connected_accounts WHERE id = ${id}`;
   },
 
-  async updateToken(id: string, accessToken: string, refreshToken: string | null, expiresAt: Date | string): Promise<void> {
+  /**
+   * Update tokens for an account
+   */
+  async updateToken(
+    accountId: string, 
+    accessToken: string, 
+    refreshToken: string | null, 
+    expiresAt: Date | string,
+    authType: 'oauth1' | 'oauth2' | 'api_key' = 'oauth2'
+  ): Promise<void> {
     const expires = typeof expiresAt === 'string' ? expiresAt : expiresAt.toISOString();
+    
     await sql`
-      UPDATE connected_accounts 
-      SET access_token_encrypted = ${encrypt(accessToken)},
-          refresh_token_encrypted = ${encrypt(refreshToken)},
-          token_expires_at = ${expires},
-          last_used_at = NOW(),
-          updated_at = NOW()
-      WHERE id = ${id}
+      INSERT INTO account_credentials (
+        connected_account_id, auth_type, access_token_encrypted, 
+        refresh_token_encrypted, token_expires_at, is_active, created_at, updated_at
+      ) VALUES (
+        ${accountId}, ${authType}, ${encrypt(accessToken)}, 
+        ${encrypt(refreshToken)}, ${expires}, true, NOW(), NOW()
+      )
+      ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
+        access_token_encrypted = EXCLUDED.access_token_encrypted,
+        refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
+        token_expires_at = EXCLUDED.token_expires_at,
+        updated_at = NOW()
     `;
-  }
+  },
+
+  /**
+   * Add credential to an account
+   */
+  async addCredential(
+    accountId: string,
+    authType: 'oauth1' | 'oauth2' | 'api_key',
+    credentials: {
+      access_token?: string;
+      refresh_token?: string;
+      token_expires_at?: string;
+      api_key?: string;
+      api_secret?: string;
+    }
+  ): Promise<void> {
+    await sql`
+      INSERT INTO account_credentials (
+        connected_account_id, auth_type, access_token_encrypted, 
+        refresh_token_encrypted, token_expires_at, api_key_encrypted, api_secret_encrypted,
+        is_active, created_at, updated_at
+      ) VALUES (
+        ${accountId}, ${authType}, 
+        ${encrypt(credentials.access_token || null)}, 
+        ${encrypt(credentials.refresh_token || null)}, 
+        ${credentials.token_expires_at || null},
+        ${encrypt(credentials.api_key || null)},
+        ${encrypt(credentials.api_secret || null)},
+        true, NOW(), NOW()
+      )
+      ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
+        access_token_encrypted = EXCLUDED.access_token_encrypted,
+        refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
+        token_expires_at = EXCLUDED.token_expires_at,
+        api_key_encrypted = EXCLUDED.api_key_encrypted,
+        api_secret_encrypted = EXCLUDED.api_secret_encrypted,
+        updated_at = NOW()
+    `;
+  },
+
+  /**
+   * Deactivate credential
+   */
+  async deactivateCredential(accountId: string, authType: 'oauth1' | 'oauth2' | 'api_key'): Promise<void> {
+    await sql`
+      UPDATE account_credentials 
+      SET is_active = false, updated_at = NOW()
+      WHERE connected_account_id = ${accountId} AND auth_type = ${authType}
+    `;
+  },
 };
 
-// Unified Export Strategy
+// Export decrypt/encrypt utilities
 export const decryptToken = decrypt;
 export const encryptToken = encrypt;
+
 export default connectedAccountsService;

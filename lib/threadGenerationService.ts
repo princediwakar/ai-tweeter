@@ -1,12 +1,12 @@
 // lib/threadGenerationService.ts
 import OpenAI from 'openai';
-import { createThread, saveTweet, generateTweetId, updateThread } from './db';
+import { createThread, savePost, generatePostId, updateThread } from './db';
 import { connectedAccountsService } from './connectedAccounts';
 import { logger } from '@/lib/logger';
 import { GENERATION_CONFIG } from './generation/config';
 
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas'; 
-import type { Account, Tweet } from './types';
+import type { ConnectedAccount, Post } from './types';
 import type { GenerationContext } from './generation/types';
 import { buildGenerationContext } from './generation/ContextBuilder';
 import { promptEngine } from './generation/PromptEngine';
@@ -37,7 +37,7 @@ export interface ThreadGenerationConfig {
 export interface ThreadGenerationResult {
   thread_id: string;
   total_tweets: number;
-  tweets: Tweet[];
+  posts: Post[];
   story_category: string;
   sourceUrl?: string;
 }
@@ -95,7 +95,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
 
     let buffer = '';
     let metadata: { title: string; story_category: string; hashtags: string[] } | null = null;
-    const savedTweets: Tweet[] = [];
+    const savedPosts: Post[] = [];
     const dbWritePromises: Promise<void>[] = [];
     let threadId: string | null = null;
 
@@ -120,21 +120,21 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
               story_category: metadata.story_category,
             });
           } else if (data.type === 'tweet' && metadata && threadId) {
-            const tweet: Tweet = {
-              id: generateTweetId(),
+            const post: Post = {
+              id: generatePostId(),
               connected_account_id: accountId,
               content: data.content,
               hashtags: metadata.hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`),
               persona: config.persona,
               status: 'ready',
-              created_at: new Date().toISOString(),
+              created_at: new Date(),
               thread_id: threadId,
               thread_sequence: data.sequence,
               content_type: 'thread',
               source_url: data.sequence === 1 ? parseSourceUrlFromContext(config.sourceContext) : undefined,
             };
-            savedTweets.push(tweet);
-            dbWritePromises.push(saveTweet(tweet));
+            savedPosts.push(post);
+            dbWritePromises.push(savePost(post));
           }
         } catch (e) { /* partial line handling */ }
       }
@@ -162,14 +162,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
 /**
  * Check thread eligibility
  */
-export async function canGenerateThreads(account: Account): Promise<boolean> {
-  const branding = account.branding as Record<string, unknown> | undefined;
-  const supportsThreads = branding?.supports_threads;
-  
-  if (supportsThreads !== undefined && supportsThreads !== null) {
-    return Boolean(supportsThreads);
-  }
-  
+export async function canGenerateThreads(accountId: string): Promise<boolean> {
   const allPersonas = await getAllPersonas();
   const threadPersonas = allPersonas
     .filter(p => (p.config as any)?.supports_threads)
@@ -177,5 +170,14 @@ export async function canGenerateThreads(account: Account): Promise<boolean> {
   
   if (threadPersonas.length === 0) return false;
   
-  return account.personas?.some(p => threadPersonas.includes(p)) || false;
+  const accountPersonas = await getPersonasForAccount(accountId);
+  return accountPersonas.some(p => threadPersonas.includes(p.key));
+}
+
+async function getPersonasForAccount(accountId: string): Promise<{ key: string }[]> {
+  const { rows } = await sql`
+    SELECT key FROM personas 
+    WHERE connected_account_id = ${accountId} AND is_active = true
+  `;
+  return rows;
 }

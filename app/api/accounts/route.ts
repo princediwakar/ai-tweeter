@@ -36,10 +36,9 @@ export async function GET(request: NextRequest) {
       account_username: account.account_username,
       status: account.status,
       is_active: account.is_active,
-      profile_image_url: account.profile_image_url,
-      persona_count: account.personas?.length || 0,
-      created_at: account.created_at,
-      is_configured: !!(account.access_token || account.twitter_access_token)
+      connected_at: account.connected_at,
+      updated_at: account.updated_at,
+      is_configured: true // Credentials now in account_credentials table
     }));
 
     return NextResponse.json({
@@ -79,9 +78,7 @@ export async function POST(request: NextRequest) {
       user_id: userId,
       platform: body.platform,
       account_username: cleanUsername,
-      name: body.name || cleanUsername,
-      access_token: body.access_token || null, // Service will encrypt this
-      status: 'active'
+      name: body.name || cleanUsername
     });
 
     return NextResponse.json({
@@ -115,7 +112,7 @@ export async function DELETE(request: NextRequest) {
     // Security Check: Verify ownership before deletion
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
     const userId = userResult.rows[0].id;
-    const existing = await connectedAccountsService.getAccount(id);
+    const existing = await connectedAccountsService.getById(id);
 
     if (!existing || existing.user_id !== userId) {
       return NextResponse.json({ error: 'Account not found or access denied' }, { status: 403 });

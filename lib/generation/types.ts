@@ -1,4 +1,4 @@
-import type { Account, Persona } from '../types';
+import type { ConnectedAccount, Persona } from '../types';
 
 export interface VariationMarkers {
   time_marker: string;
@@ -30,7 +30,7 @@ export interface RecentPattern {
 }
 
 export interface GenerationContext {
-  account: Account | null;
+  account: ConnectedAccount | null;
   useRSSSources: boolean;
   sourceContext: string;
   userTopicContext?: string;

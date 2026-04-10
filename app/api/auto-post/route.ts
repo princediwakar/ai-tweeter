@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         SELECT 
           a.id as account_id, 
           a.name, 
-          a.account_username as twitter_handle, 
+          a.account_username, 
           a.platform,
           s.id as schedule_id,
           s.persona_id, 
@@ -70,7 +70,6 @@ export async function GET(request: NextRequest) {
 
     for (const account of accountsDue.rows) {
       try {
-        // Unpack the aggregated arrays, filtering out nulls
         const personas = (account.personas || []).filter(Boolean) as string[];
         const scheduleIds = (account.schedule_ids || []).filter(Boolean) as string[];
 

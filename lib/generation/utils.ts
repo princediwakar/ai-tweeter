@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import type { Account, EnhancedTweet } from '../types';
+import type { ConnectedAccount, EnhancedPost } from '../types';
 import type { VariationMarkers } from './types';
 
 export function generateVariationMarkers(): VariationMarkers {
@@ -15,11 +15,11 @@ export function generateVariationMarkers(): VariationMarkers {
   };
 }
 
-export function generateContentHash(tweet: EnhancedTweet): string {
+export function generateContentHash(post: EnhancedPost): string {
   const contentString = JSON.stringify({
-    content: tweet.content,
-    hashtags: tweet.hashtags,
-    persona: tweet.persona
+    content: post.content,
+    hashtags: post.hashtags,
+    persona: post.persona
   });
   
   let hash = 0;
@@ -31,7 +31,7 @@ export function generateContentHash(tweet: EnhancedTweet): string {
   return `CH${Math.abs(hash).toString(36).toUpperCase()}`;
 }
 
-export function shouldUseRSSSources(account: Account | null): boolean {
+export function shouldUseRSSSources(account: ConnectedAccount | null): boolean {
   // All accounts use RSS by default - config should come from account in DB
   return true;
 }

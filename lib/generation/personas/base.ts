@@ -1,9 +1,9 @@
 // lib/generation/personas/base.ts
-import type { TweetGenerationConfig, GenerationContext } from '../types';
+import type { PostGenerationConfig, GenerationContext } from '../../types';
 
 export interface PersonaGenerator {
   generatePrompt(
-    config: TweetGenerationConfig,
+    config: PostGenerationConfig,
     context: GenerationContext,
     markers: { timeMarker: string; tokenMarker: string }
   ): string;
@@ -11,7 +11,7 @@ export interface PersonaGenerator {
 
 export abstract class BasePersonaGenerator implements PersonaGenerator {
   abstract generatePrompt(
-    config: TweetGenerationConfig,
+    config: PostGenerationConfig,
     context: GenerationContext,
     markers: { timeMarker: string; tokenMarker: string }
   ): string;

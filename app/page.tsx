@@ -25,8 +25,6 @@ interface Tweet {
   connected_account_id?: string;
   content_type?: string;
   image_url?: string;
-  twitter_id?: string;
-  twitter_url?: string;
   thread_id?: string;
   thread_sequence?: number;
 }
@@ -178,7 +176,7 @@ export default function DashboardPage() {
   }, [tweets, personas]);
 
   const topPerformingTweet = useMemo(() => {
-    return tweets.find(t => t.status === 'posted' && t.twitter_id);
+    return tweets.find(t => t.status === 'posted' && t.posted_at);
   }, [tweets]);
 
   const recentPostedTweets = useMemo(() => {
@@ -395,14 +393,6 @@ New AI Profile
                             <Repeat className="h-3 w-3" />
                             <span>-</span>
                           </div>
-                          <a 
-                            href={tweet.twitter_url || '#'} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs hover:text-zinc-600"
-                          >
-                            View →
-                          </a>
                         </div>
                       </div>
                     );
@@ -491,14 +481,6 @@ New AI Profile
                 <p className="text-sm text-zinc-700 line-clamp-3">
                   {topPerformingTweet.content}
                 </p>
-                <a 
-                  href={topPerformingTweet.twitter_url || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 mt-3 text-xs text-amber-700 hover:underline"
-                >
-                  View on Twitter <ChevronRight className="h-3 w-3" />
-                </a>
               </div>
             )}
           </div>

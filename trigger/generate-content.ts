@@ -1,9 +1,9 @@
 // trigger/generate-content.ts
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { getGenerationBatchInfo } from '@/lib/schedule';
-import { generateTweet } from '@/lib/generationService';
+import { generatePost } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
-import { saveTweet, generateTweetId, getTweetsByAccount } from '@/lib/db';
+import { savePost, generatePostId, getPostsByAccount } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 
@@ -16,37 +16,35 @@ export const generateAccountContent = task({
     
     logger.info(`Starting generation for account ${accountId}`);
 
-    const account = await connectedAccountsService.getById(accountId) as any;
+    const account = await connectedAccountsService.getById(accountId);
     if (!account || account.status !== 'active') {
       logger.info(`Account ${accountId} inactive or not found.`);
       return { success: false, reason: "Account inactive" };
     }
 
-    const batchInfo = await getGenerationBatchInfo(account.account_username || account.twitter_handle, debugMode);
+    const batchInfo = await getGenerationBatchInfo(account.account_username, debugMode);
     
     if (!batchInfo.should_generate && !debugMode) {
       logger.info(`No generation scheduled for ${accountId}`);
       return { success: true, reason: "Not scheduled" };
     }
 
-    const accountTweets = await getTweetsByAccount(accountId);
-    const pendingTweets = accountTweets.filter(t => t.status !== 'posted' && t.status !== 'failed');
-    const maxPipelineSize = account.branding?.max_pipeline_size || 30;
+    const accountPosts = await getPostsByAccount(accountId);
+    const pendingPosts = accountPosts.filter(t => t.status !== 'posted' && t.status !== 'failed');
 
-    if (pendingTweets.length >= maxPipelineSize) {
+    if (pendingPosts.length >= 30) {
       logger.info(`Pipeline healthy for ${accountId}.`);
       return { success: true, reason: "Pipeline full" };
     }
 
-    let targetBatchSize = Math.min(batchInfo.batch_size || 1, maxPipelineSize - pendingTweets.length);
+    let targetBatchSize = Math.min(batchInfo.batch_size || 1, 30 - pendingPosts.length);
     const selectedPersonaKey = batchInfo.generation_personas[0];
     if (!selectedPersonaKey) throw new Error("No persona found");
 
     const persona = await getPersonaByKey(selectedPersonaKey);
     const allPersonas = await getAllPersonas();
-    const canThreads = await canGenerateThreads(account);
-    const supportsThreading = account.branding?.supports_threads ?? canThreads;
-    const personaSupportsThreads = supportsThreading && allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key).includes(selectedPersonaKey);
+    const canThreads = await canGenerateThreads(accountId);
+    const personaSupportsThreads = canThreads && allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key).includes(selectedPersonaKey);
 
     let generatedCount = 0;
 
@@ -71,24 +69,24 @@ export const generateAccountContent = task({
         const sourceContext = await getDynamicContext(selectedPersonaKey, selectedContentType, accountId, selectedPersonaKey);
         const config = { persona: selectedPersonaKey, connected_account_id: accountId, topic: selectedContentType, sourceContext };
         
-        const enhancedTweet = await generateTweet(config);
+        const enhancedPost = await generatePost(config);
         
-        if (enhancedTweet) {
-          await saveTweet({
-            id: generateTweetId(),
+        if (enhancedPost) {
+          await savePost({
+            id: generatePostId(),
             connected_account_id: accountId,
             persona_id: persona?.id,
             persona: selectedPersonaKey,
             schedule_id: batchInfo.schedule_ids?.[0],
-            content: enhancedTweet.content,
+            content: enhancedPost.content,
             status: 'ready', 
             content_type: 'single_tweet', 
-            hashtags: enhancedTweet.hashtags || [],
-            image_url: enhancedTweet.imageUrl,
-            image_status: enhancedTweet.imageStatus || 'none',
-            card_data: enhancedTweet.cardData ? JSON.stringify(enhancedTweet.cardData) : undefined,
-            source_url: enhancedTweet.sourceUrl, 
-            created_at: new Date().toISOString()
+            hashtags: enhancedPost.hashtags || [],
+            image_url: enhancedPost.imageUrl,
+            image_status: enhancedPost.imageStatus || 'none',
+            card_data: enhancedPost.cardData ? JSON.stringify(enhancedPost.cardData) : undefined,
+            source_url: enhancedPost.sourceUrl, 
+            created_at: new Date()
           });
           generatedCount++;
         }

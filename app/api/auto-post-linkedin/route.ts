@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const accountsDue = await sql`
       WITH current_local AS (
         SELECT 
-          a.id, a.name, a.account_username as twitter_handle, a.linkedin_enabled,
+          a.id, a.name, a.account_username,
           s.persona_id, s.start_time, s.end_time, s.days_of_week,
           (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) as local_minutes,
           EXTRACT(DOW FROM timezone(s.timezone, NOW())) as local_dow,
@@ -31,8 +31,7 @@ export async function GET(request: NextRequest) {
         JOIN account_schedules s ON s.connected_account_id = a.id
         LEFT JOIN personas p ON s.persona_id = p.id
         WHERE a.is_active = true
-          AND a.linkedin_enabled = true
-          AND a.linkedin_access_token IS NOT NULL
+          AND a.platform = 'linkedin'
           AND s.is_active = true
       )
       SELECT 
@@ -63,7 +62,6 @@ export async function GET(request: NextRequest) {
 
     for (const account of accountsDue.rows) {
       try {
-        // Unpack the aggregated personas array, filtering out nulls
         const personas = (account.personas || []).filter(Boolean) as string[];
 
         if (personas.length === 0) continue;

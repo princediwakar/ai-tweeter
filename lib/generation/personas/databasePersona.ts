@@ -1,6 +1,6 @@
 // lib/generation/personas/databasePersona.ts
 import { BasePersonaGenerator } from './base';
-import type { TweetGenerationConfig, GenerationContext } from '../types';
+import type { PostGenerationConfig, GenerationContext } from '../../types';
 import type { Persona } from '../../types';
 
 export class DatabasePersonaGenerator extends BasePersonaGenerator {
@@ -12,7 +12,7 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
   }
 
   generatePrompt(
-    config: TweetGenerationConfig,
+    config: PostGenerationConfig,
     context: GenerationContext,
     markers: { timeMarker: string; tokenMarker: string }
   ): string {

@@ -12,7 +12,7 @@ import {
 } from "@/lib/personas";
 import { connectedAccountsService, type ConnectedAccount } from "../connectedAccounts";
 import { getRecentPatternData } from "../db";
-import type { TweetGenerationConfig } from "./types";
+import type { PostGenerationConfig } from "../types";
 
 export interface ContextBuilderResult {
   persona: Persona;
@@ -33,7 +33,7 @@ export interface GenerationOptions {
  * Single entry point replacing scattered logic across generationProcessing.ts, generationService.ts
  */
 export async function buildGenerationContext(
-  config: TweetGenerationConfig
+  config: PostGenerationConfig
 ): Promise<ContextBuilderResult> {
   const { connected_account_id, persona: personaKey, sourceContext } = config;
 

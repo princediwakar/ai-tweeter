@@ -30,7 +30,7 @@ class PlatformSettingsService {
     try {
       const result = await sqlWithRetry`
         SELECT client_id_encrypted, client_secret_encrypted, api_key_encrypted, api_secret_encrypted
-        FROM platform_settings 
+        FROM global_integrations 
         WHERE setting_key = 'twitter_app' AND is_active = true
       `;
 
@@ -63,7 +63,7 @@ class PlatformSettingsService {
     try {
       const result = await sqlWithRetry`
         SELECT client_id_encrypted, client_secret_encrypted
-        FROM platform_settings 
+        FROM global_integrations 
         WHERE setting_key = 'linkedin_app' AND is_active = true
       `;
 
@@ -94,7 +94,7 @@ class PlatformSettingsService {
     try {
       const result = await sqlWithRetry`
         SELECT api_key_encrypted, api_secret_encrypted, cloud_name
-        FROM platform_settings 
+        FROM global_integrations 
         WHERE setting_key = 'cloudinary' AND is_active = true
       `;
 
@@ -121,7 +121,7 @@ class PlatformSettingsService {
     api_secret?: string;
   }): Promise<void> {
     await sqlWithRetry`
-      UPDATE platform_settings SET
+      UPDATE global_integrations SET
         client_id_encrypted = ${credentials.client_id ? encrypt(credentials.client_id) : null},
         client_secret_encrypted = ${credentials.client_secret ? encrypt(credentials.client_secret) : null},
         api_key_encrypted = ${credentials.api_key ? encrypt(credentials.api_key) : null},
@@ -137,7 +137,7 @@ class PlatformSettingsService {
     client_secret?: string;
   }): Promise<void> {
     await sqlWithRetry`
-      UPDATE platform_settings SET
+      UPDATE global_integrations SET
         client_id_encrypted = ${credentials.client_id ? encrypt(credentials.client_id) : null},
         client_secret_encrypted = ${credentials.client_secret ? encrypt(credentials.client_secret) : null},
         updated_at = NOW()
@@ -152,7 +152,7 @@ class PlatformSettingsService {
     api_secret?: string;
   }): Promise<void> {
     await sqlWithRetry`
-      UPDATE platform_settings SET
+      UPDATE global_integrations SET
         cloud_name = ${credentials.cloud_name},
         api_key_encrypted = ${credentials.api_key ? encrypt(credentials.api_key) : null},
         api_secret_encrypted = ${credentials.api_secret ? encrypt(credentials.api_secret) : null},

@@ -1,5 +1,5 @@
 // lib/personas.ts - Persona operations (all DB-driven)
-import { getPersona, getAllPersonasFromDb } from './db';
+import { getPersona, getAllPersonasFromDb, sqlWithRetry } from './db';
 import { connectedAccountsService } from './connectedAccounts';
 import type { Persona } from './types';
 
@@ -34,9 +34,16 @@ export async function getAllowedPersonasForHandle(twitterHandle: string): Promis
   const cleanHandle = twitterHandle.replace('@', '').toLowerCase();
 
   try {
-    const account = await connectedAccountsService.getByTwitterHandle(cleanHandle);
-    if (account && account.personas && account.personas.length > 0) {
-      return account.personas;
+      const account = await connectedAccountsService.getByTwitterHandle(cleanHandle);
+    if (account) {
+      // Get active personas from personas table
+      const { rows } = await sqlWithRetry<{ key: string }>`
+        SELECT key FROM personas 
+        WHERE connected_account_id = ${account.id} AND is_active = true
+      `;
+      if (rows.length > 0) {
+        return rows.map(r => r.key).filter(Boolean);
+      }
     }
   } catch (e) {
     console.warn('Failed to get personas from account:', e);

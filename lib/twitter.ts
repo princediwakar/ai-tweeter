@@ -2,7 +2,7 @@
 // Simple Twitter API implementation using fetch and OAuth 1.0a
 import crypto from 'crypto';
 import { refreshAccessToken, shouldRefreshToken } from './twitter-oauth';
-import type { AccountWithCredentials } from './types';
+import type { ConnectedAccountWithCredentials } from './types';
 export interface TweetV2 {
   id: string;
   text: string;
@@ -17,45 +17,46 @@ export interface TweetV2 {
 }
 
 export interface TwitterCredentials {
-  // OAuth 1.0a credentials (legacy)
   apiKey?: string;
   apiSecret?: string;
   accessToken?: string;
   accessSecret?: string;
-  // OAuth 2.0 user context token (preferred for posting)
   oauth2AccessToken?: string;
   oauth2RefreshToken?: string;
   oauth2ExpiresAt?: Date;
 }
 
 /**
- * Build TwitterCredentials from an account, preferring OAuth 2.0 tokens if enabled.
+ * Build TwitterCredentials from an account with normalized credentials
  */
-export function buildTwitterCredentialsFromAccount(account: AccountWithCredentials): TwitterCredentials {
-  const credentials: TwitterCredentials = {
-    apiKey: account.twitter_api_key || '',
-    apiSecret: account.twitter_api_secret || '',
-    accessToken: account.twitter_access_token || '',
-    accessSecret: account.twitter_access_token_secret || '',
-  };
-
-  // Add OAuth 2.0 tokens if available (New SaaS Schema)
-  // The connectedAccountsService already decrypts these into access_token/refresh_token
-  const saasAccessToken = (account as any).access_token;
-  const saasRefreshToken = (account as any).refresh_token;
+export function buildTwitterCredentialsFromAccount(account: ConnectedAccountWithCredentials): TwitterCredentials {
+  const oauth1Cred = account.credentials.find(c => c.auth_type === 'oauth1' && c.is_active);
+  const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
+  const apiKeyCred = account.credentials.find(c => c.auth_type === 'api_key' && c.is_active);
   
-  if (saasAccessToken) {
-    credentials.oauth2AccessToken = saasAccessToken;
-    if (saasRefreshToken) {
-      credentials.oauth2RefreshToken = saasRefreshToken;
+  const credentials: TwitterCredentials = {};
+  
+  // OAuth 1.0a
+  if (oauth1Cred) {
+    credentials.accessToken = oauth1Cred.access_token || '';
+    credentials.accessSecret = oauth1Cred.refresh_token || '';
+  }
+  
+  // API Key auth
+  if (apiKeyCred) {
+    credentials.apiKey = apiKeyCred.api_key || '';
+    credentials.apiSecret = apiKeyCred.api_secret || '';
+    if (oauth1Cred) {
+      credentials.accessToken = oauth1Cred.access_token || '';
+      credentials.accessSecret = oauth1Cred.refresh_token || '';
     }
-    credentials.oauth2ExpiresAt = (account as any).token_expires_at || (account as any).twitter_oauth2_token_expires_at;
-  } 
-  // Fallback to legacy schema if needed
-  else if ((account as any).twitter_oauth2_enabled && (account as any).twitter_oauth2_access_token) {
-    credentials.oauth2AccessToken = (account as any).twitter_oauth2_access_token;
-    credentials.oauth2RefreshToken = (account as any).twitter_oauth2_refresh_token;
-    credentials.oauth2ExpiresAt = (account as any).twitter_oauth2_token_expires_at;
+  }
+  
+  // OAuth 2.0 (preferred for modern accounts)
+  if (oauth2Cred) {
+    credentials.oauth2AccessToken = oauth2Cred.access_token || '';
+    credentials.oauth2RefreshToken = oauth2Cred.refresh_token || undefined;
+    credentials.oauth2ExpiresAt = oauth2Cred.token_expires_at || undefined;
   }
 
   return credentials;
@@ -77,7 +78,7 @@ export function hasValidTwitterOAuth2(credentials: TwitterCredentials): boolean 
  * Returns updated credentials (or original if not needed/possible).
  */
 export async function refreshTwitterCredentialsIfNeeded(
-  account: AccountWithCredentials,
+  account: ConnectedAccountWithCredentials,
   credentials: TwitterCredentials
 ): Promise<TwitterCredentials> {
   // Only refresh OAuth 2.0 tokens

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
-import { getEngagementConfigForAccount } from '@/lib/engagement/targets';
+import { getEngagementConfigForAccount, getDefaultEngagementConfig } from '@/lib/engagement/targets';
 import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithTweet } from '@/lib/db';
 import { postReplyTweet } from '@/lib/twitter';
 import { scoutAndFetch } from '@/lib/engagement/activityScout';
@@ -61,16 +61,19 @@ export async function GET(request: NextRequest) {
   }
 
   // 3. Get Account (with decrypted credentials) and Engagement Config
-  const account = await connectedAccountsService.getByTwitterHandle(twitterHandle) as any;
+  const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) {
     console.error(`[Engage API] Failed: Account not found for handle: ${twitterHandle}`);
     return NextResponse.json({ error: `Account not found for handle: ${twitterHandle}` }, { status: 404 });
   }
-  const engagementConfig = await getEngagementConfigForAccount(twitterHandle);
-  if (!engagementConfig) {
-    console.log(`[Engage API] Skipping: No engagement config found for ${twitterHandle}.`);
-    return NextResponse.json({ success: false, message: `No engagement config for ${twitterHandle}.` });
+  
+  const accountWithCreds = await connectedAccountsService.getWithCredentials(account.id);
+  if (!accountWithCreds) {
+    console.error(`[Engage API] Failed: Account credentials not found for handle: ${twitterHandle}`);
+    return NextResponse.json({ error: `Account credentials not found for handle: ${twitterHandle}` }, { status: 404 });
   }
+  
+  const engagementConfig = await getEngagementConfigForAccount(twitterHandle) || getDefaultEngagementConfig();
 
   // 4. Check Daily Engagement Limit
   const dailyCount = await getDailyEngagementCount(account.id);
@@ -150,11 +153,13 @@ export async function GET(request: NextRequest) {
   }
 
   // 10. Post Reply
+  const apiKeyCred = accountWithCreds.credentials.find(c => c.auth_type === 'api_key' && c.is_active);
+  const oauth1Cred = accountWithCreds.credentials.find(c => c.auth_type === 'oauth1' && c.is_active);
   const credentials = {
-    apiKey: account.twitter_api_key || '',
-    apiSecret: account.twitter_api_secret || '',
-    accessToken: account.twitter_access_token || '',
-    accessSecret: account.twitter_access_token_secret || '',
+    apiKey: apiKeyCred?.api_key || '',
+    apiSecret: apiKeyCred?.api_secret || '',
+    accessToken: oauth1Cred?.access_token || '',
+    accessSecret: oauth1Cred?.refresh_token || '',
   };
   const replyResult = await postReplyTweet(replyText, tweetToEngage.id, credentials);
   const replyTweetId = replyResult.data.id;

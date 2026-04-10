@@ -17,8 +17,6 @@ interface Tweet {
   platform?: string;
   image_url?: string;
   source_url?: string;
-  twitter_url?: string;
-  linkedin_id?: string;
 }
 
 interface Persona {
@@ -455,17 +453,6 @@ export default function QueuePage() {
                                   >
                                     {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                                   </button>
-                                )}
-                                {tweet.status === 'posted' && (tweet.twitter_url || tweet.linkedin_id) && (
-                                  <a
-                                    href={tweet.twitter_url || `https://www.linkedin.com/feed/update/${tweet.linkedin_id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-1.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                    title="View posted"
-                                  >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
                                 )}
                               </div>
                             </div>

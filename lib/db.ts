@@ -1,12 +1,7 @@
 import { sql } from '@vercel/postgres';
 import type { QueryResult, QueryResultRow } from '@vercel/postgres';
-import type { Tweet, Persona, PersonaConfigDNA } from './types';
-import type { RecentPattern } from './generation/types';
+import type { Post, Persona } from './types';
 
-// In-memory storage for testing when database is not available
-const inMemoryTweets: Tweet[] = [];
-// Use real database connection
-const USE_IN_MEMORY = false; // Use PostgreSQL database
 
 /**
  * Universal SQL wrapper with retry logic for transient database connection errors.
@@ -96,16 +91,11 @@ export interface Thread {
 
 
 
-// NOTE: Account management functions have been moved to lib/accountService.ts
-// All account operations (get, create, update, delete) should use accountService
-// which handles proper AES-256-GCM encryption/decryption
-
-// Tweet management functions
-// Updated tweet functions to support account filtering
-export async function getAllTweets(limit: number = 100): Promise<Tweet[]> {
+// Post management functions
+export async function getAllPosts(limit: number = 100): Promise<Post[]> {
   try {
     const result = await sqlWithRetry`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       ORDER BY created_at DESC
       LIMIT ${limit}
     `;
@@ -117,25 +107,21 @@ export async function getAllTweets(limit: number = 100): Promise<Tweet[]> {
       hashtags: row.hashtags || [],
       persona: row.persona,
       postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-      twitterId: row.twitter_id,
-      twitterUrl: row.twitter_url,
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
-      // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
       error_message: row.error_message,
       image_url: row.image_url,
       image_status: row.image_status,
       card_data: row.card_data,
       created_at: row.created_at,
-      // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
       content_type: row.content_type || 'single_tweet',
+      schedule_id: row.schedule_id || null,
+      persona_id: row.persona_id || null,
+      source_url: row.source_url || null,
     }));
   } catch (error) {
     console.error('[Neon] Error getting tweets:', error);
@@ -189,10 +175,10 @@ export async function getAllPersonasFromDb(): Promise<Persona[]> {
   }
 }
 
-export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
+export async function getPostsByAccount(accountId: string): Promise<Post[]> {
   try {
     const result = await sqlWithRetry`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       WHERE connected_account_id = ${accountId}
       ORDER BY created_at DESC
     `;
@@ -204,22 +190,19 @@ export async function getTweetsByAccount(accountId: string): Promise<Tweet[]> {
       hashtags: row.hashtags || [],
       persona: row.persona,
       postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-      twitterId: row.twitter_id,
-      twitterUrl: row.twitter_url,
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       created_at: row.created_at,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
@@ -284,13 +267,13 @@ export async function createThreadWithRetry(
  * Saves or updates a tweet in the database.
  * Uses ON CONFLICT to perform an "upsert" operation, making it safe to call for both new and existing tweets.
  */
-// lib/db.ts (or wherever saveTweet is located)
+// lib/db.ts (or wherever savePost is located)
 
-export async function saveTweet(tweet: Tweet): Promise<void> {
+export async function savePost(tweet: Post): Promise<void> {
   try {
     // Check for duplicate content within last 24 hours
     const duplicateCheck = await sqlWithRetry`
-      SELECT id FROM tweets
+      SELECT id FROM posts
       WHERE connected_account_id = ${tweet.connected_account_id}
         AND content = ${tweet.content}
         AND created_at > NOW() - INTERVAL '24 hours'
@@ -303,10 +286,10 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
     }
 
     await sqlWithRetry`
-      INSERT INTO tweets (
+      INSERT INTO posts (
         id, connected_account_id, content, hashtags, persona, status, created_at,
-        posted_at, twitter_id, twitter_url, error_message, image_url,
-        thread_id, thread_sequence, parent_twitter_id, content_type,
+        posted_at, error_message, image_url,
+        thread_id, thread_sequence, content_type,
         image_status, card_data, source_url, schedule_id, persona_id
       ) VALUES (
         ${tweet.id},
@@ -317,13 +300,10 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         ${tweet.status},
         ${tweet.created_at},
         ${tweet.posted_at || null},
-        ${tweet.twitter_id || null},
-        ${tweet.twitter_url || null},
         ${tweet.error_message || null},
         ${tweet.image_url || null},
         ${tweet.thread_id || null},
         ${tweet.thread_sequence || null},
-        ${tweet.parent_twitter_id || null},
         ${tweet.content_type || 'single_tweet'},
         ${tweet.image_status || 'none'},
         ${tweet.card_data || null},
@@ -339,13 +319,10 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
         persona = EXCLUDED.persona,
         status = EXCLUDED.status,
         posted_at = EXCLUDED.posted_at,
-        twitter_id = EXCLUDED.twitter_id,
-        twitter_url = EXCLUDED.twitter_url,
         error_message = EXCLUDED.error_message,
         image_url = EXCLUDED.image_url,
         thread_id = EXCLUDED.thread_id,
         thread_sequence = EXCLUDED.thread_sequence,
-        parent_twitter_id = EXCLUDED.parent_twitter_id,
         content_type = EXCLUDED.content_type,
         image_status = EXCLUDED.image_status,
         card_data = EXCLUDED.card_data,
@@ -365,10 +342,10 @@ export async function saveTweet(tweet: Tweet): Promise<void> {
 
 
 
-export async function getReadyTweets(): Promise<Tweet[]> {
+export async function getReadyPosts(): Promise<Post[]> {
   try {
     const result = await sqlWithRetry`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       WHERE status = 'ready'
       ORDER BY created_at ASC
     `;
@@ -380,22 +357,19 @@ export async function getReadyTweets(): Promise<Tweet[]> {
       hashtags: row.hashtags || [],
       persona: row.persona,
       postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-      twitterId: row.twitter_id,
-      twitterUrl: row.twitter_url,
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       created_at: row.created_at,
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
@@ -404,10 +378,10 @@ export async function getReadyTweets(): Promise<Tweet[]> {
   }
 }
 
-export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[]> {
+export async function getReadyPostsByAccount(accountId: string): Promise<Post[]> {
   try {
     const result = await sqlWithRetry`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       WHERE status = 'ready' AND connected_account_id = ${accountId}
       ORDER BY created_at ASC
     `;
@@ -419,15 +393,12 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       hashtags: row.hashtags || [],
       persona: row.persona,
       postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-      twitterId: row.twitter_id,
-      twitterUrl: row.twitter_url,
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       image_status: row.image_status,
@@ -436,7 +407,7 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
@@ -445,8 +416,8 @@ export async function getReadyTweetsByAccount(accountId: string): Promise<Tweet[
   }
 }
 
-export async function getPaginatedTweets(params: { page: number; limit: number; accountId?: string }): Promise<{
-  data: Tweet[];
+export async function getPaginatedPosts(params: { page: number; limit: number; accountId?: string }): Promise<{
+  data: Post[];
   total: number;
   page: number;
   limit: number;
@@ -454,69 +425,42 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
   hasNext: boolean;
   hasPrev: boolean;
 }> {
-  if (USE_IN_MEMORY) {
-    const filteredTweets = params.accountId 
-      ? inMemoryTweets.filter(t => t.connected_account_id === params.accountId)
-      : inMemoryTweets;
-    
-    const total = filteredTweets.length;
-    const offset = (params.page - 1) * params.limit;
-    const tweets = filteredTweets
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(offset, offset + params.limit);
-    
-    const totalPages = Math.ceil(total / params.limit);
-    
-    return {
-      data: tweets,
-      total,
-      page: params.page,
-      limit: params.limit,
-      totalPages,
-      hasNext: params.page < totalPages,
-      hasPrev: params.page > 1,
-    };
-  }
-
   try {
     const offset = (params.page - 1) * params.limit;
     
     // Get total count with optional account filtering
     const countResult = params.accountId 
-      ? await sqlWithRetry`SELECT COUNT(*) as count FROM tweets WHERE connected_account_id = ${params.accountId}`
-      : await sqlWithRetry`SELECT COUNT(*) as count FROM tweets`;
+      ? await sqlWithRetry`SELECT COUNT(*) as count FROM posts WHERE connected_account_id = ${params.accountId}`
+      : await sqlWithRetry`SELECT COUNT(*) as count FROM posts`;
     const total = parseInt(countResult.rows[0].count);
     
     // Get paginated data with optional account filtering
     const result = params.accountId 
       ? await sqlWithRetry`
-          SELECT * FROM tweets
+          SELECT * FROM posts
           WHERE connected_account_id = ${params.accountId}
           ORDER BY created_at DESC
           LIMIT ${params.limit} OFFSET ${offset}
         `
       : await sqlWithRetry`
-          SELECT * FROM tweets
+          SELECT * FROM posts
           ORDER BY created_at DESC
           LIMIT ${params.limit} OFFSET ${offset}
         `;
     
-    const tweets: Tweet[] = result.rows.map(row => ({
+    const tweets: Post[] = result.rows.map(row => ({
       id: row.id,
       connected_account_id: row.connected_account_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,
       postedAt: row.posted_at ? new Date(row.posted_at) : undefined,
-      twitterId: row.twitter_id,
-      twitterUrl: row.twitter_url,
       errorMessage: row.error_message,
       status: row.status,
       createdAt: new Date(row.created_at),
       // Keep snake_case for backward compatibility
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       image_status: row.image_status,
@@ -525,7 +469,7 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
       // Threading support
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
     
@@ -554,9 +498,9 @@ export async function getPaginatedTweets(params: { page: number; limit: number; 
   }
 }
 
-export async function deleteTweet(id: string): Promise<void> {
+export async function deletePost(id: string): Promise<void> {
   try {
-    await sqlWithRetry`DELETE FROM tweets WHERE id = ${id}`;
+    await sqlWithRetry`DELETE FROM posts WHERE id = ${id}`;
     console.log(`[Neon] Deleted tweet ${id}`);
   } catch (error) {
     console.error('[Neon] Error deleting tweet:', error);
@@ -564,12 +508,12 @@ export async function deleteTweet(id: string): Promise<void> {
   }
 }
 
-export async function deleteTweets(ids: string[]): Promise<void> {
+export async function deletePosts(ids: string[]): Promise<void> {
   try {
     if (ids.length === 0) return;
     
     const placeholders = ids.map((_, index) => `$${index + 1}`).join(',');
-    const query = `DELETE FROM tweets WHERE id IN (${placeholders})`;
+    const query = `DELETE FROM posts WHERE id IN (${placeholders})`;
     
     await sql.query(query, ids);
     console.log(`[Neon] Deleted ${ids.length} tweets`);
@@ -579,7 +523,7 @@ export async function deleteTweets(ids: string[]): Promise<void> {
   }
 }
 
-export function generateTweetId(): string {
+export function generatePostId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 }
 
@@ -647,16 +591,6 @@ export async function getReadyThreads(accountId: string): Promise<Thread[]> {
   }
 }
 
-
-
-
-// Interface for the payload to ensure type safety
-export interface ThreadUpdatePayload {
-  status?: 'generating' | 'ready' | 'completed' | 'failed';
-  total_tweets?: number;
-  increment_current_tweet?: boolean;
-  parent_tweet_id?: string;
-}
 
 
 
@@ -763,10 +697,10 @@ export async function startThreadPosting(threadId: string): Promise<void> {
   }
 }
 
-export async function getThreadTweet(threadId: string, sequence: number): Promise<Tweet | null> {
+export async function getThreadPost(threadId: string, sequence: number): Promise<Post | null> {
   try {
     const result = await sql`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       WHERE thread_id = ${threadId} AND thread_sequence = ${sequence}
       LIMIT 1
     `;
@@ -781,14 +715,13 @@ export async function getThreadTweet(threadId: string, sequence: number): Promis
       hashtags: row.hashtags || [],
       persona: row.persona,
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     };
   } catch (error) {
@@ -797,12 +730,12 @@ export async function getThreadTweet(threadId: string, sequence: number): Promis
   }
 }
 
-export async function getLastPostedTweetInThread(threadId: string): Promise<Tweet | null> {
+export async function getLastPostedPostInThread(threadId: string): Promise<Post | null> {
   try {
     const result = await sql`
-      SELECT * FROM tweets
+      SELECT * FROM posts
       WHERE thread_id = ${threadId}
-        AND twitter_id IS NOT NULL
+        AND posted_at IS NOT NULL
         AND status = 'posted'
       ORDER BY thread_sequence DESC
       LIMIT 1
@@ -818,14 +751,13 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
       hashtags: row.hashtags || [],
       persona: row.persona,
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     };
   } catch (error) {
@@ -835,24 +767,17 @@ export async function getLastPostedTweetInThread(threadId: string): Promise<Twee
 }
 
 // Image queue management functions
-export async function getTweetsWithPendingImages(limit: number = 5, accountId?: string): Promise<Tweet[]> {
-  if (USE_IN_MEMORY) {
-    return inMemoryTweets
-      .filter(t => (t.image_status === 'pending' || t.image_status === 'failed') && (!accountId || t.connected_account_id === accountId))
-      .slice(0, limit)
-      .map(t => ({ ...t }));
-  }
-
+export async function getPostsWithPendingImages(limit: number = 5, accountId?: string): Promise<Post[]> {
   try {
     const result = accountId 
       ? await sql`
-          SELECT * FROM tweets
+          SELECT * FROM posts
           WHERE (image_status = 'pending' OR image_status = 'failed') AND connected_account_id = ${accountId}
           ORDER BY created_at ASC
           LIMIT ${limit}
         `
       : await sql`
-          SELECT * FROM tweets
+          SELECT * FROM posts
           WHERE image_status = 'pending' OR image_status = 'failed'
           ORDER BY created_at ASC
           LIMIT ${limit}
@@ -865,8 +790,7 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
       hashtags: row.hashtags || [],
       persona: row.persona,
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       status: row.status,
       created_at: row.created_at,
@@ -875,7 +799,7 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
       card_data: row.card_data,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
@@ -884,24 +808,11 @@ export async function getTweetsWithPendingImages(limit: number = 5, accountId?: 
   }
 }
 
-export async function updateTweetImage(
+export async function updatePostImage(
   tweetId: string, 
   imageUrl?: string, 
   imageStatus?: 'none' | 'pending' | 'processing' | 'completed' | 'failed'
 ): Promise<void> {
-  if (USE_IN_MEMORY) {
-    const tweetIndex = inMemoryTweets.findIndex(t => t.id === tweetId);
-    if (tweetIndex >= 0) {
-      if (imageUrl !== undefined) {
-        inMemoryTweets[tweetIndex].image_url = imageUrl;
-      }
-      if (imageStatus !== undefined) {
-        inMemoryTweets[tweetIndex].image_status = imageStatus;
-      }
-    }
-    return;
-  }
-
   try {
     const updates: string[] = [];
     const values: (string | undefined)[] = [];
@@ -919,7 +830,7 @@ export async function updateTweetImage(
     if (updates.length === 0) return;
 
     const query = `
-      UPDATE tweets 
+      UPDATE posts 
       SET ${updates.join(', ')}
       WHERE id = $1
     `;
@@ -1024,7 +935,7 @@ export async function getLastEngagementForTarget(accountId: string, targetUserna
 /**
  * Checks if a specific tweet has already been engaged with by this account.
  */
-export async function hasEngagedWithTweet(accountId: string, tweetId: string): Promise<boolean> {
+export async function hasEngagedWithPost(accountId: string, tweetId: string): Promise<boolean> {
   try {
     const result = await sql`
       SELECT 1
@@ -1046,7 +957,7 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
   try {
     const result = await sqlWithRetry`
       SELECT DISTINCT card_data
-      FROM tweets
+      FROM posts
       WHERE connected_account_id = ${accountId}
         AND persona = 'english_vocab_builder'
         AND card_data IS NOT NULL
@@ -1082,8 +993,6 @@ export async function getRecentVocabularyWords(accountId: string, days: number =
 
 
 
-// Removed: getRecentSatiristData was duplicate of getRecentPatternData
-
 export async function getRecentPatternData(
   accountId: string,
   limit: number = 10
@@ -1092,7 +1001,7 @@ export async function getRecentPatternData(
     // Fetch both the content for thematic deduplication and the source_url for strict avoidance.
     const result = await sql`
       SELECT content, source_url, created_at
-      FROM tweets
+      FROM posts
       WHERE connected_account_id = ${accountId}
         AND content IS NOT NULL
       ORDER BY created_at DESC
@@ -1145,7 +1054,7 @@ export async function getRecentPersonaSources(
     const placeholders = personaKeys.map((_, i) => `$${i + 1}`).join(', ');
     const query = `
       SELECT DISTINCT source_url
-      FROM tweets
+      FROM posts
       WHERE connected_account_id = $${personaKeys.length + 1}
         AND persona IN (${placeholders})
         AND source_url IS NOT NULL
@@ -1176,25 +1085,23 @@ export async function getRecentPersonaSources(
  * Prevents duplicate posting when multiple workers run concurrently.
  * Returns the claimed tweet or null if none available.
  */
-export async function claimTweetForPosting(
+export async function claimPostForPosting(
   accountId: string,
   persona?: string
-): Promise<Tweet | null> {
+): Promise<Post | null> {
   try {
-    const now = new Date().toISOString();
-    
     let query;
     let params: any[];
 
     if (persona) {
       query = `
-        UPDATE tweets 
-        SET status = 'posting', started_at = $2
+        UPDATE posts 
+        SET status = 'posting'
         WHERE id = (
-          SELECT id FROM tweets 
+          SELECT id FROM posts 
           WHERE connected_account_id = $1 
             AND status = 'ready' 
-            AND persona = $3
+            AND persona = $2
             AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
           ORDER BY created_at ASC
           LIMIT 1
@@ -1202,13 +1109,13 @@ export async function claimTweetForPosting(
         )
         RETURNING *
       `;
-      params = [accountId, now, persona];
+      params = [accountId, persona];
     } else {
       query = `
-        UPDATE tweets 
-        SET status = 'posting', started_at = $2
+        UPDATE posts 
+        SET status = 'posting'
         WHERE id = (
-          SELECT id FROM tweets 
+          SELECT id FROM posts 
           WHERE connected_account_id = $1 
             AND status = 'ready' 
             AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
@@ -1218,7 +1125,7 @@ export async function claimTweetForPosting(
         )
         RETURNING *
       `;
-      params = [accountId, now];
+      params = [accountId];
     }
 
     const result = await sql.query(query, params);
@@ -1237,8 +1144,7 @@ export async function claimTweetForPosting(
       status: row.status,
       created_at: row.created_at,
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       image_status: row.image_status,
@@ -1246,7 +1152,7 @@ export async function claimTweetForPosting(
       source_url: row.source_url,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     };
   } catch (error) {
@@ -1259,33 +1165,31 @@ export async function claimTweetForPosting(
  * Atomically claims multiple tweets for posting (batch mode).
  * Uses SELECT FOR UPDATE SKIP LOCKED to prevent race conditions.
  */
-export async function claimTweetsForPosting(
+export async function claimPostsForPosting(
   accountId: string,
   personas: string[],
   limit: number = 5
-): Promise<Tweet[]> {
+): Promise<Post[]> {
   if (personas.length === 0) {
     return [];
   }
   
   try {
-    const now = new Date().toISOString();
-    
     const result = await sql.query(
-      `UPDATE tweets 
-       SET status = 'posting', started_at = $2
+      `UPDATE posts 
+       SET status = 'posting'
        WHERE id IN (
-         SELECT id FROM tweets 
+         SELECT id FROM posts 
          WHERE connected_account_id = $1 
            AND status = 'ready' 
-           AND persona = ANY($3::text[])
+           AND persona = ANY($2::text[])
            AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
          ORDER BY created_at ASC
-         LIMIT $4
+         LIMIT $3
          FOR UPDATE SKIP LOCKED
        )
        RETURNING *`,
-      [accountId, now, personas, limit]
+      [accountId, personas, limit]
     );
 
     return result.rows.map(row => ({
@@ -1297,8 +1201,7 @@ export async function claimTweetsForPosting(
       status: row.status,
       created_at: row.created_at,
       posted_at: row.posted_at,
-      twitter_id: row.twitter_id,
-      twitter_url: row.twitter_url,
+      
       error_message: row.error_message,
       image_url: row.image_url,
       image_status: row.image_status,
@@ -1306,7 +1209,7 @@ export async function claimTweetsForPosting(
       source_url: row.source_url,
       thread_id: row.thread_id,
       thread_sequence: row.thread_sequence,
-      parent_twitter_id: row.parent_twitter_id,
+      
       content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
@@ -1318,23 +1221,18 @@ export async function claimTweetsForPosting(
 /**
  * Marks a claimed tweet as posted or failed, releasing the lock.
  */
-export async function finalizeTweetPosting(
+export async function finalizePostPosting(
   tweetId: string,
   status: 'posted' | 'failed',
-  twitterId?: string,
-  twitterUrl?: string,
   errorMessage?: string
 ): Promise<void> {
   try {
     await sql`
-      UPDATE tweets 
+      UPDATE posts 
       SET 
         status = ${status},
         posted_at = CASE WHEN ${status} = 'posted' THEN NOW() ELSE posted_at END,
-        twitter_id = COALESCE(twitter_id, ${twitterId || null}),
-        twitter_url = COALESCE(twitter_url, ${twitterUrl || null}),
-        error_message = ${errorMessage || null},
-        started_at = NULL
+        error_message = ${errorMessage || null}
       WHERE id = ${tweetId}
     `;
   } catch (error) {
@@ -1346,14 +1244,13 @@ export async function finalizeTweetPosting(
 /**
  * Releases locked tweets back to ready status (for failed jobs).
  */
-export async function releaseStaleTweets(accountId: string): Promise<number> {
+export async function releaseStalePosts(accountId: string): Promise<number> {
   try {
     const result = await sql`
-      UPDATE tweets 
-      SET status = 'ready', started_at = NULL
+      UPDATE posts 
+      SET status = 'ready'
       WHERE connected_account_id = ${accountId}
         AND status = 'posting'
-        AND started_at < NOW() - INTERVAL '15 minutes'
     `;
     return result.rowCount ?? 0;
   } catch (error) {
@@ -1361,3 +1258,4 @@ export async function releaseStaleTweets(accountId: string): Promise<number> {
     return 0;
   }
 }
+

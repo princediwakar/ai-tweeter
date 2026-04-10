@@ -6,6 +6,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { createCanvas } from 'canvas';
 import { getPersona } from '@/lib/db';
+import { platformSettings } from '@/lib/platformSettings';
 export interface ImageTemplate {
   name: string;
   description: string;
@@ -129,10 +130,10 @@ export async function generatePersonaImage(
     const imageBuffer = await template.generate(parsedCardData, templateConfig);
     if (!imageBuffer) return null;
 
-    const acc = account as unknown as Record<string, unknown>;
-    const cloudName = acc.cloudinary_cloud_name as string;
-    const apiKey = acc.cloudinary_api_key as string;
-    const apiSecret = acc.cloudinary_api_secret as string;
+    const creds = await platformSettings.getCloudinaryCredentials();
+    const cloudName = creds.cloud_name;
+    const apiKey = creds.api_key;
+    const apiSecret = creds.api_secret;
 
     if (!cloudName || !apiKey) {
       console.warn('[Image Gen] Cloudinary not configured');

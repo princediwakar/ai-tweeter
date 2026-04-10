@@ -80,20 +80,20 @@ export async function PUT(
             expiresAt: oauth2Cred.token_expires_at || undefined,
           };
 
-          let content = tweet.content.replace(/@/g, '');
-          if (tweet.hashtags && tweet.hashtags.length > 0) {
-            const formattedTags = tweet.hashtags.map((tag: string) => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
+          let content = post.content.replace(/@/g, '');
+          if (post.hashtags && post.hashtags.length > 0) {
+            const formattedTags = post.hashtags.map((tag: string) => tag.startsWith('#') ? tag : `#${tag}`).join(' ');
             content = `${content}\n\n${formattedTags}`;
           }
 
-          const result = await postToLinkedIn(content, linkedinCreds, tweet.image_url || undefined);
+          const result = await postToLinkedIn(content, linkedinCreds, post.image_url || undefined);
           
-          tweet.status = 'posted';
-          tweet.posted_at = new Date();
-          await savePost(tweet);
+          post.status = 'posted';
+          post.posted_at = new Date();
+          await savePost(post);
           
           return NextResponse.json({ 
-            ...tweet, 
+            ...post, 
             platform: 'linkedin',
             platform_post_url: `https://www.linkedin.com/feed/update/${result.id}`
           });
@@ -113,34 +113,34 @@ export async function PUT(
             oauth2ExpiresAt: activeCred.token_expires_at || undefined,
           };
 
-          const result = await postTweet(tweet.content, credentials);
-          tweet.status = 'posted';
-          tweet.posted_at = new Date();
-          await savePost(tweet);
+          const result = await postTweet(post.content, credentials);
+          post.status = 'posted';
+          post.posted_at = new Date();
+          await savePost(post);
           
           return NextResponse.json({ 
-            ...tweet, 
+            ...post, 
             platform_post_url: `https://x.com/user/status/${result.data.id}`
           });
         }
       } catch (error) {
-        tweet.status = 'failed';
+        post.status = 'failed';
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        tweet.error_message = errorMessage;
-        await savePost(tweet);
+        post.error_message = errorMessage;
+        await savePost(post);
         
         return NextResponse.json({ 
           error: 'Failed to post tweet',
           details: errorMessage,
-          tweet: tweet
+          post: post
         }, { status: 400 });
       }
     }
 
     if (action === 'update') {
-      Object.assign(tweet, data);
-      await savePost(tweet);
-      return NextResponse.json(tweet);
+      Object.assign(post, data);
+      await savePost(post);
+      return NextResponse.json(post);
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

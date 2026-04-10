@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTweetsWithPendingImages, updateTweetImage } from '@/lib/db';
+import { getPostsWithPendingImages, updatePostImage } from '@/lib/db';
 import { generatePersonaImage } from '@/lib/services/imageGenerationService';
 import { logger } from '@/lib/logger';
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     
     logger.info(`[ImageProcessor:${batchId}] Starting parallel image processing (limit: ${limit})`, 'image-processor');
 
-    const pendingTweets = await getTweetsWithPendingImages(limit);
+    const pendingTweets = await getPostsWithPendingImages(limit);
     
     if (pendingTweets.length === 0) {
       return NextResponse.json({
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const processingPromises = pendingTweets.map(async (tweet) => {
       try {
-        await updateTweetImage(tweet.id, undefined, 'processing');
+        await updatePostImage(tweet.id, undefined, 'processing');
         
         if (!tweet.card_data) {
           throw new Error('No card_data found for image generation');
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         const imageUrl = await generatePersonaImage(cardData, tweet.persona, tweet.connected_account_id || undefined);
         
         if (imageUrl) {
-          await updateTweetImage(tweet.id, imageUrl, 'completed');
+          await updatePostImage(tweet.id, imageUrl, 'completed');
           logger.info(`[ImageProcessor:${batchId}] Success for tweet ${tweet.id}`, 'image-processor-success');
           return { status: 'fulfilled', id: tweet.id, url: imageUrl } as const;
         } else {
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        await updateTweetImage(tweet.id, undefined, 'failed');
+        await updatePostImage(tweet.id, undefined, 'failed');
         logger.error(`[ImageProcessor:${batchId}] Failure for tweet ${tweet.id}: ${errorMsg}`, 'image-processor-error', error as Error);
         return { status: 'rejected', id: tweet.id, error: errorMsg } as const;
       }

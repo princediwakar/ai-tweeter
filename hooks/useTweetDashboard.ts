@@ -361,7 +361,7 @@ export function useTweetDashboard() {
       console.error('Failed to fetch personas:', error);
     }
     
-    await fetchTweets(1, pagination.limit, accountId);
+    await fetchPosts(1, pagination.limit, accountId);
   }, [pagination.limit, fetchPosts]);
 
   // Pass actionLoadingId down to your UI components!

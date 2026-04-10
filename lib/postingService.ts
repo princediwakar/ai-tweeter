@@ -1,6 +1,7 @@
 import { TwitterApi, TweetV2PostTweetResult } from 'twitter-api-v2';
 import { connectedAccountsService } from './connectedAccounts';
 import { postToLinkedIn, refreshAccessToken, shouldRefreshToken, LinkedInCredentials } from './linkedin';
+import { postTweet, TwitterCredentials } from './twitter';
 import { claimPostsForPosting, finalizePostPosting, releaseStalePosts } from './db';
 import { logger } from './logger';
 import type { Post, ConnectedAccountWithCredentials } from './types';
@@ -13,7 +14,7 @@ export interface PostingResult {
   error?: string;
 }
 
-export async function getCredentialsForAccount(account: ConnectedAccountWithCredentials): Promise<{
+export type PlatformCredentials = {
   platform: 'twitter' | 'linkedin';
   apiKey?: string;
   apiSecret?: string;
@@ -22,19 +23,21 @@ export async function getCredentialsForAccount(account: ConnectedAccountWithCred
   linkedinAccessToken?: string;
   linkedinRefreshToken?: string;
   linkedinTokenExpiresAt?: string;
-}> {
+};
+
+export async function getCredentialsForAccount(account: ConnectedAccountWithCredentials): Promise<PlatformCredentials> {
   const oauth1Cred = account.credentials.find(c => c.auth_type === 'oauth1' && c.is_active);
   const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
   const apiKeyCred = account.credentials.find(c => c.auth_type === 'api_key' && c.is_active);
 
   return {
     platform: account.platform,
-    apiKey: apiKeyCred?.api_key,
-    apiSecret: apiKeyCred?.api_secret,
-    accessToken: oauth1Cred?.access_token,
-    accessSecret: oauth1Cred?.refresh_token,
-    linkedinAccessToken: oauth2Cred?.access_token,
-    linkedinRefreshToken: oauth2Cred?.refresh_token,
+    apiKey: apiKeyCred?.api_key ?? undefined,
+    apiSecret: apiKeyCred?.api_secret ?? undefined,
+    accessToken: oauth1Cred?.access_token ?? undefined,
+    accessSecret: oauth1Cred?.refresh_token ?? undefined,
+    linkedinAccessToken: oauth2Cred?.access_token ?? undefined,
+    linkedinRefreshToken: oauth2Cred?.refresh_token ?? undefined,
     linkedinTokenExpiresAt: oauth2Cred?.token_expires_at?.toISOString(),
   };
 }
@@ -60,10 +63,10 @@ export async function refreshTokenIfNeeded(account: ConnectedAccountWithCredenti
 }
 
 export async function postToPlatform(
-post: Post,
+  post: Post,
   account: ConnectedAccountWithCredentials,
   platform: 'twitter' | 'linkedin',
-  credentials: ReturnType<typeof getCredentialsForAccount>
+  credentials: PlatformCredentials
 ): Promise<PostingResult> {
   const content = getFullTweetContent(post, platform);
 
@@ -87,7 +90,8 @@ function getFullTweetContent(post: Post, platform: 'twitter' | 'linkedin'): stri
   return baseContent;
 }
 
-async function postToTwitter(post: Post, content: string, credentials: ReturnType<typeof getCredentialsForAccount>): Promise<PostingResult> {
+async function postToTwitter(post: Post, content: string, credentials: PlatformCredentials): Promise<PostingResult> {
+  try {
     if (post.image_url && post.image_status === 'completed') {
       const imageBuffer = await fetchImageFromUrl(post.image_url);
       if (imageBuffer) {
@@ -102,18 +106,18 @@ async function postToTwitter(post: Post, content: string, credentials: ReturnTyp
       }
     }
 
-    const result: TweetV2PostTweetResult = await client.v2.tweet(content);
+    const result = await postTweet(content, credentials as TwitterCredentials);
     const twitterId: string = result.data.id;
-    
+
     if (!twitterId) throw new Error('No ID returned from Twitter');
-    
+
     return { success: true, twitterId };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 
-async function postToLinkedInPost(post: Post, content: string, account: ConnectedAccountWithCredentials, credentials: ReturnType<typeof getCredentialsForAccount>): Promise<PostingResult> {
+async function postToLinkedInPost(post: Post, content: string, account: ConnectedAccountWithCredentials, credentials: PlatformCredentials): Promise<PostingResult> {
   try {
     const linkedinCreds: LinkedInCredentials = {
       accessToken: credentials.linkedinAccessToken!,

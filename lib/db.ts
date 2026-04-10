@@ -1,6 +1,7 @@
 import { sql } from '@vercel/postgres';
 import type { QueryResult, QueryResultRow } from '@vercel/postgres';
 import type { Post, Persona } from './types';
+import type { RecentPattern } from './generation/types';
 
 
 /**

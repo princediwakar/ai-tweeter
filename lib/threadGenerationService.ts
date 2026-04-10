@@ -1,6 +1,6 @@
 // lib/threadGenerationService.ts
 import OpenAI from 'openai';
-import { createThread, savePost, generatePostId, updateThread } from './db';
+import { createThread, savePost, generatePostId, updateThread, sqlWithRetry } from './db';
 import { connectedAccountsService } from './connectedAccounts';
 import { logger } from '@/lib/logger';
 import { GENERATION_CONFIG } from './generation/config';
@@ -143,12 +143,12 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     if (!threadId || !metadata) throw new Error("Thread generation failed.");
 
     await Promise.all(dbWritePromises);
-    await updateThread(threadId, { status: 'ready', total_tweets: savedTweets.length });
+    await updateThread(threadId, { status: 'ready', total_tweets: savedPosts.length });
 
     return {
       thread_id: threadId,
-      total_tweets: savedTweets.length,
-      tweets: savedTweets.sort((a, b) => (a.thread_sequence || 0) - (b.thread_sequence || 0)),
+      total_tweets: savedPosts.length,
+      posts: savedPosts.sort((a, b) => (a.thread_sequence || 0) - (b.thread_sequence || 0)),
       story_category: metadata.story_category, 
       sourceUrl: parseSourceUrlFromContext(config.sourceContext),
     };
@@ -175,9 +175,9 @@ export async function canGenerateThreads(accountId: string): Promise<boolean> {
 }
 
 async function getPersonasForAccount(accountId: string): Promise<{ key: string }[]> {
-  const { rows } = await sql`
-    SELECT key FROM personas 
+  const { rows } = await sqlWithRetry`
+    SELECT key FROM personas
     WHERE connected_account_id = ${accountId} AND is_active = true
   `;
-  return rows;
+  return rows as { key: string }[];
 }

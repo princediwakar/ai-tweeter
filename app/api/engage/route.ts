@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getEngagementConfigForAccount, getDefaultEngagementConfig } from '@/lib/engagement/targets';
-import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithTweet } from '@/lib/db';
+import { getDailyEngagementCount, getLastEngagementForTarget, logEngagement, hasEngagedWithPost } from '@/lib/db';
 import { postReplyTweet } from '@/lib/twitter';
 import { scoutAndFetch } from '@/lib/engagement/activityScout';
 import { selectBestTweet } from '@/lib/engagement/selector';
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
   const targets = engagementConfig.priority_targets;
   console.log(`[Engage API] Checking ${targets.length} target(s): ${targets.map(t => t.username).join(', ')}`);
 
-  const candidateTweets = await scoutAndFetch(account, targets);
+  const candidateTweets = await scoutAndFetch(accountWithCreds, targets);
 
   if (candidateTweets.length === 0) {
     console.log(`[Engage API] Result: No recent activity found from any targets.`);
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
   const validTweets = [];
   for (const tweet of candidateTweets) {
     // Check if already engaged with this specific tweet
-    const alreadyEngaged = await hasEngagedWithTweet(account.id, tweet.id);
+    const alreadyEngaged = await hasEngagedWithPost(account.id, tweet.id);
     if (alreadyEngaged) {
       console.log(`[Engage API] Skipping tweet ${tweet.id} from ${tweet.targetUsername} - already engaged`);
       continue;

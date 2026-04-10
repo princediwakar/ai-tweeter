@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ 
           thread: threadResult,
-          tweets: threadResult.tweets,
+          tweets: threadResult.posts,
           meta: { content_type: 'thread', persona: personaKey }
         });
       } else {

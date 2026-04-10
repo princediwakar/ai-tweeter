@@ -285,7 +285,7 @@ async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = 
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 5 
+        (start_time - local_minutes + 1440) % 1440 <= 60 
         OR 
         (local_minutes - start_time + 1440) % 1440 <= 60  
       )

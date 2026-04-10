@@ -1,72 +1,7 @@
 // lib/connectedAccounts.ts
 import { sql } from '@vercel/postgres';
-import crypto from 'crypto';
 import { sqlWithRetry } from './db';
-
-const ENCRYPTION_KEY = process.env.NEXTAUTH_SECRET || process.env.ENCRYPTION_KEY || 'default-secret-key-change-me';
-
-// --- TOKEN CACHING (Performance for high-frequency decryption) ---
-interface TokenCacheEntry {
-  decrypted: string;
-  expiresAt: number;
-}
-
-const tokenCache = new Map<string, TokenCacheEntry>();
-const TOKEN_CACHE_TTL_MS = 5 * 60 * 1000; 
-const MAX_CACHE_SIZE = 100;
-
-function getCachedToken(key: string): string | null {
-  const entry = tokenCache.get(key);
-  if (!entry || Date.now() > entry.expiresAt) {
-    if (entry) tokenCache.delete(key);
-    return null;
-  }
-  return entry.decrypted;
-}
-
-function setCachedToken(key: string, decrypted: string): void {
-  if (tokenCache.size >= MAX_CACHE_SIZE) {
-    const firstKey = tokenCache.keys().next().value;
-    if (firstKey) tokenCache.delete(firstKey);
-  }
-  tokenCache.set(key, { decrypted, expiresAt: Date.now() + TOKEN_CACHE_TTL_MS });
-}
-
-// --- ENCRYPTION ENGINE ---
-export function encrypt(text: string | null): string | null {
-  if (!text) return null;
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  const authTag = cipher.getAuthTag();
-  return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
-}
-
-export function decrypt(encryptedText: string | null): string {
-  if (!encryptedText || !encryptedText.includes(':')) return encryptedText || '';
-  try {
-    const cacheKey = `decrypt:${encryptedText.substring(0, 50)}`;
-    const cached = getCachedToken(cacheKey);
-    if (cached) return cached;
-
-    const [ivHex, authTagHex, encrypted] = encryptedText.split(':');
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
-    const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-    decipher.setAuthTag(authTag);
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    setCachedToken(cacheKey, decrypted);
-    return decrypted;
-  } catch (e) {
-    console.error('Decryption failed:', e);
-    return '';
-  }
-}
+import { encrypt, decrypt } from './security/crypto';
 
 // --- TYPES ---
 export interface ConnectedAccount {

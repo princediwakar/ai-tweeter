@@ -1,28 +1,19 @@
 // lib/generationService.ts
 import OpenAI from "openai";
-// --- MODIFIED ---
-// Imports for personas, accountService, context, etc., have been moved
-// to generationProcessing.ts
 import { EnhancedTweet } from "./types";
-// --- END MODIFIED ---
-import type {
-  TweetGenerationConfig,
-} from "./generation/types";
-// --- MODIFIED ---
-// Import the new helper functions
+import type { TweetGenerationConfig } from "./generation/types";
 import {
   generateTweetPrompt,
   parseAndValidateTweetResponse,
 } from "./generationProcessing";
-// --- END MODIFIED ---
 import { generateContentHash } from "./generation/utils";
 import { TweetV2 } from "./twitter";
 import { EngagementTarget } from "./engagement/targets";
 import { GENERATION_CONFIG } from "./generation/config";
 import { getAllPersonas } from "./personas";
-import {
-  getRecentPatternData,
-} from "./db";
+import { getRecentPatternData } from "./db";
+import { buildGenerationContext } from "./generation/ContextBuilder";
+import { promptEngine } from "./generation/PromptEngine";
 
 // Lazy initialization of the client with thread-safe pattern
 let deepseekClientInstance: OpenAI | null = null;

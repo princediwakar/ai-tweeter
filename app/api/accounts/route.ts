@@ -39,7 +39,6 @@ export async function GET(request: NextRequest) {
       profile_image_url: account.profile_image_url,
       persona_count: account.personas?.length || 0,
       created_at: account.created_at,
-      // Health check for the UI without exposing the actual keys
       is_configured: !!(account.access_token || account.twitter_access_token)
     }));
 

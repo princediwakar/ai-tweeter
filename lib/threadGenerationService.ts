@@ -5,11 +5,11 @@ import { connectedAccountsService } from './connectedAccounts';
 import { logger } from '@/lib/logger';
 import { GENERATION_CONFIG } from './generation/config';
 
-// FIXED: Added missing imports
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas'; 
-import { getPersonaGenerator } from './generation/personas';
-import type { Account, Tweet } from './types'; // FIXED: Added Account type
+import type { Account, Tweet } from './types';
 import type { GenerationContext } from './generation/types';
+import { buildGenerationContext } from './generation/ContextBuilder';
+import { promptEngine } from './generation/PromptEngine';
 
 // ... (Client Init Logic)
 let deepseekClientInstance: OpenAI | null = null;
@@ -61,30 +61,34 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
 
   try {
     const accountId = config.connected_account_id;
-    const account = await connectedAccountsService.getById(accountId) as any;
-    if (!account) throw new Error(`Account not found: ${accountId}`);
     
-    const persona = await getPersonaByKey(config.persona);
-    if (!persona) throw new Error(`Persona "${config.persona}" not found.`);
-
-    const personaGenerator = getPersonaGenerator(persona);
-    const markers = {
-        timeMarker: `T${Date.now()}`,
-        tokenMarker: `TK${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-    };
+    // Use ContextBuilder to resolve persona and account
+    const context = await buildGenerationContext({
+      connected_account_id: accountId,
+      persona: config.persona,
+      sourceContext: config.sourceContext,
+    });
     
-    const generationContext: GenerationContext = { 
-      sourceContext: config.sourceContext || '',
-      account: account,
-      useRSSSources: !!config.sourceContext
-    };
+    if (!context.account) {
+      throw new Error(`Account not found: ${accountId}`);
+    }
     
-    const prompt = personaGenerator.generatePrompt({ isThread: true } as any, generationContext, markers);
+    // Use PromptEngine to build thread prompt
+    const promptResult = promptEngine.build({
+      persona: context.persona,
+      dataContext: context.dataContext,
+      formatRules: context.formatRules,
+      options: {
+        isThread: true,
+        threadCount: 5,
+        usedSourceUrls: undefined,
+      },
+    });
     
     const client = await getDeepseekClientAsync();
     const stream = await client.chat.completions.create({
       model: GENERATION_CONFIG.ai.model,
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: promptResult.prompt }],
       temperature: GENERATION_CONFIG.ai.temperature,
       stream: true,
     });

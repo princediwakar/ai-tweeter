@@ -86,7 +86,8 @@ You must return ONLY a valid JSON object matching this exact schema:
 export function parseAndValidateTweetResponse(
   content: string,
   personaKey: string,
-  sourceContext?: string
+  sourceContext?: string,
+  actualHeadlineCount?: number // Keeping this in case your generationService still passes it
 ): {
   tweet: EnhancedTweet;
   cardData: CardData | null;
@@ -99,14 +100,34 @@ export function parseAndValidateTweetResponse(
 
     if (data.error) throw new Error(`AI error: ${data.error}`);
 
-    const tweetContent = data.content || data.tweetText;
+    const tweetContent = data.content || data.tweetText || data.tweet; // Catch multiple legacy formats
     if (!tweetContent || typeof tweetContent !== 'string') {
       throw new Error("AI returned an invalid or missing tweet content string.");
     }
 
-    // We no longer rely on brittle Regex matching or selectedHeadlineNumber.
-    // The LLM simply tells us which URL it used via selected_url.
-    const sourceUrl = data.selected_url || data.sourceUrl || undefined;
+    // 1. Try to get the direct URL first (The Phase 3 way)
+    let sourceUrl: string | undefined = data.selected_url || data.sourceUrl || data.url;
+
+    // 2. Aggressive Fallback: If it returned an integer (The Legacy way)
+    const articleNum = data.selectedArticle ?? data.selectedHeadlineNumber;
+    
+    if (!sourceUrl && articleNum !== undefined && sourceContext) {
+      const num = parseInt(articleNum, 10);
+      if (!isNaN(num)) {
+        // Hunt for the specific article block in the context
+        const articleRegex = new RegExp(`### (?:ARTICLE|TOPIC SOURCE) ${num}\\n([\\s\\S]*?)(?:### END|### (?:ARTICLE|TOPIC SOURCE)|$)`, "i");
+        const match = sourceContext.match(articleRegex);
+        
+        if (match && match[1]) {
+          // Find the first valid HTTP/HTTPS link in that specific article block
+          const urlMatch = match[1].match(/https?:\/\/[^\s"'}\\\]]+/);
+          if (urlMatch) {
+            sourceUrl = urlMatch[0];
+            console.log(`🔍 [Parser] Successfully extracted URL from Article ${num}: ${sourceUrl}`);
+          }
+        }
+      }
+    }
 
     let cardData: CardData | null = null;
     if (data.cardData && typeof data.cardData === 'object') {
@@ -117,18 +138,18 @@ export function parseAndValidateTweetResponse(
       tweet: {
         content: tweetContent,
         persona: personaKey,
-        selectedHeadlineNumber: undefined, // Deprecated
-        hashtags: [], // Handled by format_rules now
+        selectedHeadlineNumber: articleNum, 
+        hashtags: [], 
         engagementHooks: [],
         contentType: "single_tweet",
       },
       cardData,
       sourceUrl,
-      // We save the internal monologue as reasoning for debugging and quality control!
-      reasoning: { monologue: data.internal_monologue } 
+      // Pass the entire parsed object back as reasoning so you can always see what the AI was thinking
+      reasoning: data 
     };
   } catch (error) {
-    console.error("Failed to parse AI response:", error instanceof Error ? error.message : error);
+    console.error("❌ Failed to parse AI response:", error instanceof Error ? error.message : error);
     return null; 
   }
 }

@@ -2,12 +2,11 @@
 import { defineConfig } from "@trigger.dev/sdk/v3";
 
 export default defineConfig({
-  project: "proj_xcvmdulgbemsmbfonvzn", // (Keep whatever ID is already here)
+  project: "proj_xcvmdulgbemsmbfonvzn", 
   runtime: "node",
   logLevel: "log",
   
-  // ADD THIS LINE:
-  maxDuration: 3600, // 1 hour default fallback for all tasks
+  maxDuration: 3600,
 
-  dirs: ["./trigger"], // (Or whichever directory it set)
+  dirs: ["./trigger"], 
 });

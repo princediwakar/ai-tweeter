@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Queue', href: '/queue', icon: ListChecks },
-  { name: 'AI Profiles', href: '/profiles', icon: User },
+  { name: 'Setup', href: '/setup', icon: User },
 ];
 
 function UserDropdown() {

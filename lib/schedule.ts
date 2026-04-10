@@ -3,6 +3,7 @@ import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from './connectedAccounts';
 import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
+import { logger } from './logger';
 
 export interface Schedule {
   should_generate: boolean;
@@ -50,7 +51,7 @@ export async function getGenerationBatchInfo(
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 5 -- JIT GENERATION: Only look 5 minutes ahead
+        (start_time - local_minutes + 1440) % 1440 <= 10 -- JIT GENERATION: Only look 5 minutes ahead
         OR 
         (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after
       )
@@ -58,6 +59,7 @@ export async function getGenerationBatchInfo(
   `;
 
   const activeSchedules = scheduleResult.rows;
+  logger.info(`[Schedule] Found ${activeSchedules.length} active schedules in window for account ${account.id}`, 'schedule-window', { activeCount: activeSchedules.length });
 
   if (activeSchedules.length === 0) {
     return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No schedules in generation window' };
@@ -148,7 +150,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR
         -- 5-minute grace period for exact pin-point schedules (e.g. 7:04)
-        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 5)
+        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 10)
       )
     ORDER BY start_time
     LIMIT 1

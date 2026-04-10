@@ -19,7 +19,7 @@ export interface TweetGenerationConfig {
   previousHeadlines?: number[];
   recentPatterns?: RecentPattern[];
   usedSourceUrls?: string[];
-  rssContext?: string;
+  sourceContext?: string;
   generationFormat?: 'image' | 'text-only';
   skipRSS?: boolean;
 }
@@ -32,7 +32,7 @@ export interface RecentPattern {
 export interface GenerationContext {
   account: Account | null;
   useRSSSources: boolean;
-  rssContext: string;
+  sourceContext: string;
   userTopicContext?: string;
 }
 

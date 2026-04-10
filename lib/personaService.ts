@@ -44,18 +44,19 @@ class PersonaService {
 
   private mergeWithDefaultDna(config: any = {}): PersonaConfigDNA {
     const defaults: PersonaConfigDNA = {
-      identity_context: 'You are an AI assistant designed to post engaging content.',
-      source_logic: 'Use the provided source material to create insightful posts.',
-      voice_dna: 'Clear, concise, and professional.',
-      anti_patterns: 'Avoid generic excitement and corporate jargon.',
-      structural_archetypes: [
-        {
-          name: 'General Narrative',
-          description: 'A standard post format.',
-          example: 'Here is an interesting insight from today: [Summary].'
-        }
+      core_thesis: 'Signal is found in hard data and actual execution, not marketing hype.',
+      the_enemy: 'Vanity metrics and generic corporate posturing.',
+      analytical_framework: 'Strip away the marketing language and look strictly at the underlying mechanics or economics.',
+      
+      // --- Executable Mechanics ---
+      framing_bias: 'Focus on the unsexy, operational reality behind the flashy headline.',
+      hook_mechanics: 'Open with a blunt statement of fact or a surprising metric. Never ask a rhetorical question.',
+      format_rules: [
+        'Write in the first person.',
+        'Use short, punchy paragraphs (max 2 sentences).',
+        'Use plain, conversational English.',
+        'Never use emojis or hashtags.'
       ],
-      validation_checklist: ['Is it accurate?', 'Is it engaging?'],
       image_probability: 0,
       headlines_to_fetch: 10,
       headlines_in_prompt: 5

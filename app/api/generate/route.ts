@@ -1,9 +1,9 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse, after } from 'next/server';
 import { promises as fs } from 'fs';
+import path from 'path';
 
 export const maxDuration = 300; // Extend Vercel limit for background execution
-import path from 'path';
 
 import { generateTweet } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -25,6 +25,18 @@ interface GeneratedTweetInfo {
 type GenerationResultUnion =
   { type: 'tweet'; data: GeneratedTweetInfo; needsImage: boolean } |
   { type: 'thread'; data: ThreadGenerationResult };
+
+type AccountGenerationResult = {
+  success: boolean;
+  message: string;
+  accountId: string;
+  accountName: string;
+  generated?: {
+    single_tweets: number;
+    threads: number;
+    total_content_units: number;
+  };
+};
 
 async function saveDebugOutput(data: { content: string | string[]; persona: string; source?: string; created_at: string }) {
   try {
@@ -179,10 +191,10 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
 
   const persona = await getPersonaByKey(selectedPersonaKey);
-  const personaDbId = persona?.id; // Capture DB id for tweet metadata
-  const scheduleId = batchInfo.schedule_ids?.[0]; // First triggered schedule id
+  const personaDbId = persona?.id; 
+  const scheduleId = batchInfo.schedule_ids?.[0]; 
   const allPersonas = await getAllPersonas();
-  const threadPersonas = allPersonas.filter(p => p.config?.supports_threads).map(p => p.key);
+  const threadPersonas = allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key);
   const shouldGenerateThreads = supportsThreading && threadPersonas.includes(selectedPersonaKey);
 
   if (shouldGenerateThreads) {
@@ -202,19 +214,19 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   const errors: string[] = [];
   let imageIsNeeded = false;
 
-  const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
+  const contentTypes = ['single_tweet', 'thread'];
   
   const generationPromises = Array.from({ length: targetBatchSize }, async (_, i): Promise<GenerationResultUnion> => {
     if (!persona) throw new Error(`Persona ${selectedPersonaKey} not found`);
 
     if (shouldGenerateThreads) {
       const { getDynamicContext } = await import('@/lib/contentSource');
-      const rssContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey);
+      const sourceContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey);
 
       const threadResult = await generateThread({
         connected_account_id: accountId,
         persona: selectedPersonaKey,
-        rssContext
+        sourceContext
       });
 
       if (threadResult) {
@@ -232,40 +244,48 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       }
     }
 
+    const contentType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
+    
+    // FIXED: Removed batchPosition and batchSize to match updated strict types
     const config: TweetGenerationConfig = {
-      account_id: accountId,
       persona: selectedPersonaKey,
-      contentType: contentTypes[(new Date().getHours() + i) % contentTypes.length] as TweetGenerationConfig['contentType']
-    };
-
-    const generatedTweet = await generateTweet(config);
-    if (!generatedTweet) throw new Error(`Failed to generate tweet`);
-
-    const tweet: Partial<Tweet> = {
-      id: generateTweetId(),
       connected_account_id: accountId,
-      content: generatedTweet.content,
-      hashtags: generatedTweet.hashtags,
-      persona: generatedTweet.persona,
-      status: 'draft',
-      created_at: new Date().toISOString(),
-      content_type: 'single_tweet',
-      image_url: generatedTweet.imageUrl,
-      image_status: generatedTweet.imageStatus || 'none',
-      card_data: generatedTweet.cardData ? JSON.stringify(generatedTweet.cardData) : undefined,
-      source_url: generatedTweet.sourceUrl,
-      schedule_id: scheduleId,
-      persona_id: personaDbId,
+      topic: contentType,
     };
 
-    await saveTweet(tweet as Tweet);
+    const enhancedTweet = await generateTweet(config);
+    
+    if (!enhancedTweet) {
+      throw new Error(`Tweet generation returned null for persona ${selectedPersonaKey}`);
+    }
+
+    const tweetId = generateTweetId();
+    
+    const tweetToSave: Tweet = {
+      id: tweetId,
+      connected_account_id: accountId,
+      persona_id: personaDbId,
+      persona: selectedPersonaKey,
+      schedule_id: scheduleId,
+      content: enhancedTweet.content,
+      status: 'draft', 
+      content_type: 'single_tweet', 
+      hashtags: enhancedTweet.hashtags || [],
+      image_url: enhancedTweet.imageUrl,
+      image_status: enhancedTweet.imageStatus || 'none',
+      card_data: enhancedTweet.cardData ? JSON.stringify(enhancedTweet.cardData) : undefined,
+      source_url: enhancedTweet.sourceUrl, 
+      created_at: new Date().toISOString()
+    };
+    
+    await saveTweet(tweetToSave);
 
     if (debugMode) {
       await saveDebugOutput({
-        content: generatedTweet.content,
+        content: enhancedTweet.content,
         persona: selectedPersonaKey,
-        source: generatedTweet.sourceUrl,
-        created_at: tweet.created_at!
+        source: enhancedTweet.sourceUrl,
+        created_at: new Date().toISOString()
       });
     }
 
@@ -273,74 +293,51 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       type: 'tweet',
       data: {
         persona: selectedPersonaKey,
-        contentType: config.contentType || 'unknown',
-        length: generatedTweet.content.length,
-        sourceUrl: generatedTweet.sourceUrl, 
+        contentType: enhancedTweet.contentType,
+        length: enhancedTweet.content.length,
+        sourceUrl: enhancedTweet.sourceUrl
       },
-      needsImage: tweet.image_status === 'pending'
+      needsImage: enhancedTweet.imageStatus === 'pending'
     };
   });
 
   const results = await Promise.allSettled(generationPromises);
-  
-  results.forEach(result => {
-    if (result.status === 'fulfilled' && result.value) {
+
+  results.forEach((result) => {
+    if (result.status === 'fulfilled') {
       if (result.value.type === 'tweet') {
         generatedTweets.push(result.value.data);
         if (result.value.needsImage) imageIsNeeded = true;
       } else if (result.value.type === 'thread') {
         generatedThreads.push(result.value.data);
       }
-    } else if (result.status === 'rejected') {
-      const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
-      errors.push(`A generation failed: ${errorMsg}`);
+    } else {
+      errors.push(result.reason instanceof Error ? result.reason.message : String(result.reason));
     }
   });
 
-  const totalContentUnits = generatedTweets.length + generatedThreads.reduce((sum, thread) => sum + thread.total_tweets, 0);
-  const endTime = performance.now();
-  const totalDuration = ((endTime - startTime) / 1000).toFixed(2);
+  const timeElapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+  logger.info(`[Enhanced:${callId}] Generation complete in ${timeElapsed}s. Generated ${generatedTweets.length} tweets, ${generatedThreads.length} threads.`, 'generate-complete');
 
   return NextResponse.json({
-    success: true,
-    message: `✅ Batch generation complete for account ${accountId}.`.trim(),
+    success: errors.length < targetBatchSize,
+    message: `Generation complete. ${generatedTweets.length} tweets, ${generatedThreads.length} threads created.`,
     accountId,
-    accountName: account.name,
-    threading_enabled: supportsThreading,
+    batchInfo,
     generated: {
       single_tweets: generatedTweets.length,
       threads: generatedThreads.length,
-      total_content_units: totalContentUnits
+      total_content_units: generatedTweets.length + generatedThreads.length
     },
-    targetBatchSize,
-    currentPipeline: pendingTweets.length + totalContentUnits,
-    maxPipeline: maxPipelineSize,
-    batchInfo: debugMode ? batchInfo : undefined,
-    generatedTweets: debugMode ? generatedTweets : generatedTweets.length,
-    generatedThreads: debugMode ? generatedThreads : generatedThreads.map(t => ({ tweets: t.total_tweets })),
     errors: errors.length > 0 ? errors : undefined,
-    duration_s: parseFloat(totalDuration),
     timestamp: new Date().toISOString()
   });
-}
+} 
 
-type AccountGenerationResult = {
-  success: boolean;
-  message: string;
-  accountId: string;
-  accountName: string;
-  generated?: {
-    single_tweets: number;
-    threads: number;
-    total_content_units: number;
-  };
-};
-
+// FIXED: Removed the duplicate function declaration that was causing the trailing '}' errors
 async function generateForAllAccountsEnhanced(request: NextRequest, debugMode = false) {
   const sessionId = Math.random().toString(36).substring(2, 8);
   
-  // NATIVE DATABASE TIME RESOLUTION. 
-  // No node.js string parsing. Handles wrap-around offsets automatically.
   const accountsWithSchedules = await sql`
     WITH current_local AS (
       SELECT 

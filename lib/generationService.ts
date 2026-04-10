@@ -133,12 +133,12 @@ export async function generateTweet(
     }
 
     // --- MODIFIED: Call imported function ---
-    const { prompt, persona, rssContext } = await generateTweetPrompt(config);
+    const { prompt, persona, sourceContext } = await generateTweetPrompt(config);
 
     // --- MODIFIED: Dynamic RSS-based persona check ---
     let actualHeadlineCount: number | undefined;
-    if (rssContext && persona.key && rssPersonaKeys.includes(persona.key)) {
-      const headlineMatches = rssContext.match(/### ARTICLE \d+/g);
+    if (sourceContext && persona.key && rssPersonaKeys.includes(persona.key)) {
+      const headlineMatches = sourceContext.match(/### ARTICLE \d+/g);
       actualHeadlineCount = headlineMatches
         ? headlineMatches.length
         : undefined;
@@ -197,8 +197,7 @@ export async function generateTweet(
     const parsedResponse = parseAndValidateTweetResponse(
       content,
       persona.key,
-      rssContext,
-      actualHeadlineCount // NEW: Pass the count
+      sourceContext,
     );
     if (!parsedResponse) {
       throw new Error("Failed to parse or validate AI response.");

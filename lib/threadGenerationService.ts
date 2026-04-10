@@ -31,7 +31,7 @@ async function getDeepseekClientAsync(): Promise<OpenAI> {
 export interface ThreadGenerationConfig {
   connected_account_id: string;
   persona: string;
-  rssContext?: string;
+  sourceContext?: string;
 }
 
 export interface ThreadGenerationResult {
@@ -47,9 +47,9 @@ type StreamedData =
   | { type: 'tweet'; sequence: number; content: string }
   | { type: 'end'; total_tweets: number };
 
-function parseSourceUrlFromContext(rssContext?: string): string | undefined {
-    if (!rssContext) return undefined;
-    const match = rssContext.match(/Source URL \(for context\): (https?:\/\/\S+)/m);
+function parseSourceUrlFromContext(sourceContext?: string): string | undefined {
+    if (!sourceContext) return undefined;
+    const match = sourceContext.match(/Source URL \(for context\): (https?:\/\/\S+)/m);
     return match ? match[1].trim() : undefined;
 }
 
@@ -74,9 +74,9 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
     };
     
     const generationContext: GenerationContext = { 
-      rssContext: config.rssContext || '',
+      sourceContext: config.sourceContext || '',
       account: account,
-      useRSSSources: !!config.rssContext
+      useRSSSources: !!config.sourceContext
     };
     
     const prompt = personaGenerator.generatePrompt({ isThread: true } as any, generationContext, markers);
@@ -127,7 +127,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
               thread_id: threadId,
               thread_sequence: data.sequence,
               content_type: 'thread',
-              source_url: data.sequence === 1 ? parseSourceUrlFromContext(config.rssContext) : undefined,
+              source_url: data.sequence === 1 ? parseSourceUrlFromContext(config.sourceContext) : undefined,
             };
             savedTweets.push(tweet);
             dbWritePromises.push(saveTweet(tweet));
@@ -146,7 +146,7 @@ export async function generateThread(config: ThreadGenerationConfig): Promise<Th
       total_tweets: savedTweets.length,
       tweets: savedTweets.sort((a, b) => (a.thread_sequence || 0) - (b.thread_sequence || 0)),
       story_category: metadata.story_category, 
-      sourceUrl: parseSourceUrlFromContext(config.rssContext),
+      sourceUrl: parseSourceUrlFromContext(config.sourceContext),
     };
 
   } catch (error) {

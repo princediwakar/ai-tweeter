@@ -1,3 +1,4 @@
+// app/api/tweets/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { getAllTweets, saveTweet, deleteTweet } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
@@ -103,13 +104,22 @@ export async function PUT(
             return NextResponse.json({ error: 'Twitter access token not found. Please reconnect Twitter in Settings.' }, { status: 400 });
           }
 
-          const credentials = buildTwitterCredentialsFromAccount(account);
+          // FIX: Map database 'null' values to TypeScript 'undefined' 
+          // and use the CORRECT database column for the Twitter access secret.
+          const credentials = buildTwitterCredentialsFromAccount({
+            ...account,
+            twitter_api_key: account.twitter_api_key ?? undefined,
+            twitter_api_secret: account.twitter_api_secret ?? undefined,
+            access_token: account.twitter_access_token ?? account.access_token ?? undefined,
+            access_secret: account.twitter_access_token_secret ?? undefined, // <--- FIXED: Properly mapped from DB
+          } as any);
 
           const result = await postTweet(tweet.content, credentials);
           tweet.status = 'posted';
           tweet.posted_at = new Date().toISOString();
           tweet.twitter_id = result.data.id;
           await saveTweet(tweet);
+          
           return NextResponse.json({ 
             ...tweet, 
             twitterUrl: `https://x.com/user/status/${result.data.id}`

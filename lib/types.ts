@@ -104,22 +104,24 @@ export interface PersonaSchedule {
   is_active: boolean;
 }
 
+// lib/types.ts
+
 export interface PersonaConfigDNA {
-  identity_context: string;
-  source_logic: string;
-  voice_dna: string;
-  anti_patterns: string;
-  structural_archetypes: {
-    name: string;
-    description: string;
-    example: string;
-  }[];
-  validation_checklist: string[];
-  image_probability?: number;
-  headlines_to_fetch?: number;
-  headlines_in_prompt?: number;
+  // --- The Psychological Core (Keep these) ---
+  core_thesis: string;
+  the_enemy: string;
+  analytical_framework: string;
+  
+  // --- NEW: Executable Mechanics (Replaces the old fluff) ---
+  framing_bias: string;    // How they twist the narrative (e.g., "Always frame big tech wins as losses for innovation.")
+  hook_mechanics: string;  // Specific rules for the first sentence (e.g., "Open with a raw statistic, never a question.")
+  format_rules: string[];  // Absolute structural laws (e.g., ["Max 3 sentences per paragraph", "Zero emojis", "Zero hashtags"])
+  
+  // --- Operational Settings (Keep these) ---
+  headlines_to_fetch: number;
+  headlines_in_prompt: number;
+  image_probability: number;
   supports_threads?: boolean;
-  [key: string]: unknown; // Allow dynamic config properties
 }
 
 export interface Persona {
@@ -238,6 +240,7 @@ export interface TweetGenerationConfig {
   topic?: string;
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
   skipRSS?: boolean;
+  
 }
 
 // NEW: Added the complete type definition for the object returned by generateThread

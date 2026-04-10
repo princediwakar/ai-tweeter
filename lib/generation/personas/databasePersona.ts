@@ -18,7 +18,7 @@ export class DatabasePersonaGenerator extends BasePersonaGenerator {
   ): string {
     const { timeMarker, tokenMarker } = markers;
     const personaConfig = (this.persona.config as Record<string, unknown>) || {};
-    const rssSourceContext = context.rssContext || "";
+    const sourceContext = context.sourceContext || "";
     const userTopicContext = context.userTopicContext || "";
     const userTopic = config.topic;
 
@@ -53,9 +53,9 @@ ${userTopicContext}
       prompt += `USER REQUEST: Write a post about "${userTopic}"
 
 `;
-    } else if (rssSourceContext) {
+    } else if (sourceContext) {
       prompt += `Right now you have this fresh context from your sources:
-${rssSourceContext}
+${sourceContext}
 
 ${config.previousHeadlines && config.previousHeadlines.length > 0
   ? `You've already used these headlines: ${config.previousHeadlines.join(', ')}. Pick something new.\n`

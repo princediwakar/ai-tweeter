@@ -1,8 +1,4 @@
 // lib/contentSource/fetchers/rss.ts
-/**
- * Generic RSS feed fetcher with TTL-based caching
- * Feeds should be passed as parameters (from DB)
- */
 
 import { parseStringPromise } from 'xml2js';
 import { GENERATION_CONFIG } from '../../generation/config';
@@ -71,15 +67,50 @@ export async function fetchFromRssFeeds(
     try {
       const response = await fetchFn(feed, {
         headers: { 'User-Agent': userAgent },
-        signal: AbortSignal.timeout(GENERATION_CONFIG.fetching.rssTimeout)
+        // Hard limit to 3 seconds to prevent Vercel timeouts on dead domains
+        signal: AbortSignal.timeout(3000) 
       });
-      if (!response.ok) return [];
+      
+      if (!response.ok) {
+        return []; // Silently fail on bad HTTP status
+      }
+
+      const contentType = response.headers.get('content-type') || '';
+      
+      // DEFENSIVE CHECK 1: Reject HTML headers immediately
+      if (contentType.includes('text/html')) {
+        console.log(`[Content Source] 🚫 Rejected: URL returned HTML headers instead of XML (${feed})`);
+        return [];
+      }
 
       const xml = await response.text();
-      const parsed = await parseStringPromise(xml);
-      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
+      const trimmedXml = xml.trim();
 
+      // DEFENSIVE CHECK 2: Reject HTML body content masquerading as XML
+      if (
+        trimmedXml.toLowerCase().startsWith('<!doctype html') ||
+        trimmedXml.toLowerCase().startsWith('<html') ||
+        trimmedXml.length === 0
+      ) {
+        console.log(`[Content Source] 🚫 Rejected: URL returned HTML body instead of XML (${feed})`);
+        return [];
+      }
+
+      let parsed;
+      try {
+        // Tell xml2js to be forgiving with poorly formatted RSS feeds
+        parsed = await parseStringPromise(trimmedXml, { 
+          strict: false, 
+          normalizeTags: true 
+        });
+      } catch (parseError) {
+        console.log(`[Content Source] ⚠️ Malformed XML at ${feed} - skipping.`);
+        return []; // Silently skip unparseable XML
+      }
+
+      const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
       const headlines: HeadlineWithSource[] = [];
+      
       for (const item of items.slice(0, headlinesPerFeed)) {
         const title = item.title?.[0];
         const link = item.link?.[0];
@@ -93,7 +124,9 @@ export async function fetchFromRssFeeds(
       }
       return headlines;
     } catch (error) {
-      console.warn(`[Content Source] ⚠️ Failed to fetch from RSS feed: ${feed}`, error);
+      // Clean one-liner error logging. NO stack traces.
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.log(`[Content Source] ⚠️ Failed to fetch from RSS feed: ${feed} (${msg})`);
       return [];
     }
   });

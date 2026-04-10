@@ -72,6 +72,7 @@ export const generateAccountContent = task({
         const config = { persona: selectedPersonaKey, connected_account_id: accountId, topic: selectedContentType, sourceContext };
         
         const enhancedTweet = await generateTweet(config);
+        
         if (enhancedTweet) {
           await saveTweet({
             id: generateTweetId(),
@@ -82,6 +83,11 @@ export const generateAccountContent = task({
             content: enhancedTweet.content,
             status: 'ready', 
             content_type: 'single_tweet', 
+            hashtags: enhancedTweet.hashtags || [],
+            image_url: enhancedTweet.imageUrl,
+            image_status: enhancedTweet.imageStatus || 'none',
+            card_data: enhancedTweet.cardData ? JSON.stringify(enhancedTweet.cardData) : undefined,
+            source_url: enhancedTweet.sourceUrl, 
             created_at: new Date().toISOString()
           });
           generatedCount++;

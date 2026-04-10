@@ -147,8 +147,8 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
       AND (
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR
-        -- 15-minute grace period for exact pin-point schedules (e.g. 7:04)
-        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 15)
+        -- 5-minute grace period for exact pin-point schedules (e.g. 7:04)
+        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 5)
       )
     ORDER BY start_time
     LIMIT 1

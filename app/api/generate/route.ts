@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     WITH current_local AS (
       SELECT 
         a.id,
+        s.id as schedule_id,
         s.start_time,
         (EXTRACT(HOUR FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(s.timezone, 'UTC'), NOW()))) as local_minutes,
         EXTRACT(ISODOW FROM timezone(COALESCE(s.timezone, 'UTC'), NOW())) as local_dow
@@ -23,13 +24,20 @@ export async function GET(request: NextRequest) {
       JOIN account_schedules s ON s.connected_account_id = a.id
       WHERE a.is_active = true AND s.is_active = true
     )
-    SELECT id
-    FROM current_local
-    WHERE local_dow = ANY(days_of_week)
+    SELECT cl.id
+    FROM current_local cl
+    -- Left join to see if a slot already exists for today
+    LEFT JOIN generation_slots gs 
+      ON gs.connected_account_id = cl.id 
+      AND gs.schedule_id = cl.schedule_id 
+      AND gs.slot_date = CURRENT_DATE
+    WHERE cl.local_dow = ANY(days_of_week)
       AND (
-        (start_time - local_minutes + 1440) % 1440 <= 60 
+        (cl.start_time - cl.local_minutes + 1440) % 1440 <= 60 
       )
-    GROUP BY id
+      -- ONLY select accounts that DO NOT have a generation slot today
+      AND gs.id IS NULL
+    GROUP BY cl.id
   `;
 
   if (accountsWithSchedules.rows.length === 0) {

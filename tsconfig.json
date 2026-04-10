@@ -38,7 +38,8 @@
     "lib/generation/personas/patternSpotter.ts",
     "lib/services/geminiImageService.bak",
     "lib/services/imageGenerationService.bak",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "trigger.config.ts"
   ],
   "exclude": [
     "node_modules"

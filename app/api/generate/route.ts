@@ -244,13 +244,19 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
       }
     }
 
+// Inside generationPromises loop, right below the Thread generation block...
+
     const contentType = contentTypes[Math.floor(Math.random() * contentTypes.length)];
     
-    // FIXED: Removed batchPosition and batchSize to match updated strict types
+    // FETCH THE DATA: We must pull the extracted text for single tweets too!
+    const { getDynamicContext } = await import('@/lib/contentSource');
+    const sourceContext = await getDynamicContext(selectedPersonaKey, contentType, accountId, selectedPersonaKey);
+
     const config: TweetGenerationConfig = {
       persona: selectedPersonaKey,
       connected_account_id: accountId,
       topic: contentType,
+      sourceContext: sourceContext // <--- THIS IS THE MISSING FUEL
     };
 
     const enhancedTweet = await generateTweet(config);

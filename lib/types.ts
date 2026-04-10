@@ -240,6 +240,7 @@ export interface TweetGenerationConfig {
   topic?: string;
   contentType?: 'explanation' | 'concept_clarification' | 'memory_aid' | 'practical_application' | 'common_mistake' | 'analogy';
   skipRSS?: boolean;
+  sourceContext?: string;
   
 }
 

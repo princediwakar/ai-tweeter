@@ -46,7 +46,7 @@ export async function getGenerationBatchInfo(
     )
     SELECT id, tz as timezone, start_time, end_time, persona_id, local_minutes, local_dow
     FROM current_local
-    WHERE local_dow = ANY(days_of_week)
+    WHERE local_dow = ANY(current_local.days_of_week)
       AND (
         (start_time - local_minutes + 1440) % 1440 <= 60 -- JIT GENERATION: 
         OR 
@@ -142,7 +142,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
     )
     SELECT id, tz as timezone, persona_id, start_time, end_time
     FROM current_local
-    WHERE local_dow = ANY(days_of_week)
+    WHERE local_dow = ANY(current_local.days_of_week)
       AND (
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR

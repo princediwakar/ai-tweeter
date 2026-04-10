@@ -39,10 +39,10 @@ export async function GET(request: NextRequest) {
         name, 
         array_agg(persona_key) as personas
       FROM current_local
-      WHERE local_dow = ANY(days_of_week)
+      WHERE local_dow = ANY(current_local.days_of_week)
         -- Window logic: Is current local time within the schedule's active bounds?
-        AND local_minutes >= start_time 
-        AND local_minutes <= end_time
+        AND local_minutes >= current_local.start_time 
+        AND local_minutes <= current_local.end_time
       GROUP BY id, name
       LIMIT 50
     `;

@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
       )
       SELECT 1
       FROM current_local
-      WHERE local_dow = ANY(days_of_week)
-        AND local_minutes >= start_time 
-        AND local_minutes <= end_time
+      WHERE local_dow = ANY(current_local.days_of_week)
+        AND local_minutes >= current_local.start_time 
+        AND local_minutes <= current_local.end_time
       LIMIT 1
     `;
 

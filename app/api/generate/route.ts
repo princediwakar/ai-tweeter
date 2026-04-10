@@ -118,6 +118,7 @@ async function generateForAccountEnhanced(accountId: string, request: NextReques
   }
 
   if (!batchInfo.should_generate && !debugMode) {
+    logger.info(`[Enhanced:${callId}] Skipped: ${batchInfo.reason}`, 'generate-skip');
     return NextResponse.json({
       success: true, message: `⏳ No generation scheduled.`, accountId, batchInfo
     });

@@ -4,14 +4,12 @@ import { connectedAccountsService } from './connectedAccounts';
 import { getAllPersonas } from './personas';
 import { getPersonaById } from './db';
 
-const GENERATION_WINDOW_MINUTES = 60;
-
 export interface Schedule {
   should_generate: boolean;
   should_post: boolean;
   generation_personas: string[];
   posting_personas: string[];
-  schedule_ids?: string[]; // IDs of schedules that need generation this run
+  schedule_ids?: string[];
   batch_size?: number;
   reason?: string;
 }
@@ -27,79 +25,49 @@ export async function getGenerationBatchInfo(
       : [];
     
     if (debugPersonas.length === 0) {
-      return {
-        should_generate: false,
-        should_post: false,
-        generation_personas: [],
-        posting_personas: [],
-        batch_size: 1,
-        reason: 'No personas available for debug mode',
-      };
+      return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No personas' };
     }
-    
-    return {
-      should_generate: true,
-      should_post: true,
-      generation_personas: debugPersonas,
-      posting_personas: debugPersonas,
-      batch_size: 1,
-      reason: 'Debug mode',
-    };
+    return { should_generate: true, should_post: true, generation_personas: debugPersonas, posting_personas: debugPersonas, batch_size: 1, reason: 'Debug mode' };
   }
 
   const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 1,
-      reason: 'Account not found',
-    };
+    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Account not found' };
   }
 
-  // Use Postgres to calculate exact local time and day of week natively
-  // Fetch ALL matching schedules (not just LIMIT 1) so each gets its own generation slot
+  // FIXED: ISODOW (1-7), COALESCE timezone, and widened generation window to pre-generate up to 3 hours before.
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, timezone, start_time, end_time, persona_id, days_of_week,
-        (EXTRACT(HOUR FROM timezone(timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(timezone, NOW()))) as local_minutes,
-        EXTRACT(DOW FROM timezone(timezone, NOW())) as local_dow
+        id, COALESCE(timezone, 'UTC') as tz, start_time, end_time, persona_id, days_of_week,
+        (EXTRACT(HOUR FROM timezone(COALESCE(timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(timezone, 'UTC'), NOW()))) as local_minutes,
+        EXTRACT(ISODOW FROM timezone(COALESCE(timezone, 'UTC'), NOW())) as local_dow
       FROM account_schedules
       WHERE connected_account_id = ${account.id} AND is_active = true
     )
-    SELECT id, timezone, start_time, end_time, persona_id, local_minutes, local_dow
+    SELECT id, tz as timezone, start_time, end_time, persona_id, local_minutes, local_dow
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
-      AND (local_minutes - start_time + 1440) % 1440 >= 0
-      AND (local_minutes - start_time + 1440) % 1440 < ${GENERATION_WINDOW_MINUTES}
+      AND (
+        (start_time - local_minutes + 1440) % 1440 <= 180 -- PRE-GENERATE: Up to 3 hours before start_time
+        OR 
+        (local_minutes - start_time + 1440) % 1440 <= 60  -- LATE-CATCH: Up to 1 hour after (if cron missed it)
+      )
     ORDER BY start_time ASC
   `;
 
   const activeSchedules = scheduleResult.rows;
 
   if (activeSchedules.length === 0) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 1,
-      reason: 'No schedule matches current generation window in local timezone',
-    };
+    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No schedules in generation window' };
   }
 
-  // Get today's date in the account's local timezone (use first schedule's timezone)
   const tzResult = await sql`SELECT timezone(${activeSchedules[0].timezone}, NOW())::date as local_date`;
   const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
 
-  // Process each schedule independently — create one generation_slots row per schedule
   const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
 
   for (const schedule of activeSchedules) {
-    // First check if generation already completed for this schedule today (generation_count >= 1)
     const existingSlot = await sql`
       SELECT generation_count FROM generation_slots
       WHERE connected_account_id = ${account.id}
@@ -107,12 +75,8 @@ export async function getGenerationBatchInfo(
         AND slot_date = ${today}
     `;
 
-    if (existingSlot.rows[0]?.generation_count >= 1) {
-      // Already generated today, skip
-      continue;
-    }
+    if (existingSlot.rows[0]?.generation_count >= 1) continue;
 
-    // Insert new slot only if it doesn't exist (first attempt today)
     const result = await sql`
       INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, last_generated_at, created_at, updated_at)
       VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
@@ -121,24 +85,15 @@ export async function getGenerationBatchInfo(
       RETURNING generation_count
     `;
 
-    // If insert succeeded (or returned existing row), check if we should generate
-    if (result.rows[0]?.generation_count === 1) {
+    if (result.rows.length > 0 && result.rows[0].generation_count === 1) {
       schedulesToGenerate.push({ scheduleId: schedule.id, personaId: schedule.persona_id || null });
     }
   }
 
   if (schedulesToGenerate.length === 0) {
-    return {
-      should_generate: false,
-      should_post: false,
-      generation_personas: [],
-      posting_personas: [],
-      batch_size: 1,
-      reason: 'Generation already completed for all matching schedules today',
-    };
+    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Already generated today' };
   }
 
-  // Resolve personas for each schedule that needs generation
   const personas: string[] = [];
   const scheduleIds: string[] = [];
 
@@ -146,13 +101,10 @@ export async function getGenerationBatchInfo(
     scheduleIds.push(scheduleId);
     if (personaId) {
       const dbPersona = await getPersonaById(personaId);
-      if (dbPersona?.key) {
-        personas.push(dbPersona.key);
-      }
+      if (dbPersona?.key) personas.push(dbPersona.key);
     }
   }
 
-  // Fall back to account-level personas if no schedule-level personas resolved
   if (personas.length === 0) {
     const fallbackPersonas = account.personas?.filter(Boolean) || [];
     personas.push(...fallbackPersonas);
@@ -174,36 +126,35 @@ export interface PostingSchedule {
   reason?: string;
 }
 
-export async function getPostingBatchInfo(
-  twitterHandle: string
-): Promise<PostingSchedule> {
+export async function getPostingBatchInfo(twitterHandle: string): Promise<PostingSchedule> {
   const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
-  if (!account) {
-    return { should_post: false, personas: [], reason: 'Account not found' };
-  }
+  if (!account) return { should_post: false, personas: [], reason: 'Account not found' };
 
+  // FIXED: Exact-minute grace period. If a cron fires at 7:05 for a 7:04 post, it will still catch it.
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, timezone, persona_id, start_time, end_time, days_of_week,
-        (EXTRACT(HOUR FROM timezone(timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(timezone, NOW()))) as local_minutes,
-        EXTRACT(DOW FROM timezone(timezone, NOW())) as local_dow
+        id, COALESCE(timezone, 'UTC') as tz, persona_id, start_time, end_time, days_of_week,
+        (EXTRACT(HOUR FROM timezone(COALESCE(timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(timezone, 'UTC'), NOW()))) as local_minutes,
+        EXTRACT(ISODOW FROM timezone(COALESCE(timezone, 'UTC'), NOW())) as local_dow
       FROM account_schedules
       WHERE connected_account_id = ${account.id} AND is_active = true
     )
-    SELECT id, timezone, persona_id, start_time, end_time
+    SELECT id, tz as timezone, persona_id, start_time, end_time
     FROM current_local
     WHERE local_dow = ANY(days_of_week)
-      AND start_time <= local_minutes
-      AND end_time >= local_minutes
+      AND (
+        (local_minutes >= start_time AND local_minutes <= end_time)
+        OR
+        -- 15-minute grace period for exact pin-point schedules (e.g. 7:04)
+        ((local_minutes - start_time + 1440) % 1440 >= 0 AND (local_minutes - start_time + 1440) % 1440 <= 15)
+      )
     ORDER BY start_time
     LIMIT 1
   `;
 
   const activeSchedule = scheduleResult.rows[0];
-  if (!activeSchedule) {
-    return { should_post: false, personas: [], reason: 'No schedule in posting window' };
-  }
+  if (!activeSchedule) return { should_post: false, personas: [], reason: 'No schedule in posting window' };
 
   const scheduleId = activeSchedule.id;
   const tzResult = await sql`SELECT timezone(${activeSchedule.timezone}, NOW())::date as local_date`;
@@ -218,30 +169,18 @@ export async function getPostingBatchInfo(
   `;
 
   if (postingResult.rows[0]?.posting_count > 1) {
-    return { 
-      should_post: false, 
-      personas: [], 
-      reason: 'Posting already completed for this schedule today' 
-    };
+    return { should_post: false, personas: [], reason: 'Already posted today' };
   }
 
-  await sql`
-    UPDATE account_schedules
-    SET last_posted_at = NOW()
-    WHERE id = ${scheduleId}
-  `;
+  await sql`UPDATE account_schedules SET last_posted_at = NOW() WHERE id = ${scheduleId}`;
 
   let personas: string[] = [];
   if (activeSchedule.persona_id) {
     const dbPersona = await getPersonaById(activeSchedule.persona_id);
-    if (dbPersona?.key) {
-      personas = [dbPersona.key];
-    }
+    if (dbPersona?.key) personas = [dbPersona.key];
   } else {
     personas = account.personas?.filter(Boolean) || [];
   }
 
   return { should_post: true, personas };
 }
-
-// Ensure the rest of your helper functions match standard UTC or Db-driven logic if necessary.

@@ -1,7 +1,6 @@
 -- Migration: Merge account_credentials into connected_accounts
 -- Run this SQL to add credential columns to connected_accounts table
 
-
 -- Step 1: Add new columns (nullable initially)
 ALTER TABLE connected_accounts 
 ADD COLUMN IF NOT EXISTS auth_type VARCHAR(20) DEFAULT 'oauth2',

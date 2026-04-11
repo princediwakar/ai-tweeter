@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
 
     // 3. Verify PKCE from the Initiation Route
     const cookieStore = await cookies();
-    const codeVerifier = cookieStore.get('twitter_oauth_code_verifier')?.value;
+    const pkceCookie = await cookieStore.get('twitter_oauth_code_verifier');
+    const codeVerifier = pkceCookie?.value;
     
     if (!codeVerifier) {
       console.error('❌ PKCE Verifier not found in cookies for state:', state);
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Clean up the verifier cookie immediately
-    cookieStore.delete('twitter_oauth_code_verifier');
+    await cookieStore.delete('twitter_oauth_code_verifier');
 
     console.log('📝 Exchanging Twitter authorization code for tokens...');
 
@@ -115,22 +116,24 @@ export async function GET(request: NextRequest) {
     console.log(`✅ Success! Node secured for @${profile.username}`);
     
     // Get callback URL from cookie (default to setup)
-    const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
-    cookieStore.delete('oauth_callback_url');
+    const successCallbackCookie = await cookieStore.get('oauth_callback_url');
+    const successCallbackUrl = successCallbackCookie?.value || '/setup';
+    await cookieStore.delete('oauth_callback_url');
     
     // Redirect to callback URL with success params
-    const separator = callbackUrl.includes('?') ? '&' : '?';
-    return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=success&platform=twitter&handle=${encodeURIComponent(profile.username)}`, request.url));
+    const separator = successCallbackUrl.includes('?') ? '&' : '?';
+    return NextResponse.redirect(new URL(`${successCallbackUrl}${separator}connected=success&platform=twitter&handle=${encodeURIComponent(profile.username)}`, request.url));
 
   } catch (error) {
     console.error('❌ Twitter OAuth Callback Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown technical error';
     
     // Get callback URL from existing cookieStore
-    const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
-    cookieStore.delete('oauth_callback_url');
+    const errorCallbackCookie = await cookieStore.get('oauth_callback_url');
+    const errorCallbackUrl = errorCallbackCookie?.value || '/setup';
+    await cookieStore.delete('oauth_callback_url');
     
-    const separator = callbackUrl.includes('?') ? '&' : '?';
-    return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
+    const separator = errorCallbackUrl.includes('?') ? '&' : '?';
+    return NextResponse.redirect(new URL(`${errorCallbackUrl}${separator}connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
   }
 }

@@ -111,7 +111,7 @@ export class ContentPipeline {
             articles.push({
               url: item.url,
               headline: item.headline,
-              description: item.description,
+              description: item.description || '',
               source: source.name,
             });
           }

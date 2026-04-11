@@ -184,12 +184,12 @@ async signIn({ user, account, profile }) {
             WHERE user_id = ${userId} AND platform = ${provider}
           `;
 
-          if (existingAccount.rows.length > 0) {
+          if (existingAccount.rows.length > 0 && account.access_token) {
             // Account exists - update token using existing ID to avoid FK constraint
             await connectedAccountsService.updateToken(
               existingAccount.rows[0].id,
               account.access_token,
-              account.refresh_token,
+              account.refresh_token || null,
               tokenExpiresAt || new Date(Date.now() + 3600000).toISOString(),
               'oauth2'
             );

@@ -121,9 +121,10 @@ async function seedBlogSources() {
 
   for (const source of sources) {
     try {
+      const topicsJson = JSON.stringify(source.topics);
       await sql`
         INSERT INTO blog_sources (name, url, feed_url, category, topics)
-        VALUES (${source.name}, ${source.url}, ${source.feed_url}, ${source.category}, ${source.topics})
+        VALUES (${source.name}, ${source.url}, ${source.feed_url}, ${source.category}, ${topicsJson}::text[])
       `;
       inserted++;
     } catch (error) {

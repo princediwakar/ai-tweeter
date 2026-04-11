@@ -2,6 +2,7 @@
 
 import { getDeepseekClientAsync } from "../generationService";
 import { PersonaDesignResult } from "./personaDesigner";
+import { findSources, type BlogSource } from "../blogSourceService";
 
 const SOURCE_DISCOVERY_PROMPT = `You are an elite research assistant. I will give you a persona's core thesis and topics. 
 Your job is to write EXACTLY ONE search query to find the best, most obscure sources for this persona.
@@ -21,11 +22,22 @@ export class SourceDiscoverer {
   async discoverSources(persona: PersonaDesignResult): Promise<string[]> {
     if (!this.tavilyApiKey) {
       console.warn("⚠️ Tavily API key missing. Falling back to default feeds.");
-      // FIXED: Passing persona.topics instead of the whole persona object
       return this.getFallbackSources(persona.topics);
     }
 
     try {
+      const curatedSources = await findSources({
+        topics: persona.topics || [],
+        limit: 10,
+      });
+
+      if (curatedSources.length >= 3) {
+        console.log(`[SourceDiscoverer] Found ${curatedSources.length} curated sources for topics: ${persona.topics?.join(', ')}`);
+        return curatedSources.map((s: BlogSource) => s.url);
+      }
+
+      console.log(`[SourceDiscoverer] Only ${curatedSources.length} curated sources, using smart fallback...`);
+
       const client = await getDeepseekClientAsync();
       const queryResponse = await client.chat.completions.create({
         model: "deepseek-chat",
@@ -50,22 +62,34 @@ export class SourceDiscoverer {
 
       console.log(`🔍 [Tavily Search] Executing master query: "${masterQuery}"`);
 
+      const curatedDomains = curatedSources
+        .map((s: BlogSource) => {
+          try { return new URL(s.url).hostname; } catch { return null; }
+        })
+        .filter(Boolean) as string[];
+
+      const searchOptions: Record<string, any> = {
+        api_key: this.tavilyApiKey,
+        query: `${masterQuery} blog homepage OR feed`,
+        search_depth: "advanced",
+        max_results: 20,
+        exclude_domains: [
+          "medium.com", "forbes.com", "bloomberg.com", "techcrunch.com", 
+          "businessinsider.com", "wsj.com", "instagram.com", "linkedin.com", 
+          "twitter.com", "x.com", "facebook.com", "tiktok.com", "youtube.com"
+        ]
+      };
+
+      if (curatedDomains.length > 0) {
+        searchOptions.include_domains = curatedDomains;
+      }
+
       const tavilyRes = await fetch('https://api.tavily.com/search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          api_key: this.tavilyApiKey,
-          query: masterQuery,
-          search_depth: "advanced",
-          max_results: 20, // Widened funnel
-          exclude_domains: [
-            "medium.com", "forbes.com", "bloomberg.com", "techcrunch.com", 
-            "businessinsider.com", "wsj.com", "instagram.com", "linkedin.com", 
-            "twitter.com", "x.com", "facebook.com", "tiktok.com", "youtube.com"
-          ]
-        })
+        body: JSON.stringify(searchOptions)
       });
 
       if (!tavilyRes.ok) {
@@ -78,24 +102,47 @@ export class SourceDiscoverer {
       if (searchData.results && Array.isArray(searchData.results)) {
         searchData.results.forEach((item: any) => {
           try {
-
-            allUrls.add(item.url);
+            const url = item.url;
+            if (!this.isIndividualArticle(url)) {
+              allUrls.add(url);
+            }
           } catch (e) {
             // Ignore malformed URLs silently
           }
         });
       }
 
-      // Slice to 15 to give the verifier plenty of options
       const results = Array.from(allUrls).slice(0, 15);
       
-      // FIXED: Passing persona.topics instead of the whole persona object
-      return results.length > 0 ? results : this.getFallbackSources(persona.topics);
+      if (results.length > 0) {
+        return results;
+      }
+
+      console.warn("[SourceDiscoverer] No blog homepages found via Tavily, returning curated sources");
+      return curatedSources.map((s: BlogSource) => s.url);
 
     } catch (error) {
       console.error("❌ Source discovery failed:", error);
-      // FIXED: Passing persona.topics instead of the whole persona object
       return this.getFallbackSources(persona.topics);
+    }
+  }
+
+  private isIndividualArticle(url: string): boolean {
+    const articlePatterns = [
+      /\/\d{4}\/\d{2}\//,
+      /\/article[s]?[\/-]/,
+      /\/post[s]?[\/-]/,
+      /\/blog\/\d{4}/,
+      /\/p\//,
+      /\/entry\//,
+    ];
+    
+    try {
+      const urlObj = new URL(url);
+      const pathname = urlObj.pathname.toLowerCase();
+      return articlePatterns.some((pattern) => pattern.test(pathname));
+    } catch {
+      return false;
     }
   }
 

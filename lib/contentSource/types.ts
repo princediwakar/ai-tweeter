@@ -3,7 +3,7 @@
  * Shared TypeScript interfaces for content source module
  * 
  * DESIGN: All types are generic/dynamic - personas read from DB (personas.rss_sources)
- * No hardcoded persona-specific types
+ * No hardcoded persona-specific types.
  */
 
 // ─────────────────────────────────────────────

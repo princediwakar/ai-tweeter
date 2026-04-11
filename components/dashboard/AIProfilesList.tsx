@@ -86,7 +86,7 @@ export default function AIProfilesList({ personas, accounts, stats }: AIProfiles
                     </div>
                     <div className="flex items-center gap-2">
                       <PlatformIcon
-                        platform={(account?.platform === 'linkedin' ? 'linkedin' : 'twitter') || 'twitter'}
+                        platform={account?.platform === 'linkedin' ? 'linkedin' : 'twitter'}
                         className="w-3 h-3"
                       />
                       <span className="text-xs text-zinc-500">

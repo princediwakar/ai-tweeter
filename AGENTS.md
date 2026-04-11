@@ -1,3 +1,10 @@
+# Rules
+
+**Before pushing commits**, always run build to verify type safety:
+```bash
+pnpm build
+```
+
 <!-- TRIGGER.DEV basic START -->
 # Trigger.dev Basic Tasks (v4)
 

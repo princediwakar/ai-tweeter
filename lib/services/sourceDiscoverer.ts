@@ -78,12 +78,8 @@ export class SourceDiscoverer {
       if (searchData.results && Array.isArray(searchData.results)) {
         searchData.results.forEach((item: any) => {
           try {
-            const urlObj = new URL(item.url);
-            const cleanUrl = urlObj.hostname.includes('substack.com') 
-              ? `${urlObj.protocol}//${urlObj.hostname}/feed` 
-              : `${urlObj.protocol}//${urlObj.hostname}`;
-              
-            allUrls.add(cleanUrl);
+
+            allUrls.add(item.url);
           } catch (e) {
             // Ignore malformed URLs silently
           }

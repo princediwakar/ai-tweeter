@@ -69,19 +69,37 @@ export class ContentPipeline {
    * Resolve sources for persona - either from DB or RSS feeds
    */
   private async resolveSourcesForPersona(persona: Persona): Promise<BlogSource[]> {
+    // Use persona's direct RSS sources if available
     if (persona.rss_sources && persona.rss_sources.length > 0) {
-      const blogSources = await findSources({
-        topics: persona.topics || [],
-        limit: 10,
-      });
+      console.log(`[ContentPipeline] Using persona's direct RSS sources: ${persona.rss_sources.length} sources`);
       
-      if (blogSources.length > 0) {
-        return blogSources;
+      // Convert RSS URLs to BlogSource objects
+      const sources: BlogSource[] = [];
+      for (const feedUrl of persona.rss_sources) {
+        try {
+          const url = new URL(feedUrl);
+          sources.push({
+            id: `rss-${feedUrl}`,
+            name: url.hostname,
+            url: feedUrl,
+            feed_url: feedUrl,
+            category: null,
+            topics: persona.topics || [],
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        } catch (e) {
+          console.warn(`[ContentPipeline] Invalid RSS URL: ${feedUrl}`);
+        }
       }
-
-      return [];
+      
+      if (sources.length > 0) {
+        return sources;
+      }
     }
 
+    // Fallback: find sources by topics
     return findSources({
       topics: persona.topics || [],
       limit: 10,

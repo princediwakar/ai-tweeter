@@ -10,6 +10,7 @@ import { PostGenerationConfig } from '@/lib/types';
 import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { getDynamicContext } from '@/lib/contentSource';
 
 export async function GET(request: NextRequest) {
   try {
@@ -75,8 +76,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No voices configured. Create a voice first.' }, { status: 400 });
       }
       
-      const topic = data.topic || data.customPrompt;
+      // Debug: Log persona details
       const persona = allPersonas.find(p => p.key === personaKey);
+      console.log(`[Generate API] Selected persona: ${personaKey}, has RSS: ${!!persona?.rss_sources?.length}, topics: ${persona?.topics?.join(', ')}`);
+      
+      const topic = data.topic || data.customPrompt;
       const supportsThreads = persona?.config?.supports_threads ?? false;
       
       let shouldGenerateThread = false;
@@ -89,9 +93,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (shouldGenerateThread) {
+        const sourceContext = await getDynamicContext(personaKey, '', accountId, personaKey);
+        console.log(`[Generate API] Thread source context length: ${sourceContext?.length || 0} chars`);
+        
         const threadResult = await generateThread({
           connected_account_id: accountId,
           persona: personaKey,
+          sourceContext: sourceContext || undefined,
         });
         
         if (!threadResult) return NextResponse.json({ error: 'Thread generation failed' }, { status: 500 });
@@ -105,12 +113,16 @@ export async function POST(request: NextRequest) {
         const contentTypes = ['explanation', 'concept_clarification', 'memory_aid', 'practical_application', 'common_mistake', 'analogy'];
         const contentType = contentTypes[new Date().getHours() % contentTypes.length];
         
+        // Fetch source content like the trigger does
+        const sourceContext = await getDynamicContext(personaKey, contentType, accountId, personaKey);
+        console.log(`[Generate API] Source context length: ${sourceContext?.length || 0} chars`);
+        
         const config: PostGenerationConfig = {
           connected_account_id: accountId,
           persona: personaKey,
           topic: topic,
           contentType: contentType as any,
-          skipRSS: true,
+          sourceContext: sourceContext || undefined,
         };
 
         const generatedPost = await generatePost(config);

@@ -49,7 +49,7 @@ function formatPersona(persona: any): any {
     emoji: getPersonaEmoji(persona.name),
     description: persona.description || '',
     connected_account_id: persona.connected_account_id,
-    is_active: persona.is_active
+    is_active: persona.is_active,
   };
 }
 

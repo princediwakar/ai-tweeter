@@ -83,7 +83,7 @@ export class ContentPipeline {
             name: url.hostname,
             url: feedUrl,
             feed_url: feedUrl,
-            category: null,
+            category: '',
             topics: persona.topics || [],
             is_active: true,
             created_at: new Date(),

@@ -86,7 +86,7 @@ export default function RecentPosts({ tweets, personas, accounts }: RecentPostsP
                     </span>
                     {tweetAccount && (
                       <PlatformIcon
-                        platform={tweetAccount.platform === 'linkedin' ? 'linkedin' : 'twitter'}
+                        platform={tweetAccount?.platform === 'linkedin' ? 'linkedin' : 'twitter'}
                         className="w-3 h-3 text-zinc-400"
                       />
                     )}

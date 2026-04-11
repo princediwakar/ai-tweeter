@@ -1,7 +1,7 @@
 // app/api/generate/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
-import { tasks } from "@trigger.dev/sdk/v3";
+import { tasks } from "@trigger.dev/sdk";
 // Import the task definition from your trigger folder
 import { generateAccountContent } from '@/trigger/generate-content'; 
 

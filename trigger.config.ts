@@ -1,10 +1,10 @@
 // trigger.config.ts
-import { defineConfig } from "@trigger.dev/sdk/v3";
+import { defineConfig } from "@trigger.dev/sdk";
 
 export default defineConfig({
   project: "proj_xcvmdulgbemsmbfonvzn", 
   runtime: "node",
-  logLevel: "log",
+  logLevel: "info",
   
   maxDuration: 3600,
 

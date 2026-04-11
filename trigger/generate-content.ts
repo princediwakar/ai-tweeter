@@ -1,5 +1,5 @@
 // trigger/generate-content.ts
-import { task, logger } from "@trigger.dev/sdk/v3";
+import { task, logger } from "@trigger.dev/sdk";
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { generatePost } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';

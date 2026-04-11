@@ -62,5 +62,9 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.7",
     "typescript": "^5"
+  },
+  "overrides": {
+    "cookie": "^0.7.0",
+    "systeminformation": "^5.31.0"
   }
 }

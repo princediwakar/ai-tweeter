@@ -1,5 +1,5 @@
 // trigger/generate-content.ts
-import { task, logger } from "@trigger.dev/sdk";
+import { task, logger } from "@trigger.dev/sdk/v3";
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { generatePost } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -9,7 +9,7 @@ import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 
 export const generateAccountContent = task({
   id: "generate-account-content",
-  // 1 hour max duration. Vercel's limits do not apply here.
+  // 1 hour max duration. Vercel's limits do not apply here
   maxDuration: 3600, 
   run: async (payload: { accountId: string; debugMode?: boolean }) => {
     const { accountId, debugMode = false } = payload;

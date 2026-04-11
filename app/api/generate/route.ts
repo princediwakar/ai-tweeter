@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
   }
 
   // FIRE AND FORGET. Hand the work over to Trigger.dev.
+  console.log("Trigger Key Prefix:", process.env.TRIGGER_SECRET_KEY ? process.env.TRIGGER_SECRET_KEY.substring(0, 10) : "UNDEFINED");
   for (const account of accountsWithSchedules.rows) {
     await tasks.trigger<typeof generateAccountContent>("generate-account-content", {
       accountId: account.id,

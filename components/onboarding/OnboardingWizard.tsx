@@ -40,10 +40,21 @@ useEffect(() => {
         const status = await statusRes.json();
         const accountsData = await accountsRes.json();
 
+        // If onboarding already completed, redirect to home
+        if (status.completed === true) {
+          router.push('/');
+          return;
+        }
+
         const platforms = (accountsData.accounts || []).map((a: { platform: string }) => a.platform);
 
         let currentStep = status.step || 1;
 
+        // If accounts exist but step is still early, go to AI Profile step (step 3) to create personas
+        if (platforms.length > 0 && currentStep < 3) {
+          currentStep = 3;
+        }
+        
         // Force UI to remain on ConnectStep if we just returned from OAuth
         if (connectedParam === 'success' || platforms.length > 0) {
           currentStep = Math.max(currentStep, 2);

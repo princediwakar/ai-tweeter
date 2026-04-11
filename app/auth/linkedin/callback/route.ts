@@ -30,17 +30,24 @@ export async function GET(request: NextRequest) {
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
+    const cookieStore = await cookies();
+
     if (error) {
       console.error('LinkedIn OAuth Callback Error:', error, errorDescription);
-      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
+      const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
+      cookieStore.delete('oauth_callback_url');
+      const separator = callbackUrl.includes('?') ? '&' : '?';
+      return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(new URL('/onboarding?connected=error&message=Missing code or state', request.url));
+      const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
+      cookieStore.delete('oauth_callback_url');
+      const separator = callbackUrl.includes('?') ? '&' : '?';
+      return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=error&message=Missing code or state`, request.url));
     }
 
     // 3. CSRF Protection: Verify state from cookie
-    const cookieStore = await cookies();
     const storedState = cookieStore.get('linkedin_oauth_state')?.value;
     
     if (!storedState || storedState !== state) {
@@ -107,12 +114,23 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);
     
-    // Redirect back to the onboarding wizard
-    return NextResponse.redirect(new URL(`/onboarding?connected=success&platform=linkedin&handle=${encodeURIComponent(profile.name || 'LinkedIn')}`, request.url));
+    // Get callback URL from cookie (default to setup)
+    const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
+    cookieStore.delete('oauth_callback_url');
+    
+    // Redirect to callback URL with success params
+    const separator = callbackUrl.includes('?') ? '&' : '?';
+    return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=success&platform=linkedin&handle=${encodeURIComponent(profile.name || 'LinkedIn')}`, request.url));
 
   } catch (error) {
     console.error('❌ LinkedIn OAuth Callback Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown technical error';
-    return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
+    
+    // Get callback URL from cookie (default to setup)
+    const callbackUrl = cookieStore.get('oauth_callback_url')?.value || '/setup';
+    cookieStore.delete('oauth_callback_url');
+    
+    const separator = callbackUrl.includes('?') ? '&' : '?';
+    return NextResponse.redirect(new URL(`${callbackUrl}${separator}connected=error&message=${encodeURIComponent(errorMessage)}`, request.url));
   }
 }

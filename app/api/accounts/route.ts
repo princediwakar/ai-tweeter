@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       is_active: account.is_active,
       connected_at: account.connected_at,
       updated_at: account.updated_at,
-      is_configured: true // Credentials now in account_credentials table
+      is_configured: true // Credentials now in connected_accounts table
     }));
 
     return NextResponse.json({

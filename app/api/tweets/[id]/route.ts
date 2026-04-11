@@ -98,7 +98,7 @@ export async function PUT(
             platform_post_url: `https://www.linkedin.com/feed/update/${result.id}`
           });
         } else {
-          // Twitter - get credentials from account_credentials table
+          // Twitter - get credentials from connected_accounts table
           const oauth1Cred = account.credentials.find(c => c.auth_type === 'oauth1' && c.is_active);
           const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
           

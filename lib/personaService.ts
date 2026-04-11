@@ -97,7 +97,7 @@ class PersonaService {
           ${input.is_active ?? true}, ${input.is_default ?? false},
           ${now}, ${now}
         )
-        ON CONFLICT (key) DO NOTHING
+        ON CONFLICT ON CONSTRAINT personas_key_per_account DO NOTHING
         RETURNING *
       `;
 

@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
   const accountId = searchParams.get('accountId') || 'pending';
+  const callbackUrl = searchParams.get('callbackUrl') || '/setup';
 
   try {
     const cookieStore = await cookies();
@@ -31,6 +32,14 @@ export async function GET(request: NextRequest) {
         path: '/'
       });
       
+      // Store callback URL for after OAuth completes
+      cookieStore.set('oauth_callback_url', callbackUrl, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 60 * 10,
+        path: '/'
+      });
+      
       return NextResponse.redirect(authUrl);
     }
 
@@ -39,6 +48,14 @@ export async function GET(request: NextRequest) {
       
       // Store state for CSRF protection
       cookieStore.set('linkedin_oauth_state', state, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 60 * 10,
+        path: '/'
+      });
+
+      // Store callback URL for after OAuth completes
+      cookieStore.set('oauth_callback_url', callbackUrl, { 
         httpOnly: true, 
         secure: process.env.NODE_ENV === 'production', 
         maxAge: 60 * 10,

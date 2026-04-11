@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
 import NavigationLayout from "@/components/NavigationLayout";
 import PersonaEditor from "@/components/profiles/PersonaEditor";
 import ScheduleDialog from "@/components/profiles/ScheduleDialog";
@@ -92,14 +91,15 @@ function AIProfilesContent() {
   useEffect(() => {
     const connected = searchParams.get("connected");
     const handle = searchParams.get("handle");
+    const platform = searchParams.get("platform");
     if (connected === "success") {
-      toast.success(`Connected @${handle}`);
-      router.replace("/profiles");
+      toast.success(`Connected ${platform === 'twitter' ? 'X' : platform} @${handle}`);
+      router.replace("/setup");
       fetchData();
     } else if (connected === "error") {
       const message = searchParams.get("message") || "Connection failed";
       toast.error(message);
-      router.replace("/profiles");
+      router.replace("/setup");
     }
   }, [searchParams, router]);
 
@@ -155,7 +155,7 @@ function AIProfilesContent() {
   const handleConnect = async (platform: "twitter" | "linkedin") => {
     setQuickConnecting(true);
     try {
-      await signIn(platform, { callbackUrl: "/profiles?connected=success" });
+      window.location.href = `/api/oauth/initiate?platform=${platform}`;
     } catch (error) {
       console.error(`Failed to initiate ${platform} OAuth:`, error);
       toast.error(`Failed to connect ${platform}`);

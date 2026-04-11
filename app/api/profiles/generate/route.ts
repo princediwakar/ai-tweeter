@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const userResult = await sql`SELECT id FROM users WHERE email = ${session.user.email}`;
     const userId = userResult.rows[0]?.id;
     const accountCheck = await sql`
-      SELECT id, platform, account_name FROM connected_accounts WHERE id = ${connected_account_id} AND user_id = ${userId}
+      SELECT id, platform, account_username FROM connected_accounts WHERE id = ${connected_account_id} AND user_id = ${userId}
     `;
     
     if (accountCheck.rows.length === 0) {

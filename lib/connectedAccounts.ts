@@ -1,14 +1,14 @@
-// lib/connectedAccounts.ts - Service for connected accounts with normalized credentials
+// lib/connectedAccounts.ts - Service for connected accounts (credentials merged into main table)
 import { sql } from '@vercel/postgres';
 import { sqlWithRetry } from './db';
 import { encrypt, decrypt } from './security/crypto';
-import type { ConnectedAccount, AccountCredential, AccountCredentialDecrypted, ConnectedAccountWithCredentials } from './types';
+import type { ConnectedAccount, ConnectedAccountWithCredentials } from './types';
 
 // Re-export types for convenience
-export type { ConnectedAccount, ConnectedAccountWithCredentials, AccountCredential, AccountCredentialDecrypted };
+export type { ConnectedAccount, ConnectedAccountWithCredentials };
 
 // =============================================================================
-// DATABASE ROW TYPES (matching exact DB schema)
+// DATABASE ROW TYPES (matching exact DB schema - now includes credentials)
 // =============================================================================
 
 interface ConnectedAccountRow {
@@ -22,20 +22,13 @@ interface ConnectedAccountRow {
   status: string;
   connected_at: string | null;
   updated_at: string | null;
-}
-
-interface AccountCredentialRow {
-  id: string;
-  connected_account_id: string;
-  auth_type: 'oauth1' | 'oauth2' | 'api_key';
+  // Credential columns (merged from account_credentials)
+  auth_type: string | null;
   access_token_encrypted: string | null;
   refresh_token_encrypted: string | null;
   token_expires_at: string | null;
   api_key_encrypted: string | null;
   api_secret_encrypted: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
 }
 
 // =============================================================================
@@ -57,19 +50,22 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
   };
 }
 
-function mapRowToCredential(row: AccountCredentialRow): AccountCredentialDecrypted {
+function mapRowToCredentials(row: ConnectedAccountRow): ConnectedAccountWithCredentials {
   return {
-    id: row.id,
-    connected_account_id: row.connected_account_id,
-    auth_type: row.auth_type,
-    access_token: decrypt(row.access_token_encrypted),
-    refresh_token: decrypt(row.refresh_token_encrypted),
-    token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
-    api_key: decrypt(row.api_key_encrypted),
-    api_secret: decrypt(row.api_secret_encrypted),
-    is_active: row.is_active,
-    created_at: new Date(row.created_at),
-    updated_at: new Date(row.updated_at),
+    ...mapRowToConnectedAccount(row),
+    credentials: [{
+      id: row.id,
+      connected_account_id: row.id,
+      auth_type: (row.auth_type as 'oauth1' | 'oauth2' | 'api_key') || 'oauth2',
+      access_token: row.access_token_encrypted ? decrypt(row.access_token_encrypted) : null,
+      refresh_token: row.refresh_token_encrypted ? decrypt(row.refresh_token_encrypted) : null,
+      token_expires_at: row.token_expires_at ? new Date(row.token_expires_at) : null,
+      api_key: row.api_key_encrypted ? decrypt(row.api_key_encrypted) : null,
+      api_secret: row.api_secret_encrypted ? decrypt(row.api_secret_encrypted) : null,
+      is_active: row.is_active,
+      created_at: row.connected_at ? new Date(row.connected_at) : new Date(),
+      updated_at: row.updated_at ? new Date(row.updated_at) : new Date(),
+    }],
   };
 }
 
@@ -90,35 +86,47 @@ export const connectedAccountsService = {
   },
 
   /**
-   * Get account with credentials (joined from account_credentials table)
+   * Get account with credentials (from merged columns)
    */
   async getWithCredentials(id: string): Promise<ConnectedAccountWithCredentials | null> {
-    const { rows: accountRows } = await sqlWithRetry<ConnectedAccountRow>`
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
       SELECT * FROM connected_accounts WHERE id = ${id}
     `;
     
-    if (!accountRows[0]) return null;
+    if (!rows[0]) return null;
     
-    const { rows: credentialRows } = await sqlWithRetry<AccountCredentialRow>`
-      SELECT * FROM account_credentials 
-      WHERE connected_account_id = ${id} AND is_active = true
-    `;
+    // Only return credentials if they exist
+    if (!rows[0].access_token_encrypted) {
+      return mapRowToConnectedAccount(rows[0]) as ConnectedAccountWithCredentials;
+    }
     
-    return {
-      ...mapRowToConnectedAccount(accountRows[0]),
-      credentials: credentialRows.map(mapRowToCredential),
-    };
+    return mapRowToCredentials(rows[0]);
   },
 
   /**
    * Get active credentials for an account (for posting)
    */
-  async getActiveCredentials(accountId: string): Promise<AccountCredentialDecrypted[]> {
-    const { rows } = await sqlWithRetry<AccountCredentialRow>`
-      SELECT * FROM account_credentials 
-      WHERE connected_account_id = ${accountId} AND is_active = true
+  async getActiveCredentials(accountId: string): Promise<ConnectedAccountWithCredentials['credentials']> {
+    const { rows } = await sqlWithRetry<ConnectedAccountRow>`
+      SELECT * FROM connected_accounts 
+      WHERE id = ${accountId} AND is_active = true
     `;
-    return rows.map(mapRowToCredential);
+    
+    if (!rows[0]?.access_token_encrypted) return [];
+    
+    return [{
+      id: rows[0].id,
+      connected_account_id: rows[0].id,
+      auth_type: (rows[0].auth_type as 'oauth1' | 'oauth2' | 'api_key') || 'oauth2',
+      access_token: decrypt(rows[0].access_token_encrypted),
+      refresh_token: rows[0].refresh_token_encrypted ? decrypt(rows[0].refresh_token_encrypted) : null,
+      token_expires_at: rows[0].token_expires_at ? new Date(rows[0].token_expires_at) : null,
+      api_key: rows[0].api_key_encrypted ? decrypt(rows[0].api_key_encrypted) : null,
+      api_secret: rows[0].api_secret_encrypted ? decrypt(rows[0].api_secret_encrypted) : null,
+      is_active: rows[0].is_active,
+      created_at: rows[0].connected_at ? new Date(rows[0].connected_at) : new Date(),
+      updated_at: rows[0].updated_at ? new Date(rows[0].updated_at) : new Date(),
+    }];
   },
 
   /**
@@ -137,48 +145,34 @@ export const connectedAccountsService = {
     auth_type?: 'oauth1' | 'oauth2' | 'api_key';
   }): Promise<ConnectedAccountWithCredentials> {
     const accountId = data.id || crypto.randomUUID();
-    const now = new Date().toISOString();
+    const authType = data.auth_type || 'oauth2';
     
-    // Upsert connected_account
-    const { rows: accountRows } = await sql`
+    // Upsert connected_account with credentials in single query
+    const { rows } = await sql`
       INSERT INTO connected_accounts (
         id, user_id, platform, account_username, name, platform_user_id,
-        is_active, status, connected_at, updated_at
+        is_active, status, connected_at, updated_at,
+        auth_type, access_token_encrypted, refresh_token_encrypted, token_expires_at
       ) VALUES (
         ${accountId}, ${data.user_id}, ${data.platform}, ${data.account_username}, 
         ${data.name || null}, ${data.platform_user_id || null},
-        true, 'active', NOW(), NOW()
+        true, 'active', NOW(), NOW(),
+        ${authType}, ${data.access_token ? encrypt(data.access_token) : null}, 
+        ${data.refresh_token ? encrypt(data.refresh_token) : null}, ${data.token_expires_at || null}
       )
       ON CONFLICT (user_id, platform, account_username) DO UPDATE SET
         name = EXCLUDED.name,
         platform_user_id = EXCLUDED.platform_user_id,
         is_active = EXCLUDED.is_active,
-        updated_at = NOW()
+        updated_at = NOW(),
+        auth_type = EXCLUDED.auth_type,
+        access_token_encrypted = COALESCE(EXCLUDED.access_token_encrypted, connected_accounts.access_token_encrypted),
+        refresh_token_encrypted = COALESCE(EXCLUDED.refresh_token_encrypted, connected_accounts.refresh_token_encrypted),
+        token_expires_at = COALESCE(EXCLUDED.token_expires_at, connected_accounts.token_expires_at)
       RETURNING *
     `;
     
-    // Upsert credentials if provided
-    const authType = data.auth_type || 'oauth2';
-    if (data.access_token) {
-      await sql`
-        INSERT INTO account_credentials (
-          connected_account_id, auth_type, access_token_encrypted, 
-          refresh_token_encrypted, token_expires_at, is_active, created_at, updated_at
-        ) VALUES (
-          ${accountId}, ${authType}, ${encrypt(data.access_token)}, 
-          ${encrypt(data.refresh_token || null)}, ${data.token_expires_at || null},
-          true, NOW(), NOW()
-        )
-        ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
-          access_token_encrypted = EXCLUDED.access_token_encrypted,
-          refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-          token_expires_at = EXCLUDED.token_expires_at,
-          updated_at = NOW()
-      `;
-    }
-    
-    // Return with credentials
-    return this.getWithCredentials(accountId) as Promise<ConnectedAccountWithCredentials>;
+    return mapRowToCredentials(rows[0] as ConnectedAccountRow);
   },
 
   /**
@@ -271,14 +265,14 @@ export const connectedAccountsService = {
   },
 
   /**
-   * Delete account (cascades to credentials)
+   * Delete account (no more cascade to credentials table)
    */
   async delete(id: string): Promise<void> {
     await sql`DELETE FROM connected_accounts WHERE id = ${id}`;
   },
 
   /**
-   * Update tokens for an account
+   * Update tokens for an account (merged into connected_accounts)
    */
   async updateToken(
     accountId: string, 
@@ -290,23 +284,18 @@ export const connectedAccountsService = {
     const expires = typeof expiresAt === 'string' ? expiresAt : expiresAt.toISOString();
     
     await sql`
-      INSERT INTO account_credentials (
-        connected_account_id, auth_type, access_token_encrypted, 
-        refresh_token_encrypted, token_expires_at, is_active, created_at, updated_at
-      ) VALUES (
-        ${accountId}, ${authType}, ${encrypt(accessToken)}, 
-        ${encrypt(refreshToken)}, ${expires}, true, NOW(), NOW()
-      )
-      ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
-        access_token_encrypted = EXCLUDED.access_token_encrypted,
-        refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-        token_expires_at = EXCLUDED.token_expires_at,
+      UPDATE connected_accounts SET
+        auth_type = ${authType},
+        access_token_encrypted = ${encrypt(accessToken)},
+        refresh_token_encrypted = ${encrypt(refreshToken)},
+        token_expires_at = ${expires},
         updated_at = NOW()
+      WHERE id = ${accountId}
     `;
   },
 
   /**
-   * Add credential to an account
+   * Add/update credential for an account (merged into connected_accounts)
    */
   async addCredential(
     accountId: string,
@@ -320,37 +309,26 @@ export const connectedAccountsService = {
     }
   ): Promise<void> {
     await sql`
-      INSERT INTO account_credentials (
-        connected_account_id, auth_type, access_token_encrypted, 
-        refresh_token_encrypted, token_expires_at, api_key_encrypted, api_secret_encrypted,
-        is_active, created_at, updated_at
-      ) VALUES (
-        ${accountId}, ${authType}, 
-        ${encrypt(credentials.access_token || null)}, 
-        ${encrypt(credentials.refresh_token || null)}, 
-        ${credentials.token_expires_at || null},
-        ${encrypt(credentials.api_key || null)},
-        ${encrypt(credentials.api_secret || null)},
-        true, NOW(), NOW()
-      )
-      ON CONFLICT (connected_account_id, auth_type) DO UPDATE SET
-        access_token_encrypted = EXCLUDED.access_token_encrypted,
-        refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
-        token_expires_at = EXCLUDED.token_expires_at,
-        api_key_encrypted = EXCLUDED.api_key_encrypted,
-        api_secret_encrypted = EXCLUDED.api_secret_encrypted,
+      UPDATE connected_accounts SET
+        auth_type = ${authType},
+        access_token_encrypted = ${encrypt(credentials.access_token || null)},
+        refresh_token_encrypted = ${encrypt(credentials.refresh_token || null)},
+        token_expires_at = ${credentials.token_expires_at || null},
+        api_key_encrypted = ${encrypt(credentials.api_key || null)},
+        api_secret_encrypted = ${encrypt(credentials.api_secret || null)},
         updated_at = NOW()
+      WHERE id = ${accountId}
     `;
   },
 
   /**
-   * Deactivate credential
+   * Deactivate credential (set is_active to false)
    */
-  async deactivateCredential(accountId: string, authType: 'oauth1' | 'oauth2' | 'api_key'): Promise<void> {
+  async deactivateCredential(accountId: string): Promise<void> {
     await sql`
-      UPDATE account_credentials 
+      UPDATE connected_accounts 
       SET is_active = false, updated_at = NOW()
-      WHERE connected_account_id = ${accountId} AND auth_type = ${authType}
+      WHERE id = ${accountId}
     `;
   },
 };

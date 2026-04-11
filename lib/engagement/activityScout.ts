@@ -122,7 +122,7 @@ export async function scoutAndFetch(
     return [];
   }
   
-  // Get credentials from account_credentials table
+  // Get credentials from connected_accounts table
   const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
   
   const credentials = {

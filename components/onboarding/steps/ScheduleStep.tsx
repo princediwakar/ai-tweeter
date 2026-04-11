@@ -15,6 +15,7 @@ export default function ScheduleStep({
   onBack: () => void;
 }) {
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
 const handleDeploy = async () => {
     setSubmitting(true);
@@ -37,7 +38,8 @@ const handleDeploy = async () => {
         modelsToDeploy.push({ accountId: linkedinNode.id, persona: state.generatedPersonas.linkedin });
       }
       
-      // 2. Commit the configuration to the database
+// 2. Commit the configuration to the database
+      setError(null);
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -49,14 +51,16 @@ const handleDeploy = async () => {
       });
 
       if (!res.ok) {
-        throw new Error('Failed to finalize deployment');
+        const data = await res.json();
+        throw new Error(data.details || data.error || 'Failed to finalize deployment');
       }
 
       // 3. Reroute to Command Center
       onFinish();
-    } catch (error) {
-      console.error('Deployment failure:', error);
+    } catch (err) {
+      console.error('Deployment failure:', err);
       setSubmitting(false);
+      setError(err instanceof Error ? err.message : 'Failed to finalize deployment');
     }
   };
 
@@ -139,6 +143,12 @@ const handleDeploy = async () => {
           )}
         </button>
       </div>
+
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

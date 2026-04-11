@@ -22,6 +22,8 @@ interface PersonaData {
 }
 
 export async function POST(request: NextRequest) {
+  const client = await sql.connect();
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
@@ -37,18 +39,6 @@ export async function POST(request: NextRequest) {
 
     const safeFrequency = Number(frequency) || 3;
     const safePostTime = postTime || 'morning';
-
-    // 1. Update User State
-    await sql`
-      UPDATE users 
-      SET 
-        onboarding_completed = true,
-        onboarding_step = 6,
-        onboarding_post_frequency = ${safeFrequency},
-        onboarding_post_time = ${safePostTime},
-        updated_at = NOW()
-      WHERE email = ${session.user.email}
-    `;
 
     // 2. Determine Days of Week
     let daysOfWeek = [1, 3, 5]; // 3x / week (Mon, Wed, Fri) default
@@ -71,39 +61,88 @@ export async function POST(request: NextRequest) {
       scheduleNamePrefix = 'Evening';
     }
 
+    // Start transaction
+    await client.query('BEGIN');
+
+    // 1. Update User State (inside transaction)
+    await client.query(`
+      UPDATE users 
+      SET 
+        onboarding_completed = true,
+        onboarding_step = 6,
+        onboarding_post_frequency = $1,
+        onboarding_post_time = $2,
+        updated_at = NOW()
+      WHERE email = $3
+    `, [safeFrequency, safePostTime, session.user.email]);
+
     // 4. Create Personas and their specific Schedules synchronously
     for (const p of personas as PersonaData[]) {
       // Create Persona
-      const newPersona = await personaService.createPersona({
-        connected_account_id: p.accountId,
-        name: p.persona.name,
-        description: p.persona.description,
-        tone: p.persona.tone,
-        topics: p.persona.topics,
-        rss_sources: p.persona.rss_sources,
-        min_length: p.persona.min_length,
-        max_length: p.persona.max_length,
-        is_active: true,
-      });
+      const personaId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const baseKey = p.persona.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const key = `${baseKey}-${Date.now()}`;
+      
+      const tone = p.persona.tone || null;
+      let topics = null;
+      if (p.persona.topics?.length) {
+        topics = `{${p.persona.topics.join(',')}}`;
+      }
+
+      // Get user_id from connected_accounts
+      const accountResult = await client.query(
+        'SELECT user_id FROM connected_accounts WHERE id = $1',
+        [p.accountId]
+      );
+      const userId = accountResult.rows[0]?.user_id;
+
+      await client.query(`
+        INSERT INTO personas (
+          id, connected_account_id, user_id, key, name, description, rss_sources, config,
+          min_length, max_length, tone, topics, is_active, is_default,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11, $12, true, false, $13, $14)
+      `, [
+        personaId, p.accountId, userId, key, p.persona.name,
+        p.persona.description || '', JSON.stringify(p.persona.rss_sources || []),
+        JSON.stringify({ core_thesis: 'Signal is found in hard data and actual execution, not marketing hype.', the_enemy: 'Vanity metrics and generic corporate posturing.', framing_bias: 'Focus on the unsexy, operational reality behind the flashy headline.', hook_mechanics: 'Open with a blunt statement of fact or a surprising metric.', format_rules: ['Write in the first person.', 'Use short, punchy paragraphs (max 2 sentences).', 'Use plain, conversational English.', 'Never use emojis or hashtags.'], image_probability: 0 }),
+        p.persona.min_length || 200, p.persona.max_length || 280,
+        tone, topics, now, now
+      ]);
 
       // Generate a specific random minute within the boundary for THIS specific persona
       const randomSpecificTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
 
       // Create Schedule tied directly to the newly created persona ID
-      await scheduleService.createSchedule({
-        connected_account_id: p.accountId,
-        persona_id: newPersona.id, // THE CRITICAL MISSING LINK
-        name: `${scheduleNamePrefix} Schedule - ${p.persona.name}`,
-        days_of_week: daysOfWeek,
-        start_time: randomSpecificTime,
-        end_time: randomSpecificTime + 5, // 5 minute window for cron job to pick it up
-        is_active: true,
-      });
+      const scheduleId = crypto.randomUUID();
+      await client.query(`
+        INSERT INTO account_schedules (
+          id, connected_account_id, name, timezone, schedule_config, 
+          days_of_week, start_time, end_time, is_active,
+          persona_id, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, true, $9, $10, $11)
+      `, [
+        scheduleId, p.accountId, `${scheduleNamePrefix} Schedule - ${p.persona.name}`, 
+        'UTC', '{}',
+        `{${daysOfWeek.join(',')}}`, 
+        randomSpecificTime, randomSpecificTime + 5,
+        personaId, now, now
+      ]);
     }
+
+    // Commit transaction
+    await client.query('COMMIT');
 
     return NextResponse.json({ success: true, message: 'Onboarding complete!' });
   } catch (error) {
+    // Rollback on error
+    await client.query('ROLLBACK').catch(() => {});
+    
     console.error('Onboarding complete error:', error);
-    return NextResponse.json({ error: 'Failed to save onboarding data' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to save onboarding data', details: message }, { status: 500 });
+  } finally {
+    client.release();
   }
 }

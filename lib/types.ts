@@ -27,7 +27,7 @@ export interface Session {
 }
 
 // =============================================================================
-// CONNECTED ACCOUNTS (credentials stored in account_credentials table)
+// CONNECTED ACCOUNTS (credentials merged into this table)
 // =============================================================================
 
 export interface ConnectedAccount {
@@ -41,10 +41,18 @@ export interface ConnectedAccount {
   status: string;
   connected_at: Date | null;
   updated_at: Date | null;
+  // Optional credential fields (exposed for convenience, prefer using ConnectedAccountWithCredentials)
+  auth_type?: AuthType | null;
+  access_token_encrypted?: string | null;
+  refresh_token_encrypted?: string | null;
+  token_expires_at?: Date | null;
+  api_key_encrypted?: string | null;
+  api_secret_encrypted?: string | null;
 }
 
 // =============================================================================
-// ACCOUNT CREDENTIALS (normalized from connected_accounts)
+// ACCOUNT CREDENTIALS (DEPRECATED - merged into connected_accounts)
+// Kept for backward compatibility
 // =============================================================================
 
 export type AuthType = 'oauth1' | 'oauth2' | 'api_key';

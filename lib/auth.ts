@@ -2,6 +2,7 @@
 import { NextAuthOptions, getServerSession } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import LinkedInProvider from 'next-auth/providers/linkedin';
+import TwitterProvider from 'next-auth/providers/twitter';
 import { sql } from '@vercel/postgres';
 import bcrypt from 'bcryptjs';
 import { NextRequest } from 'next/server';
@@ -11,6 +12,24 @@ async function getOAuthProviders() {
   const providers = [];
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
+  // Twitter/X OAuth
+  try {
+    const twitterCreds = await platformSettings.getTwitterCredentials();
+    if (twitterCreds.client_id && twitterCreds.client_secret) {
+      const callbackUrl = `${baseUrl}/api/auth/callback/twitter`;
+      providers.push(
+        TwitterProvider({
+          clientId: twitterCreds.client_id,
+          clientSecret: twitterCreds.client_secret,
+        })
+      );
+      console.log('[Auth] Twitter OAuth configured, callback:', callbackUrl);
+    }
+  } catch (e) {
+    console.warn('Twitter OAuth config error:', e);
+  }
+
+  // LinkedIn OAuth
   try {
     const linkedinCreds = await platformSettings.getLinkedInCredentials();
     if (linkedinCreds.client_id && linkedinCreds.client_secret) {
@@ -149,29 +168,46 @@ async signIn({ user, account, profile }) {
           userId = userResult.rows[0].id;
         }
 
-        // 2. The "Magic" Bridge: Auto-provision the node if they used OAuth
 // 2. The "Magic" Bridge: Auto-provision the node if they used OAuth
-        // 👇 Change the if-statement to ONLY look for LinkedIn
-        if (account && account.provider === 'linkedin') {
+        if (account && (account.provider === 'linkedin' || account.provider === 'twitter')) {
           const { connectedAccountsService } = await import('@/lib/connectedAccounts');
-          const platformUserId = account.providerAccountId; 
+          const platformUserId = account.providerAccountId;
+          const provider = account.provider as 'linkedin' | 'twitter';
           
           const tokenExpiresAt = account.expires_at 
             ? new Date(account.expires_at * 1000).toISOString()
             : undefined;
 
-          await connectedAccountsService.upsert({
-            user_id: userId,
-            platform: 'linkedin',
-            account_username: platformUserId,
-            name: user.name || '',
-            platform_user_id: platformUserId,
-            access_token: account.access_token,
-            refresh_token: account.refresh_token,
-            token_expires_at: tokenExpiresAt,
-          });
+          // Check if account already exists for this user
+          const existingAccount = await sql`
+            SELECT id FROM connected_accounts 
+            WHERE user_id = ${userId} AND platform = ${provider}
+          `;
 
-          console.log(`[Auth] Magic UX: Auto-provisioned linkedin node for user ${userId}`);
+          if (existingAccount.rows.length > 0) {
+            // Account exists - update token using existing ID to avoid FK constraint
+            await connectedAccountsService.updateToken(
+              existingAccount.rows[0].id,
+              account.access_token,
+              account.refresh_token,
+              tokenExpiresAt || new Date(Date.now() + 3600000).toISOString(),
+              'oauth2'
+            );
+            console.log(`[Auth] Magic UX: Updated token for existing ${provider} account ${existingAccount.rows[0].id} for user ${userId}`);
+          } else {
+            // New account - create it
+            await connectedAccountsService.upsert({
+              user_id: userId,
+              platform: provider,
+              account_username: platformUserId,
+              name: user.name || '',
+              platform_user_id: platformUserId,
+              access_token: account.access_token,
+              refresh_token: account.refresh_token,
+              token_expires_at: tokenExpiresAt,
+            });
+            console.log(`[Auth] Magic UX: Auto-provisioned ${provider} node for user ${userId}`);
+          }
         }
 
         return true;

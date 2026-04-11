@@ -86,8 +86,8 @@ export class ContentPipeline {
             category: '',
             topics: persona.topics || [],
             is_active: true,
-            created_at: new Date(),
-            updated_at: new Date(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           });
         } catch (e) {
           console.warn(`[ContentPipeline] Invalid RSS URL: ${feedUrl}`);

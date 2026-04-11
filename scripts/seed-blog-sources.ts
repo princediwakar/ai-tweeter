@@ -121,11 +121,11 @@ async function seedBlogSources() {
 
   for (const source of sources) {
     try {
-      const topicsJson = JSON.stringify(source.topics);
-      await sql`
-        INSERT INTO blog_sources (name, url, feed_url, category, topics)
-        VALUES (${source.name}, ${source.url}, ${source.feed_url}, ${source.category}, ${topicsJson}::text[])
-      `;
+      const topicsStr = '{' + source.topics.map(t => `"${t.replace(/"/g, '""')}"`).join(',') + '}';
+      await sql.query(
+        'INSERT INTO blog_sources (name, url, feed_url, category, topics) VALUES ($1, $2, $3, $4, $5)',
+        [source.name, source.url, source.feed_url, source.category, topicsStr]
+      );
       inserted++;
     } catch (error) {
       console.warn(`[Seed] Failed to insert ${source.name}:`, error);

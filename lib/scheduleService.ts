@@ -133,10 +133,14 @@ class ScheduleService {
     `;
 
     const result = await sql.query(query, values);
+    if (result.rows[0]) {
+      await sql`DELETE FROM generation_slots WHERE schedule_id = ${input.id}`;
+    }
     return result.rows[0] ? this.mapRow(result.rows[0]) : null;
   }
 
   async deleteSchedule(id: string): Promise<void> {
+    await sql`DELETE FROM generation_slots WHERE schedule_id = ${id}`;
     await sql`DELETE FROM account_schedules WHERE id = ${id}`;
   }
 

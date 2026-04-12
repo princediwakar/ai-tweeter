@@ -268,6 +268,8 @@ export const connectedAccountsService = {
    * Delete account (no more cascade to credentials table)
    */
   async delete(id: string): Promise<void> {
+    await sql`DELETE FROM generation_slots WHERE connected_account_id = ${id}`;
+    await sql`DELETE FROM account_schedules WHERE connected_account_id = ${id}`;
     await sql`DELETE FROM connected_accounts WHERE id = ${id}`;
   },
 

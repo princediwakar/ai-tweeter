@@ -212,6 +212,7 @@ class PersonaService {
   }
 
   async deletePersona(id: string): Promise<void> {
+    await sql`UPDATE account_schedules SET persona_id = NULL WHERE persona_id = ${id}`;
     await sql`DELETE FROM personas WHERE id = ${id}`;
   }
 

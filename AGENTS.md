@@ -610,7 +610,6 @@ export const childTask = task({
 });
 ```
 
-
 ## Logging & Tracing
 
 ```ts

@@ -120,8 +120,8 @@ class PostingJobQueue {
         WHERE pj.platform = ${platform}
           AND pj.status = 'pending'
           AND pj.attempts < pj.max_attempts
-          AND (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) >= s.start_time
-          AND (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) <= s.end_time
+          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) >= s.start_time
+          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) <= s.end_time
         ORDER BY pj.created_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -188,7 +188,7 @@ class PostingJobQueue {
       JOIN connected_accounts a ON s.connected_account_id = a.id
       WHERE s.is_active = true
         AND a.platform = ${platform}
-        AND EXTRACT(DOW FROM timezone(s.timezone, NOW())) = ANY(s.days_of_week)
+        AND EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) = ANY(s.days_of_week)
     `;
 
     if (schedulesResult.rows.length === 0) return 0;

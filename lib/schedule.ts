@@ -39,8 +39,8 @@ export async function getGenerationBatchInfo(
     WITH current_local AS (
       SELECT 
         id, COALESCE(timezone, 'UTC') as tz, start_time, end_time, persona_id, days_of_week,
-        (EXTRACT(HOUR FROM timezone(COALESCE(timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(timezone, 'UTC'), NOW()))) as local_minutes,
-        EXTRACT(ISODOW FROM timezone(COALESCE(timezone, 'UTC'), NOW())) as local_dow
+        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC')))) as local_minutes,
+        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) as local_dow
       FROM account_schedules
       WHERE connected_account_id = ${account.id} AND is_active = true
     )
@@ -61,7 +61,7 @@ export async function getGenerationBatchInfo(
     return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No schedules in generation window' };
   }
 
-  const tzResult = await sql`SELECT timezone(${activeSchedules[0].timezone}, NOW())::date as local_date`;
+  const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedules[0].timezone})::date as local_date`;
   const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
 
   const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
@@ -135,8 +135,8 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
     WITH current_local AS (
       SELECT 
         id, COALESCE(timezone, 'UTC') as tz, persona_id, start_time, end_time, days_of_week,
-        (EXTRACT(HOUR FROM timezone(COALESCE(timezone, 'UTC'), NOW())) * 60 + EXTRACT(MINUTE FROM timezone(COALESCE(timezone, 'UTC'), NOW()))) as local_minutes,
-        EXTRACT(ISODOW FROM timezone(COALESCE(timezone, 'UTC'), NOW())) as local_dow
+        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC')))) as local_minutes,
+        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) as local_dow
       FROM account_schedules
       WHERE connected_account_id = ${account.id} AND is_active = true
     )
@@ -156,7 +156,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
   if (!activeSchedule) return { should_post: false, personas: [], reason: 'No schedule in posting window' };
 
   const scheduleId = activeSchedule.id;
-  const tzResult = await sql`SELECT timezone(${activeSchedule.timezone}, NOW())::date as local_date`;
+  const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedule.timezone})::date as local_date`;
   const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
 
   // Because of Fix #1, this UPDATE will now properly mathematically increment 0 + 1 instead of NULL + 1

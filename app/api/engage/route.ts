@@ -33,9 +33,9 @@ export async function GET(request: NextRequest) {
     const scheduleCheck = await sql`
       WITH current_local AS (
         SELECT 
-          s.start_time, s.end_time, s.days_of_week,
-          (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) as local_minutes,
-          EXTRACT(DOW FROM timezone(s.timezone, NOW())) as local_dow
+          s.start_time, s.end_time, s.days_of_week, s.timezone,
+          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) as local_minutes,
+          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) as local_dow
         FROM account_schedules s
         JOIN connected_accounts a ON s.connected_account_id = a.id
         WHERE a.account_username = ${twitterHandle} 

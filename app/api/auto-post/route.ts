@@ -31,8 +31,9 @@ export async function GET(request: NextRequest) {
           s.start_time, 
           s.end_time, 
           s.days_of_week,
-          (EXTRACT(HOUR FROM timezone(s.timezone, NOW())) * 60 + EXTRACT(MINUTE FROM timezone(s.timezone, NOW()))) as local_minutes,
-          EXTRACT(DOW FROM timezone(s.timezone, NOW())) as local_dow,
+          s.timezone,
+          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) as local_minutes,
+          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) as local_dow,
           p.key as persona_key
         FROM connected_accounts a
         JOIN account_schedules s ON s.connected_account_id = a.id

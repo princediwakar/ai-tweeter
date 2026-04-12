@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",
-    "@google/generative-ai": "^0.24.1",
     "@mozilla/readability": "^0.6.0",
     "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-dialog": "^1.1.15",

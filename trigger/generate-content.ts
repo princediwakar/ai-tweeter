@@ -7,6 +7,7 @@ import { savePost, generatePostId, getPostsByAccount } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 
+
 export const generateAccountContent = task({
   id: "generate-account-content",
   // 1 hour max duration. Vercel's limits do not apply here

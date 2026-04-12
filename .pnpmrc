@@ -1,0 +1,6 @@
+onlyBuiltDependencies[]=canvas
+onlyBuiltDependencies[]=bufferutil
+onlyBuiltDependencies[]=protobufjs
+onlyBuiltDependencies[]=sharp
+onlyBuiltDependencies[]=unrs-resolver
+ignore-scripts=false

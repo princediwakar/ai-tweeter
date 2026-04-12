@@ -4,8 +4,16 @@
  */
 
 import { v2 as cloudinary } from 'cloudinary';
-import { createCanvas } from 'canvas';
 import { getPersona } from '@/lib/db';
+
+let createCanvas: any;
+try {
+  const canvas = require('canvas');
+  createCanvas = canvas.createCanvas;
+} catch (e) {
+  console.warn('[ImageGeneration] Canvas not available - using fallback mode');
+  createCanvas = () => null;
+}
 import { platformSettings } from '@/lib/platformSettings';
 export interface ImageTemplate {
   name: string;

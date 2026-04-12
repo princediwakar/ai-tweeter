@@ -67,6 +67,7 @@ export async function getGenerationBatchInfo(
   const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
 
   for (const schedule of activeSchedules) {
+    // Check if already generated today first
     const existingSlot = await sql`
       SELECT generation_count FROM generation_slots
       WHERE connected_account_id = ${account.id}
@@ -76,15 +77,15 @@ export async function getGenerationBatchInfo(
 
     if (existingSlot.rows[0]?.generation_count >= 1) continue;
 
-    // FIX #1 IMPLEMENTED: Explicitly setting posting_count to 0
+    // Atomic insert - will fail silently if already exists due to race condition
     const result = await sql`
       INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, posting_count, last_generated_at, created_at, updated_at)
       VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, 0, NOW(), NOW(), NOW())
-      ON CONFLICT (connected_account_id, schedule_id, slot_date)
-      DO NOTHING
+      ON CONFLICT DO NOTHING
       RETURNING generation_count
     `;
 
+    // Only proceed if we actually inserted (not a race condition duplicate)
     if (result.rows.length > 0 && result.rows[0].generation_count === 1) {
       schedulesToGenerate.push({ scheduleId: schedule.id, personaId: schedule.persona_id || null });
     }

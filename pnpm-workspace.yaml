@@ -1,3 +1,6 @@
-enablePrePostScripts: true
-
-onlyBuiltDependencies: canvas
+onlyBuiltDependencies:
+  - bufferutil
+  - canvas
+  - protobufjs
+  - sharp
+  - unrs-resolver

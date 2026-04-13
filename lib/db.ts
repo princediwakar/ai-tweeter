@@ -472,6 +472,7 @@ export async function getPaginatedPosts(params: { page: number; limit: number; a
       thread_sequence: row.thread_sequence,
       
       content_type: row.content_type || 'single_tweet',
+      source_url: row.source_url,
     }));
     
     const totalPages = Math.ceil(total / params.limit);

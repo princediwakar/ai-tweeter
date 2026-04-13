@@ -13,6 +13,7 @@ interface Tweet {
   persona?: string;
   connected_account_id?: string;
   image_url?: string;
+  source_url?: string;
 }
 
 interface Persona {
@@ -97,6 +98,16 @@ export default function RecentPosts({ tweets, personas, accounts }: RecentPostsP
                   <p className="text-sm text-zinc-600 line-clamp-2 mt-1">
                     {tweet.content}
                   </p>
+                  {tweet.source_url && (
+                    <a
+                      href={tweet.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-500 hover:underline mt-1 block truncate max-w-xs"
+                    >
+                      📰 {tweet.source_url}
+                    </a>
+                  )}
                   {tweet.image_url && (
                     <div className="mt-2 w-32 h-20 bg-zinc-100 rounded-lg overflow-hidden">
                       <img

@@ -2,40 +2,40 @@
 import { PersonaConfigDNA } from "../types";
 import { getDeepseekClientAsync } from "../generationService";
 
-const PERSONA_DESIGNER_SYSTEM_PROMPT = `You are an expert psychological profiler and social media strategist. Your job is to design a highly opinionated, polarized, and authentic persona for a social media creator. 
+const PERSONA_DESIGNER_SYSTEM_PROMPT = `You are an expert psychological profiler and social media strategist. Your job is to design an authoritative, intensely pragmatic, and outcome-obsessed persona for a social media creator. 
+
+CRITICAL TONE DIRECTIVE: This persona MUST NOT be cynical, sarcastic, or a "reply-guy." They are an active builder who solves real problems, not a passive critic who complains about the industry. They are critical because they care about the outcome, not because they enjoy friction.
+
+IMPORTANT: This persona is for EXACTLY ONE platform - either Twitter OR LinkedIn. Never mix or mention both.
+
+Platform-Specific Requirements:
+- Twitter: Short, punchy, 140-280 characters, one clear insight, no paragraphs
+- LinkedIn: 800-2000 characters, substantive, 3-4 paragraphs, real examples and insights, professional but still authentic
 
 Core DNA Rules (Psychology):
-1. core_thesis: Define the ONE controversial, non-obvious truth this persona believes.
-2. the_enemy: Define the exact concept, behavior, or type of person this persona despises.
-3. analytical_framework: How do they break down a piece of news? What is the first metric or angle they look at?
+1. core_thesis: Define the ONE hard, operational truth this persona believes about their industry. (Must be constructive, execution-focused, and based on reality, not just a controversial hot-take).
+2. the_enemy: Define the exact inefficiency, broken process, vanity metric, or common distraction this persona actively fights against. (CRITICAL: Attack the process/flaw, NEVER attack people or become miserable).
+3. analytical_framework: How do they break down a piece of news? What is the first operational metric or mechanical angle they look at to find the signal in the noise?
 
 Execution Mechanics (Structure):
-4. framing_bias: How does this persona naturally skew information? (e.g., "Always assumes the worst of legacy institutions," or "Always looks for the hidden profit motive.")
-5. hook_mechanics: Strict instructions on how to start a post. Real creators don't say "In today's fast-paced world." They start with a punch. (e.g., "Lead with a contradictory fact," or "Start with a direct insult to the status quo.")
-6. format_rules: An array of absolute, positive structural constraints. (e.g., ["Use varied sentence lengths", "Max two sentences per paragraph", "Use natural contractions", "Never use emojis"]). Do NOT use negative phrasing like "Don't use AI words." Instead, use positive constraints like "Use plain, conversational 8th-grade English."
+4. framing_bias: How does this persona naturally frame information? (e.g., "Frames all failures as engineering/systemic bottlenecks," or "Views all success as the result of painful, unsexy iteration.")
+5. hook_mechanics: Strict instructions on how to start a post. Must mandate opening with a stark, undeniable operational reality or a counter-intuitive observation about building. No rhetorical questions. No "In today's world..."
+6. format_rules: An array of absolute, positive structural constraints. MUST include: "Maintain the tone of a busy operator sharing a lesson, NOT a critic reviewing an article."
 
-Output ONLY a valid JSON object matching this structure exactly:
+CONTENT TRANSFORMATION (Critical):
+7. source_logic: Instructions on how to transform article content into posts. MUST include:
+   - Selection criteria: Only pick articles that are TIMELY, SUBSTANTIVE, and worth standing behind.
+   - Transformation: Write as YOUR own insight, not a summary. Reader should get value WITHOUT clicking any link.
+   - NEVER say "this article", "this post", "the author" - reader has NO IDEA there's a link.
+   - If referencing, use specific name: "@lethain wrote..." not "this article".
 
-{
-  "name": "Catchy, distinct name",
-  "description": "4-6 sentence first-person description of who I am, what I do, and why I refuse to accept the industry status quo.",
-  "tone": "e.g., Cynical, Hyper-analytical",
-  "topics": ["topic1", "topic2"],
-  "rss_sources": ["url1"],
-  "min_length": 100,
-  "max_length": 280,
-  "config": {
-    "core_thesis": "...",
-    "the_enemy": "...",
-    "analytical_framework": "...",
-    "framing_bias": "...",
-    "hook_mechanics": "...",
-    "format_rules": ["rule 1", "rule 2"],
-    "headlines_to_fetch": 20,
-    "headlines_in_prompt": 5,
-    "image_probability": 0.1
-  }
-}`;
+8. anti_patterns: What to avoid. MUST include:
+   - "This article argues", "According to the article", "The author explains"
+   - Generic transitions: "Key takeaway:", "In conclusion:", "Here's what I learned"
+   - Summary-style posts that just rehash the article.
+   - Tip listicle format without substance.
+
+Output ONLY a valid JSON object matching the required structure exactly.`;
 
 export interface PersonaDesignResult {
   name: string;
@@ -52,9 +52,9 @@ export class PersonaDesigner {
   async design(prompt: string, platform: 'twitter' | 'linkedin'): Promise<PersonaDesignResult> {
     const client = await getDeepseekClientAsync();
     
-    const lengthContext = platform === 'linkedin' 
-      ? 'LinkedIn — longer form, 800-2000 characters, thoughtful but still conversational with short paragraphs'
-      : 'Twitter — short, punchy, 140-240 characters max, one clear insight';
+    const platformContext = platform === 'linkedin' 
+      ? `LinkedIn - Longer form content (800-2000 chars), 3-4 substantial paragraphs, include real examples and insights, professional but still conversational, standalone valuable post without requiring link clicks.`
+      : `Twitter/X - Short, punchy, 140-280 characters max, one clear insight, no paragraphs needed, standalone thought that needs no context.`;
 
     const response = await client.chat.completions.create({
       model: "deepseek-chat",
@@ -62,7 +62,7 @@ export class PersonaDesigner {
         { role: "system", content: PERSONA_DESIGNER_SYSTEM_PROMPT },
         { 
           role: "user", 
-          content: `Design a persona for ${platform}. Goal: ${prompt}\nPlatform style: ${lengthContext}. Make every part of the persona guide the model to write like a real human with short paragraphs and natural flow.` 
+          content: `Create a ${platform} persona. Goal: ${prompt}\n\n${platformContext}\n\nCRITICAL RSS SOURCE RULE: Only use HIGH-QUALITY INDEPENDENT sources. Never use vendor blogs (amplitude.com, hubspot.com, mixpanel.com, segment.com, intercom.com, etc). Only use independent creators, newsletters, and publications.` 
         }
       ],
       temperature: 0.75,

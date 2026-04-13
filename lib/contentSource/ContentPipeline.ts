@@ -5,6 +5,7 @@
 import type { Persona } from '../types';
 import { fetchFromRssFeeds } from './fetchers/rss';
 import { findSources, findSourcesBySourceType, type BlogSource } from '../blogSourceService';
+import { extractWithJina } from './fetchers/jinaExtractor';
 
 export interface ContentItem {
   url: string;
@@ -173,7 +174,26 @@ export class ContentPipeline {
       console.warn(`[ContentPipeline] ⚠️ All ${articles.length} fetched articles were excluded (already used). Consider adding new sources.`);
     }
     
-    return filteredArticles.slice(0, 15);
+    const limitedArticles = filteredArticles.slice(0, 4);
+    
+    // Enrich with full article content using Jina
+    if (limitedArticles.length > 0) {
+      console.log(`[ContentPipeline] Enriching ${limitedArticles.length} articles with full content via Jina...`);
+      const urlsToEnrich = limitedArticles.map(a => a.url);
+      const enrichedArticles = await extractWithJina(urlsToEnrich);
+      
+      // Merge enriched content into articles
+      const enrichedMap = new Map(enrichedArticles.map(e => [e.url, e]));
+      for (const article of limitedArticles) {
+        const enriched = enrichedMap.get(article.url);
+        if (enriched && enriched.description && enriched.description.length > article.description.length) {
+          article.description = enriched.description;
+          console.log(`[ContentPipeline] ✅ Enriched article: ${article.headline.substring(0, 50)}... (${enriched.description.length} chars)`);
+        }
+      }
+    }
+    
+    return limitedArticles;
   }
 
   /**

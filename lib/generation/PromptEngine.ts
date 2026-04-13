@@ -47,7 +47,28 @@ export class PromptEngine {
     
     // Build DNA components from persona config
     const identityContext = String(pConfig.identity_context || pConfig.core_thesis || 'You are an AI content generator.');
-    const sourceLogic = String(pConfig.source_logic || 'Select relevant content sources.');
+    
+    // Strong default for source_logic - handles selection, transformation, and reference
+    const defaultSourceLogic = `BEFORE DECIDING WHAT TO POST:
+Evaluate each article in the context (ARTICLE 1, 2, etc.):
+- Is it TIMELY (recent, not timeless generic advice)?
+- Is it SUBSTANTIVE (has data/insight, not just opinion)?
+- Is it WORTH STANDING BEHIND (would you post this under your name)?
+
+Only proceed if at least one article passes ALL THREE.
+If none pass, return: {"content": "No suitable material today."}
+
+YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter content.
+
+- WRITE AS YOUR OWN INSIGHT - not a summary of the article
+- Reader should get full value WITHOUT clicking any link
+- If link dies, post should still be valuable and make sense
+- NEVER say "this article", "this post", "the author", "according to"
+- If referencing, use specific name: "@lethain wrote..." or "Ben Thompson's analysis..."
+- The reader has NO IDEA there's a link - they only see your post
+- Would someone follow you based on this post alone?`;
+    
+    const sourceLogic = String(pConfig.source_logic || defaultSourceLogic);
     const voiceDna = String(pConfig.voice_dna || pConfig.voice || 'Write in a clear, engaging voice.');
     const antiPatterns = String(pConfig.anti_patterns || 'Avoid generic filler words.');
     const coreThesis = String(pConfig.core_thesis || '');
@@ -218,7 +239,11 @@ export class PromptEngine {
     if (validationChecklist.length > 0) {
       prompt += validationChecklist.map((item: any) => `- ${String(item)}`).join('\n');
     } else {
-      prompt += '- Does this sound like something a real person would actually post?';
+      prompt += `- Does this sound like something a real person would actually post?
+- READER HAS NO IDEA ABOUT ANY LINK - they only see this post
+- Would this post make sense if there was NO link attached?
+- Would someone follow you based on this post alone?
+- Does this give value WITHOUT requiring a click?`;
     }
     prompt += '\n\n';
     
@@ -329,10 +354,12 @@ export class PromptEngine {
     
     prompt += `Output format:\n`;
     prompt += `Return a JSON array of ${threadCount} sequential tweets. Each tweet should:\n`;
-    prompt += `- Be a standalone post that makes sense on its own\n`;
+    prompt += `- Be a standalone post that makes sense WITHOUT any link context\n`;
+    prompt += `- Reader should get full value without clicking anything\n`;
     prompt += `- Be 100-280 characters each\n`;
     prompt += `- Follow a logical narrative arc across the thread\n`;
     prompt += `- Include relevant hashtags at the end of each tweet\n`;
+    prompt += `- NEVER reference "this article", "this post", "the author" - write as your own insight\n`;
     
     if (validationChecklist.length > 0) {
       prompt += `\nValidation checklist:\n`;

@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sql } from '@vercel/postgres';
-import { exchangeCodeForToken, getLinkedInProfile } from '@/lib/linkedin';
+import { exchangeCodeForToken, getLinkedInProfile, getLinkedInProfileWithUsername } from '@/lib/linkedin';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 
 export async function GET(request: NextRequest) {
@@ -65,8 +65,23 @@ export async function GET(request: NextRequest) {
     // 4. Exchange code for tokens
     const { accessToken, refreshToken, expiresAt } = await exchangeCodeForToken(code);
 
-    // 5. Fetch LinkedIn Profile metadata
+    // 5. Fetch LinkedIn Profile metadata (OpenID)
     const profile = await getLinkedInProfile(accessToken);
+
+    // 5a. Fetch LinkedIn Profile with username (vanityName)
+    let profileWithUsername = {
+      id: profile.sub,
+      firstName: profile.given_name || '',
+      lastName: profile.family_name || '',
+      profileName: profile.name || '',
+      vanityName: '',
+      profileUrl: '',
+    };
+    try {
+      profileWithUsername = await getLinkedInProfileWithUsername(accessToken);
+    } catch (e) {
+      console.warn('⚠️ Could not fetch LinkedIn profile with username (v2 API may not be available)');
+    }
 
     // 6. State parsing to resolve Account Node targeting
     const stateParts = state.split(':');
@@ -101,16 +116,20 @@ export async function GET(request: NextRequest) {
     }
 
     // 7. Upsert using the centralized service
+    // Use vanityName as the account_username if available, otherwise fall back to sub
+    const linkedInUsername = profileWithUsername.vanityName || profile.sub;
+    
     await connectedAccountsService.upsert({
       user_id: userId,
       platform: 'linkedin',
-      account_username: profile.sub,
+      account_username: linkedInUsername,
       id: finalAccountId,
       name: profile.name,
       platform_user_id: profile.sub,
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
+      profile_url: profileWithUsername.profileUrl,
     });
 
     console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);

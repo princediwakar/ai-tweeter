@@ -144,20 +144,22 @@ export default function DashboardPage() {
     return stats;
   }, [tweets, personas]);
 
-  const threadsInProgress = useMemo(() => {
-    return tweets.filter(
-      (t) =>
-        t.thread_id && t.content_type === "thread" && t.status !== "posted",
-    );
-  }, [tweets]);
-
   const topPerformingTweet = useMemo(() => {
     return tweets.find((t) => t.status === "posted" && t.posted_at);
   }, [tweets]);
 
-  const topPersona = personas[0];
-  const topPersonaAccount = topPersona
-    ? accounts.find((a) => a.id === topPersona.connected_account_id)
+  const latestTweet = useMemo(() => {
+    const sorted = [...tweets].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return sorted[0];
+  }, [tweets]);
+
+  const latestPersona = latestTweet?.persona 
+    ? personas.find(p => p.key === latestTweet.persona || p.id === latestTweet.persona)
+    : undefined;
+  const latestPersonaAccount = latestPersona
+    ? accounts.find((a) => a.id === latestPersona.connected_account_id)
     : undefined;
 
   async function handleGenerate() {
@@ -254,9 +256,9 @@ export default function DashboardPage() {
 
         <ImpactMetrics
           stats={pipelineStats}
-          threadsInProgress={threadsInProgress.length}
-          topPersona={topPersona}
-          topPersonaAccount={topPersonaAccount}
+          draftsCount={pipelineStats.drafts}
+          topPersona={latestPersona}
+          topPersonaAccount={latestPersonaAccount}
         />
 
         <div className="grid grid-cols-3 gap-6">

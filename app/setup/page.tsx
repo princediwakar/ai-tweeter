@@ -60,6 +60,7 @@ interface ConnectedAccount {
   platform: "twitter" | "linkedin";
   handle: string;
   name: string;
+  profile_url?: string | null;
   status: "active" | "disconnected";
   personas: Persona[];
 }
@@ -126,6 +127,7 @@ function AIProfilesContent() {
             | "linkedin",
           handle: account.account_username || account.name || "",
           name: account.name || account.account_username || "",
+          profile_url: account.profile_url || null,
           status: "active",
           personas: personas.filter(
             (p: Persona) => p.connected_account_id === account.id,

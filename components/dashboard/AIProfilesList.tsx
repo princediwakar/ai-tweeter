@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import { ChevronRight, Bot } from 'lucide-react';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
+import { getDisplayUsername } from '@/lib/linkedin';
 
 interface PersonaStats {
   todayPosted: number;
@@ -14,6 +15,8 @@ interface Account {
   id: string;
   platform: string;
   account_username: string;
+  name?: string;
+  profile_url?: string | null;
 }
 
 interface Persona {
@@ -89,10 +92,16 @@ export default function AIProfilesList({ personas, accounts, stats }: AIProfiles
                         platform={account?.platform === 'linkedin' ? 'linkedin' : 'twitter'}
                         className="w-3 h-3"
                       />
-                      <span className="text-xs text-zinc-500">
-                        {account?.platform === 'twitter' ? '@' : ''}
-                        {account?.account_username}
-                      </span>
+                      {account && (
+                        <span className="text-xs text-zinc-500">
+                          @{getDisplayUsername({
+                            platform: account.platform as 'twitter' | 'linkedin',
+                            account_username: account.account_username,
+                            name: account.name || '',
+                            profile_url: account.profile_url,
+                          })}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -8,10 +8,11 @@ import { getDefaultEditablePersona } from './utils';
 import PersonaForm from './PersonaForm';
 import ScheduleDialog from './ScheduleDialog';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
+import { getDisplayUsername } from '@/lib/linkedin';
 
 interface ExtendedPersonaEditorProps extends PersonaEditorProps {
   onAccountChange?: (accountId: string) => void;
-  accounts?: { id: string; name: string | null; account_username: string; platform?: string }[];
+  accounts?: { id: string; name: string | null; account_username: string; platform?: string; profile_url?: string | null }[];
   selectedAccountId?: string | null;
   editingPersona?: Persona | null;
   onEditComplete?: () => void;
@@ -350,7 +351,12 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
               >
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
-                    {(account.name || account.account_username)} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
+                    {getDisplayUsername({
+                      platform: (account.platform as 'twitter' | 'linkedin') || 'twitter',
+                      account_username: account.account_username,
+                      name: account.name,
+                      profile_url: account.profile_url,
+                    })} ({account.platform === 'linkedin' ? 'LinkedIn' : 'Twitter'})
                   </option>
                 ))}
               </select>

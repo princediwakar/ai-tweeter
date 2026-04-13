@@ -10,7 +10,7 @@ import { Button } from './ui/button';
 
 const navigation = [
   { name: 'Home', href: '/', icon: Home },
-  { name: 'Queue', href: '/queue', icon: ListChecks },
+  { name: 'Posts', href: '/posts', icon: ListChecks },
   { name: 'Setup', href: '/setup', icon: User },
 ];
 

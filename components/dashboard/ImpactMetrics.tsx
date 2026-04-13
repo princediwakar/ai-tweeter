@@ -1,8 +1,9 @@
 // components/dashboard/ImpactMetrics.tsx
 'use client';
 
-import { Calendar, Send, Workflow, Target, TrendingUp } from 'lucide-react';
+import { Calendar, Send, Target, FileText } from 'lucide-react';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
+import { getDisplayUsername } from '@/lib/linkedin';
 
 interface PipelineStats {
   drafts: number;
@@ -16,6 +17,7 @@ interface Account {
   name: string;
   platform: string;
   account_username: string;
+  profile_url?: string | null;
 }
 
 interface Persona {
@@ -27,14 +29,14 @@ interface Persona {
 
 interface ImpactMetricsProps {
   stats: PipelineStats;
-  threadsInProgress: number;
+  draftsCount: number;
   topPersona?: Persona;
   topPersonaAccount?: Account;
 }
 
 export default function ImpactMetrics({ 
   stats, 
-  threadsInProgress, 
+  draftsCount, 
   topPersona,
   topPersonaAccount 
 }: ImpactMetricsProps) {
@@ -67,41 +69,42 @@ export default function ImpactMetrics({
       <div className="bg-white border border-zinc-200 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">
-            Active Threads
+            Drafts
           </span>
-          <Workflow className="h-4 w-4 text-zinc-400" />
+          <FileText className="h-4 w-4 text-zinc-400" />
         </div>
         <div className="text-3xl font-bold text-zinc-900">
-          {threadsInProgress}
+          {draftsCount}
         </div>
-        <div className="text-zinc-500 text-sm">in progress</div>
+        <div className="text-zinc-500 text-sm">pending review</div>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">
-            Top AI Profile
+            Latest
           </span>
           <Target className="h-4 w-4 text-zinc-400" />
         </div>
         <div className="text-lg font-bold text-zinc-900 truncate">
           {topPersona?.name || 'None'}
         </div>
-        <div className="flex items-center gap-2 text-emerald-600 text-sm">
-          <TrendingUp className="h-3 w-3" />
-          <span>Most engaged</span>
-          {topPersonaAccount && (
-            <>
-              <span className="text-zinc-400">•</span>
-              <PlatformIcon
-                platform={
-                  topPersonaAccount.platform === 'linkedin' ? 'linkedin' : 'twitter'
-                }
-                className="w-3 h-3"
-              />
-            </>
-          )}
-        </div>
+        {topPersonaAccount && (
+          <div className="flex items-center gap-2 text-zinc-500 text-sm mt-1">
+            <PlatformIcon
+              platform={
+                topPersonaAccount.platform === 'linkedin' ? 'linkedin' : 'twitter'
+              }
+              className="w-3 h-3"
+            />
+            <span>@{getDisplayUsername({
+              platform: topPersonaAccount.platform as 'twitter' | 'linkedin',
+              account_username: topPersonaAccount.account_username,
+              name: topPersonaAccount.name,
+              profile_url: topPersonaAccount.profile_url,
+            })}</span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ interface ConnectedAccountRow {
   status: string;
   connected_at: string | null;
   updated_at: string | null;
+  profile_url: string | null;
   // Credential columns (merged from account_credentials)
   auth_type: string | null;
   access_token_encrypted: string | null;
@@ -47,6 +48,7 @@ function mapRowToConnectedAccount(row: ConnectedAccountRow): ConnectedAccount {
     status: row.status,
     connected_at: row.connected_at ? new Date(row.connected_at) : null,
     updated_at: row.updated_at ? new Date(row.updated_at) : null,
+    profile_url: row.profile_url,
   };
 }
 
@@ -143,6 +145,7 @@ export const connectedAccountsService = {
     refresh_token?: string;
     token_expires_at?: string;
     auth_type?: 'oauth1' | 'oauth2' | 'api_key';
+    profile_url?: string;
   }): Promise<ConnectedAccountWithCredentials> {
     const accountId = data.id || crypto.randomUUID();
     const authType = data.auth_type || 'oauth2';
@@ -152,13 +155,15 @@ export const connectedAccountsService = {
       INSERT INTO connected_accounts (
         id, user_id, platform, account_username, name, platform_user_id,
         is_active, status, connected_at, updated_at,
-        auth_type, access_token_encrypted, refresh_token_encrypted, token_expires_at
+        auth_type, access_token_encrypted, refresh_token_encrypted, token_expires_at,
+        profile_url
       ) VALUES (
         ${accountId}, ${data.user_id}, ${data.platform}, ${data.account_username}, 
         ${data.name || null}, ${data.platform_user_id || null},
         true, 'active', NOW(), NOW(),
         ${authType}, ${data.access_token ? encrypt(data.access_token) : null}, 
-        ${data.refresh_token ? encrypt(data.refresh_token) : null}, ${data.token_expires_at || null}
+        ${data.refresh_token ? encrypt(data.refresh_token) : null}, ${data.token_expires_at || null},
+        ${data.profile_url || null}
       )
       ON CONFLICT (user_id, platform, account_username) DO UPDATE SET
         name = EXCLUDED.name,
@@ -168,7 +173,8 @@ export const connectedAccountsService = {
         auth_type = EXCLUDED.auth_type,
         access_token_encrypted = COALESCE(EXCLUDED.access_token_encrypted, connected_accounts.access_token_encrypted),
         refresh_token_encrypted = COALESCE(EXCLUDED.refresh_token_encrypted, connected_accounts.refresh_token_encrypted),
-        token_expires_at = COALESCE(EXCLUDED.token_expires_at, connected_accounts.token_expires_at)
+        token_expires_at = COALESCE(EXCLUDED.token_expires_at, connected_accounts.token_expires_at),
+        profile_url = COALESCE(EXCLUDED.profile_url, connected_accounts.profile_url)
       RETURNING *
     `;
     

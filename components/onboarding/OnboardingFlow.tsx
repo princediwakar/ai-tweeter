@@ -5,11 +5,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Zap, ShieldCheck, Settings, Power } from 'lucide-react';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
+import { getDisplayUsername } from '@/lib/linkedin';
 
 interface Account {
   id: string;
   name: string;
   account_username: string;
+  platform?: string;
+  profile_url?: string | null;
   status: string;
   twitter_oauth2_enabled: boolean;
 }
@@ -235,7 +238,12 @@ function EngineOverview({ accounts, onAddMore }: { accounts: Account[]; onAddMor
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-zinc-900">{account.name || 'Twitter Account'}</h4>
-                  <p className="text-xs text-zinc-500">@{account.account_username || 'username'}</p>
+                  <p className="text-xs text-zinc-500">@{getDisplayUsername({
+                    platform: (account.platform as 'twitter' | 'linkedin') || 'twitter',
+                    account_username: account.account_username,
+                    name: account.name,
+                    profile_url: account.profile_url,
+                  }) || 'username'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-4">

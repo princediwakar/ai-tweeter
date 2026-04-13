@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { ListChecks, Clock, Ghost, Loader2, ChevronLeft, ChevronRight, Trash2, Send, ExternalLink, X } from 'lucide-react';
 import { PlatformIcon } from '@/components/ui/PlatformIcon';
 import NavigationLayout from '@/components/NavigationLayout';
+import { getDisplayUsername } from '@/lib/linkedin';
 
 interface Tweet {
   id: string;
@@ -39,6 +40,7 @@ interface Account {
   name: string;
   platform: string;
   account_username: string;
+  profile_url?: string | null;
   timezone?: string;
 }
 
@@ -167,7 +169,7 @@ function mergeTimeline(tweets: Tweet[], ghostItems: TimelineItem[]): TimelineIte
   const seen = new Set<string>();
   const deduped: TimelineItem[] = [];
   
-  merged.sort((a, b) => a.date.getTime() - b.date.getTime());
+  merged.sort((a, b) => b.date.getTime() - a.date.getTime());
   
   merged.forEach(item => {
     const key = `${item.date.getHours()}-${item.date.getMinutes()}-${item.type}`;
@@ -312,7 +314,7 @@ export default function QueuePage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ListChecks className="h-5 w-5 text-zinc-900" />
-              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">Queue</h1>
+              <h1 className="text-2xl font-semibold text-zinc-900 tracking-tight">Posts</h1>
             </div>
             <p className="text-zinc-500 text-sm">Your 7-day timeline</p>
           </div>
@@ -363,7 +365,12 @@ export default function QueuePage() {
                               {item.account && (
                                 <div className="flex items-center gap-1 text-xs text-zinc-400">
                                   <PlatformIcon platform={item.account.platform as 'twitter' | 'linkedin'} className="h-3 w-3" />
-                                  <span>@{item.account.account_username}</span>
+                                  <span>@{getDisplayUsername({
+                                    platform: item.account.platform as 'twitter' | 'linkedin',
+                                    account_username: item.account.account_username,
+                                    name: item.account.name,
+                                    profile_url: item.account.profile_url,
+                                  })}</span>
                                 </div>
                               )}
                             </div>
@@ -408,14 +415,9 @@ export default function QueuePage() {
                                 className="text-sm text-zinc-700 leading-relaxed cursor-pointer"
                                 onClick={() => setExpandedTweetId(isExpanded ? null : tweet.id)}
                               >
-                                <span className={isExpanded ? '' : 'line-clamp-3'}>
+                                <span className={isExpanded ? '' : 'line-clamp-1'}>
                                   {tweet.content}
                                 </span>
-                                {tweet.content.length > 200 && (
-                                  <span className="text-blue-500 text-xs ml-1">
-                                    {isExpanded ? '(click to collapse)' : '(click to expand)'}
-                                  </span>
-                                )}
                               </div>
                               {tweet.source_url && (
                                 <a 

@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronRight, Sparkles, Loader2, CheckCircle2 } from "lucide-react";
 import { PlatformIcon } from "@/components/ui/PlatformIcon";
+import { getDisplayUsername } from "@/lib/linkedin";
 
 interface Persona {
   id: string;
@@ -18,6 +19,8 @@ interface Account {
   id: string;
   platform: string;
   account_username: string;
+  name?: string;
+  profile_url?: string | null;
 }
 
 interface ComposerProps {
@@ -151,8 +154,12 @@ export default function Composer({
                             className="w-3.5 h-3.5"
                           />
                           <span className="truncate">
-                            {voiceAccount?.platform === "twitter" ? "@" : ""}
-                            {voiceAccount?.account_username}
+                            {voiceAccount ? `@${getDisplayUsername({
+                              platform: voiceAccount.platform as 'twitter' | 'linkedin',
+                              account_username: voiceAccount.account_username,
+                              name: voiceAccount.name || '',
+                              profile_url: voiceAccount.profile_url,
+                            })}` : ''}
                           </span>
                         </div>
                       </div>

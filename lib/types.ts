@@ -41,6 +41,7 @@ export interface ConnectedAccount {
   status: string;
   connected_at: Date | null;
   updated_at: Date | null;
+  profile_url?: string | null;
   // Optional credential fields (exposed for convenience, prefer using ConnectedAccountWithCredentials)
   auth_type?: AuthType | null;
   access_token_encrypted?: string | null;

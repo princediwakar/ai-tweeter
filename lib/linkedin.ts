@@ -31,6 +31,14 @@ interface LinkedInProfileResponse {
   email?: string;
 }
 
+interface LinkedInProfileV2Response {
+  id: string;
+  localizedFirstName: string;
+  localizedLastName: string;
+  localizedProfileName?: string;
+  vanityName?: string;
+}
+
 /**
  * Get redirect URI based on environment
  */
@@ -245,6 +253,53 @@ export async function getLinkedInProfile(accessToken: string): Promise<LinkedInP
 }
 
 /**
+ * Get LinkedIn user profile with vanityName (username) using Profile API v2
+ */
+export async function getLinkedInProfileWithUsername(accessToken: string): Promise<{
+  id: string;
+  firstName: string;
+  lastName: string;
+  profileName: string;
+  vanityName: string;
+  profileUrl: string;
+}> {
+  try {
+    const response = await fetch('https://api.linkedin.com/v2/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('LinkedIn profile v2 fetch failed:', errorText);
+      throw new Error(`LinkedIn profile v2 fetch failed: ${response.statusText}`);
+    }
+
+    const profile: LinkedInProfileV2Response = await response.json();
+    const vanityName = profile.vanityName || '';
+    const profileUrl = vanityName 
+      ? `https://linkedin.com/in/${vanityName}`
+      : '';
+
+    console.log(`✅ LinkedIn profile v2 fetched: ${profile.vanityName || profile.id}`);
+
+    return {
+      id: profile.id,
+      firstName: profile.localizedFirstName,
+      lastName: profile.localizedLastName,
+      profileName: profile.localizedProfileName || '',
+      vanityName,
+      profileUrl,
+    };
+  } catch (error) {
+    console.error('Error fetching LinkedIn profile with username:', error);
+    throw error;
+  }
+}
+
+/**
  * Post content to LinkedIn
  */
 export async function postToLinkedIn(
@@ -386,4 +441,43 @@ export function shouldRefreshToken(expiresAt?: Date): boolean {
 
   const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   return expiresAt < sevenDaysFromNow;
+}
+
+/**
+ * Extract LinkedIn username from profile URL
+ * @param profileUrl - e.g., "https://linkedin.com/in/princediwakar"
+ * @returns username without path - e.g., "princediwakar"
+ */
+export function extractLinkedInUsername(profileUrl: string | null | undefined): string {
+  if (!profileUrl) return '';
+  
+  try {
+    const url = new URL(profileUrl);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    return pathParts[0] || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Get display username for an account
+ * For LinkedIn: prefers profile_url, falls back to name, then account_username
+ * For Twitter: uses account_username directly
+ */
+export function getDisplayUsername(params: {
+  platform: 'twitter' | 'linkedin';
+  account_username: string;
+  name: string | null;
+  profile_url?: string | null;
+}): string {
+  if (params.platform === 'linkedin') {
+    const linkedInUsername = extractLinkedInUsername(params.profile_url);
+    if (linkedInUsername) return linkedInUsername;
+    if (params.name) return params.name;
+    return params.account_username;
+  }
+  
+  // Twitter uses account_username as-is
+  return params.account_username;
 }

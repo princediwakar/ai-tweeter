@@ -194,15 +194,22 @@ export async function generatePost(
       throw new Error("Failed to parse or validate AI response.");
     }
 
-    // MODIFIED: Destructure sourceUrl from the parsed response
+    // MODIFIED: Destructure sourceUrl and skipReason from the parsed response
     const {
       post: postData,
       cardData,
       sourceUrl,
+      skipReason,
       reasoning,
     } = parsedResponse;
 
-    // Log reasoning if available (could be stored in DB later)
+    // Handle skip - return null to allow retry
+    if (skipReason) {
+      console.log(`[generatePost] AI skipped: ${skipReason}`);
+      return null;
+    }
+
+    // Log reasoning if available
     if (reasoning) {
       console.log(`📝 [Server Log] Reasoning for tweet on ${sourceUrl || "unknown source"}:`, JSON.stringify(reasoning, null, 2));
     }

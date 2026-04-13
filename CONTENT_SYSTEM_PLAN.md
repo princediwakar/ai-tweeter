@@ -170,7 +170,7 @@ export async function findSourcesBySourceType(
 - Enhance prompt to emphasize "curate + take" instead of summarize
 - Add explicit filter rationale in output
 
-### Current Prompt (Already Decent)
+### Current Prompt (Terrible)
 ```
 "Your goal is to write a social media post reacting to recent industry news"
 "Do not summarize the article; give your sharpest take on it"

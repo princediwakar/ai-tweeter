@@ -9,12 +9,14 @@ export { contentPipeline, type ContentItem } from './ContentPipeline';
 /**
  * Get dynamic context for persona - wraps ContentPipeline
  * @deprecated Use contentPipeline.fetchForPersona() directly
+ * @param excludeUrls - URLs to exclude (already used by this account)
  */
 export async function getDynamicContext(
   personaKey: string,
   topic: string,
   accountId?: string,
-  fallbackPersonaKey?: string
+  fallbackPersonaKey?: string,
+  excludeUrls?: string[]
 ): Promise<string> {
   console.log(`[Content Source] 🔄 Building dynamic context for persona: ${personaKey}`);
 
@@ -24,7 +26,7 @@ export async function getDynamicContext(
     return "";
   }
 
-  const items = await contentPipeline.fetchForPersona(persona, topic);
+  const items = await contentPipeline.fetchForPersona(persona, topic, excludeUrls);
   
   if (items.length === 0) {
     console.warn(`[Content Source] ⚠️ No content fetched for persona: ${personaKey}`);

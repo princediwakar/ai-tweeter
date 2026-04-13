@@ -11,6 +11,7 @@ export interface BlogSource {
   feed_url: string;
   category: string;
   topics: string[];
+  source_type: string;
   is_active: boolean;
   created_at: string;
 }
@@ -21,6 +22,7 @@ export interface CreateBlogSourceInput {
   feed_url: string;
   category: string;
   topics?: string[];
+  source_type?: string;
 }
 
 export interface FindSourcesParams {
@@ -37,6 +39,7 @@ function rowToBlogSource(row: any): BlogSource {
     feed_url: row.feed_url,
     category: row.category,
     topics: row.topics || [],
+    source_type: row.source_type || 'general',
     is_active: row.is_active,
     created_at: row.created_at,
   };
@@ -110,6 +113,28 @@ export async function findSources(params: FindSourcesParams): Promise<BlogSource
   }
 
   return listBlogSources({ limit });
+}
+
+export async function findSourcesBySourceType(
+  sourceType: string, 
+  limit: number = 10
+): Promise<BlogSource[]> {
+  if (!sourceType) {
+    return [];
+  }
+
+  try {
+    const result = await sqlWithRetry`
+      SELECT * FROM blog_sources
+      WHERE source_type = ${sourceType} AND is_active = true
+      ORDER BY name ASC
+      LIMIT ${limit}
+    `;
+    return result.rows.map(rowToBlogSource);
+  } catch (error) {
+    console.error('[BlogSource] Error finding by source_type:', error);
+    return [];
+  }
 }
 
 export async function getSourceById(id: string): Promise<BlogSource | null> {

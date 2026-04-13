@@ -3,7 +3,7 @@ import { task, logger } from "@trigger.dev/sdk/v3";
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { generatePost } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
-import { savePost, generatePostId, getPostsByAccount } from '@/lib/db';
+import { savePost, generatePostId, getPostsByAccount, getRecentPatternData } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getPersonaByKey, getAllPersonas } from '@/lib/personas';
 
@@ -47,6 +47,10 @@ export const generateAccountContent = task({
     const canThreads = await canGenerateThreads(accountId);
     const personaSupportsThreads = canThreads && allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key).includes(selectedPersonaKey);
 
+    const recentData = await getRecentPatternData(accountId, 50);
+    const usedSourceUrls = recentData.usedSourceUrls;
+    logger.info(`Fetched ${usedSourceUrls.length} already-used source URLs for deduplication`);
+
     let generatedCount = 0;
 
     // We can run this sequentially now because we don't care about Vercel's timeout
@@ -61,13 +65,13 @@ export const generateAccountContent = task({
 
       if (selectedContentType === 'thread') {
         const { getDynamicContext } = await import('@/lib/contentSource');
-        const sourceContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey);
+        const sourceContext = await getDynamicContext(selectedPersonaKey, '', accountId, selectedPersonaKey, usedSourceUrls);
         const threadResult = await generateThread({ connected_account_id: accountId, persona: selectedPersonaKey, sourceContext });
         
         if (threadResult) generatedCount++;
       } else {
         const { getDynamicContext } = await import('@/lib/contentSource');
-        const sourceContext = await getDynamicContext(selectedPersonaKey, selectedContentType, accountId, selectedPersonaKey);
+        const sourceContext = await getDynamicContext(selectedPersonaKey, selectedContentType, accountId, selectedPersonaKey, usedSourceUrls);
         const config = { persona: selectedPersonaKey, connected_account_id: accountId, topic: selectedContentType, sourceContext };
         
         const enhancedPost = await generatePost(config);

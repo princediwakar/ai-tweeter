@@ -50,34 +50,39 @@ export async function generatePostPrompt(
   const sourceContext = config.sourceContext || "";
   const pConfig = (persona.config as Record<string, any>) || {};
 
-  // 2. The Chain of Thought Prompt Architecture
-  // We explicitly inject the new psychological DNA here.
-  const prompt = `You are a highly opinionated industry insider. Your goal is to write a social media post reacting to recent industry news.
+  // 2. The Colleague Test Prompt
+  // New authentic prompt: "Would I forward this to a colleague who would judge me?"
+  const sourceType = pConfig.source_type || 'general';
+  const formatRules = Array.isArray(pConfig.format_rules) 
+    ? pConfig.format_rules.join(' | ') 
+    : 'Short paragraphs. Natural English. No hashtags.';
 
-YOUR PSYCHOLOGICAL DNA:
-- Core Thesis: ${pConfig.core_thesis || 'Signal is found in hard data, not hype.'}
-- The Enemy: ${pConfig.the_enemy || 'Generic corporate fluff and vanity metrics.'}
-- Analytical Framework: ${pConfig.analytical_framework || 'Look at the underlying mechanics and economics.'}
+  const prompt = `You are a ${pConfig.core_thesis || 'professional'} who reads industry news daily. 
+You have limited time and zero patience for fluff.
 
-YOUR EXECUTION RULES:
-- Framing Bias: ${pConfig.framing_bias || 'Focus on operational reality.'}
-- Hook Mechanics: ${pConfig.hook_mechanics || 'Start with a blunt fact.'}
-- Format Rules: ${Array.isArray(pConfig.format_rules) ? pConfig.format_rules.join(' | ') : 'Short paragraphs. Natural English. No hashtags.'}
+PLATFORM: Twitter (punchy, 140-280 chars, one clear insight)
+ALTERNATIVE: LinkedIn (thoughtful paragraphs, 800-2000 chars)
 
-AVAILABLE CONTEXT (Raw Extracted Articles):
-${sourceContext ? sourceContext : 'No specific news provided. Draw on your general industry knowledge.'}
+YOUR TASK - The Colleague Test:
+Would you forward this article to a smart coworker who'd judge you for wasting their time?
+If yes: Write what you'd post - make it genuinely useful.
+If no: Skip it entirely.
 
-YOUR INSTRUCTIONS:
-You must perform a two-step "Chain of Thought" process.
-Step 1: Write an 'internal_monologue'. Apply your Analytical Framework to the context. What is 'The Enemy' getting wrong here? How does this data prove your Core Thesis? Think aggressively.
-Step 2: Write the 'content'. Based ONLY on your monologue, draft the final post. Strictly obey your Hook Mechanics and Format Rules. Do not summarize the article; give your sharpest take on it.
+CONTEXT - Articles from your domain:
+${sourceContext ? sourceContext : 'No articles available. Skip.'}
 
-OUTPUT FORMAT:
-You must return ONLY a valid JSON object matching this exact schema:
+STRICT RULES:
+- Never start with "Here's my take" or "I think"
+- Never share personal journey ("I built this")
+- Write like you're sending to a Slack channel of professionals
+- ${formatRules}
+
+OUTPUT - Return ONLY valid JSON:
 {
-  "selected_url": "The exact URL of the article you chose to react to (if any)",
-  "internal_monologue": "Your raw, unfiltered strategic analysis...",
-  "content": "The final text of the post to be published..."
+  "decision": "share" | "skip",
+  "selected_url": "The article URL (if sharing)",
+  "content": "Your post text (if sharing)",
+  "skip_reason": "Why nothing was worth sharing (if skipping)"
 }`;
 
   return { prompt, persona, sourceContext };
@@ -87,11 +92,12 @@ export function parseAndValidatePostResponse(
   content: string,
   personaKey: string,
   sourceContext?: string,
-  actualHeadlineCount?: number // Keeping this in case your generationService still passes it
+  actualHeadlineCount?: number
 ): {
   post: EnhancedPost;
   cardData: CardData | null;
   sourceUrl: string | undefined;
+  skipReason?: string;
   reasoning?: Record<string, string>;
 } | null {
   try {
@@ -100,26 +106,43 @@ export function parseAndValidatePostResponse(
 
     if (data.error) throw new Error(`AI error: ${data.error}`);
 
+    // Handle skip decision
+    if (data.decision === "skip") {
+      console.log(`[Parser] AI chose to skip: ${data.skip_reason || 'No reason provided'}`);
+      return {
+        post: {
+          content: '',
+          persona: personaKey,
+          selectedHeadlineNumber: undefined,
+          hashtags: [],
+          engagementHooks: [],
+          contentType: "single_tweet",
+        },
+        cardData: null,
+        sourceUrl: undefined,
+        skipReason: data.skip_reason || 'AI chose to skip',
+        reasoning: data
+      };
+    }
+
     const tweetContent = data.content;
     if (!tweetContent || typeof tweetContent !== 'string') {
       throw new Error("AI returned an invalid or missing tweet content string.");
     }
 
-    // 1. Try to get the direct URL first (The Phase 3 way)
+    // 1. Try to get the direct URL first
     let sourceUrl: string | undefined = data.selected_url || data.sourceUrl || data.url;
 
-    // 2. Aggressive Fallback: If it returned an integer (The Legacy way)
+    // 2. Aggressive Fallback: If it returned an integer
     const articleNum = data.selectedArticle ?? data.selectedHeadlineNumber;
     
     if (!sourceUrl && articleNum !== undefined && sourceContext) {
       const num = parseInt(articleNum, 10);
       if (!isNaN(num)) {
-        // Hunt for the specific article block in the context
         const articleRegex = new RegExp(`### (?:ARTICLE|TOPIC SOURCE) ${num}\\n([\\s\\S]*?)(?:### END|### (?:ARTICLE|TOPIC SOURCE)|$)`, "i");
         const match = sourceContext.match(articleRegex);
         
         if (match && match[1]) {
-          // Find the first valid HTTP/HTTPS link in that specific article block
           const urlMatch = match[1].match(/https?:\/\/[^\s"'}\\\]]+/);
           if (urlMatch) {
             sourceUrl = urlMatch[0];
@@ -145,7 +168,6 @@ export function parseAndValidatePostResponse(
       },
       cardData,
       sourceUrl,
-      // Pass the entire parsed object back as reasoning so you can always see what the AI was thinking
       reasoning: data 
     };
   } catch (error) {

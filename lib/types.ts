@@ -120,6 +120,7 @@ export interface PersonaConfigDNA {
   headlines_in_prompt: number;
   image_probability: number;
   supports_threads?: boolean;
+  source_type?: string;
 }
 
 export interface Persona {

@@ -4,7 +4,7 @@
 
 import type { Persona } from '../types';
 import { fetchFromRssFeeds } from './fetchers/rss';
-import { findSources, type BlogSource } from '../blogSourceService';
+import { findSources, findSourcesBySourceType, type BlogSource } from '../blogSourceService';
 
 export interface ContentItem {
   url: string;
@@ -50,10 +50,12 @@ export class ContentPipeline {
 
   /**
    * Fetch content for a persona using hybrid approach
+   * @param excludeUrls - URLs to exclude (already used by this account)
    */
   async fetchForPersona(
     persona: Persona,
-    topic?: string
+    topic?: string,
+    excludeUrls?: string[]
   ): Promise<ContentItem[]> {
     const sources = await this.resolveSourcesForPersona(persona);
     
@@ -62,7 +64,7 @@ export class ContentPipeline {
       return [];
     }
 
-    return this.fetchWithHybrid(sources, topic, (persona.topics || undefined));
+    return this.fetchWithHybrid(sources, topic, (persona.topics || undefined), excludeUrls);
   }
 
   /**
@@ -85,6 +87,7 @@ export class ContentPipeline {
             feed_url: feedUrl,
             category: '',
             topics: persona.topics || [],
+            source_type: 'general',
             is_active: true,
             created_at: new Date().toISOString(),
           });
@@ -98,6 +101,15 @@ export class ContentPipeline {
       }
     }
 
+    // Check if persona has source_type in config (new approach)
+    const pConfig = (persona.config as Record<string, unknown>) || {};
+    const sourceType = pConfig.source_type as string | undefined;
+    
+    if (sourceType) {
+      console.log(`[ContentPipeline] Using source_type: ${sourceType}`);
+      return findSourcesBySourceType(sourceType, 10);
+    }
+
     // Fallback: find sources by topics
     return findSources({
       topics: persona.topics || [],
@@ -107,11 +119,13 @@ export class ContentPipeline {
 
   /**
    * Hybrid fetching: RSS -> Jina -> Tavily
+   * @param excludeUrls - URLs to exclude (already used by this account)
    */
   private async fetchWithHybrid(
     blogSources: BlogSource[],
     topic?: string,
-    personaTopics?: string[]
+    personaTopics?: string[],
+    excludeUrls?: string[]
   ): Promise<ContentItem[]> {
     const articles: ContentItem[] = [];
 
@@ -153,7 +167,32 @@ export class ContentPipeline {
       }
     }
 
-    return articles.slice(0, 15);
+    const filteredArticles = this.filterExcludedUrls(articles, excludeUrls);
+    
+    if (excludeUrls && excludeUrls.length > 0 && filteredArticles.length === 0 && articles.length > 0) {
+      console.warn(`[ContentPipeline] ⚠️ All ${articles.length} fetched articles were excluded (already used). Consider adding new sources.`);
+    }
+    
+    return filteredArticles.slice(0, 15);
+  }
+
+  /**
+   * Filter out articles with URLs that have already been used
+   */
+  private filterExcludedUrls(articles: ContentItem[], excludeUrls?: string[]): ContentItem[] {
+    if (!excludeUrls || excludeUrls.length === 0) {
+      return articles;
+    }
+    
+    const excludeSet = new Set(excludeUrls.map(url => url.toLowerCase()));
+    const beforeCount = articles.length;
+    const filtered = articles.filter(article => !excludeSet.has(article.url.toLowerCase()));
+    
+    if (filtered.length < beforeCount) {
+      console.log(`[ContentPipeline] Filtered out ${beforeCount - filtered.length} already-used articles`);
+    }
+    
+    return filtered;
   }
 
   /**

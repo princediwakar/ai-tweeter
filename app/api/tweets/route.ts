@@ -1,6 +1,6 @@
 // app/api/tweets/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getPaginatedPosts, savePost, generatePostId, deletePosts } from '@/lib/db';
+import { getPaginatedPosts, savePost, generatePostId, deletePosts, getRecentPatternData } from '@/lib/db';
 import { connectedAccountsService } from '@/lib/connectedAccounts';
 import { getAllPersonas } from '@/lib/personas';
 import type { Post } from '@/lib/types';
@@ -92,8 +92,12 @@ export async function POST(request: NextRequest) {
         shouldGenerateThread = await canGenerateThreads(account as any);
       }
 
+      const recentData = await getRecentPatternData(accountId, 50);
+      const usedSourceUrls = recentData.usedSourceUrls;
+      console.log(`[Generate API] Fetched ${usedSourceUrls.length} already-used source URLs for deduplication`);
+
       if (shouldGenerateThread) {
-        const sourceContext = await getDynamicContext(personaKey, '', accountId, personaKey);
+        const sourceContext = await getDynamicContext(personaKey, '', accountId, personaKey, usedSourceUrls);
         console.log(`[Generate API] Thread source context length: ${sourceContext?.length || 0} chars`);
         
         const threadResult = await generateThread({
@@ -114,7 +118,7 @@ export async function POST(request: NextRequest) {
         const contentType = contentTypes[new Date().getHours() % contentTypes.length];
         
         // Fetch source content like the trigger does
-        const sourceContext = await getDynamicContext(personaKey, contentType, accountId, personaKey);
+        const sourceContext = await getDynamicContext(personaKey, contentType, accountId, personaKey, usedSourceUrls);
         console.log(`[Generate API] Source context length: ${sourceContext?.length || 0} chars`);
         
         const config: PostGenerationConfig = {

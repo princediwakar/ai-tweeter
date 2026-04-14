@@ -48,25 +48,26 @@ export class PromptEngine {
     // Build DNA components from persona config
     const identityContext = String(pConfig.identity_context || pConfig.core_thesis || 'You are an AI content generator.');
     
-    // Strong default for source_logic - emphasizes deep internalization and original synthesis
+    // Strong default for source_logic - handles selection, transformation, and reference
     const defaultSourceLogic = `BEFORE DECIDING WHAT TO POST:
 Evaluate each article in the context (ARTICLE 1, 2, etc.):
-- Is it TIMELY and contains fresh data or operational insight?
-- Is it SUBSTANTIVE (contains measurable data, real examples, or mechanics worth analyzing)?
-- Is it WORTH STANDING BEHIND as your own insight?
+- Is it TIMELY (recent, actionable insight, not generic)?
+- Is it SUBSTANTIVE (contains data, metrics, real examples, or execution details)?
+- Is it WORTH STANDING BEHIND as your own insight (does it allow for high-signal synthesis into facts, sharp observations, or grounded opinions)?
 
 Only proceed if at least one article passes ALL THREE.
 If none pass, return: {"content": "No suitable material today."}
 
-YOUR JOB: Read and deeply internalize the provided context. Synthesize it with your own operational expertise. Then produce a post that feels like your own original, high-signal insight.
+YOUR JOB: Internalize the selected content deeply, then transform it into your own original, standalone post as if this is the synthesis of your expertise and analysis.
 
-- The post must read as if you personally analyzed the situation and drew this conclusion.
-- The reader must receive complete, standalone value — no need to click any link.
-- Never mention any article, source, author, or external reference.
-- Never say "this article", "according to", "I read", "key takeaway", or anything that implies external origin.
-- Write as a seasoned expert sharing distilled, data-backed understanding from experience.
-- The audience must feel they just received high-value, actionable material they can use immediately.`;
-
+- WRITE AS YOUR OWN INSIGHT from experience and pattern recognition — not a summary or reaction
+- The post must deliver COMPLETE high-value content: facts, data-backed insights, and professional opinions that the reader can immediately use or reflect on
+- Reader should get FULL value WITHOUT any link or source reference — the post stands alone perfectly
+- NEVER mention sources, articles, authors, "I read", "this shows", or any external reference
+- If referencing, use specific name: "@lethain wrote..." or "Ben Thompson's analysis..." only if it fits naturally as part of your knowledge
+- The reader has NO IDEA there's a link — they only see your expert post
+- Would a busy professional on Twitter or LinkedIn see this and immediately recognize material, facts, insights, and information worth their time?`;
+    
     const sourceLogic = String(pConfig.source_logic || defaultSourceLogic);
     const voiceDna = String(pConfig.voice_dna || pConfig.voice || 'Write in a clear, engaging voice.');
     const antiPatterns = String(pConfig.anti_patterns || 'Avoid generic filler words.');
@@ -204,7 +205,7 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
         prompt += `Do not use these articles again:\n${usedSourceUrls.map(url => `- ${url}`).join('\n')}\n`;
       }
     } else {
-      prompt += `No specific news provided. Draw on your general industry knowledge and operational expertise.\n\n`;
+      prompt += `No specific news provided. Draw on your general industry knowledge.\n\n`;
     }
     
     // Add psychological DNA if available
@@ -218,7 +219,7 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
     
-    prompt += `Write exactly like a real, experienced professional would — natural rhythm, first person, precise yet conversational. Mix short punchy sentences with slightly longer explanatory ones. Use contractions. Sound like you are sharing hard-won insight with a sharp colleague.\n\n`;
+    prompt += `Write exactly like a real, seasoned expert would — confident yet approachable, with natural flow. Use first person. Vary sentence length for human rhythm: short punchy statements for impact, slightly longer ones to unpack insights. Use contractions naturally. Sound like a professional colleague sharing what they have internalized from deep analysis — clear, substantive, zero filler.\n\n`;
     
     if (framingBias) prompt += `Framing Bias: ${framingBias}\n`;
     if (hookMechanics) prompt += `Hook Mechanics: ${hookMechanics}\n`;
@@ -238,11 +239,11 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
     if (validationChecklist.length > 0) {
       prompt += validationChecklist.map((item: any) => `- ${String(item)}`).join('\n');
     } else {
-      prompt += `- Does this sound like something a real expert with deep experience would actually post?
-- READER HAS NO IDEA ABOUT ANY LINK OR SOURCE - they only see your original insight
-- Would this post make complete sense and deliver full value if there was NO link attached?
-- Would someone follow you based on this post alone because of its substance and clarity?
-- Does this post contain high-signal, data-backed material that provides immediate value?`;
+      prompt += `- Does this sound like something a real expert would actually post on the platform?
+- The reader has NO IDEA about any source material — they only see your standalone insight
+- Would this post make complete sense and deliver full value with NO link?
+- Would a Twitter or LinkedIn audience immediately see material, facts, insights, and information worth their attention?
+- Does this provide high-signal value through facts, data-backed insights, or grounded opinions without any gyaan?`;
     }
     prompt += '\n\n';
     
@@ -255,10 +256,10 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
     prompt += `Output ONLY valid JSON. Nothing else.\n\n{\n`;
     
     if (coreThesis || theEnemy) {
-      prompt += `  "internal_monologue": "Your raw, unfiltered strategic analysis and synthesis of the material...",\n`;
+      prompt += `  "internal_monologue": "Your raw, unfiltered strategic analysis...",\n`;
     }
     prompt += `  "content": "The final text of the post to be published...",\n`;
-    prompt += `  "selected_url": "The exact URL of the article you chose to internalize and synthesize (if any)"`;
+    prompt += `  "selected_url": "The exact URL of the article you chose to react to (if any)"`;
     
     if (wantsImage) {
       prompt += `,\n  "cardData": {\n    "imagePrompt": "<short, vivid description for an image — max 200 characters>"\n  }`;
@@ -338,7 +339,7 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
     prompt += templateInstructions;
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
-    prompt += `Write exactly like a real, experienced professional would — natural rhythm, first person, precise yet conversational.\n\n`;
+    prompt += `Write exactly like a real, seasoned expert would — confident, natural flow in first person. Vary rhythm for human feel.\n\n`;
     
     if (voiceDna) prompt += `${voiceDna}\n`;
     prompt += `\nNever do this:\n${antiPatterns}\n\n`;
@@ -353,11 +354,12 @@ YOUR JOB: Read and deeply internalize the provided context. Synthesize it with y
     
     prompt += `Output format:\n`;
     prompt += `Return a JSON array of ${threadCount} sequential tweets. Each tweet should:\n`;
-    prompt += `- Be a completely standalone post that makes sense WITHOUT any link context\n`;
-    prompt += `- Deliver full value to the reader without requiring them to click anything\n`;
+    prompt += `- Be a standalone post delivering full facts, insights, and opinions WITHOUT any link context\n`;
+    prompt += `- Reader should get full value without clicking anything\n`;
     prompt += `- Be 100-280 characters each\n`;
-    prompt += `- Follow a logical narrative arc across the thread while remaining high-signal\n`;
-    prompt += `- NEVER reference any article, source, author, or external material - write entirely as your own synthesized insight\n`;
+    prompt += `- Follow a logical narrative arc across the thread\n`;
+    prompt += `- Include relevant hashtags at the end of each tweet\n`;
+    prompt += `- NEVER reference "this article", "this post", "the author" - write as your own insight\n`;
     
     if (validationChecklist.length > 0) {
       prompt += `\nValidation checklist:\n`;

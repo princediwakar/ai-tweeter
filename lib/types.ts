@@ -122,6 +122,16 @@ export interface PersonaConfigDNA {
   image_probability: number;
   supports_threads?: boolean;
   source_type?: string;
+  voice_dna?: string;
+  structural_archetypes?: {
+    name: string;
+    description: string;
+    example: string;
+  }[];
+  validation_checklist?: string[];
+  anti_patterns?: string;
+  source_logic?: string;
+  identity_context?: string;
 }
 
 export interface Persona {

@@ -332,7 +332,14 @@ export class ContentPipeline {
    */
   formatForPrompt(items: ContentItem[]): string {
     return items.map((item, index) => {
-      return `### ARTICLE ${index + 1}\nURL: ${item.url}\nTitle: ${item.headline}\nContent:\n${item.description}\n### END ARTICLE ${index + 1}`;
+      const contentLength = item.description?.length || 0;
+      return `### ARTICLE ${index + 1}
+URL: ${item.url}
+Title: ${item.headline}
+Content Length: ${contentLength} characters
+Content:
+${item.description}
+### END ARTICLE ${index + 1}`;
     }).join('\n\n');
   }
 

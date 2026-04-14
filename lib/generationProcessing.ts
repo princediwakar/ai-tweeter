@@ -126,6 +126,19 @@ STRICT RULES:
 - Content must be ORIGINAL take, not rehash
 - ${formatRules}
 
+SKIP CRITERIA - Reject if ANY of these apply:
+- TOO SHORT: Content < 500 characters (not enough substance to be useful)
+- PERSONAL PROJECT: Author is writing about their own product, service, or launch
+  Red flags: "I built", "we launched", "announcing my", "introducing our", "check out", "try my"
+- GENERIC ADVICE: Fluff without specifics
+  Red flags: "most people", "the real truth", "you should", "just", "stop"
+- ANNOUNCEMENT: Just promoting something
+  Red flags: "introducing", "launching", "announcing", "new product", "excited to share"
+- LISTICLE: "X ways to", "X tips", "X things you need"
+- SELF-PROMO: Author's personal journey, tutorial on their own tool
+- NO ORIGINAL INSIGHT: Just a summary or rehash of known information
+- LOW SIGNAL: No specific data, examples, or concrete takeaways
+
 OUTPUT - Return ONLY valid JSON:
 {
   "decision": "share" | "skip",

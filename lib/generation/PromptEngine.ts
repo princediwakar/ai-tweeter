@@ -1,6 +1,6 @@
 // lib/generation/PromptEngine.ts
 // Unified prompt building - handles single tweets, threads, and batch generation
-// Consolidates logic from generationProcessing.ts and databasePersona.ts
+// Consolidated logic with refined focus on high-signal, data-backed, human-like synthesis
 
 import type { Persona } from "../types";
 import type { ContextBuilderResult } from "./ContextBuilder";
@@ -30,8 +30,9 @@ export interface PromptEngineOutput {
 }
 
 /**
- * Unified PromptEngine - builds prompts for single tweets, threads, or batch
- * Uses persona DNA (identity_context, voice_dna, source_logic, etc.)
+ * Unified PromptEngine - now optimized for the exact style requested:
+ * data-first, synthesized insights, grounded opinions, natural human flow,
+ * complete standalone value with zero source references.
  */
 export class PromptEngine {
   
@@ -46,42 +47,39 @@ export class PromptEngine {
     const threadCount = options.threadCount || 5;
     
     // Build DNA components from persona config
-    const identityContext = String(pConfig.identity_context || pConfig.core_thesis || 'You are an AI content generator.');
+    const identityContext = String(pConfig.identity_context || pConfig.core_thesis || 'You are a sharp industry observer.');
     
-    // Strong default for source_logic - handles selection, transformation, and reference
+    // Refined defaultSourceLogic - fully aligned with the requested style
     const defaultSourceLogic = `BEFORE DECIDING WHAT TO POST:
 Evaluate each article in the context (ARTICLE 1, 2, etc.):
-- Is it TIMELY (recent, actionable insight, not generic)?
-- Is it SUBSTANTIVE (contains data, metrics, real examples, or execution details)?
-- Is it WORTH STANDING BEHIND as your own insight (does it allow for high-signal synthesis into facts, sharp observations, or grounded opinions)?
+- Is it TIMELY and contains specific, material data or operational details?
+- Does it allow for meaningful contrasts or execution insights?
+- Can it be synthesized into a high-signal post that a professional audience would find valuable?
 
-Only proceed if at least one article passes ALL THREE.
-If none pass, return: {"content": "No suitable material today."}
+Only proceed if at least one article passes. If none do, return: {"content": "No suitable material today."}
 
-YOUR JOB: Internalize the selected content deeply, then transform it into your own original, standalone post as if this is the synthesis of your expertise and analysis.
+YOUR JOB: Deeply internalize the facts. Then write the post as your own original, synthesized observation — exactly as a seasoned expert would share it after studying the space.
 
-- WRITE AS YOUR OWN INSIGHT from experience and pattern recognition — not a summary or reaction
-- The post must deliver COMPLETE high-value content: facts, data-backed insights, and professional opinions that the reader can immediately use or reflect on
-- Reader should get FULL value WITHOUT any link or source reference — the post stands alone perfectly
-- NEVER mention sources, articles, authors, "I read", "this shows", or any external reference
-- If referencing, use specific name: "@lethain wrote..." or "Ben Thompson's analysis..." only if it fits naturally as part of your knowledge
-- The reader has NO IDEA there's a link — they only see your expert post
-- Would a busy professional on Twitter or LinkedIn see this and immediately recognize material, facts, insights, and information worth their time?`;
-    
+- Start with a factual hook + immediate data or contrast
+- Build with specific numbers, operational realities, and meaningful contrasts
+- End with a grounded insight or quiet opinion about broader implications
+- The post must stand completely alone and deliver full material value
+- NEVER mention any source, article, filing, announcement, or external reference
+- Write in natural first person with human rhythm and conversational precision
+- The reader should feel they just received high-signal information worth their time — facts, insights, and professional observation only.`;
+
     const sourceLogic = String(pConfig.source_logic || defaultSourceLogic);
-    const voiceDna = String(pConfig.voice_dna || pConfig.voice || 'Write in a clear, engaging voice.');
-    const antiPatterns = String(pConfig.anti_patterns || 'Avoid generic filler words.');
+    const voiceDna = String(pConfig.voice_dna || pConfig.voice || 'Write with precise, observant, conversational authority.');
+    const antiPatterns = String(pConfig.anti_patterns || 'Avoid generic filler, hype, or any source references.');
     const coreThesis = String(pConfig.core_thesis || '');
     const theEnemy = String(pConfig.the_enemy || '');
     const analyticalFramework = String(pConfig.analytical_framework || '');
     const framingBias = String(pConfig.framing_bias || '');
     const hookMechanics = String(pConfig.hook_mechanics || '');
     
-    // Structural archetypes
     const rawArchetypes = pConfig.structural_archetypes;
     const structuralArchetypes = Array.isArray(rawArchetypes) ? rawArchetypes : [];
     
-    // Validation checklist
     const rawChecklist = pConfig.validation_checklist;
     const validationChecklist = Array.isArray(rawChecklist) ? rawChecklist : [];
     
@@ -140,9 +138,6 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     };
   }
   
-  /**
-   * Build single tweet prompt
-   */
   private buildSingleTweetPrompt(params: {
     persona: Persona;
     dataContext: string;
@@ -188,13 +183,11 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     
     let prompt = `You are ${persona.name}. ${identityContext}\n\n${persona.description || ''}\n\n`;
     
-    // Add topic-based generation context
     if (topic && userTopicContext) {
-      prompt += `USER REQUEST: Write a post about "${topic}"\n\nHere's some context from recent news about this topic:\n${userTopicContext}\n\n`;
+      prompt += `USER REQUEST: Write a post about "${topic}"\n\nHere's some context from recent developments:\n${userTopicContext}\n\n`;
     } else if (topic) {
       prompt += `USER REQUEST: Write a post about "${topic}"\n\n`;
     } else if (dataContext) {
-      // RSS-based context
       prompt += `Right now you have this fresh context from your sources:\n${dataContext}\n\n`;
       
       if (previousHeadlines && previousHeadlines.length > 0) {
@@ -208,7 +201,6 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
       prompt += `No specific news provided. Draw on your general industry knowledge.\n\n`;
     }
     
-    // Add psychological DNA if available
     if (coreThesis || theEnemy || analyticalFramework) {
       prompt += `YOUR PSYCHOLOGICAL DNA:\n`;
       if (coreThesis) prompt += `- Core Thesis: ${coreThesis}\n`;
@@ -219,7 +211,7 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
     
-    prompt += `Write exactly like a real, seasoned expert would — confident yet approachable, with natural flow. Use first person. Vary sentence length for human rhythm: short punchy statements for impact, slightly longer ones to unpack insights. Use contractions naturally. Sound like a professional colleague sharing what they have internalized from deep analysis — clear, substantive, zero filler.\n\n`;
+    prompt += `Write exactly like a real, sharp industry observer — natural first-person flow, confident yet conversational. Vary sentence length for authentic rhythm. Sound like you're sharing what you've internalized after studying the space for years.\n\n`;
     
     if (framingBias) prompt += `Framing Bias: ${framingBias}\n`;
     if (hookMechanics) prompt += `Hook Mechanics: ${hookMechanics}\n`;
@@ -228,7 +220,7 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     prompt += `\nNever do this:\n${antiPatterns}\n\n`;
     
     if (structuralArchetypes.length > 0) {
-      prompt += `You usually structure your posts in one of these natural ways (pick whichever fits the insight best — don't force it):\n`;
+      prompt += `You usually structure your posts in one of these natural ways (pick whichever fits best):\n`;
       prompt += structuralArchetypes
         .map((arch: any) => `- ${arch.name}: ${arch.description}\n  Example: ${arch.example}`)
         .join('\n');
@@ -239,20 +231,18 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     if (validationChecklist.length > 0) {
       prompt += validationChecklist.map((item: any) => `- ${String(item)}`).join('\n');
     } else {
-      prompt += `- Does this sound like something a real expert would actually post on the platform?
+      prompt += `- Does this sound like something a real expert would actually post?
 - The reader has NO IDEA about any source material — they only see your standalone insight
-- Would this post make complete sense and deliver full value with NO link?
-- Would a Twitter or LinkedIn audience immediately see material, facts, insights, and information worth their attention?
-- Does this provide high-signal value through facts, data-backed insights, or grounded opinions without any gyaan?`;
+- Would a busy professional immediately recognize this as high-signal material with concrete facts, meaningful contrasts, and grounded opinion?
+- Does this deliver full value without needing any link or context?
+- Is there zero gyaan or generic advice — only facts, insights, and professional observation?`;
     }
     prompt += '\n\n';
     
-    // Format rules
     if (formatRules.length > 0) {
       prompt += `FORMAT RULES: ${formatRules.join(' | ')}\n\n`;
     }
     
-    // Output schema
     prompt += `Output ONLY valid JSON. Nothing else.\n\n{\n`;
     
     if (coreThesis || theEnemy) {
@@ -267,16 +257,12 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     
     prompt += `\n}`;
     
-    // Add character limit
     const maxLength = persona.max_length || 280;
     prompt += `\n\nEnsure the content is under ${maxLength} characters.`;
     
     return prompt;
   }
   
-  /**
-   * Build thread prompt
-   */
   private buildThreadPrompt(params: {
     persona: Persona;
     dataContext: string;
@@ -339,7 +325,7 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     prompt += templateInstructions;
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
-    prompt += `Write exactly like a real, seasoned expert would — confident, natural flow in first person. Vary rhythm for human feel.\n\n`;
+    prompt += `Write exactly like a real, sharp industry observer — natural first-person flow, confident yet conversational.\n\n`;
     
     if (voiceDna) prompt += `${voiceDna}\n`;
     prompt += `\nNever do this:\n${antiPatterns}\n\n`;
@@ -353,13 +339,11 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     }
     
     prompt += `Output format:\n`;
-    prompt += `Return a JSON array of ${threadCount} sequential tweets. Each tweet should:\n`;
-    prompt += `- Be a standalone post delivering full facts, insights, and opinions WITHOUT any link context\n`;
-    prompt += `- Reader should get full value without clicking anything\n`;
-    prompt += `- Be 100-280 characters each\n`;
+    prompt += `Return a JSON array of ${threadCount} sequential posts. Each post should:\n`;
+    prompt += `- Deliver standalone high-signal value with facts, contrasts, and insights\n`;
+    prompt += `- Be 120-280 characters each\n`;
     prompt += `- Follow a logical narrative arc across the thread\n`;
-    prompt += `- Include relevant hashtags at the end of each tweet\n`;
-    prompt += `- NEVER reference "this article", "this post", "the author" - write as your own insight\n`;
+    prompt += `- NEVER reference any source material — write as your own synthesized understanding\n`;
     
     if (validationChecklist.length > 0) {
       prompt += `\nValidation checklist:\n`;
@@ -367,7 +351,7 @@ YOUR JOB: Internalize the selected content deeply, then transform it into your o
     }
     
     prompt += `\n\nOutput ONLY valid JSON array. Nothing else.\n`;
-    prompt += `[\n  { "sequence": 1, "content": "...", "hashtags": ["..."] },\n  { "sequence": 2, "content": "...", "hashtags": ["..."] },\n  ...\n]`;
+    prompt += `[\n  { "sequence": 1, "content": "..." },\n  { "sequence": 2, "content": "..." },\n  ...\n]`;
     
     return prompt;
   }

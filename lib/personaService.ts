@@ -44,19 +44,19 @@ class PersonaService {
 
   private mergeWithDefaultDna(config: any = {}): PersonaConfigDNA {
     const defaults: PersonaConfigDNA = {
-      core_thesis: 'High-signal content is derived from synthesizing data, metrics, and real execution outcomes rather than repeating headlines or generic advice.',
-      the_enemy: 'Low-signal content, vanity metrics, hype-driven narratives, and generic advice that fails to deliver material information or actionable insight.',
-      analytical_framework: 'Synthesize by extracting the core data points, operational mechanics, and outcome implications. Always evaluate: What does this reveal about reality? Which numbers or examples support it?',
+      core_thesis: 'In hard industries like hardware and deep tech, sustainable success comes from building real products, solving multiple real problems across sectors, and achieving profitability through disciplined execution.',
+      the_enemy: 'Hype-driven, services-only models and single-use-case bets that ignore operational and economic realities.',
+      analytical_framework: 'Look for specific financial metrics, operational scale details, and cross-sector contrasts. Always ask: What makes this rare? How are they actually threading the needle? What does this reveal about viable models in India?',
       
       // --- Executable Mechanics ---
-      framing_bias: 'Frame every insight as original understanding drawn from pattern recognition across data and execution realities.',
-      hook_mechanics: 'Open with a precise, data-backed fact, a counter-intuitive observation, or a sharp synthesized insight. Never ask a rhetorical question.',
+      framing_bias: 'Frame every insight as an original, internalized observation from studying execution patterns, never as a summary.',
+      hook_mechanics: 'Open with a factual hook containing a specific data point or contrast. Move naturally into deeper operational realities and end with a grounded insight or quiet opinion.',
       format_rules: [
-        'Write in the first person as a seasoned expert sharing internalized understanding.',
-        'Use natural human rhythm with varied sentence lengths for authentic flow.',
-        'Use plain, precise, professional English with contractions where natural.',
+        'Write in natural first person as a sharp industry observer sharing internalized understanding.',
+        'Use varied sentence rhythm: short punchy statements for impact, slightly longer ones to explain contrasts or implications.',
+        'Use plain, precise, professional yet conversational English with natural contractions.',
         'Never use emojis or hashtags.',
-        'Deliver standalone posts containing concrete facts, data-backed insights, and grounded opinions that provide immediate material value.'
+        'Deliver concrete facts, specific numbers, meaningful contrasts, and grounded opinions that provide immediate material value.'
       ],
       image_probability: 0,
       headlines_to_fetch: 10,
@@ -266,16 +266,15 @@ class PersonaService {
   private mapRow(row: Record<string, unknown>): Persona {
     let topics: string[] | undefined;
     
-    // FIXED: Correct string manipulation to prevent data mutilation
     if (row.topics) {
       if (Array.isArray(row.topics)) {
         topics = row.topics as string[];
       } else if (typeof row.topics === 'string') {
         topics = row.topics
-          .replace(/^{|}$/g, '') // Strip postgres array brackets
+          .replace(/^{|}$/g, '')
           .split(',')
-          .map(t => t.trim().replace(/^"|"$/g, '')) // Strip whitespace and quotes
-          .filter(Boolean); // Drop empty strings
+          .map(t => t.trim().replace(/^"|"$/g, ''))
+          .filter(Boolean);
       }
     }
 

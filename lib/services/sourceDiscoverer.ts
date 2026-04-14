@@ -2,66 +2,58 @@
 
 import { getDeepseekClientAsync } from "../generationService";
 import { PersonaDesignResult } from "./personaDesigner";
-import { findSources, findSourcesByCategory, type BlogSource } from "../blogSourceService";
+import { listBlogSources } from "../blogSourceService";
 
-const SOURCE_DISCOVERY_PROMPT = `You are an elite research assistant. I will give you a persona's core thesis and topics. 
-Your job is to write EXACTLY ONE search query to find RSS feed URLs for blogs relevant to these topics.
+const MAX_SOURCES = 8;
+const TAVILY_MAX_RESULTS = 10;
+
+const SOURCE_SELECTION_PROMPT = `You are an expert RSS feed selector. Your task is to select the most relevant RSS feed URLs from the provided list based on a persona's topics and core thesis.
+
+SELECTION RULES:
+1. Prioritize feeds that directly cover the persona's topics
+2. Consider the core thesis to understand the focus area
+3. Select feeds that are actively maintained (well-known blogs, active newsletters)
+4. Output ONLY a JSON array of feed URLs - nothing else
+5. Maximum ${MAX_SOURCES} URLs only
+
+Input format:
+- Each line: "name - feed_url - topics: tag1, tag2, ..."
+
+Output format:
+{ "urls": ["https://...", "https://..."] }
+
+IMPORTANT: Only include URLs that directly match the persona's topics. If no feeds match, return empty array.`;
+
+const SOURCE_DISCOVERY_PROMPT = `You are an elite research assistant. Your job is to write EXACTLY ONE focused search query to find RSS feed URLs relevant to specific persona topics.
 
 CRITICAL RULES:
-1. The query MUST be short and keyword-rich (MAXIMUM 8 WORDS).
-2. Do NOT write a paragraph. Do NOT use conversational filler.
-3. MUST ask for RSS FEEDS specifically - include "rss feed" in the query.
-4. Output ONLY a JSON object with a single string field "query".
+1. The query MUST use specific keywords from the persona topics (MAXIMUM 8 WORDS)
+2. Do NOT use generic terms like "startups" - use specific topics like "Series A funding", "B2B SaaS", "AI agents"
+3. MUST ask for RSS FEEDS specifically - include "rss feed" in the query
+4. Output ONLY a JSON object with a single string field "query"
 
-BAD Example: { "query": "product strategy startups india" }
-GOOD Example: { "query": "product strategy rss feed" }`;
-
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  'Product': ['product strategy', 'product management', 'product growth', 'rss feed'],
-  'Engineering': ['software engineering', 'system design', 'rss feed'],
-  'Business': ['business strategy', 'monetization', 'unit economics', 'rss feed'],
-  'Finance': ['startup fundraising', 'vc investing', 'rss feed'],
-  'Marketing': ['growth marketing', 'content marketing', 'rss feed'],
-  'Sales': ['b2b sales', 'sales strategy', 'rss feed'],
-  'AI Tools': ['ai tools', 'llm applications', 'rss feed'],
-  'Productivity': ['productivity', 'time management', 'rss feed'],
-  'Personal Finance': ['personal finance', 'investing', 'rss feed'],
-  'Health': ['health', 'wellness', 'rss feed'],
-  'Angel Investing': ['angel investing', 'vc', 'rss feed'],
-  'Indian Startup News': ['indian startups', 'india startup', 'rss feed'],
-  'Indian Stock Market': ['indian stock market', 'india investing', 'rss feed'],
-};
+BAD: { "query": "indian startups rss feed" }
+GOOD: { "query": "indian startup funding Series A rss feed" }`;
 
 export class SourceDiscoverer {
   private tavilyApiKey = process.env.TAVILY_API_KEY;
 
   async discoverSources(persona: PersonaDesignResult): Promise<string[]> {
     const results: string[] = [];
-    const usedCategories = new Set<string>();
 
-    const matchedCategories = this.matchCategories(persona.topics || []);
-    console.log(`[SourceDiscoverer] Matched categories: ${matchedCategories.join(', ')}`);
-
-    for (const category of matchedCategories) {
-      const categorySources = await findSourcesByCategory(category, 5);
-      if (categorySources.length > 0) {
-        const validUrls = await this.validateRssFeeds(categorySources);
-        results.push(...validUrls);
-        usedCategories.add(category);
-        console.log(`[SourceDiscoverer] Added ${validUrls.length} sources from ${category}`);
-      }
-    }
+    console.log(`[SourceDiscoverer] Phase 1: AI selecting from curated blog_sources...`);
+    const curatedSources = await this.selectFromBlogSources(persona);
+    results.push(...curatedSources);
+    console.log(`[SourceDiscoverer] Selected ${curatedSources.length} sources from blog_sources`);
 
     if (results.length >= 3) {
-      console.log(`[SourceDiscoverer] Total curated sources: ${results.length}`);
-      return results;
+      return [...new Set(results)].slice(0, MAX_SOURCES);
     }
 
-    console.log(`[SourceDiscoverer] Only ${results.length} curated sources, using Tavily to find RSS feeds...`);
-
-    if (this.tavilyApiKey) {
+    console.log(`[SourceDiscoverer] Phase 2: Tavily fallback for relevant RSS feeds...`);
+    if (this.tavilyApiKey && results.length < 3) {
       try {
-        const tavilySources = await this.searchRssFeeds(persona, matchedCategories);
+        const tavilySources = await this.searchRssFeeds(persona);
         const validTavilySources = await this.validateRssUrls(tavilySources);
         
         for (const url of validTavilySources) {
@@ -69,87 +61,69 @@ export class SourceDiscoverer {
             results.push(url);
           }
         }
+        console.log(`[SourceDiscoverer] Added ${validTavilySources.length} valid sources from Tavily`);
       } catch (err) {
         console.error('[SourceDiscoverer] Tavily search failed:', err);
       }
     }
 
-    if (results.length < 3) {
-      const fallbacks = this.getFallbackSources(persona.topics || []);
-      results.push(...fallbacks.filter(f => !results.includes(f)));
-    }
-
-    return [...new Set(results)].slice(0, 15);
+    const finalResults = [...new Set(results)].slice(0, MAX_SOURCES);
+    console.log(`[SourceDiscoverer] Total sources: ${finalResults.length}`);
+    return finalResults;
   }
 
-  private matchCategories(topics: string[]): string[] {
-    const topicStr = topics.join(' ').toLowerCase();
-    const matched: string[] = [];
-
-    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
-      const matches = keywords.filter(kw => {
-        const baseKeyword = kw.split(' ')[0].toLowerCase();
-        return topicStr.includes(baseKeyword);
-      });
-      if (matches.length >= 2) {
-        matched.push(category);
-      }
+  private async selectFromBlogSources(persona: PersonaDesignResult): Promise<string[]> {
+    const allSources = await listBlogSources({ limit: 200 });
+    
+    if (allSources.length === 0) {
+      console.log('[SourceDiscoverer] No blog_sources found in database');
+      return [];
     }
 
-    if (matched.length === 0) {
-      if (topicStr.includes('product')) {
-        matched.push('Product');
-      }
-      if (topicStr.includes('startup') || topicStr.includes('founder')) {
-        matched.push('Angel Investing', 'Finance');
-      }
-      if (topicStr.includes('india') || topicStr.includes('indian')) {
-        matched.push('Indian Startup News');
-        if (topicStr.includes('stock') || topicStr.includes('market') || topicStr.includes('invest')) {
-          matched.push('Indian Stock Market');
-        }
-      }
-    }
+    const formattedSources = allSources
+      .map(s => `- ${s.name} - ${s.feed_url || s.url} - topics: ${s.topics.join(', ')}`)
+      .join('\n');
 
-    return [...new Set(matched)];
-  }
+    const topicsStr = persona.topics?.join(', ') || 'general';
+    const coreThesis = persona.config?.core_thesis || 'none';
 
-  private async validateRssFeeds(sources: BlogSource[]): Promise<string[]> {
-    const validUrls: string[] = [];
-
-    for (const source of sources) {
-      if (source.feed_url) {
-        const isValid = await this.checkRssValid(source.feed_url);
-        if (isValid) {
-          validUrls.push(source.feed_url);
-        } else {
-          const isHomepageValid = await this.checkRssValid(source.url);
-          if (isHomepageValid) {
-            validUrls.push(source.url);
+    const client = await getDeepseekClientAsync();
+    
+    try {
+      const response = await client.chat.completions.create({
+        model: "deepseek-chat",
+        messages: [
+          { role: "system", content: SOURCE_SELECTION_PROMPT },
+          { 
+            role: "user", 
+            content: `Persona Topics: ${topicsStr}\nCore Thesis: ${coreThesis}\n\nAvailable RSS Feeds:\n${formattedSources}` 
           }
-        }
-      } else {
-        const isValid = await this.checkRssValid(source.url);
-        if (isValid) {
-          validUrls.push(source.url);
-        }
-      }
-    }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      });
 
-    return validUrls;
+      const content = response.choices[0].message.content;
+      if (!content) return [];
+
+      const parsed = JSON.parse(content);
+      const urls = parsed.urls || [];
+      
+      if (!Array.isArray(urls)) return [];
+
+      const validUrls = await this.validateRssUrls(urls);
+      return validUrls;
+    } catch (err) {
+      console.error('[SourceDiscoverer] AI selection failed:', err);
+      return [];
+    }
   }
 
   private async validateRssUrls(urls: string[]): Promise<string[]> {
-    const validUrls: string[] = [];
-
-    for (const url of urls) {
-      const isValid = await this.checkRssValid(url);
-      if (isValid) {
-        validUrls.push(url);
-      }
-    }
-
-    return validUrls;
+    const results = await Promise.all(
+      urls.map(url => this.checkRssValid(url))
+    );
+    return urls.filter((_, i) => results[i]);
   }
 
   private async checkRssValid(url: string): Promise<boolean> {
@@ -189,7 +163,7 @@ export class SourceDiscoverer {
     }
   }
 
-  private async searchRssFeeds(persona: PersonaDesignResult, matchedCategories: string[]): Promise<string[]> {
+  private async searchRssFeeds(persona: PersonaDesignResult): Promise<string[]> {
     const client = await getDeepseekClientAsync();
     
     const queryResponse = await client.chat.completions.create({
@@ -213,13 +187,13 @@ export class SourceDiscoverer {
 
     if (!masterQuery) throw new Error("Invalid query format returned by AI.");
 
-    console.log(`🔍 [Tavily Search] Executing RSS discovery query: "${masterQuery}"`);
+    console.log(`[Tavily Search] Query: "${masterQuery}"`);
 
     const searchOptions: Record<string, any> = {
       api_key: this.tavilyApiKey,
       query: `${masterQuery}`,
       search_depth: "advanced",
-      max_results: 15,
+      max_results: TAVILY_MAX_RESULTS,
       include_domains: [],
       exclude_domains: [
         "medium.com", "forbes.com", "bloomberg.com", "techcrunch.com", 
@@ -248,7 +222,7 @@ export class SourceDiscoverer {
         if (url && (url.includes('/feed') || url.includes('/rss') || url.includes('.xml') || url.includes('/atom'))) {
           urls.push(url);
         } else if (url && this.isLikelyBlogHomepage(url)) {
-          const feedUrl = this.guessFeedUrl(url);
+          const feedUrl = await this.guessFeedUrl(url);
           if (feedUrl) {
             urls.push(feedUrl);
           }
@@ -269,38 +243,22 @@ export class SourceDiscoverer {
     }
   }
 
-  private guessFeedUrl(url: string): string | null {
+  private async guessFeedUrl(url: string): Promise<string | null> {
     try {
       const urlObj = new URL(url);
       const feedPaths = ['/feed', '/rss', '/feed.xml', '/rss.xml', '/atom.xml', '/feed/rss', '/blog/feed'];
       
       for (const path of feedPaths) {
         const feedUrl = `${urlObj.origin}${path}`;
-        return feedUrl;
+        if (await this.checkRssValid(feedUrl)) {
+          return feedUrl;
+        }
       }
       
       return null;
     } catch {
       return null;
     }
-  }
-
-  public getFallbackSources(topics: string[] = []): string[] {
-    const fallbacks = [
-      'https://lenny.substack.com/feed',
-      'https://tomtunguz.com/feed.xml',
-      'https://stratechery.com/feed/',
-    ];
-
-    if (topics.includes('product')) {
-      fallbacks.unshift('https://producttalk.org/feed');
-    }
-    if (topics.some(t => t.includes('india') || t.includes('indian'))) {
-      fallbacks.unshift('https://inc42.com/feed');
-      fallbacks.unshift('https://yourstory.com/feed');
-    }
-
-    return fallbacks;
   }
 }
 

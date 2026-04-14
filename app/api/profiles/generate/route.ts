@@ -43,33 +43,17 @@ export async function POST(request: NextRequest) {
     console.log(`🎨 [Phase 1] Designing psychological DNA for ${platform}...`);
     const generatedPersona = await personaDesigner.design(prompt, platform);
 
-    console.log(`🔍 [Phase 2] Discovering Trusted Domains via Tavily...`);
+    console.log(`🔍 [Phase 2] Discovering RSS sources from curated blog_sources...`);
     const discoveredUrls = await sourceDiscoverer.discoverSources(generatedPersona);
     
     // SHIELD: Cap the maximum domains at 5 so we don't blow up extraction costs later
     const finalSources = discoveredUrls.slice(0, 5);
 
-    // TOP-UP SAFETY NET: Ensure they always walk away with at least 3 trusted domains
-    if (finalSources.length < 3) {
-      console.log(`⚠️ Only ${finalSources.length} domains found. Topping up with high-signal fallbacks...`);
-      const fallbacks = sourceDiscoverer.getFallbackSources(generatedPersona.topics);
-      
-      for (const fb of fallbacks) {
-        if (finalSources.length >= 3) break; // Stop when we hit 3
-        
-        // Strip out the /feed or /rss from our old fallbacks to just get the base domain
-        try {
-          const cleanFb = new URL(fb).origin; 
-          if (!finalSources.includes(cleanFb)) {
-            finalSources.push(cleanFb);
-          }
-        } catch (e) {
-          // Ignore invalid URL formatting
-        }
-      }
+    if (finalSources.length === 0) {
+      console.log(`⚠️ No RSS sources found for this persona. Consider adding more sources to blog_sources table.`);
     }
 
-    console.log(`✅ Pipeline complete: Persona wired to ${finalSources.length} Trusted Domains.`);
+    console.log(`✅ Pipeline complete: Persona wired to ${finalSources.length} RSS sources.`);
 
     // Return generated data 
     // NOTE: We keep using the 'rss_sources' key in the JSON so we don't break your database schema

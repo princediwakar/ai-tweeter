@@ -1,7 +1,6 @@
 // lib/blogSourceService.ts
 // CRUD operations and matching for curated blog sources
 
-import { sql } from '@vercel/postgres';
 import { sqlWithRetry } from './db';
 
 export interface BlogSource {
@@ -38,20 +37,23 @@ function rowToBlogSource(row: any): BlogSource {
     url: row.url,
     feed_url: row.feed_url,
     category: row.category,
-    topics: row.topics || [],
+    topics: Array.isArray(row.topics) ? row.topics : [],
     source_type: row.source_type || 'general',
     is_active: row.is_active,
     created_at: row.created_at,
   };
 }
 
-export async function listBlogSources(params?: { category?: string; limit?: number }): Promise<BlogSource[]> {
+export async function listBlogSources(params?: {
+  category?: string;
+  limit?: number;
+}): Promise<BlogSource[]> {
   try {
     let query = 'SELECT * FROM blog_sources WHERE is_active = true';
     const values: any[] = [];
 
     if (params?.category) {
-      query += ' AND category = $1';
+      query += ` AND category = $${values.length + 1}`;
       values.push(params.category);
     }
 
@@ -70,7 +72,10 @@ export async function listBlogSources(params?: { category?: string; limit?: numb
   }
 }
 
-export async function findSourcesByCategory(category: string, limit = 10): Promise<BlogSource[]> {
+export async function findSourcesByCategory(
+  category: string,
+  limit = 10
+): Promise<BlogSource[]> {
   try {
     const result = await sqlWithRetry`
       SELECT * FROM blog_sources
@@ -85,19 +90,24 @@ export async function findSourcesByCategory(category: string, limit = 10): Promi
   }
 }
 
-export async function findSourcesByTopics(topics: string[], limit = 10): Promise<BlogSource[]> {
-  if (!topics || topics.length === 0) {
-    return [];
-  }
+// FIX 1: Cast the JS array to ::text[] so Postgres resolves the && operator correctly.
+// FIX 2: Removed the bogus `category = ANY(topics)` clause — category is a scalar column,
+//        not a member of the topics tag set. Topic matching is purely on the topics[] column.
+export async function findSourcesByTopics(
+  topics: string[],
+  limit = 10
+): Promise<BlogSource[]> {
+  if (!topics || topics.length === 0) return [];
 
   try {
-    const result = await sqlWithRetry`
-      SELECT * FROM blog_sources
-      WHERE is_active = true
-        AND (category = ANY(${topics}) OR topics && ${topics})
-      ORDER BY name ASC
-      LIMIT ${limit}
-    `;
+    const result = await sqlWithRetry.query(
+      `SELECT * FROM blog_sources
+       WHERE is_active = true
+         AND topics && $1::text[]
+       ORDER BY name ASC
+       LIMIT $2`,
+      [topics, limit]
+    );
     return result.rows.map(rowToBlogSource);
   } catch (error) {
     console.error('[BlogSource] Error finding by topics:', error);
@@ -105,23 +115,41 @@ export async function findSourcesByTopics(topics: string[], limit = 10): Promise
   }
 }
 
+// Combines topic-match with an optional category filter.
+// Topics take priority; category narrows the result set further when provided.
 export async function findSources(params: FindSourcesParams): Promise<BlogSource[]> {
-  const { topics, limit = 10 } = params;
+  const { category, topics, limit = 10 } = params;
 
   if (topics && topics.length > 0) {
+    if (category) {
+      // Both filters: topic overlap AND category match
+      try {
+        const result = await sqlWithRetry.query(
+          `SELECT * FROM blog_sources
+           WHERE is_active = true
+             AND topics && $1::text[]
+             AND category = $2
+           ORDER BY name ASC
+           LIMIT $3`,
+          [topics, category, limit]
+        );
+        return result.rows.map(rowToBlogSource);
+      } catch (error) {
+        console.error('[BlogSource] Error finding by topics+category:', error);
+        return [];
+      }
+    }
     return findSourcesByTopics(topics, limit);
   }
 
-  return listBlogSources({ limit });
+  return listBlogSources({ category, limit });
 }
 
 export async function findSourcesBySourceType(
-  sourceType: string, 
-  limit: number = 10
+  sourceType: string,
+  limit = 10
 ): Promise<BlogSource[]> {
-  if (!sourceType) {
-    return [];
-  }
+  if (!sourceType) return [];
 
   try {
     const result = await sqlWithRetry`
@@ -151,15 +179,23 @@ export async function getSourceById(id: string): Promise<BlogSource | null> {
   }
 }
 
-export async function createSource(input: CreateBlogSourceInput): Promise<BlogSource | null> {
+// FIX 3: Insert source_type and is_active explicitly.
+// Previously source_type was omitted — every created source silently got null
+// and fell back to the "general" default in rowToBlogSource, making source_type
+// filtering useless for programmatically created sources.
+export async function createSource(
+  input: CreateBlogSourceInput
+): Promise<BlogSource | null> {
   try {
     const id = crypto.randomUUID();
-    const topics = input.topics || [];
+    const topics = input.topics ?? [];
+    const sourceType = input.source_type ?? 'general';
 
-    await sqlWithRetry`
-      INSERT INTO blog_sources (id, name, url, feed_url, category, topics)
-      VALUES (${id}, ${input.name}, ${input.url}, ${input.feed_url}, ${input.category}, ${topics})
-    `;
+    await sqlWithRetry.query(
+      `INSERT INTO blog_sources (id, name, url, feed_url, category, topics, source_type, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6::text[], $7, true)`,
+      [id, input.name, input.url, input.feed_url, input.category, topics, sourceType]
+    );
 
     return getSourceById(id);
   } catch (error) {
@@ -174,42 +210,24 @@ export async function updateSource(
 ): Promise<BlogSource | null> {
   const setClauses: string[] = [];
   const values: any[] = [];
-  let paramIndex = 1;
+  let p = 1;
 
-  if (updates.name !== undefined) {
-    setClauses.push(`name = $${paramIndex++}`);
-    values.push(updates.name);
-  }
-  if (updates.url !== undefined) {
-    setClauses.push(`url = $${paramIndex++}`);
-    values.push(updates.url);
-  }
-  if (updates.feed_url !== undefined) {
-    setClauses.push(`feed_url = $${paramIndex++}`);
-    values.push(updates.feed_url);
-  }
-  if (updates.category !== undefined) {
-    setClauses.push(`category = $${paramIndex++}`);
-    values.push(updates.category);
-  }
-  if (updates.topics !== undefined) {
-    setClauses.push(`topics = $${paramIndex++}`);
-    values.push(updates.topics);
-  }
+  if (updates.name !== undefined)       { setClauses.push(`name = $${p++}`);        values.push(updates.name); }
+  if (updates.url !== undefined)        { setClauses.push(`url = $${p++}`);         values.push(updates.url); }
+  if (updates.feed_url !== undefined)   { setClauses.push(`feed_url = $${p++}`);    values.push(updates.feed_url); }
+  if (updates.category !== undefined)   { setClauses.push(`category = $${p++}`);    values.push(updates.category); }
+  if (updates.source_type !== undefined){ setClauses.push(`source_type = $${p++}`); values.push(updates.source_type); }
+  if (updates.topics !== undefined)     { setClauses.push(`topics = $${p++}::text[]`); values.push(updates.topics); }
 
-  if (setClauses.length === 0) {
-    return getSourceById(id);
-  }
+  if (setClauses.length === 0) return getSourceById(id);
 
   values.push(id);
 
   try {
-    const query = `
-      UPDATE blog_sources
-      SET ${setClauses.join(', ')}
-      WHERE id = $${paramIndex}
-    `;
-    await sqlWithRetry.query(query, values);
+    await sqlWithRetry.query(
+      `UPDATE blog_sources SET ${setClauses.join(', ')} WHERE id = $${p}`,
+      values
+    );
     return getSourceById(id);
   } catch (error) {
     console.error('[BlogSource] Error updating source:', error);
@@ -220,9 +238,7 @@ export async function updateSource(
 export async function deleteSource(id: string): Promise<boolean> {
   try {
     await sqlWithRetry`
-      UPDATE blog_sources
-      SET is_active = false
-      WHERE id = ${id}
+      UPDATE blog_sources SET is_active = false WHERE id = ${id}
     `;
     return true;
   } catch (error) {
@@ -255,13 +271,15 @@ export async function getAllCategories(): Promise<string[]> {
   }
 }
 
-export async function getCategoriesWithCounts(): Promise<{ category: string; count: number }[]> {
+export async function getCategoriesWithCounts(): Promise<
+  { category: string; count: number }[]
+> {
   try {
     const result = await sqlWithRetry`
-      SELECT category, COUNT(*) as count 
-      FROM blog_sources 
-      WHERE is_active = true 
-      GROUP BY category 
+      SELECT category, COUNT(*) as count
+      FROM blog_sources
+      WHERE is_active = true
+      GROUP BY category
       ORDER BY count DESC
     `;
     return result.rows.map((row) => ({

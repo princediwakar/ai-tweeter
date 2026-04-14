@@ -45,9 +45,6 @@ ${this.persona.description}
     if (userTopic && userTopicContext) {
       prompt += `USER REQUEST: Write a post about "${userTopic}"
 
-Here's some context from recent news about this topic:
-${userTopicContext}
-
 `;
     } else if (userTopic) {
       prompt += `USER REQUEST: Write a post about "${userTopic}"

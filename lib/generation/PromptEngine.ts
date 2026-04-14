@@ -123,7 +123,6 @@ YOUR JOB: Deeply internalize the facts. Then write the post as your own original
         formatRules,
         wantsImage: options.wantsImage,
         topic: options.topic,
-        userTopicContext: options.userTopicContext,
         previousHeadlines: options.previousHeadlines,
         usedSourceUrls: options.usedSourceUrls,
       });
@@ -155,7 +154,6 @@ YOUR JOB: Deeply internalize the facts. Then write the post as your own original
     formatRules: string[];
     wantsImage?: boolean;
     topic?: string;
-    userTopicContext?: string;
     previousHeadlines?: number[];
     usedSourceUrls?: string[];
   }): string {
@@ -176,15 +174,14 @@ YOUR JOB: Deeply internalize the facts. Then write the post as your own original
       formatRules,
       wantsImage,
       topic,
-      userTopicContext,
       previousHeadlines,
       usedSourceUrls,
     } = params;
     
     let prompt = `You are ${persona.name}. ${identityContext}\n\n${persona.description || ''}\n\n`;
     
-    if (topic && userTopicContext) {
-      prompt += `USER REQUEST: Write a post about "${topic}"\n\nHere's some context from recent developments:\n${userTopicContext}\n\n`;
+    if (topic) {
+      prompt += `USER REQUEST: Write a post about "${topic}"\n\n`;
     } else if (topic) {
       prompt += `USER REQUEST: Write a post about "${topic}"\n\n`;
     } else if (dataContext) {

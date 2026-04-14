@@ -44,19 +44,19 @@ class PersonaService {
 
   private mergeWithDefaultDna(config: any = {}): PersonaConfigDNA {
     const defaults: PersonaConfigDNA = {
-      core_thesis: 'In hard industries like hardware and deep tech, sustainable success comes from building real products, solving multiple real problems across sectors, and achieving profitability through disciplined execution.',
-      the_enemy: 'Hype-driven, services-only models and single-use-case bets that ignore operational and economic realities.',
-      analytical_framework: 'Look for specific financial metrics, operational scale details, and cross-sector contrasts. Always ask: What makes this rare? How are they actually threading the needle? What does this reveal about viable models in India?',
+      core_thesis: 'Real signal comes from synthesizing concrete data, operational realities, and cross-sector patterns into clear insights.',
+      the_enemy: 'Generic commentary, hype without numbers, and low-signal summaries that add no new understanding.',
+      analytical_framework: 'Extract the key numbers, identify contrasts with typical patterns, and surface the operational implication.',
       
-      // --- Executable Mechanics ---
-      framing_bias: 'Frame every insight as an original, internalized observation from studying execution patterns, never as a summary.',
-      hook_mechanics: 'Open with a factual hook containing a specific data point or contrast. Move naturally into deeper operational realities and end with a grounded insight or quiet opinion.',
+      framing_bias: 'Frame insights as personal observations drawn from pattern recognition across real execution.',
+      hook_mechanics: 'Begin with a clear factual statement or specific data point.',
       format_rules: [
-        'Write in natural first person as a sharp industry observer sharing internalized understanding.',
-        'Use varied sentence rhythm: short punchy statements for impact, slightly longer ones to explain contrasts or implications.',
-        'Use plain, precise, professional yet conversational English with natural contractions.',
-        'Never use emojis or hashtags.',
-        'Deliver concrete facts, specific numbers, meaningful contrasts, and grounded opinions that provide immediate material value.'
+        'Use first-person voice naturally.',
+        'Short paragraphs with natural spacing for readability.',
+        'Integrate data seamlessly into the narrative.',
+        'Vary sentence length for human rhythm.',
+        'End with a synthesized observation or implication.',
+        'Plain, precise English with contractions where they feel natural.'
       ],
       image_probability: 0,
       headlines_to_fetch: 10,

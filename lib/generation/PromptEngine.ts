@@ -48,26 +48,25 @@ export class PromptEngine {
     // Build DNA components from persona config
     const identityContext = String(pConfig.identity_context || pConfig.core_thesis || 'You are an AI content generator.');
     
-    // Strong default for source_logic - handles selection, transformation, and reference
+    // Strong default for source_logic - emphasizes deep internalization and original synthesis
     const defaultSourceLogic = `BEFORE DECIDING WHAT TO POST:
 Evaluate each article in the context (ARTICLE 1, 2, etc.):
-- Is it TIMELY (recent, not timeless generic advice)?
-- Is it SUBSTANTIVE (has data/insight, not just opinion)?
-- Is it WORTH STANDING BEHIND (would you post this under your name)?
+- Is it TIMELY and contains fresh data or operational insight?
+- Is it SUBSTANTIVE (contains measurable data, real examples, or mechanics worth analyzing)?
+- Is it WORTH STANDING BEHIND as your own insight?
 
 Only proceed if at least one article passes ALL THREE.
 If none pass, return: {"content": "No suitable material today."}
 
-YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter content.
+YOUR JOB: Read and deeply internalize the provided context. Synthesize it with your own operational expertise. Then produce a post that feels like your own original, high-signal insight.
 
-- WRITE AS YOUR OWN INSIGHT - not a summary of the article
-- Reader should get full value WITHOUT clicking any link
-- If link dies, post should still be valuable and make sense
-- NEVER say "this article", "this post", "the author", "according to"
-- If referencing, use specific name: "@lethain wrote..." or "Ben Thompson's analysis..."
-- The reader has NO IDEA there's a link - they only see your post
-- Would someone follow you based on this post alone?`;
-    
+- The post must read as if you personally analyzed the situation and drew this conclusion.
+- The reader must receive complete, standalone value — no need to click any link.
+- Never mention any article, source, author, or external reference.
+- Never say "this article", "according to", "I read", "key takeaway", or anything that implies external origin.
+- Write as a seasoned expert sharing distilled, data-backed understanding from experience.
+- The audience must feel they just received high-value, actionable material they can use immediately.`;
+
     const sourceLogic = String(pConfig.source_logic || defaultSourceLogic);
     const voiceDna = String(pConfig.voice_dna || pConfig.voice || 'Write in a clear, engaging voice.');
     const antiPatterns = String(pConfig.anti_patterns || 'Avoid generic filler words.');
@@ -205,7 +204,7 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
         prompt += `Do not use these articles again:\n${usedSourceUrls.map(url => `- ${url}`).join('\n')}\n`;
       }
     } else {
-      prompt += `No specific news provided. Draw on your general industry knowledge.\n\n`;
+      prompt += `No specific news provided. Draw on your general industry knowledge and operational expertise.\n\n`;
     }
     
     // Add psychological DNA if available
@@ -219,7 +218,7 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
     
-    prompt += `Write exactly like a real person would — short paragraphs, natural rhythm, first person. Mix short punchy sentences with slightly longer ones. Use contractions. Sound like you're texting a smart colleague who gets it.\n\n`;
+    prompt += `Write exactly like a real, experienced professional would — natural rhythm, first person, precise yet conversational. Mix short punchy sentences with slightly longer explanatory ones. Use contractions. Sound like you are sharing hard-won insight with a sharp colleague.\n\n`;
     
     if (framingBias) prompt += `Framing Bias: ${framingBias}\n`;
     if (hookMechanics) prompt += `Hook Mechanics: ${hookMechanics}\n`;
@@ -239,11 +238,11 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
     if (validationChecklist.length > 0) {
       prompt += validationChecklist.map((item: any) => `- ${String(item)}`).join('\n');
     } else {
-      prompt += `- Does this sound like something a real person would actually post?
-- READER HAS NO IDEA ABOUT ANY LINK - they only see this post
-- Would this post make sense if there was NO link attached?
-- Would someone follow you based on this post alone?
-- Does this give value WITHOUT requiring a click?`;
+      prompt += `- Does this sound like something a real expert with deep experience would actually post?
+- READER HAS NO IDEA ABOUT ANY LINK OR SOURCE - they only see your original insight
+- Would this post make complete sense and deliver full value if there was NO link attached?
+- Would someone follow you based on this post alone because of its substance and clarity?
+- Does this post contain high-signal, data-backed material that provides immediate value?`;
     }
     prompt += '\n\n';
     
@@ -256,10 +255,10 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
     prompt += `Output ONLY valid JSON. Nothing else.\n\n{\n`;
     
     if (coreThesis || theEnemy) {
-      prompt += `  "internal_monologue": "Your raw, unfiltered strategic analysis...",\n`;
+      prompt += `  "internal_monologue": "Your raw, unfiltered strategic analysis and synthesis of the material...",\n`;
     }
     prompt += `  "content": "The final text of the post to be published...",\n`;
-    prompt += `  "selected_url": "The exact URL of the article you chose to react to (if any)"`;
+    prompt += `  "selected_url": "The exact URL of the article you chose to internalize and synthesize (if any)"`;
     
     if (wantsImage) {
       prompt += `,\n  "cardData": {\n    "imagePrompt": "<short, vivid description for an image — max 200 characters>"\n  }`;
@@ -339,7 +338,7 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
     prompt += templateInstructions;
     
     prompt += `Follow these rules exactly:\n${sourceLogic}\n\n`;
-    prompt += `Write exactly like a real person would — short paragraphs, natural rhythm, first person.\n\n`;
+    prompt += `Write exactly like a real, experienced professional would — natural rhythm, first person, precise yet conversational.\n\n`;
     
     if (voiceDna) prompt += `${voiceDna}\n`;
     prompt += `\nNever do this:\n${antiPatterns}\n\n`;
@@ -354,12 +353,11 @@ YOUR JOB: Transform the selected article into standalone LinkedIn/Twitter conten
     
     prompt += `Output format:\n`;
     prompt += `Return a JSON array of ${threadCount} sequential tweets. Each tweet should:\n`;
-    prompt += `- Be a standalone post that makes sense WITHOUT any link context\n`;
-    prompt += `- Reader should get full value without clicking anything\n`;
+    prompt += `- Be a completely standalone post that makes sense WITHOUT any link context\n`;
+    prompt += `- Deliver full value to the reader without requiring them to click anything\n`;
     prompt += `- Be 100-280 characters each\n`;
-    prompt += `- Follow a logical narrative arc across the thread\n`;
-    prompt += `- Include relevant hashtags at the end of each tweet\n`;
-    prompt += `- NEVER reference "this article", "this post", "the author" - write as your own insight\n`;
+    prompt += `- Follow a logical narrative arc across the thread while remaining high-signal\n`;
+    prompt += `- NEVER reference any article, source, author, or external material - write entirely as your own synthesized insight\n`;
     
     if (validationChecklist.length > 0) {
       prompt += `\nValidation checklist:\n`;

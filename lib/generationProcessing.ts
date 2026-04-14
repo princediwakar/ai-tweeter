@@ -46,42 +46,91 @@ export async function generatePostPrompt(
     throw new Error("Invalid persona specified or found in database");
   }
 
+  // Determine platform - default to twitter
+  const platform = (account?.platform || 'twitter') as 'twitter' | 'linkedin';
+  
   // Use the Jina/Tavily extracted text (passed in via config from the Cron/Trigger)
   const sourceContext = config.sourceContext || "";
   const pConfig = (persona.config as Record<string, any>) || {};
 
-  // 2. The Colleague Test Prompt
-  // New authentic prompt: "Would I forward this to a colleague who would judge me?"
-  const sourceType = pConfig.source_type || 'general';
+  // Build Persona Context - include full description and key config fields
   const formatRules = Array.isArray(pConfig.format_rules) 
     ? pConfig.format_rules.join(' | ') 
-    : 'Short paragraphs. Natural English. No hashtags.';
+    : 'Write in first person. Short paragraphs. Plain English. No emojis or hashtags.';
 
-  const prompt = `You are a ${pConfig.core_thesis || 'professional'} who reads industry news daily. 
-You have limited time and zero patience for fluff.
+  const hookMechanics = pConfig.hook_mechanics || 'Open with a bold statement or counterintuitive insight. No rhetorical questions.';
+  const framingBias = pConfig.framing_bias || '';
+  const theEnemy = pConfig.the_enemy || '';
+  const analyticalFramework = pConfig.analytical_framework || '';
+  const sourceLogic = pConfig.source_logic || '';
+  const antiPatterns = pConfig.anti_patterns || '';
 
-PLATFORM: Twitter (punchy, 140-280 chars, one clear insight)
-ALTERNATIVE: LinkedIn (thoughtful paragraphs, 800-2000 chars)
+  // Platform-specific constraints
+  const platformConstraints = platform === 'twitter' 
+    ? `Twitter: MAX 240 characters. One clear, standalone take. No threads. No paragraphs.`
+    : `LinkedIn: 800-1200 characters. Professional but authentic. 2-3 paragraphs with specific examples.`;
+
+  // Voice refinement from persona description
+  const voiceDirectives = persona.description ? `
+VOICE REFERRALS FROM YOUR PROFILE:
+- You sound like a battle-tested operator who's been in the trenches
+- Use words like: execution, signal, leverage, system, outcome, operator, build, ship, metric, founder
+- Avoid: game-changer, revolutionary, disrupt, hustle, grind, thought leader, viral, hype
+- Never sound like an advice thread or thought leader
+- Be direct, pragmatic, outcome-driven` : '';
+
+  // Build comprehensive persona context
+  const personaContext = persona.description 
+    ? `PERSONA: ${persona.name}
+
+${persona.description}
+
+KEY DIRECTIVES:
+- Hook style: ${hookMechanics}
+- Framing bias: ${framingBias}
+- What to fight: ${theEnemy}
+- How to analyze: ${analyticalFramework}
+- Source transformation: ${sourceLogic}
+- What to avoid: ${antiPatterns}
+- Format rules: ${formatRules}${voiceDirectives}`
+    : `PERSONA: ${persona.name || 'Professional'}
+Core thesis: ${pConfig.core_thesis || 'Share useful insights'}
+Enemy: ${pConfig.the_enemy || 'Vanity metrics'}
+Hook: ${hookMechanics}
+Format: ${formatRules}${voiceDirectives}`;
+
+  const prompt = `${personaContext}
+
+PLATFORM: ${platformConstraints}
+
+CRITICAL INSTRUCTIONS:
+1. Write as YOUR personal take, not a summary or advice
+2. Sound like ONE specific person, not a generic advisor
+3. Include a concrete observation or specific example
+4. Make it feel fresh, not recycled content
 
 YOUR TASK - The Colleague Test:
-Would you forward this article to a smart coworker who'd judge you for wasting their time?
-If yes: Write what you'd post - make it genuinely useful.
+Would you forward this to a smart colleague who'd judge you for wasting their time?
+If yes: Write what YOU would post - make it genuinely useful and in YOUR voice.
 If no: Skip it entirely.
 
-CONTEXT - Articles from your domain:
-${sourceContext ? sourceContext : 'No articles available. Skip.'}
+CONTEXT - Content to potentially share:
+${sourceContext ? sourceContext : 'No content available. Skip.'}
 
 STRICT RULES:
+- Write in YOUR voice, not as a summary
+- Never say "this article", "this post", "according to"
 - Never start with "Here's my take" or "I think"
 - Never share personal journey ("I built this")
-- Write like you're sending to a Slack channel of professionals
+- No generic advice language ("most people", "the real", "focus on")
+- Content must be ORIGINAL take, not rehash
 - ${formatRules}
 
 OUTPUT - Return ONLY valid JSON:
 {
   "decision": "share" | "skip",
-  "selected_url": "The article URL (if sharing)",
-  "content": "Your post text (if sharing)",
+  "selected_url": "The source URL (if sharing)",
+  "content": "Your original take (if sharing)",
   "skip_reason": "Why nothing was worth sharing (if skipping)"
 }`;
 

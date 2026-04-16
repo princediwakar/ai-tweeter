@@ -1,6 +1,9 @@
 // lib/services/personaDesigner.ts
 //
 // Two-phase persona design:
+
+const MAX_RETRIES = 2;
+const BASE_BACKOFF_MS = 2000;
 //   Phase 1 — Identity & Voice: name, description, tone, topics
 //   Phase 2 — DNA & Mechanics: core_thesis, the_enemy, analytical_framework, etc.
 //
@@ -250,7 +253,45 @@ interface Phase2Result {
   anti_patterns: string;
 }
 
-// ─── Designer Class ───────────────────────────────────────────────────────────
+// ─── Helper: Retry with backoff ────────────────────────────────────────
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  operationName: string
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      const isRetryable =
+        lastError.message.includes("504") ||
+        lastError.message.includes("timeout") ||
+        lastError.message.includes("ETIMEDOUT") ||
+        lastError.message.includes("network") ||
+        lastError.message.includes("rate_limit");
+
+      if (isRetryable && attempt < MAX_RETRIES) {
+        const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt);
+        console.warn(
+          `[Retry] ${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), ` +
+            `retrying in ${backoffMs}ms: ${lastError.message}`
+        );
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      } else if (!isRetryable) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw new Error(
+    `${operationName} failed after ${MAX_RETRIES + 1} attempts: ${lastError?.message}`
+  );
+}
+
+// ─── Designer Class ──────────────────��────────────────────────────────────────
 
 export class PersonaDesigner {
   async design(
@@ -263,22 +304,26 @@ export class PersonaDesigner {
     // Lower temperature (0.4) for structured JSON compliance.
     // The description field will still be expressive because the instructions are expressive.
 
-    const phase1Response = await client.chat.completions.create({
-      model: "deepseek-chat",
-      max_tokens: 1200,
-      temperature: 0.4,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: PHASE_1_SYSTEM_PROMPT(platform) },
-        {
-          role: "user",
-          content: `Design a ${platform} persona for this goal: ${prompt}
+    const phase1Response = await withRetry(
+      () =>
+        client.chat.completions.create({
+          model: "deepseek-chat",
+          max_tokens: 1200,
+          temperature: 0.4,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: PHASE_1_SYSTEM_PROMPT(platform) },
+            {
+              role: "user",
+              content: `Design a ${platform} persona for this goal: ${prompt}
           
 The persona should feel like a real practitioner in this space — someone whose posts you'd 
 forward to a colleague, not someone you'd scroll past.`,
-        },
-      ],
-    });
+            },
+          ],
+        }),
+      "Phase 1"
+    );
 
     const phase1Raw = phase1Response.choices[0].message.content;
     if (!phase1Raw) throw new Error("Phase 1 returned no content.");
@@ -297,16 +342,18 @@ forward to a colleague, not someone you'd scroll past.`,
     // Phase 2 gets the Phase 1 output as context so fields are grounded in
     // the specific persona, not generated generically.
 
-    const phase2Response = await client.chat.completions.create({
-      model: "deepseek-chat",
-      max_tokens: 1400,
-      temperature: 0.35,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: PHASE_2_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Complete the operational DNA for this ${platform} persona:
+    const phase2Response = await withRetry(
+      () =>
+        client.chat.completions.create({
+          model: "deepseek-chat",
+          max_tokens: 1400,
+          temperature: 0.35,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: PHASE_2_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: `Complete the operational DNA for this ${platform} persona:
 
 NAME: ${phase1.name}
 DESCRIPTION: ${phase1.description}
@@ -315,9 +362,11 @@ TOPICS: ${phase1.topics.join(", ")}
 
 Generate the DNA fields that are specific to this persona's industry, beliefs, and voice.
 Do not produce generic fields — every answer must be grounded in the specific identity above.`,
-        },
-      ],
-    });
+            },
+          ],
+        }),
+      "Phase 2"
+    );
 
     const phase2Raw = phase2Response.choices[0].message.content;
     if (!phase2Raw) throw new Error("Phase 2 returned no content.");

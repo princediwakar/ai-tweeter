@@ -2,13 +2,20 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, UserCheck, LayoutTemplate, Newspaper } from 'lucide-react';
 import { Persona, PersonaEditorProps, EditablePersona, ScheduleFormData, PersonaSchedule } from './types';
 import { getDefaultEditablePersona } from './utils';
 import PersonaForm from './PersonaForm';
 import ScheduleDialog from './ScheduleDialog';
 import DeleteConfirmDialog from './DeleteConfirmDialog';
 import { getDisplayUsername } from '@/lib/linkedin';
+
+const PREDEFINED_OPTIONS = [
+  { id: 'saas_operator', title: 'The SaaS Operator', desc: 'Pragmatic, growth-focused, execution-oriented' },
+  { id: 'developer', title: 'The Builder / Engineer', desc: 'Technical, fast-moving, authentic' },
+  { id: 'marketer', title: 'The Growth Marketer', desc: 'Psychology, unit economics, engaging' },
+  { id: 'data_scientist', title: 'The AI/Data Engineer', desc: 'Analytical, anti-hype, grounded' },
+];
 
 interface ExtendedPersonaEditorProps extends PersonaEditorProps {
   onAccountChange?: (accountId: string) => void;
@@ -24,6 +31,9 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   const [loading, setLoading] = useState(true);
   
   const [prompt, setPrompt] = useState('');
+  const [mode, setMode] = useState<'predefined' | 'custom'>('predefined');
+  const [selectedPredefined, setSelectedPredefined] = useState<string>('saas_operator');
+  const [includeRss, setIncludeRss] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [generatedPreview, setGeneratedPreview] = useState<EditablePersona | null>(null);
@@ -86,7 +96,7 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
   }, [editingPersona]);
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || prompt.length < 10 || generationInProgress.current) {
+    if ((mode === 'custom' && (!prompt.trim() || prompt.length < 10)) || generationInProgress.current) {
       return;
     }
     
@@ -99,10 +109,12 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          prompt: prompt.trim(),
+          prompt: mode === 'custom' ? prompt.trim() : '',
           connected_account_id: currentAccountId,
           platform: currentPlatform,
-          account_name: currentAccountName
+          account_name: currentAccountName,
+          predefined_key: mode === 'predefined' ? selectedPredefined : undefined,
+          include_rss: mode === 'custom' ? includeRss : false,
         }),
       });
       
@@ -365,29 +377,97 @@ export default function PersonaEditor(props: ExtendedPersonaEditorProps) {
           )}
           
           <p className="text-sm text-zinc-600 mb-4">
-            Describe what kind of content you want to post. The AI will create a custom persona tailored to your goals.
+            Describe what kind of content you want to post, or pick a predefined template.
           </p>
           
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={currentPlatform === 'linkedin' 
-              ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
-              : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
-            }
-            className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white text-zinc-900"
-            rows={3}
-            disabled={isGenerating}
-          />
+          {/* Tabs */}
+          <div className="flex p-1 space-x-1 bg-zinc-100/80 rounded-xl mb-4 max-w-sm">
+            <button
+              onClick={() => setMode('predefined')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                mode === 'predefined' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50' : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              Templates (Fast)
+            </button>
+            <button
+              onClick={() => setMode('custom')}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${
+                mode === 'custom' ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/50' : 'text-zinc-500 hover:text-zinc-700'
+              }`}
+            >
+              Custom Persona
+            </button>
+          </div>
+
+          {mode === 'predefined' ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PREDEFINED_OPTIONS.map(opt => (
+                  <div
+                    key={opt.id}
+                    onClick={() => setSelectedPredefined(opt.id)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                      selectedPredefined === opt.id 
+                        ? 'border-zinc-900 bg-zinc-50 ring-1 ring-zinc-900 shadow-sm' 
+                        : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <UserCheck className={`h-4 w-4 ${selectedPredefined === opt.id ? 'text-zinc-900' : 'text-zinc-400'}`} />
+                      <span className="font-semibold text-zinc-900 text-sm">{opt.title}</span>
+                    </div>
+                    <p className="text-xs text-zinc-500 leading-relaxed">{opt.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400 pt-1 flex items-center gap-1.5">
+                <LayoutTemplate className="h-3 w-3" /> Pre-built templates generate content based on past memory and core thesis.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder={currentPlatform === 'linkedin' 
+                  ? "e.g., I want to share insights about AI product development, leadership lessons, and industry trends for professionals..."
+                  : "e.g., I want to post about AI news, tech startups, and productivity tips for founders..."
+                }
+                className="w-full px-4 py-3 border border-zinc-300 rounded-lg focus:ring-2 focus:ring-zinc-900 focus:border-transparent bg-white text-zinc-900 text-sm resize-none h-24"
+                disabled={isGenerating}
+              />
+              
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-zinc-200 bg-white cursor-pointer hover:bg-zinc-50/50 transition-colors">
+                <div className="flex items-center mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={includeRss}
+                    onChange={(e) => setIncludeRss(e.target.checked)}
+                    className="w-4 h-4 text-zinc-900 bg-zinc-100 border-zinc-300 rounded focus:ring-zinc-900 focus:ring-2"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-zinc-900 flex items-center gap-1.5">
+                    <Newspaper className="h-3.5 w-3.5 text-zinc-500" />
+                    Include Industry News & RSS
+                  </span>
+                  <span className="text-xs text-zinc-500">
+                    Automatically finds RSS feeds. Generation takes ~30 seconds longer.
+                  </span>
+                </div>
+              </label>
+            </div>
+          )}
           
-            <div className="mt-4 flex items-center justify-between">
+            <div className="mt-6 flex items-center justify-between">
               <span className="text-xs text-zinc-500">
-                {prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to go'}
+                {mode === 'custom' && prompt.length < 10 ? 'Minimum 10 characters' : 'Ready to customize'}
               </span>
               <button
                 type="button"
                 onClick={handleGenerate}
-                disabled={isGenerating || prompt.trim().length < 10}
+                disabled={isGenerating || (mode === 'custom' && prompt.trim().length < 10)}
                 className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg font-medium hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
               >
                 {isGenerating ? (

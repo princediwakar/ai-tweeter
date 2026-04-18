@@ -5,12 +5,15 @@ import {
 } from "./services/personaDesigner";
 import { personaService, CreatePersonaInput } from "./personaService";
 import { sourceDiscoverer } from "./services/sourceDiscoverer";
+import { PREDEFINED_PERSONAS } from "./predefinedPersonas";
 
 export interface GenerationRequest {
   prompt: string;
   connectedAccountId: string;
   platform: "twitter" | "linkedin";
   regenerationCount?: number;
+  predefinedKey?: string;
+  includeRss?: boolean;
 }
 
 export interface PersonaGenerationResult {
@@ -101,7 +104,17 @@ export function getFallbackPersona(
 export async function generatePersona(
   request: GenerationRequest,
 ): Promise<PersonaGenerationResult> {
-  const { prompt, platform, regenerationCount = 0 } = request;
+  const { prompt, platform, regenerationCount = 0, predefinedKey, includeRss = true } = request;
+
+  if (predefinedKey && PREDEFINED_PERSONAS[predefinedKey]) {
+    console.log(`[Persona Generation] Using predefined persona: ${predefinedKey}`);
+    const preset = PREDEFINED_PERSONAS[predefinedKey];
+    return {
+      ...preset,
+      min_length: platform === "linkedin" ? 600 : 140,
+      max_length: platform === "linkedin" ? 2200 : 280,
+    };
+  }
 
   if (!prompt || prompt.trim().length === 0) {
     return getFallbackPersona(platform);
@@ -118,11 +131,15 @@ export async function generatePersona(
       platform,
     );
 
-    console.log(
-      `[Phase 2] Executing programmatic source discovery based on DNA...`,
-    );
-    const discoveredSources =
-      await sourceDiscoverer.discoverSources(designResult);
+    let discoveredSources: string[] = [];
+    if (includeRss) {
+      console.log(
+        `[Phase 2] Executing programmatic source discovery based on DNA...`,
+      );
+      discoveredSources = await sourceDiscoverer.discoverSources(designResult);
+    } else {
+      console.log(`[Phase 2] Skipping programmatic source discovery (includeRss is false).`);
+    }
 
     return {
       name: designResult.name,

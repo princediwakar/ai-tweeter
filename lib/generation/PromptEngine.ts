@@ -46,7 +46,8 @@ const PLATFORM_RULES = {
 - Line breaks are your friend — use a blank line between the hook and the payoff.
 - Numbers go naked: "37%" not "thirty-seven percent".
 - Never start with "I" — start with the observation, the number, or the contrast.
-- No hashtags. No emojis. They signal "content creator", not "operator".`,
+- No hashtags. No emojis. They signal "content creator", not "operator".
+- Speak to an intelligent audience. Do not sound preachy, arrogant, or like a "guru".`,
   },
   linkedin: {
     singleMax: 2200,
@@ -60,7 +61,8 @@ const PLATFORM_RULES = {
 - No corporate language. No "I'm excited to share." No "In today's fast-paced world."
 - No bullet lists unless you're listing 4+ concrete items and prose would hide them.
 - End with one synthesized observation — not a question, not a CTA, not "thoughts?"
-- Numbers, company names, and specific outcomes are mandatory. Vague is worthless.`,
+- Numbers, company names, and specific outcomes are mandatory. Vague is worthless.
+- Speak to an intelligent audience. Do not sound preachy, arrogant, or like a "guru".`,
   },
 };
 
@@ -88,9 +90,9 @@ Score each item. If nothing scores above 2/4, output exactly: {"content": "NO_SU
 PHASE 2 — SYNTHESIS (the real work)
 Take the highest-scoring item. Now do this:
   1. Extract the single most material data point or contrast.
-  2. Ask: what does this actually mean for someone operating in this space?
-  3. Ask: what would most observers miss or under-weight about this?
-  4. Ask: what have I seen across other data points that makes this more or less surprising?
+  2. Ask: how does this translate to a real-world use case or a highly practical application?
+  3. Ask: what lesser-known tip or advanced shortcut can I share around this that will blow my audience's mind?
+  4. If dealing with insights, ask: how can I connect the dots between data points, companies, or competitors to give enormous value?
   5. Now set the source aside entirely. You are no longer reacting to it — you have internalized it.
 
 PHASE 3 — WRITE AS THE EXPERT
@@ -156,7 +158,17 @@ Now more than ever, it's important to stay ahead of the curve."
 BAD — source-citing (never do this):
 "According to a recent McKinsey study, 73% of executives report... This shows that..."
 
+BAD — preachy / cocky guru voice (never do this):
+"Every founder I talk to is obsessing over X."
+"Everyone I see is doing Y wrong."
+"Here's the brutal truth about Z..."
+
 GOOD — what you actually produce:
+Just tell the damn thing without being preachy. Present the insight neutrally, clearly, and understandably.
+Focus entirely on delivering enormous value: mind-blowing advanced shortcuts, real-world use cases, lesser-known tips, or connecting the dots between companies and competitors.
+Speak to an intelligent audience as an equal, without sounding cocky, arrogant, or preachy.
+It's great to add a touch of natural humor or wit once in a while if it fits the context.
+Use extensive line breaks and simple, readable language if explaining a concept.
 A specific number. A concrete contrast. A non-obvious operational implication. 
 Written in first person as lived insight, not as commentary on external information.
 The reader learns something. They don't know where you got it. They assume you know your space.
@@ -553,6 +565,7 @@ Post 5 (METRIC): The one number that tells you whether you're winning.`,
 - Data is distributed across the thread — don't front-load all numbers in post 1.
 - The thread should accelerate: each post more specific and more valuable than the last.
 - Post ${threadCount} is the sharpest thing in the thread. It earns the read-through.
+- Speak to an intelligent audience as an equal. Do not sound preachy, arrogant, or like a "guru".
 - ${PLATFORM_RULES[platform === "linkedin" ? "twitter" : platform].formatNote.split("\n")[0]}
 `;
 

@@ -99,15 +99,21 @@ Enemy: ${pConfig.the_enemy || 'Vanity metrics'}
 Hook: ${hookMechanics}
 Format: ${formatRules}${voiceDirectives}`;
 
+  const memoryContext = config.recentPatterns && config.recentPatterns.length > 0
+    ? `\nYOUR RECENT PAST POSTS (DO NOT REPEAT THESE TOPICS/IDEAS):\n${config.recentPatterns.map((p, i) => `${i+1}. ${p.content.substring(0, 150)}...`).join('\n')}`
+    : '\nYOUR RECENT PAST POSTS: None yet.';
+
   const prompt = `${personaContext}
 
 PLATFORM: ${platformConstraints}
+${memoryContext}
 
 CRITICAL INSTRUCTIONS:
 1. Write as YOUR personal take, not a summary or advice
 2. Sound like ONE specific person, not a generic advisor
 3. Include a concrete observation or specific example
 4. Make it feel fresh, not recycled content
+5. DO NOT repeat topics, themes, or specific wording from YOUR RECENT PAST POSTS.
 
 YOUR TASK - The Colleague Test:
 Would you forward this to a smart colleague who'd judge you for wasting their time?
@@ -115,7 +121,7 @@ If yes: Write what YOU would post - make it genuinely useful and in YOUR voice.
 If no: Skip it entirely.
 
 CONTEXT - Content to potentially share:
-${sourceContext ? sourceContext : 'No content available. Skip.'}
+${sourceContext ? sourceContext : 'No external content provided. Generate a standalone, completely original thought based on your persona, beliefs, and topics. Pick an unaddressed angle from your expertise.'}
 
 STRICT RULES:
 - Write in YOUR voice, not as a summary
@@ -126,24 +132,19 @@ STRICT RULES:
 - Content must be ORIGINAL take, not rehash
 - ${formatRules}
 
-SKIP CRITERIA - Reject if ANY of these apply:
+SKIP CRITERIA - Reject if ANY of these apply (UNLESS generating a standalone thought due to no external content):
 - TOO SHORT: Content < 500 characters (not enough substance to be useful)
 - PERSONAL PROJECT: Author is writing about their own product, service, or launch
   Red flags: "I built", "we launched", "announcing my", "introducing our", "check out", "try my"
 - GENERIC ADVICE: Fluff without specifics
-  Red flags: "most people", "the real truth", "you should", "just", "stop"
-- ANNOUNCEMENT: Just promoting something
-  Red flags: "introducing", "launching", "announcing", "new product", "excited to share"
-- LISTICLE: "X ways to", "X tips", "X things you need"
-- SELF-PROMO: Author's personal journey, tutorial on their own tool
 - NO ORIGINAL INSIGHT: Just a summary or rehash of known information
-- LOW SIGNAL: No specific data, examples, or concrete takeaways
+- REPEATING PAST POSTS: The core idea is too similar to one of YOUR RECENT PAST POSTS.
 
 OUTPUT - Return ONLY valid JSON:
 {
   "decision": "share" | "skip",
-  "selected_url": "The source URL (if sharing)",
-  "content": "Your original take (if sharing)",
+  "selected_url": "The source URL (if sharing external content, empty string if standalone)",
+  "content": "Your original take (if sharing or standalone)",
   "skip_reason": "Why nothing was worth sharing (if skipping)"
 }`;
 

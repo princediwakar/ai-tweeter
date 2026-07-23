@@ -100,7 +100,7 @@ Hook: ${hookMechanics}
 Format: ${formatRules}${voiceDirectives}`;
 
   const memoryContext = config.recentPatterns && config.recentPatterns.length > 0
-    ? `\nYOUR RECENT PAST POSTS (DO NOT REPEAT THESE TOPICS/IDEAS):\n${config.recentPatterns.map((p, i) => `${i+1}. ${p.content.substring(0, 150)}...`).join('\n')}`
+    ? `\nYOUR RECENT PAST POSTS (DO NOT REPEAT THESE TOPICS/IDEAS):\n${config.recentPatterns.map((p, i) => `${i+1}. ${p.text.substring(0, 150)}...`).join('\n')}`
     : '\nYOUR RECENT PAST POSTS: None yet.';
 
   const prompt = `${personaContext}

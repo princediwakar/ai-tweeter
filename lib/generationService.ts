@@ -15,6 +15,11 @@ import { getRecentPatternData } from "./db";
 import { buildGenerationContext } from "./generation/ContextBuilder";
 import { promptEngine } from "./generation/PromptEngine";
 
+import { nextPostPlanner } from './brandEngine/NextPostPlanner';
+import { brandPromptBuilder } from './brandEngine/BrandPromptBuilder';
+import { brandConsistencyCheck } from './brandEngine/BrandConsistencyCheck';
+import { brandProfileService } from './brandEngine/BrandProfileService';
+
 // Lazy initialization of the client with thread-safe pattern
 let deepseekClientInstance: OpenAI | null = null;
 let clientInitPromise: Promise<OpenAI> | null = null;
@@ -388,4 +393,95 @@ export async function generateEngagementReply(
     console.error("[Generator] Error generating AI reply:", error);
     return null;
   }
+}
+
+export async function generateBrandPost(
+  brandProfileId: string,
+  persona: import("./personas").Persona,
+  platform: 'twitter' | 'linkedin',
+  externalContext: string = ''
+): Promise<{ post: EnhancedPost; metadata: any } | null> {
+  // 1. Plan the post
+  const plan = await nextPostPlanner.plan(brandProfileId, platform);
+  if (!plan) {
+    console.warn(`[BrandEngine] No post plan could be generated for ${brandProfileId}`);
+    return null;
+  }
+
+  // 2. Build the prompt
+  let prompt = brandPromptBuilder.build(plan, persona, externalContext);
+
+  // 3. Check Circuit Breaker
+  if (!shouldAllowRequest()) {
+    console.warn(`[CircuitBreaker] Open - failing fast for brand ${brandProfileId}`);
+    return null;
+  }
+
+  // 4. Generate with Retries (for consistency failures)
+  const client = await getDeepseekClientAsync();
+  let content = '';
+  let parsed = null;
+  let retries = 2;
+
+  while (retries >= 0) {
+    try {
+      const response = await client.chat.completions.create({
+        model: GENERATION_CONFIG.ai.model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: GENERATION_CONFIG.ai.temperature,
+        response_format: { type: "json_object" },
+      });
+      recordSuccess();
+
+      const raw = response.choices[0].message.content;
+      if (!raw) throw new Error("AI returned no content.");
+      
+      parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
+      content = parsed.content;
+
+      // 5. Check Consistency
+      const check = await brandConsistencyCheck.validate(content, plan.brand_profile, plan);
+      if (check.pass) {
+        break;
+      } else {
+        console.warn(`[BrandEngine] Consistency check failed: ${check.violations.join(', ')}. Retries left: ${retries}`);
+        retries--;
+        if (retries < 0) {
+           console.error(`[BrandEngine] Failed to generate consistent post after retries.`);
+           return null;
+        }
+        // Provide feedback for retry
+        prompt += `\n\nYOUR PREVIOUS ATTEMPT FAILED BRAND CONSISTENCY:\n${check.violations.join('\n')}\n\nFIX THESE ISSUES IN YOUR NEXT RESPONSE.`;
+      }
+    } catch (e) {
+      recordFailure();
+      console.error(`[BrandEngine] Generation attempt failed:`, e);
+      if (retries === 0) return null;
+      retries--;
+      // Wait before retry
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  if (!parsed || !content) return null;
+
+  return {
+    post: {
+      content: content,
+      persona: persona.key,
+      contentType: 'single_tweet',
+      hashtags: [],
+      engagementHooks: []
+    },
+    metadata: {
+      brand_profile_id: brandProfileId,
+      pillar_id: plan.pillar.id,
+      calendar_id: plan.calendar_entry_id,
+      target_audience: plan.target_audience,
+      narrative_tags: parsed.narrative_tags || [],
+      theme_summary: parsed.theme_summary || '',
+      source_url: parsed.selected_url || undefined,
+      platform: platform
+    }
+  };
 }

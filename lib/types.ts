@@ -190,6 +190,14 @@ export interface Post {
   card_data?: string | null;
   source_url?: string | null;
   
+  // Brand Engine extensions
+  brand_profile_id?: string | null;
+  pillar_id?: string | null;
+  calendar_id?: string | null;
+  target_audience?: string | null;
+  narrative_tags?: string[] | null;
+  theme_summary?: string | null;
+
   // Legacy camelCase aliases (for backward compat)
   postedAt?: Date | undefined;
   errorMessage?: string | undefined;

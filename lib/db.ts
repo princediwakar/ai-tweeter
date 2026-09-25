@@ -291,7 +291,8 @@ export async function savePost(tweet: Post): Promise<void> {
         id, connected_account_id, content, hashtags, persona, status, created_at,
         posted_at, error_message, image_url,
         thread_id, thread_sequence, content_type,
-        image_status, card_data, source_url, schedule_id, persona_id
+        image_status, card_data, source_url, schedule_id, persona_id,
+        brand_profile_id, pillar_id, calendar_id, target_audience, narrative_tags, theme_summary
       ) VALUES (
         ${tweet.id},
         ${tweet.connected_account_id},
@@ -310,7 +311,13 @@ export async function savePost(tweet: Post): Promise<void> {
         ${tweet.card_data || null},
         ${tweet.source_url || null},
         ${tweet.schedule_id || null},
-        ${tweet.persona_id || null}
+        ${tweet.persona_id || null},
+        ${tweet.brand_profile_id || null},
+        ${tweet.pillar_id || null},
+        ${tweet.calendar_id || null},
+        ${tweet.target_audience || null},
+        ${tweet.narrative_tags ? JSON.stringify(tweet.narrative_tags) : null},
+        ${tweet.theme_summary || null}
       )
       ON CONFLICT (id)
       DO UPDATE SET
@@ -329,7 +336,13 @@ export async function savePost(tweet: Post): Promise<void> {
         card_data = EXCLUDED.card_data,
         source_url = EXCLUDED.source_url,
         schedule_id = EXCLUDED.schedule_id,
-        persona_id = EXCLUDED.persona_id;
+        persona_id = EXCLUDED.persona_id,
+        brand_profile_id = EXCLUDED.brand_profile_id,
+        pillar_id = EXCLUDED.pillar_id,
+        calendar_id = EXCLUDED.calendar_id,
+        target_audience = EXCLUDED.target_audience,
+        narrative_tags = EXCLUDED.narrative_tags,
+        theme_summary = EXCLUDED.theme_summary;
     `;
     
   } catch (error) {

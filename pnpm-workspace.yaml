@@ -1,6 +1,14 @@
-onlyBuiltDependencies:
-  - bufferutil
-  - canvas
-  - protobufjs
-  - sharp
-  - unrs-resolver
+allowBuilds:
+  bufferutil: true
+  bufferutil@4.1.0: true
+  canvas: true
+  canvas@3.2.3: true
+  protobufjs: true
+  protobufjs@7.5.4: true
+  sharp: true
+  sharp@0.34.5: true
+  unrs-resolver: true
+  unrs-resolver@1.11.1: true
+minimumReleaseAgeExclude:
+  - baseline-browser-mapping@2.11.26
+  - dotenv@18.0.4

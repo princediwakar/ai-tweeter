@@ -100,22 +100,21 @@ export default function ReviewStep({
         
         <div className="pt-4 space-y-3">
           <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
-            <Target className="h-3.5 w-3.5" /> Content Pillars
+            <Target className="h-3.5 w-3.5" /> Sample Live Drafts
           </label>
-          <div className="space-y-2">
-            {brandProfile.pillars.map((pillar, i) => (
-              <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border border-zinc-100 bg-zinc-50/50 gap-2">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-zinc-200 flex items-center justify-center text-xs font-bold text-zinc-700 shrink-0">
-                    {pillar.proportion}%
-                  </div>
-                  <div>
-                    <span className="font-semibold text-sm text-zinc-900 block">{pillar.name}</span>
-                    <span className="text-xs text-zinc-500 block truncate max-w-[200px] sm:max-w-xs">{pillar.description}</span>
-                  </div>
+          <p className="text-xs text-zinc-500 mb-4">If we were running your account today, here is what we would post.</p>
+          <div className="space-y-4">
+            {brandProfile.sample_posts && brandProfile.sample_posts.length > 0 ? (
+              brandProfile.sample_posts.map((post: string, i: number) => (
+                <div key={i} className="p-4 rounded-xl border border-zinc-200 bg-white shadow-sm hover:border-zinc-300 transition-colors">
+                  <p className="text-sm text-zinc-800 whitespace-pre-wrap">{post}</p>
                 </div>
+              ))
+            ) : (
+              <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-zinc-500 italic">
+                No sample posts generated. Please try again.
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

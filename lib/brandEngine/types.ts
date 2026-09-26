@@ -27,6 +27,9 @@ export interface BrandProfile {
   id: string;
   user_id: string;
   connected_account_id: string | null;
+  twitter_account_id?: string | null;
+  linkedin_account_id?: string | null;
+  linkedin_platform_id?: string | null;
 
   // Identity
   brand_name: string;
@@ -48,10 +51,13 @@ export interface BrandProfile {
   // Guardrails
   never_say: string[];
   never_topics: string[];
+  custom_instructions: string;
 
   // Status
   is_active: boolean;
   onboarding_status: OnboardingStatus;
+  autonomy_mode: 'copilot' | 'autopilot';
+  consecutive_approved_posts: number;
 
   created_at: Date;
   updated_at: Date;
@@ -60,6 +66,9 @@ export interface BrandProfile {
 export interface CreateBrandProfileInput {
   user_id: string;
   connected_account_id?: string;
+  twitter_account_id?: string;
+  linkedin_account_id?: string;
+  linkedin_platform_id?: string;
   brand_name: string;
   brand_url?: string;
   brand_description?: string;
@@ -73,6 +82,9 @@ export interface CreateBrandProfileInput {
   competitive_angle?: string;
   never_say?: string[];
   never_topics?: string[];
+  custom_instructions?: string;
+  autonomy_mode?: 'copilot' | 'autopilot';
+  consecutive_approved_posts?: number;
 }
 
 export interface UpdateBrandProfileInput extends Partial<Omit<CreateBrandProfileInput, 'user_id'>> {

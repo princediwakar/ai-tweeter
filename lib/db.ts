@@ -1190,6 +1190,7 @@ export async function claimPostsForPosting(
     return result.rows.map(row => ({
       id: row.id,
       connected_account_id: row.connected_account_id,
+      brand_profile_id: row.brand_profile_id,
       content: row.content,
       hashtags: row.hashtags || [],
       persona: row.persona,

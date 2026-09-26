@@ -125,7 +125,16 @@ async function postToLinkedInPost(post: Post, content: string, account: Connecte
       expiresAt: credentials.linkedinTokenExpiresAt ? new Date(credentials.linkedinTokenExpiresAt) : undefined,
     };
 
-    const result = await postToLinkedIn(content, linkedinCreds, post.image_url || undefined);
+    let authorUrn: string | undefined = undefined;
+    if (post.brand_profile_id) {
+      const { brandProfileService } = await import('./brandEngine/BrandProfileService');
+      const profile = await brandProfileService.getById(post.brand_profile_id);
+      if (profile && profile.linkedin_platform_id) {
+        authorUrn = profile.linkedin_platform_id;
+      }
+    }
+
+    const result = await postToLinkedIn(content, linkedinCreds, post.image_url || undefined, authorUrn);
     return { success: true, linkedinId: result.id };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };

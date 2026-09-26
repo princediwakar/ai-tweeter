@@ -104,3 +104,9 @@
     @apply h-10 px-4 rounded-lg font-semibold transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98];
   }
 }
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

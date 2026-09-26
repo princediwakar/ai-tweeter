@@ -30,9 +30,14 @@ class BrandProfileService {
   }
 
   async getByConnectedAccount(accountId: string): Promise<BrandProfile | null> {
-    const accResult = await sqlWithRetry`SELECT brand_profile_id FROM connected_accounts WHERE id = ${accountId}`;
-    if (accResult.rows.length === 0 || !accResult.rows[0].brand_profile_id) return null;
-    return this.getById(accResult.rows[0].brand_profile_id);
+    // Look up any brand that uses this connected account for Twitter or LinkedIn
+    const result = await sqlWithRetry`
+      SELECT id FROM brand_profiles 
+      WHERE twitter_account_id = ${accountId} OR linkedin_account_id = ${accountId}
+      ORDER BY updated_at DESC LIMIT 1
+    `;
+    if (result.rows.length === 0) return null;
+    return this.getById(result.rows[0].id);
   }
 
   async getActiveProfiles(): Promise<BrandProfile[]> {
@@ -52,6 +57,7 @@ class BrandProfileService {
     const result = await sqlWithRetry`
       INSERT INTO brand_profiles (
         id, user_id, connected_account_id,
+        twitter_account_id, linkedin_account_id, linkedin_platform_id,
         brand_name, brand_url, brand_description,
         value_propositions, target_audiences, features, differentiators, social_proof,
         brand_voice, brand_mission, competitive_angle,
@@ -62,6 +68,9 @@ class BrandProfileService {
         ${id},
         ${input.user_id},
         ${input.connected_account_id || null},
+        ${input.twitter_account_id || null},
+        ${input.linkedin_account_id || null},
+        ${input.linkedin_platform_id || null},
         ${input.brand_name},
         ${input.brand_url || null},
         ${input.brand_description || ''},
@@ -106,6 +115,9 @@ class BrandProfileService {
     if (input.brand_mission !== undefined)      addField('brand_mission', input.brand_mission);
     if (input.competitive_angle !== undefined)  addField('competitive_angle', input.competitive_angle);
     if (input.connected_account_id !== undefined) addField('connected_account_id', input.connected_account_id);
+    if (input.twitter_account_id !== undefined) addField('twitter_account_id', input.twitter_account_id);
+    if (input.linkedin_account_id !== undefined) addField('linkedin_account_id', input.linkedin_account_id);
+    if (input.linkedin_platform_id !== undefined) addField('linkedin_platform_id', input.linkedin_platform_id);
 
     if (input.value_propositions !== undefined) addField('value_propositions', JSON.stringify(input.value_propositions));
     if (input.target_audiences !== undefined)   addField('target_audiences', JSON.stringify(input.target_audiences));
@@ -114,6 +126,10 @@ class BrandProfileService {
     if (input.social_proof !== undefined)       addField('social_proof', JSON.stringify(input.social_proof));
     if (input.never_say !== undefined)          addField('never_say', JSON.stringify(input.never_say));
     if (input.never_topics !== undefined)       addField('never_topics', JSON.stringify(input.never_topics));
+    
+    if (input.autonomy_mode !== undefined)      addField('autonomy_mode', input.autonomy_mode);
+    if (input.custom_instructions !== undefined) addField('custom_instructions', input.custom_instructions);
+    if (input.consecutive_approved_posts !== undefined) addField('consecutive_approved_posts', input.consecutive_approved_posts);
 
     if (updates.length === 0) return this.getById(input.id);
 
@@ -181,6 +197,9 @@ class BrandProfileService {
       id: row.id as string,
       user_id: row.user_id as string,
       connected_account_id: null,
+      twitter_account_id: (row.twitter_account_id as string) || null,
+      linkedin_account_id: (row.linkedin_account_id as string) || null,
+      linkedin_platform_id: (row.linkedin_platform_id as string) || null,
       brand_name: row.name as string,
       brand_url: null,
       brand_description: (row.description as string) || '',
@@ -194,8 +213,11 @@ class BrandProfileService {
       competitive_angle: null,
       never_say: [],
       never_topics: [],
+      custom_instructions: (row.custom_instructions as string) || '',
       is_active: true,
       onboarding_status: 'active',
+      autonomy_mode: (row.autonomy_mode as 'copilot' | 'autopilot') || 'copilot',
+      consecutive_approved_posts: (row.consecutive_approved_posts as number) || 0,
       created_at: row.created_at as Date,
       updated_at: row.updated_at as Date,
     };

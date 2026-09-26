@@ -22,7 +22,11 @@ export default function DashboardPage() {
   const [reschedulingPostId, setReschedulingPostId] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const [socialAccounts, setSocialAccounts] = useState<any>(null);
+  const [feedbackPrompt, setFeedbackPrompt] = useState<{postId: string, content: string} | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [autopilotModal, setAutopilotModal] = useState(false);
+  
   useEffect(() => {
     async function fetchDashboardData() {
       try {
@@ -41,7 +45,21 @@ export default function DashboardPage() {
         setLoading(false);
       }
     }
+
+    async function fetchSocialAccounts() {
+      try {
+        const res = await fetch("/api/social-accounts");
+        const json = await res.json();
+        if (json.success) {
+          setSocialAccounts(json.accounts);
+        }
+      } catch (error) {
+        console.error("Failed to fetch social accounts:", error);
+      }
+    }
+
     fetchDashboardData();
+    fetchSocialAccounts();
   }, [activeBrandId]);
 
   if (loading && !data) {
@@ -101,6 +119,25 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUpdateBrand = async (brandId: string, updates: any) => {
+    try {
+      setIsProcessing(true);
+      const res = await fetch(`/api/brand-profiles/${brandId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      toast.success('Brand updated successfully!');
+      await refreshDashboard();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update brand');
+    } finally { 
+      setIsProcessing(false); 
+    }
+  };
+
   const handleDeletePost = async (calendarId: string) => {
     if (!confirm('Are you sure you want to delete this scheduled post?')) return;
     try {
@@ -128,6 +165,27 @@ export default function DashboardPage() {
     } finally { setIsProcessing(false); }
   };
 
+  const handleApprovePost = async (calendarId: string) => {
+    try {
+      setIsProcessing(true);
+      const res = await fetch(`/api/engine/calendar/${calendarId}/approve`, { method: 'POST' });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      
+      toast.success('Post approved and scheduled!');
+      await refreshDashboard();
+      
+      // If consecutive approved hits 5, show modal
+      if (result.consecutive_approved >= 5 && data.brandProfile.autonomy_mode === 'copilot') {
+        setAutopilotModal(true);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to approve post');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleUpdatePost = async (calendarId: string, updates: { content?: string, planned_date?: string }) => {
     try {
       setIsProcessing(true);
@@ -138,7 +196,11 @@ export default function DashboardPage() {
       });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
-      toast.success('Post updated successfully!');
+      if (updates.content) {
+        setFeedbackPrompt({ postId: calendarId, content: updates.content });
+      } else {
+        toast.success('Post updated successfully!');
+      }
       
       setEditingPostId(null);
       setReschedulingPostId(null);
@@ -152,6 +214,30 @@ export default function DashboardPage() {
     const url = activeBrandId ? `/api/dashboard?brandId=${activeBrandId}` : "/api/dashboard";
     const dashRes = await fetch(url);
     setData(await dashRes.json());
+  };
+
+  const handleSaveFeedback = async (remember: boolean) => {
+    if (!feedbackPrompt) return;
+    try {
+      setFeedbackLoading(true);
+      if (remember) {
+        const currentInstructions = brandProfile.custom_instructions || '';
+        const newInstructions = currentInstructions ? `${currentInstructions}\n- Adjusted style based on user edit on ${new Date().toLocaleDateString()}` : `- Adjusted style based on user edit on ${new Date().toLocaleDateString()}`;
+        
+        await fetch(`/api/brand-profiles/${brandProfile.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ custom_instructions: newInstructions })
+        });
+        toast.success('Engine updated with your feedback!');
+        await refreshDashboard();
+      }
+    } catch (err) {
+      toast.error('Failed to save feedback');
+    } finally {
+      setFeedbackLoading(false);
+      setFeedbackPrompt(null);
+    }
   };
 
   const { brandProfile, allBrands, pillars, upcomingPosts, schedule } = data;
@@ -276,31 +362,138 @@ export default function DashboardPage() {
 
               <div className="space-y-3">
                 {['twitter', 'linkedin'].map(platform => {
-                  const isConnected = data.accounts?.some((acc: any) => acc.platform === platform && acc.is_active);
+                  const isConnected = platform === 'twitter' 
+                    ? !!brandProfile.twitter_account_id
+                    : !!brandProfile.linkedin_account_id;
+                    
+                  const platformAccounts = socialAccounts ? socialAccounts[platform as 'twitter' | 'linkedin'] : [];
+                  
                   return (
-                    <div key={platform} className={`p-3 rounded-xl border flex items-center justify-between ${isConnected ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center">
-                          <PlatformIcon platform={platform as 'twitter' | 'linkedin'} className="h-4 w-4" />
+                    <div key={platform} className={`p-3 rounded-xl border flex flex-col gap-2 ${isConnected ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 bg-white'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center">
+                            <PlatformIcon platform={platform as 'twitter' | 'linkedin'} className="h-4 w-4" />
+                          </div>
+                          <span className="text-sm font-semibold capitalize text-zinc-900">{platform}</span>
                         </div>
-                        <span className="text-sm font-semibold capitalize text-zinc-900">{platform}</span>
+                        
+                        {!isConnected && platformAccounts.length === 0 && (
+                          <button
+                            onClick={() => window.location.href = `/api/oauth/initiate?platform=${platform}&brandId=${brandProfile.id}&callbackUrl=/`}
+                            className="text-xs font-medium px-3 py-1 bg-white border border-zinc-200 rounded text-zinc-700 hover:bg-zinc-50 transition"
+                          >
+                            Connect New
+                          </button>
+                        )}
                       </div>
+
+                      {platformAccounts.length > 0 && (
+                        <div className="mt-2">
+                          <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Select Account / Page</label>
+                          <select 
+                            className="w-full bg-white border border-zinc-200 text-xs rounded-md px-2 py-1.5 focus:ring-1 focus:ring-blue-500 outline-none text-zinc-700"
+                            value={platform === 'twitter' 
+                              ? brandProfile.twitter_account_id || '' 
+                              : (brandProfile.linkedin_platform_id ? `${brandProfile.linkedin_account_id}|${brandProfile.linkedin_platform_id}` : brandProfile.linkedin_account_id || '')
+                            }
+                            onChange={async (e) => {
+                              const val = e.target.value;
+                              let updates: any = {};
+                              if (platform === 'twitter') {
+                                updates = { twitter_account_id: val || null };
+                              } else {
+                                if (val) {
+                                  const [accId, platId] = val.split('|');
+                                  updates = { linkedin_account_id: accId, linkedin_platform_id: platId || null };
+                                } else {
+                                  updates = { linkedin_account_id: null, linkedin_platform_id: null };
+                                }
+                              }
+                              await handleUpdateBrand(brandProfile.id, updates);
+                            }}
+                          >
+                            <option value="">-- Do not post to {platform} --</option>
+                            {platformAccounts.map((acc: any) => {
+                              const value = platform === 'twitter' 
+                                ? acc.id 
+                                : `${acc.id}|${acc.platform_user_id || ''}`;
+                              return (
+                                <option key={value} value={value}>
+                                  {acc.name} {acc.type === 'page' ? '(Company Page)' : ''}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      )}
                       
-                      {isConnected ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                          <CheckCircle2 className="h-3 w-3" /> CONNECTED
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => window.location.href = `/api/oauth/initiate?platform=${platform}&brandId=${brandProfile.id}&callbackUrl=/`}
-                          className="text-xs font-medium px-3 py-1 bg-white border border-zinc-200 rounded text-zinc-700 hover:bg-zinc-50 transition"
-                        >
-                          Connect
-                        </button>
+                      {platformAccounts.length > 0 && (
+                         <div className="flex justify-end mt-1">
+                           <button
+                             onClick={() => window.location.href = `/api/oauth/initiate?platform=${platform}&brandId=${brandProfile.id}&callbackUrl=/`}
+                             className="text-[10px] text-zinc-500 hover:text-blue-600 underline"
+                           >
+                             Connect another {platform} account
+                           </button>
+                         </div>
                       )}
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Engine Brain & Autonomy */}
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100">
+                  <Zap size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-zinc-900">Engine Config</h3>
+                  <p className="text-xs font-medium text-zinc-500">Autonomy & Diet</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Autonomy Mode</label>
+                  <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg">
+                    <button 
+                      onClick={() => handleUpdateBrand(brandProfile.id, { autonomy_mode: 'copilot' })}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${brandProfile.autonomy_mode !== 'autopilot' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                    >
+                      Copilot
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateBrand(brandProfile.id, { autonomy_mode: 'autopilot' })}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${brandProfile.autonomy_mode === 'autopilot' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
+                    >
+                      Autopilot
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 mt-1.5">
+                    {brandProfile.autonomy_mode === 'autopilot' 
+                      ? 'Engine will publish automatically.' 
+                      : 'You must approve posts before they go live.'}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Custom Instructions</label>
+                  <textarea 
+                    className="w-full text-xs p-2 border border-zinc-200 rounded-md bg-zinc-50 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none resize-none"
+                    rows={3}
+                    placeholder="e.g. Never use emojis. Always link to my newsletter..."
+                    defaultValue={brandProfile.custom_instructions || ''}
+                    onBlur={(e) => {
+                      if (e.target.value !== brandProfile.custom_instructions) {
+                        handleUpdateBrand(brandProfile.id, { custom_instructions: e.target.value });
+                      }
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -323,11 +516,12 @@ export default function DashboardPage() {
               </div>
 
               {upcomingPosts.length === 0 ? (
-                <div className="text-center py-16 px-4 bg-zinc-50 rounded-xl border border-zinc-100 border-dashed">
-                  <Calendar className="h-10 w-10 text-zinc-300 mx-auto mb-3" />
-                  <p className="text-zinc-900 font-medium mb-1">Calendar is being generated</p>
+                <div className="text-center py-16 px-4 bg-zinc-50 rounded-xl border border-zinc-100 border-dashed relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                  <Zap className="h-10 w-10 text-blue-400 mx-auto mb-3 animate-pulse" />
+                  <p className="text-zinc-900 font-medium mb-1">Synthesizing content...</p>
                   <p className="text-sm text-zinc-500 max-w-sm mx-auto">
-                    The autonomous engine is currently drafting your first batch of posts based on your content pillars. Check back in a few minutes.
+                    The engine is processing your diet and drafting your first posts. This optimistic generation creates zero wait time—your drafts will appear momentarily.
                   </p>
                 </div>
               ) : (
@@ -451,6 +645,16 @@ export default function DashboardPage() {
                               
                               <div className="flex-1" />
                               
+                              {brandProfile.autonomy_mode === 'copilot' && post.post_status !== 'ready' && post.content && (
+                                <button 
+                                  onClick={() => handleApprovePost(post.id)}
+                                  disabled={isProcessing}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors disabled:opacity-50"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Approve
+                                </button>
+                              )}
+                              
                               <button 
                                 onClick={() => handleDeletePost(post.id)}
                                 disabled={isProcessing}
@@ -477,6 +681,64 @@ export default function DashboardPage() {
           </div>
           
         </div>
+
+        {/* Feedback Overlay */}
+        {feedbackPrompt && (
+          <div className="fixed bottom-6 right-6 p-4 bg-white border border-zinc-200 shadow-xl rounded-xl w-80 animate-in slide-in-from-bottom-4 z-50">
+            <h4 className="text-sm font-bold text-zinc-900 mb-1 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-blue-600" /> Engine Learning
+            </h4>
+            <p className="text-xs text-zinc-500 mb-4">You just edited a post. Should I analyze your changes and adjust my style for future posts?</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => handleSaveFeedback(false)}
+                disabled={feedbackLoading}
+                className="flex-1 py-1.5 text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-lg transition-colors"
+              >
+                No, just this once
+              </button>
+              <button 
+                onClick={() => handleSaveFeedback(true)}
+                disabled={feedbackLoading}
+                className="flex-1 py-1.5 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                {feedbackLoading ? 'Learning...' : 'Yes, remember this'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Autopilot Modal */}
+        {autopilotModal && (
+          <div className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in zoom-in-95">
+              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 mx-auto">
+                <Zap size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-center text-zinc-900 mb-2">We're on a roll!</h3>
+              <p className="text-sm text-center text-zinc-600 mb-6">
+                You haven't needed to edit the last 5 posts. Do you want to switch to <strong className="text-zinc-900">Autopilot</strong> and let me handle publishing automatically?
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setAutopilotModal(false)}
+                  className="flex-1 py-2.5 text-sm font-semibold bg-zinc-100 text-zinc-700 rounded-xl hover:bg-zinc-200 transition-colors"
+                >
+                  Stay on Copilot
+                </button>
+                <button 
+                  onClick={async () => {
+                    await handleUpdateBrand(brandProfile.id, { autonomy_mode: 'autopilot' });
+                    setAutopilotModal(false);
+                  }}
+                  className="flex-1 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
+                >
+                  Enable Autopilot
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </NavigationLayout>
   );

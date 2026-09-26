@@ -67,7 +67,12 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       never_say: body.never_say,
       never_topics: body.never_topics,
       connected_account_id: body.connected_account_id,
-      brand_url: body.brand_url
+      twitter_account_id: body.twitter_account_id,
+      linkedin_account_id: body.linkedin_account_id,
+      linkedin_platform_id: body.linkedin_platform_id,
+      brand_url: body.brand_url,
+      autonomy_mode: body.autonomy_mode,
+      custom_instructions: body.custom_instructions
     };
 
     // Filter out undefined

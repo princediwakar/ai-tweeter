@@ -305,7 +305,8 @@ export async function getLinkedInProfileWithUsername(accessToken: string): Promi
 export async function postToLinkedIn(
   content: string,
   credentials: LinkedInCredentials,
-  imageUrl?: string
+  imageUrl?: string,
+  explicitAuthorUrn?: string
 ): Promise<LinkedInPostResponse> {
   try {
     // Ensure we have a valid access token
@@ -313,9 +314,12 @@ export async function postToLinkedIn(
       throw new Error('LinkedIn access token is required');
     }
 
-    // Get user profile to get the author URN
-    const profile = await getLinkedInProfile(credentials.accessToken);
-    const authorUrn = `urn:li:person:${profile.sub}`;
+    let authorUrn = explicitAuthorUrn;
+    if (!authorUrn) {
+      // Get user profile to get the author URN
+      const profile = await getLinkedInProfile(credentials.accessToken);
+      authorUrn = `urn:li:person:${profile.sub}`;
+    }
 
     // Prepare post payload
     const payload: {

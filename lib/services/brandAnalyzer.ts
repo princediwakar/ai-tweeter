@@ -17,6 +17,7 @@ export interface AnalyzedBrand {
     proportion: number;
     keywords: string[];
   }[];
+  sample_posts: string[];
 }
 
 export async function analyzeBrandFromContent(url: string, content: string): Promise<AnalyzedBrand> {
@@ -41,6 +42,7 @@ Based on this content, extract and infer the following:
     - description: (string) what kind of posts go here
     - proportion: (number) percentage allocation (the 3 pillars must sum to 100)
     - keywords: (array of strings) 3-4 topics associated with it
+8. "sample_posts": Generate 3 sample social media posts (e.g., tweets or short LinkedIn posts) that perfectly embody this brand's tone, pillars, and audience. Show exactly what the AI will write for them.
 
 Return the result as a valid JSON object matching this structure EXACTLY. No markdown formatting, just raw JSON.
 `;

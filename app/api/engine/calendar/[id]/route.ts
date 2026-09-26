@@ -83,6 +83,13 @@ export async function PUT(
         SET content = ${content}, updated_at = NOW()
         WHERE calendar_id = ${calendarId}
       `;
+      // Editing a post resets the consecutive approved counter
+      const brandId = verification.rows[0].brand_profile_id;
+      await sql`
+        UPDATE brand_profiles
+        SET consecutive_approved_posts = 0, updated_at = NOW()
+        WHERE id = ${brandId}
+      `;
     }
 
     // Update the date if provided

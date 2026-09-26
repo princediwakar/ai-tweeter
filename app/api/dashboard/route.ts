@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     let upcomingPosts: any[] = [];
     let accounts: any[] = [];
     let schedule = null;
+    let sources: any[] = [];
 
     if (brandProfile) {
       // 2. Get Content Pillars
@@ -88,6 +89,13 @@ export async function GET(request: NextRequest) {
         LIMIT 1
       `;
       schedule = schedulesRes.rows[0] || null;
+
+      // 6. Get Knowledge Sources
+      const sourcesRes = await sql`
+        SELECT * FROM brand_knowledge_sources
+        WHERE brand_profile_id = ${brandProfile.id} AND is_active = true
+      `;
+      sources = sourcesRes.rows;
     }
 
     return NextResponse.json({
@@ -97,7 +105,8 @@ export async function GET(request: NextRequest) {
       recentPosts,
       upcomingPosts,
       accounts,
-      schedule
+      schedule,
+      sources
     });
   } catch (error) {
     console.error('[Dashboard API] Error:', error);

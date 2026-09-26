@@ -26,6 +26,8 @@ export default function DashboardPage() {
   const [feedbackPrompt, setFeedbackPrompt] = useState<{postId: string, content: string} | null>(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [autopilotModal, setAutopilotModal] = useState(false);
+  const [newSourceUrl, setNewSourceUrl] = useState('');
+  const [addingSource, setAddingSource] = useState(false);
   
   useEffect(() => {
     async function fetchDashboardData() {
@@ -240,7 +242,29 @@ export default function DashboardPage() {
     }
   };
 
-  const { brandProfile, allBrands, pillars, upcomingPosts, schedule } = data;
+  const handleAddSource = async () => {
+    if (!newSourceUrl) return;
+    try {
+      setAddingSource(true);
+      const res = await fetch('/api/knowledge-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brand_profile_id: brandProfile.id, url: newSourceUrl })
+      });
+      const result = await res.json();
+      if (result.error) throw new Error(result.error);
+      
+      toast.success('Source added to Diet! The engine will process it shortly.');
+      setNewSourceUrl('');
+      await refreshDashboard();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to add source');
+    } finally {
+      setAddingSource(false);
+    }
+  };
+
+  const { brandProfile, allBrands, pillars, upcomingPosts, schedule, sources } = data;
   const toneArray = Array.isArray(brandProfile.tone_of_voice) ? brandProfile.tone_of_voice : [];
 
   return (
@@ -493,6 +517,36 @@ export default function DashboardPage() {
                       }
                     }}
                   />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Engine Diet (Sources)</label>
+                  <div className="space-y-2 mb-2">
+                    {sources && sources.length > 0 ? sources.map((src: any) => (
+                      <div key={src.id} className="text-xs flex items-center justify-between bg-zinc-50 border border-zinc-200 px-2 py-1.5 rounded-md">
+                        <span className="truncate flex-1 font-medium text-zinc-700">{src.url.replace(/^https?:\/\//, '')}</span>
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold ml-2">{src.crawl_status}</span>
+                      </div>
+                    )) : (
+                      <p className="text-xs text-zinc-500 italic">No sources added yet.</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="url" 
+                      placeholder="Paste URL (e.g. blog post, YouTube)" 
+                      value={newSourceUrl}
+                      onChange={e => setNewSourceUrl(e.target.value)}
+                      className="flex-1 text-xs p-2 border border-zinc-200 rounded-md bg-zinc-50 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                    />
+                    <button 
+                      onClick={handleAddSource}
+                      disabled={addingSource || !newSourceUrl}
+                      className="px-3 py-1 bg-zinc-900 text-white text-xs font-semibold rounded-md hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Feed
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

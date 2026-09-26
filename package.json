@@ -2,6 +2,9 @@
   "name": "ai-tweeter",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "concurrently -c \"cyan,magenta\" -n \"next,trigger\" \"next dev\" \"npx trigger.dev@latest dev\"",
     "build": "next build",

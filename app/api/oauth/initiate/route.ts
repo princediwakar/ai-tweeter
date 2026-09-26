@@ -17,9 +17,19 @@ export async function GET(request: NextRequest) {
   const platform = searchParams.get('platform');
   const accountId = searchParams.get('accountId') || 'pending';
   const callbackUrl = searchParams.get('callbackUrl') || '/setup';
+  const brandId = searchParams.get('brandId');
 
   try {
     const cookieStore = await cookies();
+
+    if (brandId) {
+      cookieStore.set('oauth_brand_id', brandId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 10,
+        path: '/'
+      });
+    }
 
     if (platform === 'twitter') {
       const { authUrl, codeVerifier } = await initiateTwitterOAuth(accountId);

@@ -1,5 +1,4 @@
-import { defineConfig } from "@trigger.dev/sdk/v3";
-
+import { defineConfig } from "@trigger.dev/sdk";
 export default defineConfig({
   project: "proj_uixqaqbdovoqirubhwva",
   runtime: "node",

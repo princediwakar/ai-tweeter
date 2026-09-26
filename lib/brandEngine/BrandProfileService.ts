@@ -23,28 +23,24 @@ class BrandProfileService {
   async getByUser(userId: string): Promise<BrandProfile[]> {
     const result = await sqlWithRetry`
       SELECT * FROM brand_profiles
-      WHERE user_id = ${userId} AND is_active = true
+      WHERE user_id = ${userId}
       ORDER BY created_at DESC
     `;
-    return result.rows.map(this.mapRow);
+    return result.rows.map(this.mapRow.bind(this));
   }
 
   async getByConnectedAccount(accountId: string): Promise<BrandProfile | null> {
-    const result = await sqlWithRetry`
-      SELECT * FROM brand_profiles
-      WHERE connected_account_id = ${accountId} AND is_active = true
-      LIMIT 1
-    `;
-    return result.rows[0] ? this.mapRow(result.rows[0]) : null;
+    const accResult = await sqlWithRetry`SELECT brand_profile_id FROM connected_accounts WHERE id = ${accountId}`;
+    if (accResult.rows.length === 0 || !accResult.rows[0].brand_profile_id) return null;
+    return this.getById(accResult.rows[0].brand_profile_id);
   }
 
   async getActiveProfiles(): Promise<BrandProfile[]> {
     const result = await sqlWithRetry`
       SELECT * FROM brand_profiles
-      WHERE is_active = true AND onboarding_status = 'active'
       ORDER BY updated_at DESC
     `;
-    return result.rows.map(this.mapRow);
+    return result.rows.map(this.mapRow.bind(this));
   }
 
   // ── Create ──
@@ -184,22 +180,22 @@ class BrandProfileService {
     return {
       id: row.id as string,
       user_id: row.user_id as string,
-      connected_account_id: row.connected_account_id as string | null,
-      brand_name: row.brand_name as string,
-      brand_url: row.brand_url as string | null,
-      brand_description: row.brand_description as string,
-      value_propositions: this.parseJsonb<ValueProposition[]>(row.value_propositions, []),
-      target_audiences: this.parseJsonb<TargetAudience[]>(row.target_audiences, []),
-      features: this.parseJsonb<string[]>(row.features, []),
-      differentiators: this.parseJsonb<string[]>(row.differentiators, []),
-      social_proof: this.parseJsonb<string[]>(row.social_proof, []),
-      brand_voice: row.brand_voice as string,
-      brand_mission: row.brand_mission as string | null,
-      competitive_angle: row.competitive_angle as string | null,
-      never_say: this.parseJsonb<string[]>(row.never_say, []),
-      never_topics: this.parseJsonb<string[]>(row.never_topics, []),
-      is_active: row.is_active as boolean,
-      onboarding_status: row.onboarding_status as BrandProfile['onboarding_status'],
+      connected_account_id: null,
+      brand_name: row.name as string,
+      brand_url: null,
+      brand_description: (row.description as string) || '',
+      value_propositions: this.parseJsonb<ValueProposition[]>(row.core_values, []),
+      target_audiences: this.parseJsonb<TargetAudience[]>(row.target_audience, []),
+      features: [],
+      differentiators: [],
+      social_proof: [],
+      brand_voice: typeof row.tone_of_voice === 'string' ? row.tone_of_voice : JSON.stringify(row.tone_of_voice || ''),
+      brand_mission: (row.industry as string) || null,
+      competitive_angle: null,
+      never_say: [],
+      never_topics: [],
+      is_active: true,
+      onboarding_status: 'active',
       created_at: row.created_at as Date,
       updated_at: row.updated_at as Date,
     };

@@ -19,8 +19,8 @@ export default function OnboardingWizard() {
   const [state, setState] = useState<OnboardingState>({
     step: 1,
     connectedPlatforms: [],
-    prompt: '',
-    generatedPersonas: {},
+    sourceUrl: '',
+    brandProfile: undefined,
     regenerationCount: 0,
     postFrequency: 3,
     postTime: 'morning',
@@ -40,8 +40,10 @@ useEffect(() => {
         const status = await statusRes.json();
         const accountsData = await accountsRes.json();
 
-        // If onboarding already completed, redirect to home
-        if (status.completed === true) {
+        const isNewBrand = url.searchParams.get('new') === 'true';
+
+        // If onboarding already completed, redirect to home (unless creating a new brand)
+        if (status.completed === true && !isNewBrand) {
           router.push('/');
           return;
         }
@@ -50,18 +52,21 @@ useEffect(() => {
 
         let currentStep = status.step || 1;
 
-        // If accounts exist but step is still early, go to AI Profile step (step 3) to create personas
-        if (platforms.length > 0 && currentStep < 3) {
+        // If creating a new brand, force start from step 1
+        if (isNewBrand) {
+          currentStep = 1;
+        } else if (platforms.length > 0 && currentStep < 3) {
+          // If accounts exist but step is still early, go to AI Profile step (step 3) to create personas
           currentStep = 3;
         }
         
         // Force UI to remain on ConnectStep if we just returned from OAuth
-        if (connectedParam === 'success' || platforms.length > 0) {
+        if (connectedParam === 'success' || (platforms.length > 0 && !isNewBrand)) {
           currentStep = Math.max(currentStep, 2);
           
           // Clean up URL without triggering a re-render
           if (connectedParam) {
-            window.history.replaceState({}, '', '/onboarding');
+            window.history.replaceState({}, '', '/onboarding' + (isNewBrand ? '?new=true' : ''));
           }
         }
 

@@ -119,6 +119,10 @@ export async function GET(request: NextRequest) {
     // Use vanityName as the account_username if available, otherwise fall back to sub
     const linkedInUsername = profileWithUsername.vanityName || profile.sub;
     
+    const brandIdCookie = await cookieStore.get('oauth_brand_id');
+    const brandProfileId = brandIdCookie?.value || null;
+    await cookieStore.delete('oauth_brand_id');
+
     await connectedAccountsService.upsert({
       user_id: userId,
       platform: 'linkedin',
@@ -130,6 +134,7 @@ export async function GET(request: NextRequest) {
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
       profile_url: profileWithUsername.profileUrl,
+      brand_profile_id: brandProfileId,
     });
 
     console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);

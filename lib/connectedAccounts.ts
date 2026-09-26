@@ -146,6 +146,7 @@ export const connectedAccountsService = {
     token_expires_at?: string;
     auth_type?: 'oauth1' | 'oauth2' | 'api_key';
     profile_url?: string;
+    brand_profile_id?: string | null;
   }): Promise<ConnectedAccountWithCredentials> {
     const accountId = data.id || crypto.randomUUID();
     const authType = data.auth_type || 'oauth2';
@@ -156,14 +157,14 @@ export const connectedAccountsService = {
         id, user_id, platform, account_username, name, platform_user_id,
         is_active, status, connected_at, updated_at,
         auth_type, access_token_encrypted, refresh_token_encrypted, token_expires_at,
-        profile_url
+        profile_url, brand_profile_id
       ) VALUES (
         ${accountId}, ${data.user_id}, ${data.platform}, ${data.account_username}, 
         ${data.name || null}, ${data.platform_user_id || null},
         true, 'active', NOW(), NOW(),
         ${authType}, ${data.access_token ? encrypt(data.access_token) : null}, 
         ${data.refresh_token ? encrypt(data.refresh_token) : null}, ${data.token_expires_at || null},
-        ${data.profile_url || null}
+        ${data.profile_url || null}, ${data.brand_profile_id || null}
       )
       ON CONFLICT (user_id, platform, account_username) DO UPDATE SET
         name = EXCLUDED.name,
@@ -174,7 +175,8 @@ export const connectedAccountsService = {
         access_token_encrypted = COALESCE(EXCLUDED.access_token_encrypted, connected_accounts.access_token_encrypted),
         refresh_token_encrypted = COALESCE(EXCLUDED.refresh_token_encrypted, connected_accounts.refresh_token_encrypted),
         token_expires_at = COALESCE(EXCLUDED.token_expires_at, connected_accounts.token_expires_at),
-        profile_url = COALESCE(EXCLUDED.profile_url, connected_accounts.profile_url)
+        profile_url = COALESCE(EXCLUDED.profile_url, connected_accounts.profile_url),
+        brand_profile_id = COALESCE(EXCLUDED.brand_profile_id, connected_accounts.brand_profile_id)
       RETURNING *
     `;
     

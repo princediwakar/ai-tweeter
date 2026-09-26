@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { brandProfileService } from '@/lib/brandEngine/BrandProfileService';
-import { tasks } from '@trigger.dev/sdk/v3';
+import { tasks } from '@trigger.dev/sdk';
+import type { crawlBrandKnowledge } from '@/trigger/crawl-knowledge';
 
 export async function GET(req: NextRequest) {
   try {
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 
     if (brand_url) {
       // Trigger the background task to crawl and enrich
-      await tasks.trigger("crawl-brand-knowledge", {
+      await tasks.trigger<typeof crawlBrandKnowledge>("crawl-brand-knowledge", {
         brandProfileId: newProfile.id,
         url: brand_url
       });

@@ -1,5 +1,5 @@
 // trigger/generate-content.ts
-import { task, logger } from "@trigger.dev/sdk/v3";
+import { task, logger } from "@trigger.dev/sdk";
 import { getGenerationBatchInfo } from '@/lib/schedule';
 import { generatePost } from '@/lib/generationService';
 import { generateThread, canGenerateThreads } from '@/lib/threadGenerationService';
@@ -39,16 +39,29 @@ export const generateAccountContent = task({
     }
 
     let targetBatchSize = Math.min(batchInfo.batch_size || 1, 30 - pendingPosts.length);
-    const selectedPersonaKey = batchInfo.generation_personas[0];
-    if (!selectedPersonaKey) throw new Error("No persona found");
+    const selectedPersonaKey = batchInfo.generation_personas?.[0] || 'brand_engine';
 
-    const persona = await getPersonaByKey(selectedPersonaKey);
-    if (!persona) throw new Error("No persona found in DB");
-
-    const allPersonas = await getAllPersonas();
-    const rssPersonaKeys = allPersonas.filter(p => p.rss_sources && p.rss_sources.length > 0).map(p => p.key);
     const canThreads = await canGenerateThreads(accountId);
-    const personaSupportsThreads = canThreads && allPersonas.filter(p => (p.config as any)?.supports_threads).map(p => p.key).includes(selectedPersonaKey);
+    const personaSupportsThreads = canThreads; // Default to true for threads
+    const rssPersonaKeys: string[] = []; // No longer supporting rss based personas
+
+    const mockPersona = {
+      id: 'mock-persona-id',
+      name: 'Brand Engine Persona',
+      key: selectedPersonaKey,
+      description: '',
+      config: {
+        format_rules: [
+          'No emojis or hashtags.', 
+          'Use short, punchy sentences.', 
+          'No marketing fluff or corporate speak.',
+          'Start with a counter-intuitive or highly specific hook.',
+          'Sound like a visionary industry expert or practitioner, not a marketer.'
+        ]
+      }
+    } as any;
+
+    const persona = mockPersona;
 
     const recentData = await getRecentPatternData(accountId, 50);
     const usedSourceUrls = recentData.usedSourceUrls;

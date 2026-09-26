@@ -17,34 +17,16 @@ export default function ScheduleStep({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-const handleDeploy = async () => {
+  const handleDeploy = async () => {
     setSubmitting(true);
     
     try {
-      // 1. Fetch active nodes again to ensure we map personas to the right IDs
-      const accountsRes = await fetch('/api/accounts');
-      const accountsData = await accountsRes.json();
-      const accounts = accountsData.accounts || [];
-
-      const twitterNode = accounts.find((a: any) => a.platform === 'twitter');
-      const linkedinNode = accounts.find((a: any) => a.platform === 'linkedin');
-      
-      const modelsToDeploy: Array<{ accountId: string; persona: any }> = [];
-      
-      if (twitterNode && state.generatedPersonas.twitter) {
-        modelsToDeploy.push({ accountId: twitterNode.id, persona: state.generatedPersonas.twitter });
-      }
-      if (linkedinNode && state.generatedPersonas.linkedin) {
-        modelsToDeploy.push({ accountId: linkedinNode.id, persona: state.generatedPersonas.linkedin });
-      }
-      
-// 2. Commit the configuration to the database
+      // Commit the schedule configuration to the database
       setError(null);
       const res = await fetch('/api/onboarding/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          personas: modelsToDeploy,
           frequency: state.postFrequency,
           postTime: state.postTime,
         }),
@@ -55,7 +37,7 @@ const handleDeploy = async () => {
         throw new Error(data.details || data.error || 'Failed to finalize deployment');
       }
 
-      // 3. Reroute to Command Center
+      // Reroute to Command Center
       onFinish();
     } catch (err) {
       console.error('Deployment failure:', err);

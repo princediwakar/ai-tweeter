@@ -1,5 +1,5 @@
 // trigger/crawl-knowledge.ts
-import { task, logger } from "@trigger.dev/sdk/v3";
+import { task, logger } from "@trigger.dev/sdk";
 import { knowledgeSourceService } from '@/lib/brandEngine/KnowledgeSourceService';
 import { knowledgeEnrichmentPipeline } from '@/lib/brandEngine/KnowledgeEnrichmentPipeline';
 import { brandProfileService } from '@/lib/brandEngine/BrandProfileService';

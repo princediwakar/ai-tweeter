@@ -66,7 +66,8 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       brand_mission: body.brand_mission,
       never_say: body.never_say,
       never_topics: body.never_topics,
-      connected_account_id: body.connected_account_id
+      connected_account_id: body.connected_account_id,
+      brand_url: body.brand_url
     };
 
     // Filter out undefined

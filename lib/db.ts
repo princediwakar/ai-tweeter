@@ -270,7 +270,7 @@ export async function createThreadWithRetry(
  */
 // lib/db.ts (or wherever savePost is located)
 
-export async function savePost(tweet: Post): Promise<void> {
+export async function savePost(tweet: any): Promise<void> {
   try {
     // Check for duplicate content within last 24 hours
     const duplicateCheck = await sqlWithRetry`
@@ -288,65 +288,37 @@ export async function savePost(tweet: Post): Promise<void> {
 
     await sqlWithRetry`
       INSERT INTO posts (
-        id, connected_account_id, content, hashtags, persona, status, created_at,
-        posted_at, error_message, image_url,
-        thread_id, thread_sequence, content_type,
-        image_status, card_data, source_url, schedule_id, persona_id,
-        brand_profile_id, pillar_id, calendar_id, target_audience, narrative_tags, theme_summary
+        id, user_id, connected_account_id, brand_profile_id, pillar_id, calendar_id,
+        content, status, created_at, updated_at, narrative_tags, theme_summary,
+        error_message, thread_id
       ) VALUES (
         ${tweet.id},
+        ${tweet.user_id || null},
         ${tweet.connected_account_id},
-        ${tweet.content},
-        ${JSON.stringify(tweet.hashtags)},
-        ${tweet.persona},
-        ${tweet.status},
-        ${tweet.created_at},
-        ${tweet.posted_at || null},
-        ${tweet.error_message || null},
-        ${tweet.image_url || null},
-        ${tweet.thread_id || null},
-        ${tweet.thread_sequence || null},
-        ${tweet.content_type || 'single_tweet'},
-        ${tweet.image_status || 'none'},
-        ${tweet.card_data || null},
-        ${tweet.source_url || null},
-        ${tweet.schedule_id || null},
-        ${tweet.persona_id || null},
         ${tweet.brand_profile_id || null},
         ${tweet.pillar_id || null},
         ${tweet.calendar_id || null},
-        ${tweet.target_audience || null},
+        ${tweet.content},
+        ${tweet.status || 'ready'},
+        NOW(),
+        NOW(),
         ${tweet.narrative_tags ? JSON.stringify(tweet.narrative_tags) : null},
-        ${tweet.theme_summary || null}
+        ${tweet.theme_summary || null},
+        ${tweet.error_message || null},
+        ${tweet.thread_id || null}
       )
       ON CONFLICT (id)
       DO UPDATE SET
-        connected_account_id = EXCLUDED.connected_account_id,
         content = EXCLUDED.content,
-        hashtags = EXCLUDED.hashtags,
-        persona = EXCLUDED.persona,
         status = EXCLUDED.status,
-        posted_at = EXCLUDED.posted_at,
+        updated_at = NOW(),
         error_message = EXCLUDED.error_message,
-        image_url = EXCLUDED.image_url,
-        thread_id = EXCLUDED.thread_id,
-        thread_sequence = EXCLUDED.thread_sequence,
-        content_type = EXCLUDED.content_type,
-        image_status = EXCLUDED.image_status,
-        card_data = EXCLUDED.card_data,
-        source_url = EXCLUDED.source_url,
-        schedule_id = EXCLUDED.schedule_id,
-        persona_id = EXCLUDED.persona_id,
-        brand_profile_id = EXCLUDED.brand_profile_id,
-        pillar_id = EXCLUDED.pillar_id,
-        calendar_id = EXCLUDED.calendar_id,
-        target_audience = EXCLUDED.target_audience,
         narrative_tags = EXCLUDED.narrative_tags,
         theme_summary = EXCLUDED.theme_summary;
     `;
     
   } catch (error) {
-    console.error(`[Neon] Error saving tweet ${tweet.id}:`, 'db-save-tweet-error');
+    console.error(`[Neon] Error saving tweet ${tweet.id}:`, 'db-save-tweet-error', error);
     throw error;
   }
 }
@@ -539,7 +511,15 @@ export async function deletePosts(ids: string[]): Promise<void> {
 }
 
 export function generatePostId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID if any
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
 }
 
 

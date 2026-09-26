@@ -101,6 +101,10 @@ export async function GET(request: NextRequest) {
     }
 
     // 7. Upsert using the centralized service
+    const brandIdCookie = await cookieStore.get('oauth_brand_id');
+    const brandProfileId = brandIdCookie?.value || null;
+    await cookieStore.delete('oauth_brand_id');
+
     await connectedAccountsService.upsert({
       user_id: userId,
       platform: 'twitter',
@@ -111,6 +115,7 @@ export async function GET(request: NextRequest) {
       access_token: accessToken,
       refresh_token: refreshToken,
       token_expires_at: expiresAt.toISOString(),
+      brand_profile_id: brandProfileId,
     });
 
     console.log(`✅ Success! Node secured for @${profile.username}`);

@@ -8,7 +8,7 @@ import { contentPillarService } from '@/lib/brandEngine/ContentPillarService';
 export const crawlBrandKnowledge = task({
   id: "crawl-brand-knowledge",
   maxDuration: 3600, // 1 hour max
-  run: async (payload: { brandProfileId: string; url: string }) => {
+  run: async (payload: { brandProfileId: string; url?: string }) => {
     logger.info(`Starting knowledge crawl for brand profile ${payload.brandProfileId} at ${payload.url}`);
 
     try {

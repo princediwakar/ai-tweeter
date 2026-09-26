@@ -11,7 +11,7 @@ import PromptStep from '@/components/onboarding/steps/PromptStep';
 import ReviewStep from '@/components/onboarding/steps/ReviewStep';
 import ScheduleStep from '@/components/onboarding/steps/ScheduleStep';
 
-const STEPS = ['Welcome', 'Connect', 'Your Voice', 'Review', 'Schedule'];
+const STEPS = ['Welcome', 'Website', 'Preview Posts', 'Schedule', 'Social Accounts'];
 
 export default function OnboardingWizard() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function OnboardingWizard() {
     postTime: 'morning',
   });
 
-useEffect(() => {
+  useEffect(() => {
     const initializeWorkspace = async () => {
       try {
         const url = new URL(window.location.href);
@@ -55,18 +55,26 @@ useEffect(() => {
         // If creating a new brand, force start from step 1
         if (isNewBrand) {
           currentStep = 1;
-        } else if (platforms.length > 0 && currentStep < 3) {
-          // If accounts exist but step is still early, go to AI Profile step (step 3) to create personas
-          currentStep = 3;
         }
         
-        // Force UI to remain on ConnectStep if we just returned from OAuth
-        if (connectedParam === 'success' || (platforms.length > 0 && !isNewBrand)) {
-          currentStep = Math.max(currentStep, 2);
+        let frequency = status.frequency || 3;
+        let postTime = status.postTime || 'morning';
+
+        // If returned from OAuth callback, show the Connect step
+        if (connectedParam === 'success') {
+          currentStep = 5;
+          window.history.replaceState({}, '', '/onboarding' + (isNewBrand ? '?new=true' : ''));
           
-          // Clean up URL without triggering a re-render
-          if (connectedParam) {
-            window.history.replaceState({}, '', '/onboarding' + (isNewBrand ? '?new=true' : ''));
+          try {
+            const savedState = localStorage.getItem('onboarding_state');
+            if (savedState) {
+              const parsed = JSON.parse(savedState);
+              if (parsed.postFrequency) frequency = parsed.postFrequency;
+              if (parsed.postTime) postTime = parsed.postTime;
+              localStorage.removeItem('onboarding_state');
+            }
+          } catch (e) {
+            console.error('Failed to parse saved onboarding state', e);
           }
         }
 
@@ -74,8 +82,10 @@ useEffect(() => {
           ...prev,
           step: currentStep,
           connectedPlatforms: platforms,
-          postFrequency: status.frequency || 3,
-          postTime: status.postTime || 'morning',
+          postFrequency: frequency,
+          postTime: postTime,
+          brandProfile: status.brandProfile || prev.brandProfile,
+          sourceUrl: status.sourceUrl || prev.sourceUrl,
         }));
 
       } catch (error) {
@@ -87,7 +97,6 @@ useEffect(() => {
 
     initializeWorkspace();
   }, []);
-// Replace your old updateState, nextStep, and prevStep with this block
 
   const updateState = (updates: Partial<OnboardingState>) => {
     setState(prev => ({ ...prev, ...updates }));
@@ -106,20 +115,34 @@ useEffect(() => {
       });
     } catch (error) {
       console.error('Failed to persist system state:', error);
-      // Note: In a production environment, you might want to add retry logic here 
-      // if the network request fails, so the DB doesn't fall out of sync with the UI.
     }
   };
 
   const nextStep = () => goToStep(state.step + 1);
   const prevStep = () => goToStep(state.step - 1);
 
+  const handleFinishOnboarding = async () => {
+    try {
+      await fetch('/api/onboarding/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          frequency: state.postFrequency || 3,
+          postTime: state.postTime || 'morning',
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to complete onboarding:', error);
+    }
+    window.location.href = '/';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-6 w-6 text-zinc-900 animate-spin" />
-          <p className="text-sm font-medium text-zinc-500">Loading workspace...</p>
+          <p className="text-sm font-medium text-zinc-500">Loading...</p>
         </div>
       </div>
     );
@@ -133,37 +156,32 @@ useEffect(() => {
           <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
             <Zap className="h-4 w-4 text-white" />
           </div>
-          <span className="font-semibold text-sm tracking-wide text-zinc-900">AutoGrowth AI</span>
+          <span className="font-semibold text-sm tracking-wide text-zinc-900">AutoGrowth</span>
         </div>
         
-        <div className="flex items-center gap-2">
-          {STEPS.map((label, idx) => (
-            <div key={label} className="flex items-center gap-2">
-              <div className={`text-xs font-medium px-2 py-1 rounded-md transition-colors ${
-                state.step === idx + 1 ? 'bg-zinc-900 text-white' : 
-                state.step > idx + 1 ? 'text-zinc-900' : 'text-zinc-400'
-              }`}>
-                {idx + 1}. {label}
-              </div>
-              {idx < STEPS.length - 1 && <span className="text-zinc-300">/</span>}
-            </div>
-          ))}
+        <div className="flex-1 max-w-xs mx-auto ml-12">
+          <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-zinc-900 rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${(state.step / STEPS.length) * 100}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Step {state.step} of {STEPS.length}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-800">{STEPS[state.step - 1]}</span>
+          </div>
         </div>
       </header>
 
       {/* Dynamic Step Rendering */}
       <main className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-2xl bg-white border border-zinc-200 rounded-2xl shadow-sm p-8 sm:p-12">
+        <div className="w-full max-w-2xl glass-card p-8 sm:p-12 relative overflow-hidden">
+          {/* Subtle glow effect behind content */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-900/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+          
           {state.step === 1 && <WelcomeStep onNext={nextStep} />}
+          
           {state.step === 2 && (
-             <ConnectStep 
-               connectedPlatforms={state.connectedPlatforms} 
-               onNext={nextStep} 
-               onBack={prevStep} 
-               // Pass down connect handlers...
-             />
-          )}
-          {state.step === 3 && (
              <PromptStep 
                state={state} 
                updateState={updateState} 
@@ -171,7 +189,8 @@ useEffect(() => {
                onBack={prevStep} 
              />
           )}
-          {state.step === 4 && (
+          
+          {state.step === 3 && (
              <ReviewStep 
                state={state} 
                updateState={updateState} 
@@ -179,11 +198,23 @@ useEffect(() => {
                onBack={prevStep} 
              />
           )}
-          {state.step === 5 && (
+          
+          {state.step === 4 && (
              <ScheduleStep 
                state={state} 
                updateState={updateState} 
-               onFinish={() => router.push('/')} 
+               onNext={nextStep} 
+               onBack={prevStep} 
+             />
+          )}
+
+          {state.step === 5 && (
+             <ConnectStep 
+               connectedPlatforms={state.connectedPlatforms} 
+               onConnect={() => {
+                 localStorage.setItem('onboarding_state', JSON.stringify(state));
+               }}
+               onNext={handleFinishOnboarding} 
                onBack={prevStep} 
              />
           )}

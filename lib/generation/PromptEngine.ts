@@ -386,8 +386,7 @@ export class PromptEngine {
       usedSourceUrls,
       platform,
     } = params;
-
-    const maxLength = platform === "linkedin" ? (persona.max_length ?? 2200) : (persona.max_length ?? 280);
+    const maxLength = platform === "linkedin" ? (persona.max_length ?? 600) : (persona.max_length ?? 280);
 
     let prompt = `You are ${persona.name}.\n`;
     prompt += `${persona.description ? persona.description + "\n\n" : ""}`;

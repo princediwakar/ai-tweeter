@@ -56,7 +56,7 @@ class KnowledgeSourceService {
         ${input.url},
         ${input.source_type || 'website'},
         ${input.label || null},
-        ${input.crawl_depth || 1},
+        ${input.crawl_depth || 2},
         ${input.crawl_frequency || 'weekly'},
         ${input.max_pages || 10},
         'pending',

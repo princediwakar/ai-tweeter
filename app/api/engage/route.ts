@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
       WITH current_local AS (
         SELECT 
           s.start_time, s.end_time, s.days_of_week, s.timezone,
-          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) as local_minutes,
-          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) as local_dow
+          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata')))) as local_minutes,
+          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) as local_dow
         FROM account_schedules s
         JOIN connected_accounts a ON s.connected_account_id = a.id
         WHERE a.account_username = ${twitterHandle} 

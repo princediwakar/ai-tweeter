@@ -21,7 +21,7 @@ export const GENERATION_CONFIG = {
     batchDelay: 1000,
   },
   ai: {
-    model: 'deepseek-chat',
+    model: 'deepseek-flash',
     temperature: 0.9,
     maxTokens: 2000,
   },

@@ -120,8 +120,8 @@ class PostingJobQueue {
         WHERE pj.platform = ${platform}
           AND pj.status = 'pending'
           AND pj.attempts < pj.max_attempts
-          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) >= s.start_time
-          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) <= s.end_time
+          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata')))) >= s.start_time
+          AND (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata')))) <= s.end_time
         ORDER BY pj.created_at ASC
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
@@ -180,7 +180,7 @@ class PostingJobQueue {
 
   // FIXED: Native Database Timezone resolution for scheduling.
   async syncScheduledJobs(platform: 'twitter' | 'linkedin'): Promise<number> {
-    const todayDate = new Date().toISOString().split('T')[0];
+    const todayDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
     const schedulesResult = await sql`
       SELECT s.*, a.user_id
@@ -188,7 +188,7 @@ class PostingJobQueue {
       JOIN connected_accounts a ON s.connected_account_id = a.id
       WHERE s.is_active = true
         AND a.platform = ${platform}
-        AND EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) = ANY(s.days_of_week)
+        AND EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) = ANY(s.days_of_week)
     `;
 
     if (schedulesResult.rows.length === 0) return 0;

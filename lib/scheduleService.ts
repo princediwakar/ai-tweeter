@@ -66,7 +66,7 @@ class ScheduleService {
         persona_id, created_at, updated_at
       ) VALUES (
         ${id}, ${input.connected_account_id}, ${input.name}, 
-        ${input.timezone || 'UTC'}, ${JSON.stringify(input.schedule_config || {})},
+        ${input.timezone || 'Asia/Kolkata'}, ${JSON.stringify(input.schedule_config || {})},
         ${daysString}, 
         ${input.start_time ?? 0}, ${input.end_time ?? 1439},
         ${input.is_active ?? true},

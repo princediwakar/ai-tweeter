@@ -110,3 +110,45 @@
     transform: translateX(100%);
   }
 }
+
+@keyframes cycle-text {
+  0%, 20% { content: "Reading your website..."; }
+  25%, 45% { content: "Finding your core topics..."; }
+  50%, 70% { content: "Understanding your style..."; }
+  75%, 95% { content: "Drafting sample posts..."; }
+  100% { content: "Reading your website..."; }
+}
+
+@keyframes cycle-text-generate {
+  0%, 25% { content: "Reviewing your topics..."; }
+  30%, 55% { content: "Writing post ideas..."; }
+  60%, 85% { content: "Refining draft copy..."; }
+  90%, 100% { content: "Finalizing posts..."; }
+}
+
+.magic-bg {
+  background-color: #fafafa;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+.glass-card {
+  @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-2xl transition-all duration-300;
+}
+
+.glass-card:hover {
+  @apply shadow-[0_8px_30px_rgb(0,0,0,0.08)] border-white/80 bg-white/80;
+}
+
+.ai-thinking-text::after {
+  content: "Thinking...";
+  animation: cycle-text 6s infinite;
+}
+
+.ai-generating-text::after {
+  content: "Generating...";
+  animation: cycle-text-generate 6s infinite;
+}

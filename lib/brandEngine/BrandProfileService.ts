@@ -201,7 +201,7 @@ class BrandProfileService {
       linkedin_account_id: (row.linkedin_account_id as string) || null,
       linkedin_platform_id: (row.linkedin_platform_id as string) || null,
       brand_name: row.name as string,
-      brand_url: null,
+      brand_url: (row.brand_url as string) || null,
       brand_description: (row.description as string) || '',
       value_propositions: this.parseJsonb<ValueProposition[]>(row.core_values, []),
       target_audiences: this.parseJsonb<TargetAudience[]>(row.target_audience, []),

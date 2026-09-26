@@ -147,33 +147,23 @@ export async function getPersona(key: string): Promise<Persona | null> {
 }
 
 export async function getPersonaById(id: string): Promise<Persona | null> {
-  try {
-    const result = await sqlWithRetry`
-      SELECT * FROM personas
-      WHERE id = ${id} AND is_active = true
-      LIMIT 1
-    `;
-    
-    if (result.rows.length === 0) return null;
-    return result.rows[0] as Persona;
-  } catch (error) {
-    console.error(`[Neon] Error getting persona by ID ${id}:`, error);
-    return null;
-  }
+  // Legacy personas table is deprecated in favor of brand_profiles
+  return null;
 }
 
 export async function getAllPersonasFromDb(): Promise<Persona[]> {
-  try {
-    const result = await sqlWithRetry`
-      SELECT * FROM personas
-      WHERE is_active = true
-      ORDER BY name ASC
-    `;
-    return result.rows as Persona[];
-  } catch (error) {
-    console.error(`[Neon] Error getting all personas:`, error);
-    return [];
-  }
+  // Legacy personas table is deprecated in favor of brand_profiles
+  return [
+    {
+      id: 'brand-engine-persona',
+      name: 'Brand Engine',
+      key: 'brand_engine',
+      description: 'Default persona for Brand Engine',
+      config: {},
+      is_active: true,
+      created_at: new Date()
+    } as any
+  ];
 }
 
 export async function getPostsByAccount(accountId: string): Promise<Post[]> {
@@ -993,9 +983,10 @@ export async function getRecentPatternData(
   limit: number = 10
 ): Promise<{ patterns: RecentPattern[]; usedSourceUrls: string[] }> {
   try {
-    // Fetch both the content for thematic deduplication and the source_url for strict avoidance.
+    // Fetch only the content for thematic deduplication
+    // (source_url was removed from schema)
     const result = await sql`
-      SELECT content, source_url, created_at
+      SELECT content, created_at
       FROM posts
       WHERE connected_account_id = ${accountId}
         AND content IS NOT NULL
@@ -1007,25 +998,18 @@ export async function getRecentPatternData(
     const usedSourceUrls: string[] = [];
 
     for (const row of result.rows) {
-      // Build RecentPattern object with text and timestamp
       if (row.content) {
         recentPatterns.push({
           text: row.content,
           timestamp: row.created_at ? new Date(row.created_at).toISOString() : undefined
         });
       }
-      
-      // The source_url is for the strict blocklist.
-      if (row.source_url && !usedSourceUrls.includes(row.source_url)) {
-        usedSourceUrls.push(row.source_url);
-      }
     }
 
-    console.log(`[DB] Found ${recentPatterns.length} recent patterns and ${usedSourceUrls.length} used source URLs for account ${accountId} to avoid.`);
+    console.log(`[DB] Found ${recentPatterns.length} recent patterns for account ${accountId} to avoid.`);
     return { patterns: recentPatterns, usedSourceUrls };
   } catch (error) {
     console.warn('[DB] Failed to fetch recent pattern tweets:', error);
-    // Return empty state to allow generation to proceed without deduplication context.
     return { patterns: [], usedSourceUrls: [] };
   }
 }

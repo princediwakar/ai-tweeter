@@ -208,12 +208,12 @@ export default function SignInPage() {
                 <div className="w-3 h-3 rounded-full bg-amber-400"></div>
                 <div className="w-3 h-3 rounded-full bg-green-400"></div>
               </div>
-              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Your content engine</div>
+              <div className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Automated Schedule</div>
             </div>
             <div className="p-8 space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-zinc-900">Performance Overview</h3>
-                <p className="text-sm text-zinc-500">Last 24 hours of autonomous activity</p>
+                <p className="text-sm text-zinc-500">Scheduled & published updates</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -235,8 +235,8 @@ export default function SignInPage() {
 
               <div className="p-4 rounded-xl bg-zinc-900 text-white flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-medium">AI Engine</div>
-                  <div className="text-xs text-zinc-400">Running optimally</div>
+                  <div className="text-sm font-medium">Publishing Schedule</div>
+                  <div className="text-xs text-zinc-400">Active & on schedule</div>
                 </div>
                 <div className="flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-emerald-400 opacity-75"></span>

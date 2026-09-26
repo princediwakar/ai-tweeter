@@ -16,15 +16,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing brandId' }, { status: 400 });
     }
 
+    // Get the brand profile to find connected accounts
+    const brandProfileRes = await sql`
+      SELECT twitter_account_id, linkedin_account_id FROM brand_profiles 
+      WHERE user_id = ${userId} AND id = ${brandId}
+    `;
+    const brandProfile = brandProfileRes.rows[0];
+
+    if (!brandProfile) {
+      return NextResponse.json({ error: 'Brand not found' }, { status: 404 });
+    }
+
+    const accountIds = [brandProfile.twitter_account_id, brandProfile.linkedin_account_id].filter(Boolean);
+
+    if (accountIds.length === 0) {
+      return NextResponse.json({ error: 'No connected accounts found for this brand' }, { status: 404 });
+    }
+
     // Find all connected accounts for this brand
     const accountsResult = await sql`
       SELECT id, platform FROM connected_accounts 
-      WHERE user_id = ${userId} AND brand_profile_id = ${brandId} AND is_active = true
+      WHERE user_id = ${userId} AND id = ANY(${accountIds as any}) AND is_active = true
     `;
     const accounts = accountsResult.rows;
 
     if (accounts.length === 0) {
-      return NextResponse.json({ error: 'No connected accounts found for this brand' }, { status: 404 });
+      return NextResponse.json({ error: 'No active connected accounts found for this brand' }, { status: 404 });
     }
 
     // --- POPULATE CONTENT CALENDAR ---
@@ -34,41 +51,30 @@ export async function POST(request: NextRequest) {
       WHERE user_id = ${userId} AND brand_profile_id = ${brandId} AND is_active = true
       LIMIT 1
     `;
+    // Generate calendar for just the first post
+    const date = new Date();
+    const dateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
     
-    if (scheduleRes.rows.length > 0) {
-      const daysOfWeek: number[] = scheduleRes.rows[0].days_of_week || [1, 3, 5];
-      
-      // Fetch pillars for random selection
-      const pillarsRes = await sql`SELECT id FROM content_pillars WHERE brand_profile_id = ${brandId}`;
-      const pillars = pillarsRes.rows;
-      
-      if (pillars.length > 0) {
-        // Generate calendar for next 14 days
-        for (let i = 0; i < 14; i++) {
-          const date = new Date();
-          date.setDate(date.getDate() + i);
-          const dow = date.getDay();
+    // Fetch pillars for random selection
+    const pillarsRes = await sql`SELECT id FROM content_pillars WHERE brand_profile_id = ${brandId}`;
+    const pillars = pillarsRes.rows;
+    
+    if (pillars.length > 0) {
+      for (const account of accounts) {
+        const plannedPlatform = account.platform || 'twitter';
+        // Check if entry already exists for this specific platform
+        const existingRes = await sql`SELECT id FROM content_calendar WHERE brand_profile_id = ${brandId} AND planned_date = ${dateStr} AND planned_platform = ${plannedPlatform}`;
+        
+        if (existingRes.rows.length === 0) {
+          const randomPillar = pillars[Math.floor(Math.random() * pillars.length)];
           
-          if (daysOfWeek.includes(dow)) {
-            const dateStr = date.toISOString().split('T')[0];
-            
-            // Check if entry already exists
-            const existingRes = await sql`SELECT id FROM content_calendar WHERE brand_profile_id = ${brandId} AND planned_date = ${dateStr}`;
-            
-            if (existingRes.rows.length === 0) {
-              const randomPillar = pillars[Math.floor(Math.random() * pillars.length)];
-              const randomAccount = accounts[Math.floor(Math.random() * accounts.length)];
-              const plannedPlatform = randomAccount.platform || 'twitter';
-              
-              await sql`
-                INSERT INTO content_calendar (
-                  brand_profile_id, planned_date, planned_platform, pillar_id, status, created_at, updated_at
-                ) VALUES (
-                  ${brandId}, ${dateStr}, ${plannedPlatform}, ${randomPillar.id}, 'planned', NOW(), NOW()
-                )
-              `;
-            }
-          }
+          await sql`
+            INSERT INTO content_calendar (
+              brand_profile_id, planned_date, planned_platform, pillar_id, status, created_at, updated_at
+            ) VALUES (
+              ${brandId}, ${dateStr}, ${plannedPlatform}, ${randomPillar.id}, 'planned', NOW(), NOW()
+            )
+          `;
         }
       }
     }

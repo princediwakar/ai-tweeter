@@ -60,13 +60,13 @@ export async function GET(request: NextRequest) {
         LEFT JOIN content_pillars cp ON p.pillar_id = cp.id
         WHERE p.brand_profile_id = ${brandProfile.id} AND p.status = 'posted'
         ORDER BY p.created_at DESC
-        LIMIT 5
+        LIMIT 20
       `;
       recentPosts = recentPostsRes.rows;
 
       // 4. Get Upcoming Calendar Posts
       const upcomingPostsRes = await sql`
-        SELECT c.*, p.content, p.status as post_status, cp.name as pillar_name
+        SELECT c.*, p.id as post_id, p.content, p.status as post_status, cp.name as pillar_name
         FROM content_calendar c
         LEFT JOIN posts p ON p.calendar_id = c.id
         LEFT JOIN content_pillars cp ON c.pillar_id = cp.id

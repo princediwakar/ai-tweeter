@@ -6,43 +6,24 @@ import { OnboardingState } from '@/types/onboarding';
 export default function ScheduleStep({ 
   state, 
   updateState, 
-  onFinish, 
+  onNext, 
+  onFinish,
   onBack 
 }: { 
   state: OnboardingState; 
   updateState: (s: Partial<OnboardingState>) => void;
-  onFinish: () => void;
-  onBack: () => void;
+  onNext?: () => void;
+  onFinish?: () => void;
+  onBack: () => void; 
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleDeploy = async () => {
-    setSubmitting(true);
-    
-    try {
-      // Commit the schedule configuration to the database
-      setError(null);
-      const res = await fetch('/api/onboarding/complete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          frequency: state.postFrequency,
-          postTime: state.postTime,
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.details || data.error || 'Failed to finalize deployment');
-      }
-
-      // Reroute to Command Center
+    if (onNext) {
+      onNext();
+    } else if (onFinish) {
       onFinish();
-    } catch (err) {
-      console.error('Deployment failure:', err);
-      setSubmitting(false);
-      setError(err instanceof Error ? err.message : 'Failed to finalize deployment');
     }
   };
 
@@ -119,9 +100,9 @@ export default function ScheduleStep({
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
           {submitting ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Setting up your account...</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Saving schedule...</>
           ) : (
-            <>Start posting <ArrowRight className="h-4 w-4" /></>
+            <>Next: Connect Accounts <ArrowRight className="h-4 w-4" /></>
           )}
         </button>
       </div>

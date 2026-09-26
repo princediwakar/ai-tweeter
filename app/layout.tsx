@@ -18,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AutoGrowth AI | Build Your Brand Voice",
-  description: "Grow your influence with AI-powered content. Build your personal brand and become a thought leader in your industry.",
+  title: "AutoGrowth | Automated Social Media for Founders & Creators",
+  description: "Turn your website or blog into high-performing Twitter & LinkedIn posts. Fully automated or review every post before publishing.",
 };
 
 export default function RootLayout({
@@ -30,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="antialiased">
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans bg-zinc-50 text-zinc-900 selection:bg-zinc-900 selection:text-white`}
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans magic-bg text-zinc-900 selection:bg-zinc-900 selection:text-white`}
       >
         <AuthProvider>
           {children}

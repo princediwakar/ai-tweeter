@@ -6,19 +6,34 @@ import { PlatformIcon } from '@/components/ui/PlatformIcon';
 export default function ConnectStep({ 
   connectedPlatforms, 
   onNext, 
-  onBack 
+  onBack,
+  onConnect
 }: { 
   connectedPlatforms: string[]; 
   onNext: () => void; 
   onBack: () => void; 
+  onConnect?: (platform: string) => void;
 }) {
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const handleConnect = (platform: string) => {
     setConnecting(platform);
+    if (onConnect) {
+      onConnect(platform);
+    }
     // Bypass NextAuth entirely for connecting secondary accounts
     // Redirect to our custom OAuth initiation route
-    window.location.href = `/api/oauth/initiate?platform=${platform}`;
+    window.location.href = `/api/oauth/initiate?platform=${platform}&callbackUrl=/onboarding`;
+  };
+
+  const handleFinish = async () => {
+    setIsFinishing(true);
+    try {
+      await onNext();
+    } catch {
+      setIsFinishing(false);
+    }
   };
 
   const hasConnection = connectedPlatforms.length > 0;
@@ -27,7 +42,7 @@ export default function ConnectStep({
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
         <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Connect your accounts</h2>
-        <p className="text-sm text-zinc-500">Link your social profiles so we can start creating content in your voice.</p>
+        <p className="text-sm text-zinc-500">Connect where you want your posts scheduled and published.</p>
       </div>
 
       <div className="space-y-4">
@@ -46,10 +61,19 @@ export default function ConnectStep({
           </div>
           
           {connectedPlatforms.includes('twitter') ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Authorized
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Authorized
+              </span>
+              <button
+                onClick={() => handleConnect('twitter')}
+                disabled={connecting !== null}
+                className="text-[10px] text-zinc-500 hover:text-blue-600 underline"
+              >
+                {connecting === 'twitter' ? 'Connecting...' : 'Connect another account'}
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => handleConnect('twitter')}
@@ -77,10 +101,19 @@ export default function ConnectStep({
           </div>
           
           {connectedPlatforms.includes('linkedin') ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Authorized
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Authorized
+              </span>
+              <button
+                onClick={() => handleConnect('linkedin')}
+                disabled={connecting !== null}
+                className="text-[10px] text-zinc-500 hover:text-blue-600 underline"
+              >
+                {connecting === 'linkedin' ? 'Connecting...' : 'Connect another account'}
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => handleConnect('linkedin')}
@@ -103,11 +136,21 @@ export default function ConnectStep({
         </button>
 
         <button
-          onClick={onNext}
-          disabled={!hasConnection}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          onClick={handleFinish}
+          disabled={isFinishing || connecting !== null}
+          className={`inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 ${
+            hasConnection
+              ? 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-sm'
+              : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+          }`}
         >
-          Continue <ArrowRight className="h-4 w-4" />
+          {isFinishing ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> Preparing Dashboard...</>
+          ) : hasConnection ? (
+            <>Go to Dashboard <ArrowRight className="h-4 w-4" /></>
+          ) : (
+            <>I'll connect later <ArrowRight className="h-4 w-4" /></>
+          )}
         </button>
       </div>
     </div>

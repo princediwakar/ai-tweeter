@@ -3,6 +3,7 @@
 import { parseStringPromise } from 'xml2js';
 import { GENERATION_CONFIG } from '../../generation/config';
 import { getRandomUserAgent, cleanDescription } from '../utils';
+import { extractWithJina } from './jinaExtractor';
 import type { HeadlineWithSource, RssItem } from '../types';
 
 const fetchFn = globalThis.fetch;
@@ -15,8 +16,8 @@ interface CacheEntry<T> {
 const rssCache = new Map<string, CacheEntry<HeadlineWithSource[]>>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
-function getCacheKey(feed: string, headlinesPerFeed: number, totalLimit?: number): string {
-  return `${feed}:${headlinesPerFeed}:${totalLimit ?? 'all'}`;
+function getCacheKey(feed: string, headlinesPerFeed: number, totalLimit?: number, excludeCount: number = 0): string {
+  return `${feed}:${headlinesPerFeed}:${totalLimit ?? 'all'}:excl${excludeCount}`;
 }
 
 function getCachedOrNull(key: string): HeadlineWithSource[] | null {
@@ -46,14 +47,15 @@ function setCache(key: string, data: HeadlineWithSource[]): void {
 export async function fetchFromRssFeeds(
   feeds: readonly string[],
   headlinesPerFeed: number,
-  totalLimit?: number
+  totalLimit?: number,
+  excludeUrls?: string[]
 ): Promise<HeadlineWithSource[]> {
   if (!feeds || feeds.length === 0) {
     console.warn('[Content Source] ⚠️ No feeds provided to fetchFromRssFeeds');
     return [];
   }
 
-  const cacheKey = getCacheKey(feeds.join(','), headlinesPerFeed, totalLimit);
+  const cacheKey = getCacheKey(feeds.join(','), headlinesPerFeed, totalLimit, excludeUrls?.length || 0);
   const cached = getCachedOrNull(cacheKey);
   
   if (cached) {
@@ -111,10 +113,15 @@ export async function fetchFromRssFeeds(
       const items: RssItem[] = parsed?.rss?.channel?.[0]?.item ?? [];
       const headlines: HeadlineWithSource[] = [];
       
-      for (const item of items.slice(0, headlinesPerFeed)) {
+      for (const item of items) {
+        if (headlines.length >= headlinesPerFeed) break;
+        
         const title = item.title?.[0];
         const link = item.link?.[0];
         if (title && link) {
+          if (excludeUrls && excludeUrls.includes(link)) {
+            continue;
+          }
           headlines.push({
             headline: title,
             url: link,
@@ -134,10 +141,26 @@ export async function fetchFromRssFeeds(
   const results = await Promise.all(fetchPromises);
   const allHeadlines = results.flat().sort(() => 0.5 - Math.random());
   
-  const limited = totalLimit ? allHeadlines.slice(0, totalLimit) : allHeadlines;
+  const limited = totalLimit ? allHeadlines.slice(0, totalLimit) : allHeadlines.slice(0, 10);
+  
+  // ENRICH RSS ARTICLES - Fetch full article text using Jina
+  if (limited.length > 0) {
+    console.log(`[Content Source] 📰 Enriching ${limited.length} RSS articles with full text...`);
+    const urls = limited.map(h => h.url);
+    const enriched = await extractWithJina(urls);
+    const enrichedMap = new Map(enriched.map(e => [e.url, e.description]));
+    
+    for (const item of limited) {
+      const fullText = enrichedMap.get(item.url);
+      if (fullText && fullText.length > (item.description?.length || 0)) {
+        // Cap the length to avoid blowing up the token window
+        item.description = fullText.substring(0, 15000) + (fullText.length > 15000 ? '\\n...[TRUNCATED]' : '');
+      }
+    }
+  }
   
   setCache(cacheKey, limited);
-  console.log(`[Content Source] 📰 Fetched and cached ${limited.length} headlines from ${feeds.length} RSS feeds`);
+  console.log(`[Content Source] 📰 Fetched, enriched, and cached ${limited.length} headlines from ${feeds.length} RSS feeds`);
   
   return limited;
 }
@@ -146,7 +169,7 @@ export async function fetchFromRssFeeds(
  * Convenience function for fetching headlines only (used by Pattern Spotter)
  * NOTE: Feeds should be passed as parameter - caller must provide from DB
  */
-export async function fetchHeadlinesOnly(feeds: string[], limit = 20): Promise<HeadlineWithSource[]> {
+export async function fetchHeadlinesOnly(feeds: string[], limit = 20, excludeUrls?: string[]): Promise<HeadlineWithSource[]> {
   console.log(`[Content Source] 📰 Fetching ${limit} headlines from ${feeds?.length || 0} feeds...`);
 
   if (!feeds || feeds.length === 0) {
@@ -158,7 +181,8 @@ export async function fetchHeadlinesOnly(feeds: string[], limit = 20): Promise<H
     const headlines = await fetchFromRssFeeds(
       feeds,
       5,
-      limit
+      limit,
+      excludeUrls
     );
 
     if (headlines.length === 0) {

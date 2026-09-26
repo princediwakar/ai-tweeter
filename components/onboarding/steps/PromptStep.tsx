@@ -61,15 +61,15 @@ export default function PromptStep({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Let's find your voice</h2>
-        <p className="text-sm text-zinc-500">Paste a link to your website or newsletter. We'll read it to learn what you care about and how you sound.</p>
+        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">What is your website or blog?</h2>
+        <p className="text-sm text-zinc-500">Paste your link. We'll read your content to understand your business and draft relevant posts.</p>
       </div>
 
       <div className="space-y-4 pt-4">
         <div className="space-y-2">
           <label htmlFor="url" className="text-sm font-medium text-zinc-900 flex items-center gap-2">
             <LinkIcon className="h-4 w-4 text-zinc-500" />
-            Your Website or Blog URL
+            Website or Blog URL
           </label>
           <div className="relative">
             <input
@@ -100,7 +100,7 @@ export default function PromptStep({
           <div>
             <h4 className="text-sm font-semibold text-zinc-900">How it works</h4>
             <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-              We read your site to understand who you're talking to and what you usually say. This helps us draft posts that actually sound like you right from the start.
+              We read your homepage and recent articles to discover what topics you talk about. Then we draft posts ready to share on Twitter and LinkedIn.
             </p>
           </div>
         </div>
@@ -118,12 +118,16 @@ export default function PromptStep({
         <button
           onClick={handleGenerate}
           disabled={isGenerating || url.trim().length < 5}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-all duration-300 disabled:opacity-50 relative overflow-hidden"
         >
           {isGenerating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Reading your site...</>
+            <>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 opacity-50 animate-pulse"></div>
+              <Sparkles className="h-4 w-4 animate-pulse relative z-10" /> 
+              <span className="ai-thinking-text relative z-10 w-48 text-left">Analyzing website...</span>
+            </>
           ) : (
-            <>Learn my voice <ArrowRight className="h-4 w-4" /></>
+            <>Draft My Posts <ArrowRight className="h-4 w-4" /></>
           )}
         </button>
       </div>

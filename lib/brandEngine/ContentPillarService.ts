@@ -136,12 +136,12 @@ Return ONLY valid JSON array. Each pillar should have:
 ]
 
 RULES:
-1. Always include a "Pain Point Stories" pillar (weight: 1.5) — content about problems the audience faces
-2. Always include a "Product Insight" pillar (weight: 1.0) — how the product solves specific problems
-3. Include at least one "Social Proof" or "Customer Stories" pillar (weight: 0.7)
-4. Include an "Industry Trends" or "Thought Leadership" pillar (weight: 0.8)
-5. Optionally include "Behind the Scenes" (weight: 0.3) for brand humanizing
-6. Example angles must be specific to THIS brand, not generic
+1. Always include a "Industry Ecosystem" or "Industry Trends" pillar (weight: 1.5) — engaging content about the broader industry (e.g. for healthtech: patients, doctors, news; for edtech: students, psychology, future of learning). Establish a strong, opinionated persona.
+2. Always include a "Pain Point Stories" pillar (weight: 1.0) — content about problems the audience faces in their daily lives/work.
+3. Include a "Product Insight" pillar (weight: 0.8) — how the specific product solves niche problems.
+4. Include at least one "Social Proof" or "Customer Stories" pillar (weight: 0.7).
+5. Optionally include "Behind the Scenes" or "Founder Journey" (weight: 0.3) for brand humanizing.
+6. Example angles must be specific to THIS brand and industry, not generic. Look at how Swiggy/Zomato engage audiences broadly instead of just talking about delivery.
 7. Weight determines posting frequency (higher = more frequent)`;
 
     try {
@@ -185,28 +185,28 @@ RULES:
     return [
       {
         brand_profile_id: brand.id,
-        name: 'Pain Point Stories',
-        slug: 'pain-points',
-        description: `Real problems ${audience} face that ${brand.brand_name} addresses`,
-        example_angles: [`Common frustrations for ${audience}`, `Hidden costs of the status quo`],
+        name: 'Industry Ecosystem & Trends',
+        slug: 'industry-ecosystem',
+        description: 'Engaging content about the broader industry ecosystem, news, and systemic observations.',
+        example_angles: ['Counter-intuitive industry observation', 'Future trends in the space'],
         target_audience: audience,
         weight: 1.5,
       },
       {
         brand_profile_id: brand.id,
-        name: 'Product Insight',
-        slug: 'product-insight',
-        description: `How ${brand.brand_name} solves specific problems`,
-        example_angles: [`Feature spotlight`, `Before vs after using ${brand.brand_name}`],
+        name: 'Pain Point Stories',
+        slug: 'pain-points',
+        description: `Real problems ${audience} face in their daily lives`,
+        example_angles: [`Common frustrations for ${audience}`, `Hidden costs of the status quo`],
         target_audience: audience,
         weight: 1.0,
       },
       {
         brand_profile_id: brand.id,
-        name: 'Industry Trends',
-        slug: 'industry-trends',
-        description: 'What happens in the industry and why it matters',
-        example_angles: ['Emerging patterns', 'Data-backed observations'],
+        name: 'Product Insight',
+        slug: 'product-insight',
+        description: `How ${brand.brand_name} specifically solves niche problems`,
+        example_angles: [`Feature spotlight`, `Before vs after using ${brand.brand_name}`],
         target_audience: audience,
         weight: 0.8,
       },

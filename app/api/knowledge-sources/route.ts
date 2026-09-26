@@ -29,6 +29,15 @@ export async function POST(req: NextRequest) {
       source_type: 'website', // Default for now
     });
 
+    // Automatically trigger scraping for the new source
+    const { tasks } = await import("@trigger.dev/sdk");
+    await tasks.trigger("crawl-brand-knowledge", {
+      brandProfileId: brand_profile_id,
+      // We don't need to pass url since we just created it above, but we can pass it just in case
+      // wait, crawlBrandKnowledge creates the source if url is passed.
+      // So let's NOT pass url, just brandProfileId to scrape pending sources.
+    });
+
     return NextResponse.json({ success: true, source });
   } catch (error: any) {
     console.error('Error creating knowledge source:', error);

@@ -33,11 +33,11 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Twitter OAuth error:', error, errorDescription);
-      return NextResponse.redirect(new URL(`/setup?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent(errorDescription || error)}`, request.url));
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(new URL(`/setup?connected=error&message=${encodeURIComponent('Missing authorization code or state')}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent('Missing authorization code or state')}`, request.url));
     }
 
     // 3. Verify PKCE from the Initiation Route
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     
     if (!codeVerifier) {
       console.error('❌ PKCE Verifier not found in cookies for state:', state);
-      return NextResponse.redirect(new URL(`/setup?connected=error&message=${encodeURIComponent('Invalid or expired session. Please try again.')}`, request.url));
+      return NextResponse.redirect(new URL(`/onboarding?connected=error&message=${encodeURIComponent('Invalid or expired session. Please try again.')}`, request.url));
     }
 
     // Clean up the verifier cookie immediately
@@ -120,9 +120,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Success! Node secured for @${profile.username}`);
     
-    // Get callback URL from cookie (default to setup)
+    // Get callback URL from cookie (default to onboarding)
     const successCallbackCookie = await cookieStore.get('oauth_callback_url');
-    const successCallbackUrl = successCallbackCookie?.value || '/setup';
+    const successCallbackUrl = successCallbackCookie?.value || '/onboarding';
     await cookieStore.delete('oauth_callback_url');
     
     // Redirect to callback URL with success params
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
     
     // Get callback URL from existing cookieStore
     const errorCallbackCookie = await cookieStore.get('oauth_callback_url');
-    const errorCallbackUrl = errorCallbackCookie?.value || '/setup';
+    const errorCallbackUrl = errorCallbackCookie?.value || '/onboarding';
     await cookieStore.delete('oauth_callback_url');
     
     const separator = errorCallbackUrl.includes('?') ? '&' : '?';

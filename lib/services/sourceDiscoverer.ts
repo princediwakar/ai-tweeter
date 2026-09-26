@@ -55,7 +55,7 @@ export class SourceDiscoverer {
       try {
         const tavilySources = await this.searchRssFeeds(persona);
         const validTavilySources = await this.validateRssUrls(tavilySources);
-        
+
         for (const url of validTavilySources) {
           if (!results.includes(url)) {
             results.push(url);
@@ -74,7 +74,7 @@ export class SourceDiscoverer {
 
   private async selectFromBlogSources(persona: PersonaDesignResult): Promise<string[]> {
     const allSources = await listBlogSources({ limit: 200 });
-    
+
     if (allSources.length === 0) {
       console.log('[SourceDiscoverer] No blog_sources found in database');
       return [];
@@ -88,15 +88,15 @@ export class SourceDiscoverer {
     const coreThesis = persona.config?.core_thesis || 'none';
 
     const client = await getDeepseekClientAsync();
-    
+
     try {
       const response = await client.chat.completions.create({
-        model: "deepseek-chat",
+        model: "deepseek-flash",
         messages: [
           { role: "system", content: SOURCE_SELECTION_PROMPT },
-          { 
-            role: "user", 
-            content: `Persona Topics: ${topicsStr}\nCore Thesis: ${coreThesis}\n\nAvailable RSS Feeds:\n${formattedSources}` 
+          {
+            role: "user",
+            content: `Persona Topics: ${topicsStr}\nCore Thesis: ${coreThesis}\n\nAvailable RSS Feeds:\n${formattedSources}`
           }
         ],
         temperature: 0.3,
@@ -108,7 +108,7 @@ export class SourceDiscoverer {
 
       const parsed = JSON.parse(content);
       const urls = parsed.urls || [];
-      
+
       if (!Array.isArray(urls)) return [];
 
       const validUrls = await this.validateRssUrls(urls);
@@ -145,15 +145,15 @@ export class SourceDiscoverer {
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
-        
+
         const res = await fetch(url, {
           method: 'GET',
           signal: controller.signal,
           redirect: 'follow',
         });
-        
+
         clearTimeout(timeout);
-        
+
         const text = await res.text();
         const isXml = text.trim().startsWith('<?xml') || text.trim().startsWith('<rss') || text.trim().startsWith('<feed');
         return isXml;
@@ -165,14 +165,14 @@ export class SourceDiscoverer {
 
   private async searchRssFeeds(persona: PersonaDesignResult): Promise<string[]> {
     const client = await getDeepseekClientAsync();
-    
+
     const queryResponse = await client.chat.completions.create({
-      model: "deepseek-chat",
+      model: "deepseek-flash",
       messages: [
         { role: "system", content: SOURCE_DISCOVERY_PROMPT },
-        { 
-          role: "user", 
-          content: `Topics: ${persona.topics?.join(', ') || 'general'}\nCore Thesis: ${persona.config?.core_thesis || 'none'}` 
+        {
+          role: "user",
+          content: `Topics: ${persona.topics?.join(', ') || 'general'}\nCore Thesis: ${persona.config?.core_thesis || 'none'}`
         }
       ],
       temperature: 0.7,
@@ -181,7 +181,7 @@ export class SourceDiscoverer {
 
     const content = queryResponse.choices[0].message.content;
     if (!content) throw new Error("No query generated.");
-    
+
     const parsed = JSON.parse(content);
     const masterQuery = parsed.query;
 
@@ -196,8 +196,8 @@ export class SourceDiscoverer {
       max_results: TAVILY_MAX_RESULTS,
       include_domains: [],
       exclude_domains: [
-        "medium.com", "forbes.com", "bloomberg.com", "techcrunch.com", 
-        "businessinsider.com", "wsj.com", "instagram.com", "linkedin.com", 
+        "medium.com", "forbes.com", "bloomberg.com", "techcrunch.com",
+        "businessinsider.com", "wsj.com", "instagram.com", "linkedin.com",
         "twitter.com", "x.com", "facebook.com", "tiktok.com", "youtube.com",
         "reddit.com", "quora.com", "wikipedia.org"
       ]
@@ -215,7 +215,7 @@ export class SourceDiscoverer {
 
     const searchData = await tavilyRes.json();
     const urls: string[] = [];
-    
+
     if (searchData.results && Array.isArray(searchData.results)) {
       for (const item of searchData.results) {
         const url = item.url;
@@ -247,14 +247,14 @@ export class SourceDiscoverer {
     try {
       const urlObj = new URL(url);
       const feedPaths = ['/feed', '/rss', '/feed.xml', '/rss.xml', '/atom.xml', '/feed/rss', '/blog/feed'];
-      
+
       for (const path of feedPaths) {
         const feedUrl = `${urlObj.origin}${path}`;
         if (await this.checkRssValid(feedUrl)) {
           return feedUrl;
         }
       }
-      
+
       return null;
     } catch {
       return null;

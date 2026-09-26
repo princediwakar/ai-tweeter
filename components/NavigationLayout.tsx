@@ -5,15 +5,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Users, LogOut, User, ChevronDown, Menu, X, ListChecks, Zap } from 'lucide-react';
-import { Button } from './ui/button';
+import { LogOut, User, ChevronDown, Zap, Shield, FileText } from 'lucide-react';
 
-const navigation = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Posts', href: '/posts', icon: ListChecks },
-];
-
-function UserDropdown() {
+function UserDropdown({ user }: { user: any }) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -29,23 +23,55 @@ function UserDropdown() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="text-zinc-500 hover:text-zinc-900"
+      <button
         onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-zinc-100 transition-colors border border-zinc-200/60 bg-white/80"
+        aria-label="User menu"
       >
-        <ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
-      </Button>
+        <div className="w-7 h-7 rounded-lg bg-zinc-900 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+          {user?.name?.[0]?.toUpperCase() || <User size={14} />}
+        </div>
+        <span className="text-xs font-semibold text-zinc-800 max-w-[120px] truncate hidden sm:inline-block">
+          {user?.name || 'Account'}
+        </span>
+        <ChevronDown size={14} className={`text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
       {open && (
-        <div className="absolute right-0 bottom-full mb-2 w-56 bg-white border border-zinc-200 rounded-xl shadow-lg z-50 overflow-hidden">
-          <button
-            className="flex items-center w-full px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
-            onClick={() => signOut({ callbackUrl: '/auth/signin' })}
-          >
-            <LogOut size={16} className="mr-3" />
-            <span className="text-sm font-medium">Sign out</span>
-          </button>
+        <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-zinc-200 rounded-2xl shadow-2xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+            <p className="text-xs font-bold text-zinc-900 truncate">{user?.name || 'Administrator'}</p>
+            <p className="text-[11px] text-zinc-500 truncate mt-0.5">{user?.email || ''}</p>
+          </div>
+
+          <div className="py-1">
+            <Link
+              href="/privacy"
+              className="flex items-center px-4 py-2 text-xs text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <Shield size={14} className="mr-2 text-zinc-400" />
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="flex items-center px-4 py-2 text-xs text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+              onClick={() => setOpen(false)}
+            >
+              <FileText size={14} className="mr-2 text-zinc-400" />
+              Terms of Service
+            </Link>
+          </div>
+
+          <div className="border-t border-zinc-100 pt-1">
+            <button
+              className="flex items-center w-full px-4 py-2.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+            >
+              <LogOut size={14} className="mr-2" />
+              Sign out
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -56,7 +82,6 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
   const { data: session, status } = useSession();
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -69,15 +94,15 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
           router.push('/onboarding');
         }
       })
-      .catch(() => {}); 
+      .catch(() => {});
   }, [status, pathname, router]);
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50/50 flex items-center justify-center">
         <div className="flex items-center gap-3 text-zinc-500">
-          <div className="w-4 h-4 border-2 border-zinc-400 border-t-zinc-900 rounded-full animate-spin" />
-          <span className="text-sm font-medium uppercase tracking-widest">Loading...</span>
+          <div className="w-5 h-5 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />
+          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Loading AutoGrowth AI...</span>
         </div>
       </div>
     );
@@ -86,118 +111,33 @@ export default function NavigationLayout({ children }: { children: React.ReactNo
   if (!session) return <>{children}</>;
 
   return (
-    <div className="min-h-screen bg-zinc-50/50 text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
-      {/* Mobile sidebar toggle */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
-        <Button
-          variant="outline"
-          size="icon"
-          className="bg-white border-zinc-200 shadow-sm"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-        </Button>
-      </div>
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-zinc-200 transform transition-transform lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="h-full flex flex-col">
-          {/* Logo/Brand */}
-          <div className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shadow-sm">
-                <Zap size={18} className="text-white" />
+    <div className="min-h-screen bg-transparent text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white flex flex-col">
+      {/* Sleek Top Navigation Header */}
+      <header className="sticky top-0 z-40 w-full bg-white/70 backdrop-blur-xl border-b border-zinc-200/70 shadow-[0_1px_12px_rgba(0,0,0,0.02)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Logo & Product Brand */}
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                <Zap size={16} className="text-white fill-white" />
               </div>
-              <h1 className="text-lg font-semibold tracking-tight text-zinc-900">
-                AutoGrowth AI
-              </h1>
-            </div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4">
-              Your workspace
-            </p>
+              <span className="font-bold text-sm tracking-tight text-zinc-900">
+                AutoGrowth
+              </span>
+            </Link>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 px-4 space-y-1">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all ${
-                    isActive
-                      ? 'bg-zinc-100 text-zinc-900 shadow-sm border border-zinc-200/50'
-                      : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 border border-transparent'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon size={18} className={isActive ? "text-zinc-900" : "text-zinc-400"} />
-                  <span className="text-sm font-medium">
-                    {item.name}
-                  </span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User menu */}
-          <div className="p-4 border-t border-zinc-100 bg-zinc-50/50">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-zinc-200 shadow-sm">
-                  <User size={16} className="text-zinc-500" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate text-zinc-900">
-                    {session.user?.name || 'Administrator'}
-                  </p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-                      Active
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <UserDropdown />
-            </div>
-          </div>
-          <div className="p-3 border-t border-zinc-100 text-center">
-            <div className="flex flex-wrap justify-center gap-3 text-[10px] text-zinc-500">
-              <Link href="/privacy" className="hover:text-zinc-900 transition-colors">
-                Privacy
-              </Link>
-              <Link href="/terms" className="hover:text-zinc-900 transition-colors">
-                Terms
-              </Link>
-              <a href="mailto:support@autogrowth.ai" className="hover:text-zinc-900 transition-colors">
-                Support
-              </a>
-            </div>
+          {/* Right Profile */}
+          <div className="flex items-center gap-3">
+            <UserDropdown user={session.user} />
           </div>
         </div>
-      </aside>
+      </header>
 
-      {/* Main content */}
-      <main className="lg:pl-64 min-h-screen">
-        <div className="p-6 md:p-10 max-w-7xl mx-auto">{children}</div>
+      {/* Main Command Center Canvas */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
       </main>
-
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-zinc-900/20 backdrop-blur-sm z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 }

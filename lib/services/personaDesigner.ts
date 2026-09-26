@@ -126,8 +126,7 @@ not a content creator, not a thought leader, not a brand account. A practitioner
 because they have something specific to say, not because they have a content calendar.
 
 PLATFORM: ${platform.toUpperCase()}
-${
-  platform === "twitter"
+${platform === "twitter"
     ? `Twitter constraints:
 - Posts are 140–280 characters. Every word pays rent.
 - Voice must be punchy, specific, first-person.
@@ -139,7 +138,7 @@ ${
 - Short paragraphs with blank lines between them. No corporate language.
 - The description you write will be used verbatim as the persona's system prompt —
   it must be detailed enough for a model to perfectly replicate the voice and structure.`
-}
+  }
 
 QUALITY STANDARD:
 The description field is the most important field you produce. It must include:
@@ -277,7 +276,7 @@ async function withRetry<T>(
         const backoffMs = BASE_BACKOFF_MS * Math.pow(2, attempt);
         console.warn(
           `[Retry] ${operationName} failed (attempt ${attempt + 1}/${MAX_RETRIES + 1}), ` +
-            `retrying in ${backoffMs}ms: ${lastError.message}`
+          `retrying in ${backoffMs}ms: ${lastError.message}`
         );
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
       } else if (!isRetryable) {
@@ -307,7 +306,7 @@ export class PersonaDesigner {
     const phase1Response = await withRetry(
       () =>
         client.chat.completions.create({
-          model: "deepseek-chat",
+          model: "deepseek-flash",
           max_tokens: 1200,
           temperature: 0.4,
           response_format: { type: "json_object" },
@@ -345,7 +344,7 @@ forward to a colleague, not someone you'd scroll past.`,
     const phase2Response = await withRetry(
       () =>
         client.chat.completions.create({
-          model: "deepseek-chat",
+          model: "deepseek-flash",
           max_tokens: 1400,
           temperature: 0.35,
           response_format: { type: "json_object" },
@@ -422,21 +421,21 @@ Do not produce generic fields — every answer must be grounded in the specific 
   private buildFormatRules(platform: "twitter" | "linkedin"): string[] {
     return platform === "twitter"
       ? [
-          "First person, present tense.",
-          "Numbers are naked: 37%, not thirty-seven percent.",
-          "No hashtags, no emojis.",
-          "Vary sentence length for rhythm.",
-          "No em-dashes mid-sentence.",
-          "Never start with 'I'.",
-        ]
+        "First person, present tense.",
+        "Numbers are naked: 37%, not thirty-seven percent.",
+        "No hashtags, no emojis.",
+        "Vary sentence length for rhythm.",
+        "No em-dashes mid-sentence.",
+        "Never start with 'I'.",
+      ]
       : [
-          "Blank line between every paragraph — mandatory.",
-          "First person, present tense.",
-          "Numbers integrated into narrative sentences.",
-          "No corporate phrases or CTAs.",
-          "Short paragraphs: 1–3 sentences each.",
-          "No hashtags.",
-        ];
+        "Blank line between every paragraph — mandatory.",
+        "First person, present tense.",
+        "Numbers integrated into narrative sentences.",
+        "No corporate phrases or CTAs.",
+        "Short paragraphs: 1–3 sentences each.",
+        "No hashtags.",
+      ];
   }
 
   private validatePhase1(result: Partial<Phase1Result>): void {

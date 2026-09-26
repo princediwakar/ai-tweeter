@@ -82,14 +82,13 @@ export default function SignUpPage() {
               <div className="bg-white/10 p-2 rounded-xl">
                 <Zap className="h-6 w-6 text-white" />
               </div>
-              <span className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">AutoGrowth AI</span>
+              <span className="text-sm font-semibold tracking-wide text-zinc-400 uppercase">AutoGrowth</span>
             </div>
             <h2 className="text-4xl font-semibold tracking-tight text-white leading-tight">
-              Build your brand.<br />Grow your influence. Automatically.
+              Automate your social media.<br />Stay consistent without the grind.
             </h2>
             <p className="text-lg text-zinc-400 leading-relaxed">
-              Build your personal brand with AI-powered content that captures your authentic voice.
-              Grow your audience and establish authority while you focus on what matters.
+              Turn your website and blog into engaging updates for Twitter and LinkedIn. Review every post before publishing or let it run on schedule.
             </p>
           </div>
 
@@ -97,24 +96,24 @@ export default function SignUpPage() {
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">Authentic Brand Voice</h4>
-                <p className="text-zinc-400 mt-1">Content that captures your unique voice and resonates with your audience.</p>
+                <h4 className="font-semibold text-white">Drafted From Your Content</h4>
+                <p className="text-zinc-400 mt-1">Posts generated directly from your website, articles, and recent work.</p>
               </div>
             </div>
             
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">Continuous Brand Growth</h4>
-                <p className="text-zinc-400 mt-1">Your brand builds authority and audience while you focus on what matters most.</p>
+                <h4 className="font-semibold text-white">Full Approval Control</h4>
+                <p className="text-zinc-400 mt-1">Review each post with one click, or enable automatic publishing when you are ready.</p>
               </div>
             </div>
             
             <div className="flex items-start gap-4">
               <CheckCircle2 className="h-6 w-6 text-zinc-300 shrink-0" />
               <div>
-                <h4 className="font-semibold text-white">Simple Setup</h4>
-                <p className="text-zinc-400 mt-1">Connect your channels, define your brand, and see your influence grow.</p>
+                <h4 className="font-semibold text-white">60-Second Setup</h4>
+                <p className="text-zinc-400 mt-1">Paste your website link and get ready-to-publish posts in seconds.</p>
               </div>
             </div>
           </div>
@@ -127,7 +126,7 @@ export default function SignUpPage() {
           <div className="text-center lg:text-left">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900">Create an account</h1>
             <p className="mt-2 text-sm text-zinc-500">
-              Start building your brand on LinkedIn and Twitter automatically.
+              Automate your posts on Twitter and LinkedIn in under 60 seconds.
             </p>
           </div>
 

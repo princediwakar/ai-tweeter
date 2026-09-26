@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const platform = searchParams.get('platform');
   const accountId = searchParams.get('accountId') || 'pending';
-  const callbackUrl = searchParams.get('callbackUrl') || '/setup';
+  const callbackUrl = searchParams.get('callbackUrl') || '/onboarding';
   const brandId = searchParams.get('brandId');
 
   try {

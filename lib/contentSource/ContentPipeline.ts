@@ -135,7 +135,8 @@ export class ContentPipeline {
         const rssArticles = await fetchFromRssFeeds(
           [source.feed_url],
           5,
-          5
+          5,
+          excludeUrls
         );
 
         if (rssArticles.length > 0) {
@@ -153,9 +154,10 @@ export class ContentPipeline {
 
         console.log(`[ContentPipeline] No RSS content for ${source.name}, trying Jina on homepage`);
         const homepageArticles = await this.extractFromHomepage(source.url, topic, personaTopics);
+        const newHomepageArticles = this.filterExcludedUrls(homepageArticles, excludeUrls);
         
-        if (homepageArticles.length > 0) {
-          articles.push(...homepageArticles);
+        if (newHomepageArticles.length > 0) {
+          articles.push(...newHomepageArticles);
           continue;
         }
 

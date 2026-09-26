@@ -59,11 +59,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert source into blog_sources so we have it for future scraping
+    // Insert source into brand_knowledge_sources so it appears in dashboard content sources
     if (sourceUrl) {
       await sql`
-        INSERT INTO blog_sources (user_id, name, url, source_type, is_active, created_at, updated_at)
-        VALUES (${userId}, 'Primary Scrape Source', ${sourceUrl}, 'website', true, NOW(), NOW())
+        INSERT INTO brand_knowledge_sources (brand_profile_id, url, source_type, label, is_active, created_at, updated_at)
+        VALUES (${brandProfileId}, ${sourceUrl}, 'website', 'Website', true, NOW(), NOW())
       `;
     }
 

@@ -38,15 +38,34 @@ export async function getGenerationBatchInfo(
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, COALESCE(timezone, 'UTC') as tz, start_time, end_time, persona_id, days_of_week,
-        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC')))) as local_minutes,
-        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) as local_dow
+        id, COALESCE(timezone, 'Asia/Kolkata') as tz, persona_id, posting_times, days_of_week,
+        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata')))) as local_minutes,
+        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) as local_dow
       FROM account_schedules
-      WHERE connected_account_id = ${account.id} AND is_active = true
+      WHERE (
+        connected_account_id = ${account.id} 
+        OR brand_profile_id IN (
+          SELECT id FROM brand_profiles 
+          WHERE twitter_account_id = ${account.id} OR linkedin_account_id = ${account.id}
+        )
+      ) AND is_active = true
+    ),
+    expanded_times AS (
+      SELECT 
+        cl.*,
+        jsonb_array_elements_text(CASE WHEN jsonb_typeof(cl.posting_times) = 'array' THEN cl.posting_times ELSE '["08:00"]'::jsonb END) as posting_time_str
+      FROM current_local cl
+    ),
+    parsed_times AS (
+      SELECT
+        id, tz as timezone, persona_id, local_minutes, local_dow, days_of_week,
+        (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) as start_time,
+        (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) + 30 as end_time
+      FROM expanded_times
     )
-    SELECT id, tz as timezone, start_time, end_time, persona_id, local_minutes, local_dow
-    FROM current_local
-    WHERE local_dow = ANY(current_local.days_of_week)
+    SELECT id, timezone, start_time, end_time, persona_id, local_minutes, local_dow
+    FROM parsed_times
+    WHERE local_dow = ANY(days_of_week)
       AND (
         (start_time - local_minutes + 1440) % 1440 <= 60 -- JIT GENERATION: 
         OR 
@@ -62,7 +81,7 @@ export async function getGenerationBatchInfo(
   }
 
   const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedules[0].timezone})::date as local_date`;
-  const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tzResult.rows[0].local_date);
 
   const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
 
@@ -135,15 +154,34 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, COALESCE(timezone, 'UTC') as tz, persona_id, start_time, end_time, days_of_week,
-        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC')))) as local_minutes,
-        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'UTC'))) as local_dow
+        id, COALESCE(timezone, 'Asia/Kolkata') as tz, persona_id, posting_times, days_of_week,
+        (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata')))) as local_minutes,
+        EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) as local_dow
       FROM account_schedules
-      WHERE connected_account_id = ${account.id} AND is_active = true
+      WHERE (
+        connected_account_id = ${account.id} 
+        OR brand_profile_id IN (
+          SELECT id FROM brand_profiles 
+          WHERE twitter_account_id = ${account.id} OR linkedin_account_id = ${account.id}
+        )
+      ) AND is_active = true
+    ),
+    expanded_times AS (
+      SELECT 
+        cl.*,
+        jsonb_array_elements_text(CASE WHEN jsonb_typeof(cl.posting_times) = 'array' THEN cl.posting_times ELSE '["08:00"]'::jsonb END) as posting_time_str
+      FROM current_local cl
+    ),
+    parsed_times AS (
+      SELECT
+        id, tz as timezone, persona_id, local_minutes, local_dow, days_of_week,
+        (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) as start_time,
+        (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) + 30 as end_time
+      FROM expanded_times
     )
-    SELECT id, tz as timezone, persona_id, start_time, end_time
-    FROM current_local
-    WHERE local_dow = ANY(current_local.days_of_week)
+    SELECT id, timezone, persona_id, start_time, end_time
+    FROM parsed_times
+    WHERE local_dow = ANY(days_of_week)
       AND (
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR
@@ -158,7 +196,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
 
   const scheduleId = activeSchedule.id;
   const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedule.timezone})::date as local_date`;
-  const today = tzResult.rows[0].local_date.toISOString().split('T')[0];
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tzResult.rows[0].local_date);
 
   // Because of Fix #1, this UPDATE will now properly mathematically increment 0 + 1 instead of NULL + 1
   const postingResult = await sql`

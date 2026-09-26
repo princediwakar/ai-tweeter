@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     const cookieStore = await cookies();
     const callbackCookie = await cookieStore.get('oauth_callback_url');
-    const callbackUrl = callbackCookie?.value || '/setup';
+    const callbackUrl = callbackCookie?.value || '/onboarding';
 
     if (error) {
       console.error('LinkedIn OAuth Callback Error:', error, errorDescription);
@@ -139,9 +139,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Success! LinkedIn node secured for ${profile.name}`);
     
-    // Get callback URL from cookie (default to setup)
+    // Get callback URL from cookie (default to onboarding)
     const successCallbackCookie = await cookieStore.get('oauth_callback_url');
-    const successCallbackUrl = successCallbackCookie?.value || '/setup';
+    const successCallbackUrl = successCallbackCookie?.value || '/onboarding';
     await cookieStore.delete('oauth_callback_url');
     
     // Redirect to callback URL with success params
@@ -152,9 +152,9 @@ export async function GET(request: NextRequest) {
     console.error('❌ LinkedIn OAuth Callback Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown technical error';
     
-    // Get callback URL from cookie (default to setup)
+    // Get callback URL from cookie (default to onboarding)
     const errorCallbackCookie = await cookieStore.get('oauth_callback_url');
-    const errorCallbackUrl = errorCallbackCookie?.value || '/setup';
+    const errorCallbackUrl = errorCallbackCookie?.value || '/onboarding';
     await cookieStore.delete('oauth_callback_url');
     
     const separator = errorCallbackUrl.includes('?') ? '&' : '?';

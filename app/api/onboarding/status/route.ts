@@ -24,7 +24,7 @@ export async function GET() {
     const hasSchedules = schedulesResult.rows.length > 0;
 
     // Determine if they generated a profile but haven't scheduled yet
-    const profilesResult = await sql`SELECT id FROM brand_profiles WHERE user_id = ${userId} LIMIT 1`;
+    const profilesResult = await sql`SELECT id, name, description, industry as archetype, tone_of_voice, target_audience, core_values FROM brand_profiles WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 1`;
     const hasProfile = profilesResult.rows.length > 0;
 
     // Determine if they connected accounts
@@ -32,13 +32,24 @@ export async function GET() {
     const hasAccounts = accountsResult.rows.length > 0;
 
     let step = 1;
-    if (hasAccounts) step = 3;
-    if (hasProfile) step = 5;
-    if (hasSchedules) step = 6;
+    if (hasProfile) step = 4;
+    if (hasSchedules) step = 5;
+
+    let brandProfile = undefined;
+    let sourceUrl = '';
+    if (hasProfile) {
+      brandProfile = profilesResult.rows[0];
+      const sourceResult = await sql`SELECT url FROM brand_knowledge_sources WHERE brand_profile_id = ${profilesResult.rows[0].id} AND source_type = 'website' LIMIT 1`;
+      if (sourceResult.rows.length > 0) {
+        sourceUrl = sourceResult.rows[0].url;
+      }
+    }
 
     return NextResponse.json({
-      completed: hasSchedules,
+      completed: hasSchedules, // Only complete when schedule is saved
       step: step,
+      brandProfile,
+      sourceUrl,
       topics: [],
       frequency: 3,
       postTime: 'morning',

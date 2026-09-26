@@ -9,7 +9,7 @@ import { generatePostId } from '../lib/db';
 
 async function main() {
   console.log("Starting generation test script...");
-  
+
   // Find calendar entries that are stuck (no matching post)
   const pendingEntries = await sql`
     SELECT c.*, p.id as post_id 
@@ -18,19 +18,19 @@ async function main() {
     WHERE p.id IS NULL AND c.status = 'planned'
     ORDER BY c.planned_date ASC
   `;
-  
+
   if (pendingEntries.rows.length === 0) {
     console.log("No pending calendar entries found. All good!");
     return;
   }
-  
+
   console.log(`Found ${pendingEntries.rows.length} pending calendar entries to test generate.`);
 
   const allAccounts = await sql`SELECT * FROM connected_accounts`;
-  
+
   for (const entry of pendingEntries.rows) {
     console.log(`\nProcessing calendar entry ${entry.id} (brand: ${entry.brand_profile_id})...`);
-    
+
     // Check again
     const doubleCheck = await sql`SELECT id FROM posts WHERE calendar_id = ${entry.id}`;
     if (doubleCheck.rows.length > 0) {
@@ -59,9 +59,9 @@ async function main() {
       console.error(`No connected account for brand ${entry.brand_profile_id}, skipping.`);
       continue;
     }
-    
+
     console.log(`Generating post for account ${account.account_username} on ${entry.planned_platform}...`);
-    
+
     // Manually construct the plan matching the old schema properties
     const plan = {
       brand_profile: {
@@ -98,7 +98,7 @@ async function main() {
       // 2. Call AI
       const client = await getDeepseekClientAsync();
       const response = await client.chat.completions.create({
-        model: "deepseek-chat",
+        model: "deepseek-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
         response_format: { type: "json_object" },
@@ -107,9 +107,9 @@ async function main() {
       const raw = response.choices[0].message.content;
       if (!raw) throw new Error("AI returned no content.");
       const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, "").trim());
-      
+
       console.log(`Successfully generated post! Saving to DB directly...`);
-      
+
       const newId = generatePostId();
       await sql`
         INSERT INTO posts (
@@ -140,14 +140,14 @@ async function main() {
           ${parsed.theme_summary || null}
         )
       `;
-      
+
       console.log(`Saved post for calendar entry ${entry.id}`);
-      
+
     } catch (e) {
       console.error(`Error processing entry ${entry.id}:`, e);
     }
   }
-  
+
   console.log("\nFinished generating for pending entries!");
 }
 

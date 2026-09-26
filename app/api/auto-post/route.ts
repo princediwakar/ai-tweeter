@@ -4,7 +4,7 @@ import { sql } from '@vercel/postgres';
 import { postSingleContent } from '@/lib/postingService';
 import { logger } from '@/lib/logger';
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 1;
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,30 +28,49 @@ export async function GET(request: NextRequest) {
           a.platform,
           s.id as schedule_id,
           s.persona_id, 
-          s.start_time, 
-          s.end_time, 
+          s.posting_times,
           s.days_of_week,
           s.timezone,
-          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC')))) as local_minutes,
-          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'UTC'))) as local_dow,
+          s.last_posted_at,
+          (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata')))) as local_minutes,
+          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) as local_dow,
           p.key as persona_key
         FROM connected_accounts a
-        JOIN account_schedules s ON s.connected_account_id = a.id
+        JOIN account_schedules s ON (
+          s.connected_account_id = a.id 
+          OR s.brand_profile_id IN (
+            SELECT id FROM brand_profiles 
+            WHERE twitter_account_id = a.id OR linkedin_account_id = a.id
+          )
+        )
         LEFT JOIN personas p ON s.persona_id = p.id
         WHERE a.is_active = true
           AND a.platform = 'twitter'
           AND s.is_active = true
+      ),
+      expanded_times AS (
+        SELECT 
+          cl.*,
+          jsonb_array_elements_text(CASE WHEN jsonb_typeof(cl.posting_times) = 'array' THEN cl.posting_times ELSE '["08:00"]'::jsonb END) as posting_time_str
+        FROM current_local cl
+      ),
+      parsed_times AS (
+        SELECT
+          *,
+          (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) as start_time,
+          (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) + 30 as end_time
+        FROM expanded_times
       )
       SELECT 
         account_id as id, 
         name, 
         array_agg(DISTINCT persona_key) as personas,
         array_agg(DISTINCT schedule_id) as schedule_ids
-      FROM current_local
+      FROM parsed_times
       WHERE local_dow = ANY(days_of_week)
-        -- Window logic: Is current local time within the schedule's active bounds?
         AND local_minutes >= start_time 
         AND local_minutes <= end_time
+        AND (last_posted_at IS NULL OR (EXTRACT(EPOCH FROM (NOW() - last_posted_at)) / 60) > 45)
       GROUP BY account_id, name
       LIMIT 50
     `;

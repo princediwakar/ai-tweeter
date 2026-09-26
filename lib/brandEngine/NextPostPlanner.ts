@@ -120,7 +120,7 @@ class NextPostPlanner {
   // ── 2. Calendar Check ─────────────────────────────────────────────────────
 
   private async checkCalendar(brand: BrandProfile, platform: string): Promise<PostPlan | null> {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
     const result = await sqlWithRetry`
       SELECT cc.*, cp.name as pillar_name, cp.description as pillar_description,
@@ -129,10 +129,12 @@ class NextPostPlanner {
              cp.is_active as pillar_active, cp.created_at as pillar_created_at
       FROM content_calendar cc
       LEFT JOIN content_pillars cp ON cc.pillar_id = cp.id
+      LEFT JOIN posts p ON p.calendar_id = cc.id
       WHERE cc.brand_profile_id = ${brand.id}
         AND cc.planned_date = ${today}
         AND cc.planned_platform = ${platform}
         AND cc.status = 'planned'
+        AND p.id IS NULL
       ORDER BY cc.created_at ASC
       LIMIT 1
     `;
@@ -165,7 +167,7 @@ class NextPostPlanner {
       brand_profile: brand,
       pillar,
       target_audience: row.target_audience || pillar.target_audience || '',
-      suggested_angle: row.angle || '',
+      suggested_angle: row.angle || this.pickAngle(pillar, []),
       avoid_angles: [],
       narrative_context: row.narrative_note || 'Planned content calendar entry.',
       brand_knowledge_context: knowledgeContext,

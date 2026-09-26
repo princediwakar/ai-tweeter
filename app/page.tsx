@@ -89,7 +89,7 @@ export default function DashboardPage() {
             Your autonomous brand engine is waiting. Let's create your first brand profile and start generating content.
           </p>
           <Link href="/onboarding" className="inline-flex px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition">
-            Start Magic Onboarding
+            Set up your brand
           </Link>
         </div>
       </NavigationLayout>
@@ -475,32 +475,32 @@ export default function DashboardPage() {
                   <Zap size={20} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-zinc-900">Engine Config</h3>
-                  <p className="text-xs font-medium text-zinc-500">Autonomy & Diet</p>
+                  <h3 className="font-bold text-zinc-900">Your AI Partner</h3>
+                  <p className="text-xs font-medium text-zinc-500">Review & Sources</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Autonomy Mode</label>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Publishing Workflow</label>
                   <div className="flex gap-2 p-1 bg-zinc-100 rounded-lg">
                     <button 
                       onClick={() => handleUpdateBrand(brandProfile.id, { autonomy_mode: 'copilot' })}
                       className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${brandProfile.autonomy_mode !== 'autopilot' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
                     >
-                      Copilot
+                      Review before posting
                     </button>
                     <button 
                       onClick={() => handleUpdateBrand(brandProfile.id, { autonomy_mode: 'autopilot' })}
                       className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${brandProfile.autonomy_mode === 'autopilot' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500 hover:text-zinc-700'}`}
                     >
-                      Autopilot
+                      Auto-publish
                     </button>
                   </div>
                   <p className="text-[10px] text-zinc-500 mt-1.5">
                     {brandProfile.autonomy_mode === 'autopilot' 
-                      ? 'Engine will publish automatically.' 
-                      : 'You must approve posts before they go live.'}
+                      ? "We'll post automatically for you." 
+                      : "You'll review every post before it goes live."}
                   </p>
                 </div>
 
@@ -520,7 +520,7 @@ export default function DashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Engine Diet (Sources)</label>
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider block mb-2">Inspiration Sources</label>
                   <div className="space-y-2 mb-2">
                     {sources && sources.length > 0 ? sources.map((src: any) => (
                       <div key={src.id} className="text-xs flex items-center justify-between bg-zinc-50 border border-zinc-200 px-2 py-1.5 rounded-md">
@@ -573,9 +573,9 @@ export default function DashboardPage() {
                 <div className="text-center py-16 px-4 bg-zinc-50 rounded-xl border border-zinc-100 border-dashed relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
                   <Zap className="h-10 w-10 text-blue-400 mx-auto mb-3 animate-pulse" />
-                  <p className="text-zinc-900 font-medium mb-1">Synthesizing content...</p>
+                  <p className="text-zinc-900 font-medium mb-1">Studying your brand...</p>
                   <p className="text-sm text-zinc-500 max-w-sm mx-auto">
-                    The engine is processing your diet and drafting your first posts. This optimistic generation creates zero wait time—your drafts will appear momentarily.
+                    We're crafting your first few posts right now. They'll appear here in a few seconds.
                   </p>
                 </div>
               ) : (
@@ -740,9 +740,9 @@ export default function DashboardPage() {
         {feedbackPrompt && (
           <div className="fixed bottom-6 right-6 p-4 bg-white border border-zinc-200 shadow-xl rounded-xl w-80 animate-in slide-in-from-bottom-4 z-50">
             <h4 className="text-sm font-bold text-zinc-900 mb-1 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-blue-600" /> Engine Learning
+              <Zap className="w-4 h-4 text-blue-600" /> Quick question
             </h4>
-            <p className="text-xs text-zinc-500 mb-4">You just edited a post. Should I analyze your changes and adjust my style for future posts?</p>
+            <p className="text-xs text-zinc-500 mb-4">You just tweaked that post. Should I remember your changes for next time?</p>
             <div className="flex gap-2">
               <button 
                 onClick={() => handleSaveFeedback(false)}
@@ -769,16 +769,16 @@ export default function DashboardPage() {
               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4 mx-auto">
                 <Zap size={24} />
               </div>
-              <h3 className="text-lg font-bold text-center text-zinc-900 mb-2">We're on a roll!</h3>
+              <h3 className="text-lg font-bold text-center text-zinc-900 mb-2">Looks like we're in sync!</h3>
               <p className="text-sm text-center text-zinc-600 mb-6">
-                You haven't needed to edit the last 5 posts. Do you want to switch to <strong className="text-zinc-900">Autopilot</strong> and let me handle publishing automatically?
+                You've loved the last 5 posts exactly as they were! Want me to start posting them automatically for you?
               </p>
               <div className="flex gap-3">
                 <button 
                   onClick={() => setAutopilotModal(false)}
                   className="flex-1 py-2.5 text-sm font-semibold bg-zinc-100 text-zinc-700 rounded-xl hover:bg-zinc-200 transition-colors"
                 >
-                  Stay on Copilot
+                  Keep reviewing first
                 </button>
                 <button 
                   onClick={async () => {
@@ -787,7 +787,7 @@ export default function DashboardPage() {
                   }}
                   className="flex-1 py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors shadow-sm shadow-blue-200"
                 >
-                  Enable Autopilot
+                  Yes, auto-publish for me
                 </button>
               </div>
             </div>

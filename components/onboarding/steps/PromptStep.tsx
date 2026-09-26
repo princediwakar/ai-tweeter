@@ -61,8 +61,8 @@ export default function PromptStep({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
-        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Let's build your ghostwriter</h2>
-        <p className="text-sm text-zinc-500">Drop your product's landing page or your newsletter link. We'll automatically build your AI profile and content pillars.</p>
+        <h2 className="text-2xl font-semibold text-zinc-900 tracking-tight">Let's find your voice</h2>
+        <p className="text-sm text-zinc-500">Paste a link to your website or newsletter. We'll read it to learn what you care about and how you sound.</p>
       </div>
 
       <div className="space-y-4 pt-4">
@@ -100,7 +100,7 @@ export default function PromptStep({
           <div>
             <h4 className="text-sm font-semibold text-zinc-900">How it works</h4>
             <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
-              Our AI scrapes your content to deeply understand your product, target audience, and tone of voice. This eliminates the "cold start" and gives you a highly accurate brand engine on day one.
+              We read your site to understand who you're talking to and what you usually say. This helps us draft posts that actually sound like you right from the start.
             </p>
           </div>
         </div>
@@ -121,9 +121,9 @@ export default function PromptStep({
           className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-zinc-900 text-white rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
         >
           {isGenerating ? (
-            <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing your brand...</>
+            <><Loader2 className="h-4 w-4 animate-spin" /> Reading your site...</>
           ) : (
-            <>Analyze my brand <ArrowRight className="h-4 w-4" /></>
+            <>Learn my voice <ArrowRight className="h-4 w-4" /></>
           )}
         </button>
       </div>

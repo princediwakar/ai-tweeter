@@ -1,7 +1,6 @@
 import { sql } from '@vercel/postgres';
-import { loadEnvConfig } from '@next/env';
-
-loadEnvConfig(process.cwd());
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
 async function main() {
   console.log('Fixing Doxxy pillars and profile...');

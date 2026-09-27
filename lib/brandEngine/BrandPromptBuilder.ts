@@ -36,12 +36,10 @@ class BrandPromptBuilder {
     const randomLens = CONTENT_LENSES[Math.floor(Math.random() * CONTENT_LENSES.length)];
 
     return `BRAND: ${plan.brand_profile.brand_name}
-MISSION: ${plan.brand_profile.brand_mission || 'Not specified'}
+${plan.brand_profile.primary_stakeholder_persona ? `PRIMARY STAKEHOLDER PERSONA: ${plan.brand_profile.primary_stakeholder_persona}` : `YOUR AUDIENCE TODAY: ${plan.target_audience}`}
+${plan.brand_profile.ecosystem_dynamics ? `ECOSYSTEM DYNAMICS: ${plan.brand_profile.ecosystem_dynamics}` : ''}
+${plan.brand_profile.operating_geography ? `OPERATING GEOGRAPHY: ${plan.brand_profile.operating_geography}` : ''}
 VOICE: ${plan.brand_profile.brand_voice}
-${persona.description ? `PERSONA STYLE: ${persona.description}` : ''}
-
-YOUR AUDIENCE TODAY: ${plan.target_audience}
-${plan.value_proposition ? `VALUE TO HIGHLIGHT: ${plan.value_proposition}` : ''}
 
 CONTENT PILLAR: ${plan.pillar.name}
 ${plan.pillar.description ? `PILLAR CONTEXT: ${plan.pillar.description}` : ''}
@@ -54,20 +52,19 @@ ${randomLens}
 NARRATIVE CONTEXT:
 ${plan.narrative_context}
 
-BRAND KNOWLEDGE (Auto-enriched context):
+BRAND KNOWLEDGE (Auto-enriched context - DO NOT pitch this, use only for deep background):
 ${plan.brand_knowledge_context}
 
 ${sourceText}
 
 STRATEGIC DIRECTION: 
-Write a highly engaging, original thought-leadership post for ${plan.platform}. 
-CRITICAL: You MUST use the "UNIQUE STRATEGIC LENS FOR THIS POST" provided above to shape your entire narrative. Do not just list features. Use the lens to create a completely unique angle based on the brand's ecosystem, the pain points it solves, or the people it serves.
-Even though the brand knowledge is static, your application of this specific Lens should make this post completely different from anything written before.
-Aim for the stars: create truly universal, fascinating content that provides immense value to both the core target audience and a broader professional audience. 
-Focus on deep insights, systemic challenges, paradigm shifts, or the unique mechanisms behind the brand's vision. Make the concepts sound amazing and the real-world impact profound.
-DO NOT write a sales pitch or an ad. DO NOT sound like a marketer. Sound like a visionary builder, founder, or practitioner sharing hard-earned insights.
-DO NOT repeat the exact wording of the narrative context or avoid angles.
-NEVER use generic openings like "In today's fast-paced world". Be specific, novel, and relatable. Make it worth reading.
+Write a highly engaging, original post for ${plan.platform}.
+CRITICAL SHIFT: You are speaking TO the primary stakeholder, AS one of them. Your goal is engagement, relatability, and empathy. DO NOT pitch the product. DO NOT sound like a marketer.
+Tell a story about their daily life, validate their frustrations, or share an inside joke. If the brand or product is mentioned at all, it must be extremely subtle (a "silent sponsor" vibe).
+${plan.brand_profile.operating_geography ? `GEOGRAPHIC CONTEXT (CRITICAL): Ensure all cultural references, jokes, jargon, and situations are strictly relevant to the provided OPERATING GEOGRAPHY. NEVER use analogies or localized references from outside this region.` : ''}
+You MUST use the "UNIQUE STRATEGIC LENS FOR THIS POST" provided above to shape your entire narrative.
+Even though the brand knowledge is static, your application of this specific Lens and empathy for the stakeholder should make this post completely different from anything written before.
+NEVER use generic openings like "In today's fast-paced world". Be specific, novel, and relatable.
 
 NEVER SAY: ${plan.brand_profile.never_say.join(', ')}
 NEVER DISCUSS: ${plan.brand_profile.never_topics.join(', ')}

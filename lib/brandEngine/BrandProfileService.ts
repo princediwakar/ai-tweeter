@@ -60,6 +60,7 @@ class BrandProfileService {
         twitter_account_id, linkedin_account_id, linkedin_platform_id,
         brand_name, brand_url, brand_description,
         value_propositions, target_audiences, features, differentiators, social_proof,
+        primary_stakeholder_persona, ecosystem_dynamics, operating_geography,
         brand_voice, brand_mission, competitive_angle,
         never_say, never_topics,
         is_active, onboarding_status,
@@ -79,6 +80,9 @@ class BrandProfileService {
         ${JSON.stringify(input.features || [])}::jsonb,
         ${JSON.stringify(input.differentiators || [])}::jsonb,
         ${JSON.stringify(input.social_proof || [])}::jsonb,
+        ${input.primary_stakeholder_persona || null},
+        ${input.ecosystem_dynamics || null},
+        ${input.operating_geography || null},
         ${input.brand_voice || ''},
         ${input.brand_mission || null},
         ${input.competitive_angle || null},
@@ -114,6 +118,9 @@ class BrandProfileService {
     if (input.brand_voice !== undefined)        addField('brand_voice', input.brand_voice);
     if (input.brand_mission !== undefined)      addField('brand_mission', input.brand_mission);
     if (input.competitive_angle !== undefined)  addField('competitive_angle', input.competitive_angle);
+    if (input.primary_stakeholder_persona !== undefined) addField('primary_stakeholder_persona', input.primary_stakeholder_persona);
+    if (input.ecosystem_dynamics !== undefined) addField('ecosystem_dynamics', input.ecosystem_dynamics);
+    if (input.operating_geography !== undefined) addField('operating_geography', input.operating_geography);
     if (input.connected_account_id !== undefined) addField('connected_account_id', input.connected_account_id);
     if (input.twitter_account_id !== undefined) addField('twitter_account_id', input.twitter_account_id);
     if (input.linkedin_account_id !== undefined) addField('linkedin_account_id', input.linkedin_account_id);
@@ -208,6 +215,9 @@ class BrandProfileService {
       features: [],
       differentiators: [],
       social_proof: [],
+      primary_stakeholder_persona: (row.primary_stakeholder_persona as string) || null,
+      ecosystem_dynamics: (row.ecosystem_dynamics as string) || null,
+      operating_geography: (row.operating_geography as string) || null,
       brand_voice: typeof row.tone_of_voice === 'string' ? row.tone_of_voice : JSON.stringify(row.tone_of_voice || ''),
       brand_mission: (row.industry as string) || null,
       competitive_angle: null,

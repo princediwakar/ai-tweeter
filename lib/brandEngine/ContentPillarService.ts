@@ -112,18 +112,17 @@ class ContentPillarService {
    * This is called during onboarding after the brand profile is created.
    */
   async suggestPillars(brand: BrandProfile): Promise<CreatePillarInput[]> {
-    const prompt = `You are a content strategist. Given this brand profile, suggest 4-6 content pillars for their social media presence.
+    const prompt = `You are a social media strategist for an "Ecosystem Brain." Your goal is to build an audience by deeply empathizing with and entertaining the primary stakeholder of this ecosystem.
+The product is NOT the main character; the stakeholder is. If the brand sells clinic software, the content should be about the realities of being a doctor.
 
 BRAND: ${brand.brand_name}
 DESCRIPTION: ${brand.brand_description}
-VALUE PROPOSITIONS: ${JSON.stringify(brand.value_propositions)}
-TARGET AUDIENCES: ${JSON.stringify(brand.target_audiences)}
-FEATURES: ${JSON.stringify(brand.features)}
-DIFFERENTIATORS: ${JSON.stringify(brand.differentiators)}
+PRIMARY STAKEHOLDER: ${brand.primary_stakeholder_persona || JSON.stringify(brand.target_audiences)}
+ECOSYSTEM DYNAMICS: ${brand.ecosystem_dynamics || JSON.stringify(brand.value_propositions)}
+${brand.operating_geography ? `OPERATING GEOGRAPHY: ${brand.operating_geography}` : ''}
 VOICE: ${brand.brand_voice}
-MISSION: ${brand.brand_mission || 'Not specified'}
 
-Return ONLY valid JSON array. Each pillar should have:
+Return ONLY a valid JSON array of 4-6 content pillars.
 [
   {
     "name": "Pillar Name",
@@ -135,14 +134,14 @@ Return ONLY valid JSON array. Each pillar should have:
   }
 ]
 
-RULES:
-1. Always include a "Industry Ecosystem" or "Industry Trends" pillar (weight: 1.5) — engaging content about the broader industry (e.g. for healthtech: patients, doctors, news; for edtech: students, psychology, future of learning). Establish a strong, opinionated persona.
-2. Always include a "Pain Point Stories" pillar (weight: 1.0) — content about problems the audience faces in their daily lives/work.
-3. Include a "Product Insight" pillar (weight: 0.8) — how the specific product solves niche problems.
-4. Include at least one "Social Proof" or "Customer Stories" pillar (weight: 0.7).
-5. Optionally include "Behind the Scenes" or "Founder Journey" (weight: 0.3) for brand humanizing.
-6. Example angles must be specific to THIS brand and industry, not generic. Look at how Swiggy/Zomato engage audiences broadly instead of just talking about delivery.
-7. Weight determines posting frequency (higher = more frequent)`;
+RULES FOR PILLARS:
+1. Always include an "Insider Humor / Memetic Observations" pillar (weight: 1.5) — hyper-relatable humor, inside jokes, and daily frustrations of the stakeholder.
+2. Always include "The Shared Struggle / Catharsis" pillar (weight: 1.0) — serious or empathetic posts about the hard realities of their job/life.
+3. Include an "Inspirational / Why We Do It" pillar (weight: 0.8) — the rewarding moments that make the struggle worth it.
+4. Include a "Silent Sponsor" pillar (weight: 0.3) — rare, subtle mentions of how a great tool (like the brand) makes the struggle slightly easier, without sounding like an ad.
+5. Do NOT include "Product Updates", "Customer Stories", or traditional marketing pillars.
+6. Example angles MUST be highly specific to the stakeholder's daily life, not generic business advice.
+7. ${brand.operating_geography ? `GEOGRAPHY RULE: All example angles MUST be culturally and geographically relevant to ${brand.operating_geography}. No localized references from outside this region.` : 'Angles should be universally relatable or specific to the brand.'}`;
 
     try {
       const client = await getDeepseekClientAsync();
@@ -185,39 +184,39 @@ RULES:
     return [
       {
         brand_profile_id: brand.id,
-        name: 'Industry Ecosystem & Trends',
-        slug: 'industry-ecosystem',
-        description: 'Engaging content about the broader industry ecosystem, news, and systemic observations.',
-        example_angles: ['Counter-intuitive industry observation', 'Future trends in the space'],
+        name: 'Insider Humor',
+        slug: 'insider-humor',
+        description: 'Memetic observations and inside jokes about the daily realities of the industry.',
+        example_angles: ['The moment you realize you have to do the thing everyone hates', 'When the client/patient says something completely unhinged'],
         target_audience: audience,
         weight: 1.5,
       },
       {
         brand_profile_id: brand.id,
-        name: 'Pain Point Stories',
-        slug: 'pain-points',
-        description: `Real problems ${audience} face in their daily lives`,
-        example_angles: [`Common frustrations for ${audience}`, `Hidden costs of the status quo`],
+        name: 'The Shared Struggle',
+        slug: 'shared-struggle',
+        description: `Cathartic, empathetic observations about the hardest parts of being a ${audience}.`,
+        example_angles: [`The burnout nobody talks about`, `Why the system is stacked against you`],
         target_audience: audience,
         weight: 1.0,
       },
       {
         brand_profile_id: brand.id,
-        name: 'Product Insight',
-        slug: 'product-insight',
-        description: `How ${brand.brand_name} specifically solves niche problems`,
-        example_angles: [`Feature spotlight`, `Before vs after using ${brand.brand_name}`],
+        name: 'Why We Do It',
+        slug: 'why-we-do-it',
+        description: `Inspirational stories about the rewarding moments for a ${audience}.`,
+        example_angles: [`The rare win that makes it worth it`, `Remembering why you started`],
         target_audience: audience,
         weight: 0.8,
       },
       {
         brand_profile_id: brand.id,
-        name: 'Social Proof',
-        slug: 'social-proof',
-        description: 'Customer stories, metrics, and wins',
-        example_angles: ['Customer success story', 'Key metric improvement'],
+        name: 'The Silent Sponsor',
+        slug: 'silent-sponsor',
+        description: 'Extremely subtle, relatable nods to how having the right tool removes a layer of misery.',
+        example_angles: ['Imagine if you did not have to fight your software today.', 'The joy of a tool that actually works.'],
         target_audience: audience,
-        weight: 0.7,
+        weight: 0.3,
       },
     ];
   }

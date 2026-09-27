@@ -277,16 +277,33 @@ export default function DashboardPage() {
 
   const handleDeletePost = async (calendarId: string) => {
     if (!confirm('Are you sure you want to remove this post?')) return;
+    
+    // Save current state for rollback on error
+    const previousData = data;
+    
+    // Optimistic UI update
+    setData((prev: any) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        upcomingPosts: prev.upcomingPosts?.filter((p: any) => p.id !== calendarId),
+        recentPosts: prev.recentPosts?.filter((p: any) => p.id !== calendarId)
+      };
+    });
+
     try {
-      setIsProcessing(true);
       const res = await fetch(`/api/engine/calendar/${calendarId}`, { method: 'DELETE' });
       const result = await res.json();
       if (result.error) throw new Error(result.error);
       toast.success('Post removed');
-      await refreshDashboard();
+      
+      // Sync with server in background
+      refreshDashboard();
     } catch (err: any) {
+      // Revert optimistic update on error
+      setData(previousData);
       toast.error(err.message || 'Failed to delete post');
-    } finally { setIsProcessing(false); }
+    }
   };
 
   const handleRegeneratePost = async (calendarId: string) => {

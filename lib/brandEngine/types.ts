@@ -43,6 +43,11 @@ export interface BrandProfile {
   differentiators: string[];
   social_proof: string[];
 
+  // Ecosystem Brain
+  primary_stakeholder_persona: string | null;
+  ecosystem_dynamics: string | null;
+  operating_geography: string | null;
+
   // Voice & positioning
   brand_voice: string;
   brand_mission: string | null;
@@ -80,6 +85,9 @@ export interface CreateBrandProfileInput {
   brand_voice?: string;
   brand_mission?: string;
   competitive_angle?: string;
+  primary_stakeholder_persona?: string;
+  ecosystem_dynamics?: string;
+  operating_geography?: string;
   never_say?: string[];
   never_topics?: string[];
   custom_instructions?: string;

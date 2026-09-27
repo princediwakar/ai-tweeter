@@ -72,7 +72,10 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
       linkedin_platform_id: body.linkedin_platform_id,
       brand_url: body.brand_url,
       autonomy_mode: body.autonomy_mode,
-      custom_instructions: body.custom_instructions
+      custom_instructions: body.custom_instructions,
+      primary_stakeholder_persona: body.primary_stakeholder_persona,
+      ecosystem_dynamics: body.ecosystem_dynamics,
+      operating_geography: body.operating_geography
     };
 
     // Filter out undefined

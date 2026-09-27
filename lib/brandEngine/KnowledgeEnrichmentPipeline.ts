@@ -26,12 +26,15 @@ Return ONLY valid JSON with these fields:
   "tagline": "string or null",
   "value_propositions": ["specific benefit statements"],
   "target_audiences": ["who this product/service is for"],
+  "primary_stakeholder_persona": "The main person/role this product revolves around in their ecosystem (e.g. 'Clinic Doctor', 'HR Manager')",
+  "ecosystem_dynamics": "Brief description of the industry ecosystem, power dynamics, and where this brand fits",
+  "operating_geography": "The specific country or region the brand operates in, if mentioned (e.g. 'India', 'United States', 'Global'). null if not mentioned.",
   "features": ["specific product capabilities"],
   "differentiators": ["what makes this different from alternatives"],
   "tone_signals": ["how the brand communicates, e.g. professional, casual, technical"],
   "social_proof": ["specific numbers, testimonials, client mentions"]
 }
-Be specific. Don't invent data. If something isn't present, use empty array.`,
+Be specific. Don't invent data. If something isn't present, use empty array or null.`,
 
   blog: `You are a content analyst. Extract structured information from this blog content.
 Return ONLY valid JSON:
@@ -148,6 +151,16 @@ export class KnowledgeEnrichmentPipeline {
           social_proof: websiteData.social_proof || [],
           value_propositions: websiteData.value_propositions || [],
         });
+
+        // Update the ecosystem fields directly since mergeKnowledge only handles arrays
+        const updates: any = {};
+        if (websiteData.primary_stakeholder_persona) updates.primary_stakeholder_persona = websiteData.primary_stakeholder_persona;
+        if (websiteData.ecosystem_dynamics) updates.ecosystem_dynamics = websiteData.ecosystem_dynamics;
+        if (websiteData.operating_geography) updates.operating_geography = websiteData.operating_geography;
+        
+        if (Object.keys(updates).length > 0) {
+          await brandProfileService.update({ id: source.brand_profile_id, ...updates });
+        }
       }
 
       console.log(`[Enrichment] Completed ${source.url}: ${pages.length} pages, changes=${!!changes}`);

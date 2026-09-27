@@ -22,11 +22,17 @@ export const metadata: Metadata = {
   description: "Turn your website or blog into high-performing Twitter & LinkedIn posts. Fully automated or review every post before publishing.",
 };
 
+import { preconnect, prefetchDNS } from "react-dom";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // React 19 Asset Preloading: Eliminate DNS and connection latency for critical third-party domains
+  prefetchDNS("https://api.twitter.com");
+  preconnect("https://fonts.googleapis.com", { crossOrigin: "anonymous" });
+  preconnect("https://fonts.gstatic.com", { crossOrigin: "anonymous" });
   return (
     <html lang="en" className="antialiased">
       <body

@@ -96,7 +96,7 @@ export const generateAccountContent = task({
               persona: selectedPersonaKey,
               schedule_id: batchInfo.schedule_ids?.[0],
               content: result.post.content,
-              status: 'ready', 
+              status: brandProfile.autonomy_mode === 'autopilot' ? 'ready' : 'draft', 
               content_type: 'single_tweet', 
               hashtags: result.post.hashtags || [],
               image_url: result.post.imageUrl,

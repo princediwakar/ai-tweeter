@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // Enable server component external packages
     serverComponentsExternalPackages: ['xml2js'],
+    // Enable Partial Prerendering (PPR)
+    ppr: 'incremental',
   },
   
   // Set the Turbopack root to help Next.js find the correct workspace root

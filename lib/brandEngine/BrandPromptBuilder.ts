@@ -4,16 +4,14 @@ import type { PostPlan } from './types';
 import type { Persona } from '../personas';
 
 const CONTENT_LENSES = [
-  "The Contrarian View: Challenge a widely accepted truth or best practice in your industry. Why is the status quo broken, and what is the real truth?",
-  "The Pain-Point Magnifier: Zoom in deeply on one specific, visceral pain point or frustration your audience experiences. Validate their struggle before showing the paradigm shift.",
-  "The Ecosystem Observer: Analyze the broader industry ecosystem. Who are the different players? How are power dynamics or incentives shifting, and where does this brand fit in?",
-  "The First-Principles Breakdown: Deconstruct a complex industry problem down to its most basic, undeniable truths, then logically build up to the brand's unique approach.",
-  "The Future Visionary: Paint a vivid, opinionated picture of what this industry will look like in 3-5 years, and how this brand is accelerating that inevitable future.",
-  "The Myth-Buster: Identify a common misconception or lie your target audience has been told. Dismantle it using logic, then provide the liberating truth.",
-  "The Transformation Journey: Frame the narrative around the before-and-after state of the people you serve. What does life look like once the core problem is solved?",
-  "The Micro-Observation: Focus intensely on a tiny, often-overlooked detail or daily habit in your industry, and explain why it actually reveals a massive systemic issue.",
-  "The Conceptual Enemy: Identify the abstract 'enemy' of your audience (e.g., 'bureaucracy', 'context-switching', 'legacy debt') and rally passionately against it.",
-  "The Unconventional Analogy: Compare the industry's problem or the brand's solution to something completely unexpected (e.g., biology, architecture, history, physics) to make the insight click."
+  "The Sarcastic Rant: A highly dramatic, slightly unhinged vent session about a hyper-specific, mundane annoyance that only someone in this profession understands.",
+  "The Inside Joke: A setup and punchline (or humorous observation) relying entirely on industry jargon or shared traumatic experiences that outsiders wouldn't get.",
+  "The 'Honest' Scenario: Describe a common interaction (with a client, patient, or boss) but rewrite the dialogue so everyone says exactly what they are actually thinking.",
+  "The Survival Tactic: Share a hilarious, ethically-dubious-but-harmless shortcut, mental model, or caffeine habit used purely to survive the shift.",
+  "The Client/Patient Archetype Roast: A fond but ruthlessly accurate satirical profile of a specific type of person they have to deal with every day.",
+  "The Nostalgic Pain: Reminisce humorously about how terrible training/school was for this profession, or an outdated piece of legacy software/equipment everyone hated but somehow misses.",
+  "The 'Unsung Hero' Satire: A mock-heroic tribute to the most random, insignificant object or person that holds their day together (e.g., the one working printer, the receptionist who deflects angry callers).",
+  "The Daily Grind Chaos: A fast-paced, chaotic recount of a 5-minute window in their day where absolutely everything goes wrong at once, delivered with dry comedic timing."
 ];
 
 class BrandPromptBuilder {
@@ -25,7 +23,7 @@ class BrandPromptBuilder {
       : 'Write in first person. Short paragraphs. Plain English. No emojis or hashtags.';
 
     const platformConstraints = plan.platform === 'twitter' 
-      ? `Twitter: MAX 240 characters. One clear, standalone take. No threads. No paragraphs. Punchy hook.`
+      ? `Twitter: MAX 280 characters. You MUST use line breaks (paragraphs) for pacing. Do NOT mash everything into one block of text. Tell a specific, meaty micro-story. No threads.`
       : `LinkedIn: MAX 400-600 characters. Keep it brief, punchy, and to the point. No fluff or rambling. Professional, visionary, but authentic. Use whitespace. Start with a contrarian or gripping hook. Share a specific industry insight or personal experience.`;
 
     const sourceText = externalContext 
@@ -59,12 +57,14 @@ ${sourceText}
 
 STRATEGIC DIRECTION: 
 Write a highly engaging, original post for ${plan.platform}.
-CRITICAL SHIFT: You are speaking TO the primary stakeholder, AS one of them. Your goal is engagement, relatability, and empathy. DO NOT pitch the product. DO NOT sound like a marketer.
-Tell a story about their daily life, validate their frustrations, or share an inside joke. If the brand or product is mentioned at all, it must be extremely subtle (a "silent sponsor" vibe).
+CRITICAL SHIFT: Your ONLY goal is pure entertainment and humor. You are acting AS a peer to the primary stakeholder, venting and joking about the absurdity of your shared profession.
+DO NOT give advice. DO NOT share "learnings". DO NOT be serious. DO NOT be patronizing. DO NOT pitch the product.
+Tell a hilarious story about their daily life, vent sarcastically about a shared frustration, or share an inside joke. Your entire job is to make them laugh.
+If the brand or product is mentioned at all, it must be extremely subtle (a "silent sponsor" vibe).
 ${plan.brand_profile.operating_geography ? `GEOGRAPHIC CONTEXT (CRITICAL): Ensure all cultural references, jokes, jargon, and situations are strictly relevant to the provided OPERATING GEOGRAPHY. NEVER use analogies or localized references from outside this region.` : ''}
 You MUST use the "UNIQUE STRATEGIC LENS FOR THIS POST" provided above to shape your entire narrative.
 Even though the brand knowledge is static, your application of this specific Lens and empathy for the stakeholder should make this post completely different from anything written before.
-NEVER use generic openings like "In today's fast-paced world". Be specific, novel, and relatable.
+NEVER use generic openings like "In today's fast-paced world" or "Unpopular truth". Be specific, novel, and conversational.
 
 NEVER SAY: ${plan.brand_profile.never_say.join(', ')}
 NEVER DISCUSS: ${plan.brand_profile.never_topics.join(', ')}

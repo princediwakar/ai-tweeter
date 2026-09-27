@@ -1,35 +1,24 @@
 import { sql } from '@vercel/postgres';
-import { config } from 'dotenv';
-import path from 'path';
-
-config({ path: path.resolve(process.cwd(), '.env.local') });
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
 async function main() {
-  console.log('Starting migration...');
+  console.log('Migrating brand_profiles table...');
   
   try {
-    await sql`ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS twitter_account_id UUID REFERENCES connected_accounts(id) ON DELETE SET NULL;`;
-    console.log('Added twitter_account_id');
+    await sql`
+      ALTER TABLE brand_profiles 
+      ADD COLUMN IF NOT EXISTS primary_stakeholder_persona TEXT,
+      ADD COLUMN IF NOT EXISTS ecosystem_dynamics TEXT,
+      ADD COLUMN IF NOT EXISTS operating_geography TEXT,
+      ADD COLUMN IF NOT EXISTS never_say JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS never_topics JSONB DEFAULT '[]'::jsonb;
+    `;
+    console.log('Successfully added deep ecosystem columns to brand_profiles!');
   } catch (e) {
-    console.log('twitter_account_id might already exist or error:', e);
+    console.error('Migration failed:', e);
   }
-
-  try {
-    await sql`ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS linkedin_account_id UUID REFERENCES connected_accounts(id) ON DELETE SET NULL;`;
-    console.log('Added linkedin_account_id');
-  } catch (e) {
-    console.log('linkedin_account_id might already exist or error:', e);
-  }
-
-  try {
-    await sql`ALTER TABLE brand_profiles ADD COLUMN IF NOT EXISTS linkedin_platform_id TEXT;`;
-    console.log('Added linkedin_platform_id');
-  } catch (e) {
-    console.log('linkedin_platform_id might already exist or error:', e);
-  }
-
-  console.log('Migration completed!');
   process.exit(0);
 }
 
-main().catch(console.error);
+main();

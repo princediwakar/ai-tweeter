@@ -62,20 +62,35 @@ export async function POST(request: NextRequest) {
     if (pillars.length > 0) {
       for (const account of accounts) {
         const plannedPlatform = account.platform || 'twitter';
-        // Check if entry already exists for this specific platform
-        const existingRes = await sql`SELECT id FROM content_calendar WHERE brand_profile_id = ${brandId} AND planned_date = ${dateStr} AND planned_platform = ${plannedPlatform}`;
         
-        if (existingRes.rows.length === 0) {
-          const randomPillar = pillars[Math.floor(Math.random() * pillars.length)];
+        // Find the latest planned date for this platform
+        const latestRes = await sql`
+          SELECT MAX(planned_date) as max_date 
+          FROM content_calendar 
+          WHERE brand_profile_id = ${brandId} AND planned_platform = ${plannedPlatform}
+        `;
+        
+        let nextDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+        
+        if (latestRes.rows[0]?.max_date) {
+          const maxDate = new Date(latestRes.rows[0].max_date);
+          const maxDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(maxDate);
           
-          await sql`
-            INSERT INTO content_calendar (
-              brand_profile_id, planned_date, planned_platform, pillar_id, status, created_at, updated_at
-            ) VALUES (
-              ${brandId}, ${dateStr}, ${plannedPlatform}, ${randomPillar.id}, 'planned', NOW(), NOW()
-            )
-          `;
+          if (maxDateStr >= nextDateStr) {
+            maxDate.setDate(maxDate.getDate() + 1);
+            nextDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(maxDate);
+          }
         }
+        
+        const randomPillar = pillars[Math.floor(Math.random() * pillars.length)];
+        
+        await sql`
+          INSERT INTO content_calendar (
+            brand_profile_id, planned_date, planned_platform, pillar_id, status, created_at, updated_at
+          ) VALUES (
+            ${brandId}, ${nextDateStr}, ${plannedPlatform}, ${randomPillar.id}, 'planned', NOW(), NOW()
+          )
+        `;
       }
     }
     // --- END POPULATE CONTENT CALENDAR ---

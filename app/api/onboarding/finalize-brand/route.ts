@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
 
     // Insert brand_profile
     const brandProfileRes = await sql`
-      INSERT INTO brand_profiles (user_id, name, description, industry, tone_of_voice, target_audience, core_values, created_at, updated_at)
+      INSERT INTO brand_profiles (
+        user_id, name, description, industry, tone_of_voice, 
+        target_audience, core_values, 
+        primary_stakeholder_persona, ecosystem_dynamics, operating_geography,
+        never_say, never_topics,
+        created_at, updated_at
+      )
       VALUES (
         ${userId}, 
         ${brandProfile.name}, 
@@ -36,6 +42,11 @@ export async function POST(request: NextRequest) {
         ${JSON.stringify(brandProfile.tone_of_voice)}, 
         ${JSON.stringify(brandProfile.target_audience)}, 
         ${JSON.stringify(brandProfile.core_values)}, 
+        ${brandProfile.primary_stakeholder_persona || null},
+        ${brandProfile.ecosystem_dynamics || null},
+        ${brandProfile.operating_geography || null},
+        ${JSON.stringify(brandProfile.never_say || [])}::jsonb,
+        ${JSON.stringify(brandProfile.never_topics || [])}::jsonb,
         NOW(), NOW()
       )
       RETURNING id

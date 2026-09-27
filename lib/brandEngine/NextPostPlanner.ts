@@ -131,11 +131,11 @@ class NextPostPlanner {
       LEFT JOIN content_pillars cp ON cc.pillar_id = cp.id
       LEFT JOIN posts p ON p.calendar_id = cc.id
       WHERE cc.brand_profile_id = ${brand.id}
-        AND cc.planned_date = ${today}
+        AND cc.planned_date >= ${today}
         AND cc.planned_platform = ${platform}
         AND cc.status = 'planned'
         AND p.id IS NULL
-      ORDER BY cc.created_at ASC
+      ORDER BY cc.planned_date ASC, cc.created_at ASC
       LIMIT 1
     `;
 

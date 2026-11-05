@@ -6,9 +6,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "concurrently -c \"cyan,magenta\" -n \"next,trigger\" \"next dev\" \"npx trigger.dev@latest dev --skip-update-check\"",
-    "build": "next build",
-    "start": "next start",
+    "dev": "NODE_OPTIONS=\"--no-warnings\" concurrently -c \"cyan,magenta\" -n \"next,trigger\" \"next dev\" \"npx trigger.dev@latest dev --skip-update-check\"",
+    "build": "NODE_OPTIONS=\"--no-warnings\" next build",
+    "start": "NODE_OPTIONS=\"--no-warnings\" next start",
     "lint": "eslint ."
   },
   "dependencies": {

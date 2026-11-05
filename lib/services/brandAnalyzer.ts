@@ -35,7 +35,7 @@ Analyze this business deeply: What problem do they actually solve? Who is their 
 
 Extract and infer the following:
 1. "name": The apparent name of the author or product.
-2. "archetype": A 2-4 word phrase describing their professional identity (e.g. "Healthcare Systems Builder", "B2B SaaS Founder", "Product Engineer").
+2. "archetype": A 2-4 word phrase describing their professional identity (e.g. "Clinical Intelligence Specialist", "Workflow Systems Builder", "Practitioner & Founder").
 3. "description": A concise 1-2 sentence summary of what they build or do.
 4. "primary_stakeholder_persona": A vivid 1-2 sentence description of who they build for and the daily operational reality of that person.
 5. "ecosystem_dynamics": The systemic friction points in their market (e.g. "High volume, paper-based chaos, razor-thin margins, reliance on fragmented messaging apps").
@@ -43,16 +43,16 @@ Extract and infer the following:
 7. "target_audience": Array of 2-3 audience groups.
 8. "tone_of_voice": Array of 3-4 style descriptors. MUST emphasize authentic practitioner authority, crispness, and subtle dry wit (e.g. "Direct and unpolished", "Subtle dry wit", "Grounded practitioner perspective", "Zero corporate speak").
 9. "core_values": Array of 2-3 core beliefs.
-10. "never_say": Array of 4-6 corporate buzzwords and AI clichés to BAN completely (e.g. "In today's fast-paced world", "game changer", "synergy", "disrupt", "leverage", "unpopular opinion").
+10. "never_say": Array of 4-6 corporate buzzwords and AI clichés to BAN completely (e.g. "In today's fast-paced world", "game changer", "synergy", "disrupt", "leverage", "unpopular opinion", "optimize", "sprint backlog").
 11. "never_topics": Array of 2 topics to avoid (e.g. "politics", "religion").
 12. "pillars": Propose 3 high-signal, balanced content pillars:
     - Pillar 1 (Field Observations & Ground Truth): Candid snapshots of actual workflows, physical desk clutter, and workarounds people use in the trenches.
-    - Pillar 2 (Product & Engineering Craft): Honest lessons on building, UX trade-offs, unexpected user behavior, and engineering realities.
-    - Pillar 3 (Workflow Mechanics & Friction): Granular breakdowns of time wasted, click counts, administrative overhead, and why software fails in fast environments.
+    - Pillar 2 (Technology Reality Check & Admin Fatigue): Relatable critiques of clunky software, EHR overload, bloated confirmation screens, and why software fails clinicians/practitioners in fast environments.
+    - Pillar 3 (Workflow Mechanics & Friction): Granular breakdowns of time wasted, click counts, administrative overhead, and why simple alternatives win.
     Each pillar has: name, description, proportion (number summing to 100), keywords (array of 3-4 strings).
 13. "sample_posts": Generate 3 sample social posts providing a natural, balanced mix:
     - Post 1 (Field Observation): A photographic snapshot of a real ground-truth scene. Show, don't lecture.
-    - Post 2 (Honest Builder Note): A transparent reflection on building software, unexpected user behavior, or a UX trade-off.
+    - Post 2 (The Technology Reality Check): A sharp, resonant take on why tech fails when it adds clicks instead of respecting frontline time.
     - Post 3 (Workflow Mechanics): A sharp, specific breakdown of time, clicks, or friction.
 
 CRITICAL ANTI-AI-SLOP RULES (STRICTLY ENFORCED):
@@ -68,6 +68,8 @@ CRITICAL ANTI-AI-SLOP RULES (STRICTLY ENFORCED):
    - Write like a real person typing a quick thought from their phone or laptop.
    - Ultra-short and punchy: 1 to 3 sentences maximum.
    - Grounded in tangible specifics: actual objects on a desk, real minutes, specific clicks, honest observations.
+4. ZERO SPRINT RETROSPECTIVES / BACKLOG QUESTIONS:
+   - NEVER ask the audience what feature, model, or engineering trade-off to prioritize ("which should we optimize first: X or Y?"). You are not hosting a sprint retrospective.
 
 Return the result as a valid JSON object matching this structure EXACTLY. No markdown formatting, just raw JSON.
 `;

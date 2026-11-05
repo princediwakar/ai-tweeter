@@ -44,6 +44,16 @@ const nextConfig: NextConfig = {
     // Dangerously allow production builds to successfully complete even if type errors
     ignoreBuildErrors: false,
   },
-  
+
+  async redirects() {
+    return [
+      {
+        source: '/auth',
+        destination: '/auth/signin',
+        permanent: false,
+      },
+    ];
+  },
+
   // ESLint is now handled via standard CLI, so the 'eslint' block is removed.
 };

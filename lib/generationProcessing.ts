@@ -73,11 +73,11 @@ export async function generatePostPrompt(
   // Voice refinement from persona description
   const voiceDirectives = persona.description ? `
 VOICE REFERRALS FROM YOUR PROFILE:
-- You sound like a battle-tested operator who's been in the trenches
-- Use words like: execution, signal, leverage, system, outcome, operator, build, ship, metric, founder
-- Avoid: game-changer, revolutionary, disrupt, hustle, grind, thought leader, viral, hype
-- Never sound like an advice thread or thought leader
-- Be direct, pragmatic, outcome-driven` : '';
+- Grounded practitioner perspective: write from direct frontline experience in your industry
+- Avoid buzzwords: game-changer, revolutionary, disrupt, synergy, leverage, hustle, grind, viral, thought leader
+- Never sound like an advice listicle or preaching guru
+- Never ask internal sprint or product backlog questions ("which should we optimize")
+- Be direct, empathetic, and relatable to your core audience` : '';
 
   // Build comprehensive persona context
   const personaContext = persona.description 

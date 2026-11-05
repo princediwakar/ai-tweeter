@@ -5,20 +5,20 @@ import type { Persona } from '../personas';
 
 const CONTENT_LENSES = [
   {
-    name: "Field Observation",
-    directive: "A candid, photographic snapshot of what you actually see happening in the real world (e.g. at the desk, in the room, on the screen). Show the scene as it is without preaching or adding a moral at the end."
+    name: "Clinic Ground Truth",
+    directive: "A vivid, authentic snapshot of frontline reality (e.g. 40-patient OPD queues, paper registers vs clunky software, desk clutter, 10 PM WhatsApp consults). Show the scene with respect, humor, and insider empathy."
   },
   {
-    name: "Honest Builder Note",
-    directive: "A transparent product or engineering reflection. Talk about a trade-off, an unexpected user behavior, a bug, or an assumption that broke when real people used the product. Curious and unvarnished."
+    name: "The Technology Reality Check",
+    directive: "A sharp, resonant critique of why modern software fails practitioners in fast-paced environments. Contrast the hype of tech with the painful reality of clicks, confirmation screens, and administrative burden. Never ask the audience what to build or optimize."
   },
   {
-    name: "Workflow Mechanics & Numbers",
-    directive: "A granular breakdown of time, clicks, physical habits, or friction. Highlight specific mechanics (e.g. seconds wasted on a dropdown, repetitive manual workarounds, friction that users quietly tolerate) that show why simple alternatives win."
+    name: "Workflow Mechanics & Friction",
+    directive: "A granular breakdown of time, clicks, and documentation taxes (e.g. 14 mandatory fields for a 30-second consult, 20 minutes spent charting after clinic hours). Show why simple, lightweight workflows beat bloated software."
   },
   {
-    name: "Grounded Discussion Prompt",
-    directive: "A genuine, conversational question to peers and practitioners asking about an overlooked friction, habit, or trade-off in their day-to-day workflow. No engagement-bait, just genuine peer curiosity."
+    name: "Practitioner Discussion",
+    directive: "A genuine, provocative conversation starter for practitioners and operators about an absurd administrative burden, unwritten clinic rule, or broken workflow. Ask about their lived experience—NEVER ask for product roadmap advice or engineering input."
   }
 ];
 
@@ -30,8 +30,8 @@ class BrandPromptBuilder {
       : 'Write in first person. Short sentences. Plain English. No emojis or hashtags. Zero corporate fluff.';
 
     const platformConstraints = plan.platform === 'twitter' 
-      ? `Twitter: 1 to 3 sentences maximum (strictly under 240 characters). Crisp, natural, direct. Write like a real founder or practitioner texting a peer.`
-      : `LinkedIn: 2 to 4 sentences maximum (strictly under 380 characters). High signal, grounded observation. No single-sentence line-break poetry, no corporate platitudes.`;
+      ? `Twitter: 1 to 3 sentences maximum (strictly under 240 characters). Crisp, natural, direct. Write like a real practitioner texting a peer.`
+      : `LinkedIn: 400 to 1,200 characters. Strong opening hook, generous line spacing for readability, vivid contrast or tension, and a resonant conclusion that makes practitioners nod, comment, or share. NO single-sentence broetry, NO corporate platitudes, NO asking the audience for product roadmap advice.`;
 
     const sourceText = externalContext 
       ? `EXTERNAL CONTEXT (Use if relevant to the angle):\n${externalContext}`
@@ -66,12 +66,16 @@ ABSOLUTE ANTI-AI-SLOP DIRECTIVES (STRICTLY ENFORCED):
    - NO cheesy forced punchlines, theatrical metaphors, or stand-up comedy scripts.
 2. ZERO GURU PREACHINESS / BROETRY:
    - NO formulaic contrarian lecturing ("Nobody does X because of Y", "It's not about A. It's about B.", "The honest truth is...").
-   - NO pseudo-profound LinkedIn poetry (do NOT break every sentence onto its own line with fake epiphanies).
+   - NO pseudo-profound LinkedIn poetry (do NOT break every single sentence onto its own line with fake epiphanies).
    - NO lecturing or talking down to professionals with sweeping absolutes.
 3. SOUND LIKE A REAL HUMAN:
-   - Write like a real person typing a thought from their laptop or phone between meetings.
-   - 1 to 3 sentences maximum.
+   - Write like a real practitioner typing a thoughtful post from their phone or laptop.
    - Grounded in tangible specifics: real objects on a desk, actual minutes, specific clicks, real observations.
+4. ZERO SPRINT RETROSPECTIVES / BACKLOG QUESTIONS:
+   - NEVER ask the audience how to build or optimize your product ("which should we optimize first: X or Y?"). You are not hosting a sprint retrospective.
+   - NEVER talk like an AI engineer navel-gazing about models, pipelines, or prompts. Talk like a healthcare insider who cares about clinical workflow.
+   - NEVER write about doctors or users as if they are lab mice in an experiment ("I watched a doctor do X..."). Frame observations with respect, empathy, and shared frustration.
+   - Never use internal product terms: "our model", "the ambient transcript", "sprint", "roadmap", "backlog", "optimize the scan".
 
 NEVER SAY: ${plan.brand_profile.never_say.join(', ')}
 NEVER DISCUSS: ${plan.brand_profile.never_topics.join(', ')}

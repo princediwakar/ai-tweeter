@@ -20,6 +20,9 @@ export type PlatformCredentials = {
   apiSecret?: string;
   accessToken?: string;
   accessSecret?: string;
+  oauth2AccessToken?: string;
+  oauth2RefreshToken?: string;
+  oauth2ExpiresAt?: string;
   linkedinAccessToken?: string;
   linkedinRefreshToken?: string;
   linkedinTokenExpiresAt?: string;
@@ -36,26 +39,50 @@ export async function getCredentialsForAccount(account: ConnectedAccountWithCred
     apiSecret: apiKeyCred?.api_secret ?? undefined,
     accessToken: oauth1Cred?.access_token ?? undefined,
     accessSecret: oauth1Cred?.refresh_token ?? undefined,
-    linkedinAccessToken: oauth2Cred?.access_token ?? undefined,
-    linkedinRefreshToken: oauth2Cred?.refresh_token ?? undefined,
-    linkedinTokenExpiresAt: oauth2Cred?.token_expires_at?.toISOString(),
+    oauth2AccessToken: account.platform === 'twitter' ? (oauth2Cred?.access_token ?? undefined) : undefined,
+    oauth2RefreshToken: account.platform === 'twitter' ? (oauth2Cred?.refresh_token ?? undefined) : undefined,
+    oauth2ExpiresAt: account.platform === 'twitter' ? (oauth2Cred?.token_expires_at?.toISOString() ?? undefined) : undefined,
+    linkedinAccessToken: account.platform === 'linkedin' ? (oauth2Cred?.access_token ?? undefined) : undefined,
+    linkedinRefreshToken: account.platform === 'linkedin' ? (oauth2Cred?.refresh_token ?? undefined) : undefined,
+    linkedinTokenExpiresAt: account.platform === 'linkedin' ? (oauth2Cred?.token_expires_at?.toISOString() ?? undefined) : undefined,
   };
 }
 
 export async function refreshTokenIfNeeded(account: ConnectedAccountWithCredentials, platform: 'twitter' | 'linkedin'): Promise<boolean> {
+  const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
+  if (!oauth2Cred?.refresh_token || !oauth2Cred?.token_expires_at) {
+    return true;
+  }
+
   if (platform === 'linkedin') {
-    const oauth2Cred = account.credentials.find(c => c.auth_type === 'oauth2' && c.is_active);
-    if (oauth2Cred?.refresh_token && oauth2Cred?.token_expires_at) {
-      if (shouldRefreshToken(oauth2Cred.token_expires_at)) {
-        try {
-          logger.info(`🔄 Refreshing LinkedIn token for ${account.name}`, 'posting-service');
-          const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(oauth2Cred.refresh_token);
-          await connectedAccountsService.updateToken(account.id, accessToken, refreshToken, expiresAt, 'oauth2');
-          return true;
-        } catch (error) {
-          logger.error(`❌ Failed to refresh LinkedIn token: ${error}`, 'posting-service');
-          return false;
-        }
+    if (shouldRefreshToken(oauth2Cred.token_expires_at)) {
+      try {
+        logger.info(`🔄 Refreshing LinkedIn token for ${account.name || account.account_username}`, 'posting-service');
+        const { accessToken, refreshToken, expiresAt } = await refreshAccessToken(oauth2Cred.refresh_token);
+        await connectedAccountsService.updateToken(account.id, accessToken, refreshToken, expiresAt, 'oauth2');
+        oauth2Cred.access_token = accessToken;
+        oauth2Cred.refresh_token = refreshToken;
+        oauth2Cred.token_expires_at = expiresAt;
+        return true;
+      } catch (error) {
+        logger.error(`❌ Failed to refresh LinkedIn token: ${error}`, 'posting-service');
+        return false;
+      }
+    }
+  } else if (platform === 'twitter') {
+    const { refreshAccessToken: refreshTwitterToken, shouldRefreshToken: shouldRefreshTwitterToken } = await import('./twitter-oauth');
+    if (shouldRefreshTwitterToken(oauth2Cred.token_expires_at)) {
+      try {
+        logger.info(`🔄 Refreshing Twitter OAuth 2.0 token for @${account.account_username}`, 'posting-service');
+        const { accessToken, refreshToken, expiresAt } = await refreshTwitterToken(oauth2Cred.refresh_token);
+        await connectedAccountsService.updateToken(account.id, accessToken, refreshToken, expiresAt, 'oauth2');
+        oauth2Cred.access_token = accessToken;
+        oauth2Cred.refresh_token = refreshToken;
+        oauth2Cred.token_expires_at = expiresAt;
+        return true;
+      } catch (error) {
+        logger.error(`❌ Failed to refresh Twitter OAuth 2.0 token: ${error}`, 'posting-service');
+        return false;
       }
     }
   }
@@ -92,21 +119,26 @@ function getFullTweetContent(post: Post, platform: 'twitter' | 'linkedin'): stri
 
 async function postToTwitter(post: Post, content: string, credentials: PlatformCredentials): Promise<PostingResult> {
   try {
+    const twitterCreds: TwitterCredentials = {
+      apiKey: credentials.apiKey,
+      apiSecret: credentials.apiSecret,
+      accessToken: credentials.accessToken,
+      accessSecret: credentials.accessSecret,
+      oauth2AccessToken: credentials.oauth2AccessToken,
+      oauth2RefreshToken: credentials.oauth2RefreshToken,
+      oauth2ExpiresAt: credentials.oauth2ExpiresAt ? new Date(credentials.oauth2ExpiresAt) : undefined,
+    };
+
     if (post.image_url && post.image_status === 'completed') {
       const imageBuffer = await fetchImageFromUrl(post.image_url);
       if (imageBuffer) {
         const { postTweetWithImage } = await import('./twitter');
-        const result = await postTweetWithImage(content, imageBuffer, {
-          apiKey: credentials.apiKey || '',
-          apiSecret: credentials.apiSecret || '',
-          accessToken: credentials.accessToken || '',
-          accessSecret: credentials.accessSecret || '',
-        });
+        const result = await postTweetWithImage(content, imageBuffer, twitterCreds);
         return { success: true, twitterId: result.data.id };
       }
     }
 
-    const result = await postTweet(content, credentials as TwitterCredentials);
+    const result = await postTweet(content, twitterCreds);
     const twitterId: string = result.data.id;
 
     if (!twitterId) throw new Error('No ID returned from Twitter');
@@ -231,7 +263,7 @@ export async function postSingleContent(
     const result = await postToPlatform(post, account, platform, credentials);
 
     if (result.success) {
-      await finalizePostPosting(post.id, 'posted'); 
+      await finalizePostPosting(post.id, 'posted', undefined, result.twitterId || result.linkedinId); 
       posted++;
       logger.info(`Posted ${platform} post ${post.id}`, 'posting-service');
     } else {

@@ -23,38 +23,51 @@ export interface AnalyzedBrand {
 
 export async function analyzeBrandFromContent(url: string, content: string): Promise<AnalyzedBrand> {
   const prompt = `
-You are an elite brand strategist and ecosystem analyst. I am providing you with textual content scraped from a user's website or product landing page (${url}).
-
-Thinking from first principles, your job is to look past the "marketing features" of the product and deeply understand the human ecosystem it operates within. 
+You are an elite brand strategist and social media ghostwriter for top-tier founders and practitioners.
+I am providing you with content scraped from a user's landing page or website (${url}).
 
 Content to analyze:
 """
 ${content}
 """
 
-Think deeply about this product: Who is the absolute primary stakeholder? What is their daily life like? What are their true frustrations, hustles, and relationships? (e.g., for Doxxy, it's doctors dealing with chaotic Indian clinics, patient relationships, and front-desk bottlenecks).
+Analyze this business deeply: What problem do they actually solve? Who is their user? What are the unglamorous realities, frictions, and counter-intuitive truths of their industry?
 
-Based on this deep empathy, extract and infer the following:
+Extract and infer the following:
 1. "name": The apparent name of the author or product.
-2. "archetype": A 2-4 word phrase describing their professional focus (e.g., "Healthtech Pioneer", "B2B SaaS Founder").
-3. "description": A 1-2 sentence summary of what they do.
-4. "primary_stakeholder_persona": Describe the main human user intimately in 1-2 sentences. Focus on what makes them exhausted, what makes them laugh, and their daily absurdities. (e.g., "The exhausted Indian doctor who just wants to laugh at how ridiculous their job is.")
-5. "ecosystem_dynamics": Describe the broader environment in 1-2 sentences. What are the friction points? (e.g., "High patient volume, low margin, reliant on WhatsApp for comms, stressed staff, chaotic waiting rooms.")
-6. "operating_geography": The primary geographic region inferred (e.g., "India", "Global", "US"). Default to "Global" if unknown.
-7. "target_audience": An array of 2-3 strings describing the audience (e.g., "Indian doctors and clinic owners").
-8. "tone_of_voice": An array of strings that MUST dictate pure humor (e.g., "Pure stand-up comedy", "Extremely sarcastic", "Witty", "Absolutely zero serious advice").
-9. "core_values": An array of 2-3 core beliefs.
-10. "never_say": Array of 3-4 marketing buzzwords or corporate jargon to NEVER use for this audience (e.g., "synergy", "disrupt", "leverage AI", "platform", "solution").
-11. "never_topics": Array of 1-2 topics to avoid (e.g., "politics", "religion").
-12. "pillars": Propose 3 core content pillars to ENTERTAIN the primary stakeholder through humor. 
-    CRITICAL: These MUST be purely comedic, observational humor, and stand-up style venting about the stakeholder's life. 
-    (e.g., "Specialty Roasts & Stereotypes", "The Absurd Client/Patient", "Daily Grind Chaos", "Unwritten Office Rules").
-    Each pillar should have:
-    - name: (string) short title
-    - description: (string) what kind of posts go here (e.g., "Observational humor about front desk chaos")
-    - proportion: (number) percentage allocation (sum to 100)
-    - keywords: (array of strings) 3-4 topics associated with it
-13. "sample_posts": Generate 3 high-quality sample posts based on these comedic pillars. ZERO marketing fluff. Written in first person. Must sound like an exhausted practitioner venting and making hilarious observations about their daily life.
+2. "archetype": A 2-4 word phrase describing their professional identity (e.g. "Healthcare Systems Builder", "B2B SaaS Founder", "Product Engineer").
+3. "description": A concise 1-2 sentence summary of what they build or do.
+4. "primary_stakeholder_persona": A vivid 1-2 sentence description of who they build for and the daily operational reality of that person.
+5. "ecosystem_dynamics": The systemic friction points in their market (e.g. "High volume, paper-based chaos, razor-thin margins, reliance on fragmented messaging apps").
+6. "operating_geography": The primary geographic region inferred (e.g. "India", "Global", "US"). Default to "Global" if unknown.
+7. "target_audience": Array of 2-3 audience groups.
+8. "tone_of_voice": Array of 3-4 style descriptors. MUST emphasize authentic practitioner authority, crispness, and subtle dry wit (e.g. "Direct and unpolished", "Subtle dry wit", "Grounded practitioner perspective", "Zero corporate speak").
+9. "core_values": Array of 2-3 core beliefs.
+10. "never_say": Array of 4-6 corporate buzzwords and AI clichés to BAN completely (e.g. "In today's fast-paced world", "game changer", "synergy", "disrupt", "leverage", "unpopular opinion").
+11. "never_topics": Array of 2 topics to avoid (e.g. "politics", "religion").
+12. "pillars": Propose 3 high-signal, balanced content pillars:
+    - Pillar 1 (Field Observations & Ground Truth): Candid snapshots of actual workflows, physical desk clutter, and workarounds people use in the trenches.
+    - Pillar 2 (Product & Engineering Craft): Honest lessons on building, UX trade-offs, unexpected user behavior, and engineering realities.
+    - Pillar 3 (Workflow Mechanics & Friction): Granular breakdowns of time wasted, click counts, administrative overhead, and why software fails in fast environments.
+    Each pillar has: name, description, proportion (number summing to 100), keywords (array of 3-4 strings).
+13. "sample_posts": Generate 3 sample social posts providing a natural, balanced mix:
+    - Post 1 (Field Observation): A photographic snapshot of a real ground-truth scene. Show, don't lecture.
+    - Post 2 (Honest Builder Note): A transparent reflection on building software, unexpected user behavior, or a UX trade-off.
+    - Post 3 (Workflow Mechanics): A sharp, specific breakdown of time, clicks, or friction.
+
+CRITICAL ANTI-AI-SLOP RULES (STRICTLY ENFORCED):
+1. ZERO SITCOM / COMEDY SKITS:
+   - NO theatrical narrative setups ("Picture this:", "It was 9:04 PM...", "Here is what happened:").
+   - NO scripted dialogue, caricatures, or exaggerated monologues.
+   - NO cheesy forced punchlines, theatrical metaphors, or stand-up comedy scripts.
+2. ZERO GURU PREACHINESS / BROETRY:
+   - NO formulaic contrarian lecturing ("Nobody does X because of Y", "It's not about A. It's about B.", "The honest truth is...").
+   - NO pseudo-profound LinkedIn poetry (never break single sentences onto separate lines with fake epiphanies).
+   - NO lecturing or talking down to practitioners with sweeping absolutes.
+3. SOUND LIKE A REAL HUMAN:
+   - Write like a real person typing a quick thought from their phone or laptop.
+   - Ultra-short and punchy: 1 to 3 sentences maximum.
+   - Grounded in tangible specifics: actual objects on a desk, real minutes, specific clicks, honest observations.
 
 Return the result as a valid JSON object matching this structure EXACTLY. No markdown formatting, just raw JSON.
 `;
@@ -64,11 +77,11 @@ Return the result as a valid JSON object matching this structure EXACTLY. No mar
     const response = await client.chat.completions.create({
       model: 'deepseek-flash',
       messages: [
-        { role: 'system', content: 'You are an AI brand strategist. You output only raw, valid JSON.' },
+        { role: 'system', content: 'You are an AI brand strategist who abhors AI clichés and writes exclusively like a sharp, authentic human practitioner. You output only raw, valid JSON.' },
         { role: 'user', content: prompt }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.6,
     });
 
     const resultText = response.choices[0]?.message?.content || '{}';
@@ -109,5 +122,69 @@ Return the result as a valid JSON object matching this structure EXACTLY. No mar
   } catch (error) {
     console.error('Error analyzing brand:', error);
     throw new Error('Failed to analyze brand content');
+  }
+}
+
+export async function regenerateSampleDrafts(brandProfile: any): Promise<string[]> {
+  const prompt = `
+You are an elite brand strategist and social media ghostwriter for top-tier founders and practitioners.
+Brand Name: ${brandProfile.name || 'Brand'}
+Archetype: ${brandProfile.archetype || brandProfile.industry || 'Founder'}
+Description: ${brandProfile.description || ''}
+Primary Stakeholder: ${brandProfile.primary_stakeholder_persona || ''}
+Tone of Voice: ${JSON.stringify(brandProfile.tone_of_voice || [])}
+Target Audience: ${JSON.stringify(brandProfile.target_audience || [])}
+Content Pillars: ${JSON.stringify(brandProfile.pillars || [])}
+
+Generate 3 sample social posts providing a natural, balanced mix:
+- Post 1 (Field Observation): A photographic snapshot of a real ground-truth scene. Show, don't lecture.
+- Post 2 (Honest Builder Note): A transparent reflection on building software, unexpected user behavior, or a UX trade-off.
+- Post 3 (Workflow Mechanics): A sharp, specific breakdown of time, clicks, or friction.
+
+CRITICAL ANTI-AI-SLOP RULES (STRICTLY ENFORCED):
+1. ZERO SITCOM / COMEDY SKITS:
+   - NO theatrical narrative setups ("Picture this:", "It was 9:04 PM...", "Here is what happened:").
+   - NO scripted dialogue, caricatures, or exaggerated monologues.
+   - NO cheesy forced punchlines, theatrical metaphors, or stand-up comedy scripts.
+2. ZERO GURU PREACHINESS / BROETRY:
+   - NO formulaic contrarian lecturing ("Nobody does X because of Y", "It's not about A. It's about B.", "The honest truth is...").
+   - NO pseudo-profound LinkedIn poetry (never break single sentences onto separate lines with fake epiphanies).
+   - NO lecturing or talking down to practitioners with sweeping absolutes.
+3. SOUND LIKE A REAL HUMAN:
+   - Write like a real person typing a quick thought from their phone or laptop.
+   - Ultra-short and punchy: 1 to 3 sentences maximum.
+   - Grounded in tangible specifics: actual objects on a desk, real minutes, specific clicks, honest observations.
+
+Return as a valid JSON object matching this structure EXACTLY:
+{
+  "sample_posts": [
+    "Post 1 text",
+    "Post 2 text",
+    "Post 3 text"
+  ]
+}
+`;
+
+  try {
+    const client = await getDeepseekClientAsync();
+    const response = await client.chat.completions.create({
+      model: 'deepseek-flash',
+      messages: [
+        { role: 'system', content: 'You are an AI brand strategist who abhors AI clichés and writes exclusively like a sharp, authentic human practitioner. You output only raw, valid JSON.' },
+        { role: 'user', content: prompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+    });
+
+    const resultText = response.choices[0]?.message?.content || '{}';
+    const parsed = JSON.parse(resultText);
+    if (Array.isArray(parsed.sample_posts)) {
+      return parsed.sample_posts.map((p: any) => typeof p === 'string' ? p : p?.content || p?.text || JSON.stringify(p)).filter(Boolean);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error regenerating sample drafts:', error);
+    throw new Error('Failed to regenerate sample drafts');
   }
 }

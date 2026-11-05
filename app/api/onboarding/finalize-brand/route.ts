@@ -78,6 +78,29 @@ export async function POST(request: NextRequest) {
       `;
     }
 
+    // Insert sample posts as initial drafts
+    if (Array.isArray(brandProfile.sample_posts) && brandProfile.sample_posts.length > 0) {
+      // Find any connected account for this user
+      const accRes = await sql`SELECT id FROM connected_accounts WHERE user_id = ${userId} AND is_active = true LIMIT 1`;
+      const connectedAccountId = accRes.rows[0]?.id || null;
+
+      for (const rawPost of (brandProfile.sample_posts as any[])) {
+        const text = typeof rawPost === 'string' ? rawPost : rawPost?.content || rawPost?.text || '';
+        if (text && text.trim().length > 0) {
+          await sql`
+            INSERT INTO posts (
+              id, user_id, brand_profile_id, connected_account_id,
+              content, status, created_at, updated_at
+            )
+            VALUES (
+              gen_random_uuid(), ${userId}, ${brandProfileId}, ${connectedAccountId},
+              ${text.trim()}, 'draft', NOW(), NOW()
+            )
+          `;
+        }
+      }
+    }
+
     return NextResponse.json({ success: true, brandProfileId });
   } catch (error: any) {
     console.error('Finalize brand error:', error);

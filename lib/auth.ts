@@ -38,19 +38,20 @@ async function getOAuthProviders() {
         LinkedInProvider({
           clientId: linkedinCreds.client_id,
           clientSecret: linkedinCreds.client_secret,
-          wellKnown: 'https://www.linkedin.com/oauth/.well-known/openid-configuration',
           authorization: { 
+            url: 'https://www.linkedin.com/oauth/v2/authorization',
             params: { 
-              scope: 'openid profile email w_member_social' 
+              scope: 'r_basicprofile' 
             } 
           },
-          profileUrl: 'https://api.linkedin.com/v2/userinfo',
+          token: 'https://www.linkedin.com/oauth/v2/accessToken',
+          userinfo: 'https://api.linkedin.com/v2/me',
           async profile(profile) {
             return {
-              id: profile.sub,
-              name: profile.name,
-              email: profile.email,
-              image: profile.picture,
+              id: profile.id,
+              name: `${profile.localizedFirstName || ''} ${profile.localizedLastName || ''}`.trim() || profile.id,
+              email: profile.email || `${profile.id}@linkedin.com`,
+              image: null,
             };
           },
         })

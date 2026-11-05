@@ -73,7 +73,7 @@ export async function getLinkedInAuthUrl(state: string): Promise<string> {
     client_id: clientId,
     redirect_uri: redirectUri,
     state,
-    scope: 'openid profile email w_member_social',
+    scope: 'r_basicprofile w_member_social w_organization_social r_organization_social',
   });
 
   return `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`;
@@ -228,6 +228,31 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
  * Get LinkedIn user profile (OpenID Connect)
  */
 export async function getLinkedInProfile(accessToken: string): Promise<LinkedInProfileResponse> {
+  // 1. Try v2/me endpoint (supported by Community Management API & r_basicprofile)
+  try {
+    const response = await fetch('https://api.linkedin.com/v2/me', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.ok) {
+      const v2Data = await response.json();
+      const fullName = `${v2Data.localizedFirstName || ''} ${v2Data.localizedLastName || ''}`.trim();
+      console.log(`✅ LinkedIn profile fetched via v2/me: ${fullName || v2Data.id}`);
+      return {
+        sub: v2Data.id,
+        name: fullName || v2Data.id,
+        given_name: v2Data.localizedFirstName,
+        family_name: v2Data.localizedLastName,
+      };
+    }
+  } catch (e) {
+    console.warn('LinkedIn /v2/me fetch error, attempting userinfo fallback:', e);
+  }
+
+  // 2. Fallback to OpenID userinfo
   try {
     const response = await fetch('https://api.linkedin.com/v2/userinfo', {
       method: 'GET',

@@ -168,7 +168,7 @@ export interface Post {
   connected_account_id?: string | null;
   content: string;
   hashtags?: string[];
-  persona: string;
+  persona?: string | null;
   qualityScore?: {
     overall: number;
     grade: 'A' | 'B' | 'C' | 'D' | 'F';

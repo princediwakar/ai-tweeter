@@ -1,8 +1,6 @@
 // lib/schedule.ts
 import { sql } from '@vercel/postgres';
 import { connectedAccountsService } from './connectedAccounts';
-import { getAllPersonas } from './personas';
-import { getPersonaById } from './db';
 
 export interface Schedule {
   should_generate: boolean;
@@ -18,27 +16,38 @@ export async function getGenerationBatchInfo(
   twitterHandle: string,
   debugMode: boolean = false
 ): Promise<Schedule> {
+  const brandPersona = 'brand_engine';
+
   if (debugMode) {
-    const allPersonas = await getAllPersonas();
-    const debugPersonas = allPersonas.length > 0 
-      ? allPersonas.map(p => p.key).filter(Boolean) 
-      : [];
-    
-    if (debugPersonas.length === 0) {
-      return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No personas' };
-    }
-    return { should_generate: true, should_post: true, generation_personas: debugPersonas, posting_personas: debugPersonas, batch_size: 1, reason: 'Debug mode' };
+    return {
+      should_generate: true,
+      should_post: true,
+      generation_personas: [brandPersona],
+      posting_personas: [brandPersona],
+      batch_size: 1,
+      reason: 'Debug mode',
+    };
   }
 
   const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) {
-    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Account not found' };
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 1,
+      reason: 'Account not found',
+    };
   }
 
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, COALESCE(timezone, 'Asia/Kolkata') as tz, persona_id, posting_times, days_of_week,
+        id, 
+        COALESCE(timezone, 'Asia/Kolkata') as tz, 
+        posting_times, 
+        days_of_week,
         (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata')))) as local_minutes,
         EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) as local_dow
       FROM account_schedules
@@ -58,14 +67,18 @@ export async function getGenerationBatchInfo(
     ),
     parsed_times AS (
       SELECT
-        id, tz as timezone, persona_id, local_minutes, local_dow, days_of_week,
+        id, 
+        tz as timezone, 
+        local_minutes, 
+        local_dow, 
+        days_of_week,
         (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) as start_time,
         (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) + 30 as end_time
       FROM expanded_times
     )
-    SELECT id, timezone, start_time, end_time, persona_id, local_minutes, local_dow
+    SELECT id, timezone, start_time, end_time, local_minutes, local_dow
     FROM parsed_times
-    WHERE local_dow = ANY(days_of_week)
+    WHERE days_of_week @> to_jsonb(local_dow::int)
       AND (
         (start_time - local_minutes + 1440) % 1440 <= 60 -- JIT GENERATION: 
         OR 
@@ -77,13 +90,25 @@ export async function getGenerationBatchInfo(
   const activeSchedules = scheduleResult.rows;
 
   if (activeSchedules.length === 0) {
-    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'No schedules in generation window' };
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 1,
+      reason: 'No schedules in generation window',
+    };
   }
 
   const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedules[0].timezone})::date as local_date`;
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tzResult.rows[0].local_date);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(tzResult.rows[0].local_date);
 
-  const schedulesToGenerate: { scheduleId: string; personaId: string | null }[] = [];
+  const schedulesToGenerate: string[] = [];
 
   for (const schedule of activeSchedules) {
     // Check if already generated today first
@@ -96,7 +121,7 @@ export async function getGenerationBatchInfo(
 
     if (existingSlot.rows[0]?.generation_count >= 1) continue;
 
-    // Atomic insert - will fail silently if already exists due to race condition
+    // Atomic insert
     const result = await sql`
       INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, posting_count, last_generated_at, created_at, updated_at)
       VALUES (${account.id}, ${schedule.id}, ${today}, 0, 0, 1, 0, NOW(), NOW(), NOW())
@@ -104,40 +129,29 @@ export async function getGenerationBatchInfo(
       RETURNING generation_count
     `;
 
-    // Only proceed if we actually inserted (not a race condition duplicate)
     if (result.rows.length > 0 && result.rows[0].generation_count === 1) {
-      schedulesToGenerate.push({ scheduleId: schedule.id, personaId: schedule.persona_id || null });
+      schedulesToGenerate.push(schedule.id);
     }
   }
 
   if (schedulesToGenerate.length === 0) {
-    return { should_generate: false, should_post: false, generation_personas: [], posting_personas: [], batch_size: 1, reason: 'Already generated today' };
-  }
-
-  const personas: string[] = [];
-  const scheduleIds: string[] = [];
-
-  for (const { scheduleId, personaId } of schedulesToGenerate) {
-    scheduleIds.push(scheduleId);
-    if (personaId) {
-      const dbPersona = await getPersonaById(personaId);
-      if (dbPersona?.key) personas.push(dbPersona.key);
-    }
-  }
-
-  if (personas.length === 0) {
-    const allPersonas = await getAllPersonas();
-    const fallbackPersonas = allPersonas.filter(p => p.is_active).map(p => p.key);
-    personas.push(...fallbackPersonas);
+    return {
+      should_generate: false,
+      should_post: false,
+      generation_personas: [],
+      posting_personas: [],
+      batch_size: 1,
+      reason: 'Already generated today',
+    };
   }
 
   return {
     should_generate: true,
     should_post: true,
-    generation_personas: personas,
-    posting_personas: personas,
-    schedule_ids: scheduleIds,
-    batch_size: 1, // Keep this at 1 to respect Vercel timeouts
+    generation_personas: [brandPersona],
+    posting_personas: [brandPersona],
+    schedule_ids: schedulesToGenerate,
+    batch_size: 1,
   };
 }
 
@@ -148,13 +162,17 @@ export interface PostingSchedule {
 }
 
 export async function getPostingBatchInfo(twitterHandle: string): Promise<PostingSchedule> {
+  const brandPersona = 'brand_engine';
   const account = await connectedAccountsService.getByTwitterHandle(twitterHandle);
   if (!account) return { should_post: false, personas: [], reason: 'Account not found' };
 
   const scheduleResult = await sql`
     WITH current_local AS (
       SELECT 
-        id, COALESCE(timezone, 'Asia/Kolkata') as tz, persona_id, posting_times, days_of_week,
+        id, 
+        COALESCE(timezone, 'Asia/Kolkata') as tz, 
+        posting_times, 
+        days_of_week,
         (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata')))) as local_minutes,
         EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(timezone, 'Asia/Kolkata'))) as local_dow
       FROM account_schedules
@@ -174,14 +192,18 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
     ),
     parsed_times AS (
       SELECT
-        id, tz as timezone, persona_id, local_minutes, local_dow, days_of_week,
+        id, 
+        tz as timezone, 
+        local_minutes, 
+        local_dow, 
+        days_of_week,
         (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) as start_time,
         (split_part(posting_time_str, ':', 1)::int * 60 + split_part(posting_time_str, ':', 2)::int) + 30 as end_time
       FROM expanded_times
     )
-    SELECT id, timezone, persona_id, start_time, end_time
+    SELECT id, timezone, start_time, end_time
     FROM parsed_times
-    WHERE local_dow = ANY(days_of_week)
+    WHERE days_of_week @> to_jsonb(local_dow::int)
       AND (
         (local_minutes >= start_time AND local_minutes <= end_time)
         OR
@@ -196,9 +218,13 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
 
   const scheduleId = activeSchedule.id;
   const tzResult = await sql`SELECT (NOW() AT TIME ZONE ${activeSchedule.timezone})::date as local_date`;
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(tzResult.rows[0].local_date);
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(tzResult.rows[0].local_date);
 
-  // Because of Fix #1, this UPDATE will now properly mathematically increment 0 + 1 instead of NULL + 1
   const postingResult = await sql`
     INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, posting_count, last_posted_at, created_at, updated_at)
     VALUES (${account.id}, ${scheduleId}, ${today}, 0, 0, 1, NOW(), NOW(), NOW())
@@ -211,16 +237,7 @@ export async function getPostingBatchInfo(twitterHandle: string): Promise<Postin
     return { should_post: false, personas: [], reason: 'Already posted today' };
   }
 
-  await sql`UPDATE account_schedules SET last_posted_at = NOW() WHERE id = ${scheduleId}`;
+  await sql`UPDATE account_schedules SET updated_at = NOW() WHERE id = ${scheduleId}`;
 
-  let personas: string[] = [];
-  if (activeSchedule.persona_id) {
-    const dbPersona = await getPersonaById(activeSchedule.persona_id);
-    if (dbPersona?.key) personas = [dbPersona.key];
-  } else {
-    const allPersonas = await getAllPersonas();
-    personas = allPersonas.filter(p => p.is_active).map(p => p.key);
-  }
-
-  return { should_post: true, personas };
+  return { should_post: true, personas: [brandPersona] };
 }

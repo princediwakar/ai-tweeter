@@ -17,8 +17,6 @@ export async function GET(request: NextRequest) {
     logger.info(`🔍 [Session:${sessionId}] [Twitter] Auto-post check starting`, 'auto-post');
 
     // SCALABLE NATIVE TIME RESOLUTION
-    // Eliminates N+1 queries and the IST timezone bug.
-    // Dynamically calculates local time, aggregates personas, and collects schedule IDs.
     const accountsDue = await sql`
       WITH current_local AS (
         SELECT 
@@ -27,14 +25,11 @@ export async function GET(request: NextRequest) {
           a.account_username, 
           a.platform,
           s.id as schedule_id,
-          s.persona_id, 
           s.posting_times,
           s.days_of_week,
           s.timezone,
-          s.last_posted_at,
           (EXTRACT(HOUR FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) * 60 + EXTRACT(MINUTE FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata')))) as local_minutes,
-          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) as local_dow,
-          p.key as persona_key
+          EXTRACT(DOW FROM (NOW() AT TIME ZONE COALESCE(s.timezone, 'Asia/Kolkata'))) as local_dow
         FROM connected_accounts a
         JOIN account_schedules s ON (
           s.connected_account_id = a.id 
@@ -43,7 +38,6 @@ export async function GET(request: NextRequest) {
             WHERE twitter_account_id = a.id OR linkedin_account_id = a.id
           )
         )
-        LEFT JOIN personas p ON s.persona_id = p.id
         WHERE a.is_active = true
           AND a.platform = 'twitter'
           AND s.is_active = true
@@ -62,16 +56,20 @@ export async function GET(request: NextRequest) {
         FROM expanded_times
       )
       SELECT 
-        account_id as id, 
-        name, 
-        array_agg(DISTINCT persona_key) as personas,
-        array_agg(DISTINCT schedule_id) as schedule_ids
-      FROM parsed_times
-      WHERE local_dow = ANY(days_of_week)
-        AND local_minutes >= start_time 
-        AND local_minutes <= end_time
-        AND (last_posted_at IS NULL OR (EXTRACT(EPOCH FROM (NOW() - last_posted_at)) / 60) > 45)
-      GROUP BY account_id, name
+        pt.account_id as id, 
+        pt.name, 
+        array_agg(DISTINCT pt.schedule_id) as schedule_ids
+      FROM parsed_times pt
+      LEFT JOIN generation_slots gs
+        ON gs.connected_account_id = pt.account_id
+        AND gs.schedule_id = pt.schedule_id
+        AND gs.slot_date = TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD')
+        AND gs.posting_count > 0
+      WHERE pt.days_of_week @> to_jsonb(pt.local_dow::int)
+        AND pt.local_minutes >= pt.start_time 
+        AND pt.local_minutes <= pt.end_time
+        AND gs.id IS NULL
+      GROUP BY pt.account_id, pt.name
       LIMIT 50
     `;
 
@@ -90,24 +88,26 @@ export async function GET(request: NextRequest) {
 
     for (const account of accountsDue.rows) {
       try {
-        const personas = (account.personas || []).filter(Boolean) as string[];
         const scheduleIds = (account.schedule_ids || []).filter(Boolean) as string[];
-
-        if (personas.length === 0) continue;
-
-        const result = await postSingleContent(account.id, personas, 'twitter', BATCH_SIZE);
+        const result = await postSingleContent(account.id, ['brand_engine'], 'twitter', BATCH_SIZE);
         
-        // Efficient targeted update using the exact schedule IDs we already fetched
         if (result.posted > 0 && scheduleIds.length > 0) {
-          // Serialize JS array to Postgres array literal string: '{id1,id2}'
-          // This satisfies Vercel's Primitive type requirement.
           const pgArrayString = `{${scheduleIds.join(',')}}`;
-          
           await sql`
             UPDATE account_schedules
-            SET last_posted_at = NOW()
+            SET updated_at = NOW()
             WHERE id = ANY(${pgArrayString}::uuid[])
           `;
+
+          // Track in generation_slots
+          for (const sId of scheduleIds) {
+            await sql`
+              INSERT INTO generation_slots (connected_account_id, schedule_id, slot_date, slot_hour, slot_minute, generation_count, posting_count, last_posted_at, created_at, updated_at)
+              VALUES (${account.id}, ${sId}, TO_CHAR(CURRENT_DATE, 'YYYY-MM-DD'), 0, 0, 0, 1, NOW(), NOW(), NOW())
+              ON CONFLICT (connected_account_id, schedule_id, slot_date)
+              DO UPDATE SET posting_count = generation_slots.posting_count + 1, last_posted_at = NOW()
+            `;
+          }
         }
 
         totalPosted += result.posted;

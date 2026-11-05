@@ -23,6 +23,17 @@ class PlatformSettingsService {
   }
 
   async getTwitterCredentials(): Promise<PlatformCredential> {
+    const envClientId = process.env.OAUTH_CLIENT_ID || process.env.TWITTER_CLIENT_ID;
+    const envClientSecret = process.env.OAUTH_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET;
+    if (envClientId && envClientSecret) {
+      return {
+        client_id: envClientId,
+        client_secret: envClientSecret,
+        api_key: process.env.TWITTER_API_KEY,
+        api_secret: process.env.TWITTER_API_SECRET,
+      };
+    }
+
     if (this.isValidCache('twitter')) {
       return this.cache.get('twitter')!;
     }
@@ -56,6 +67,13 @@ class PlatformSettingsService {
   }
 
   async getLinkedInCredentials(): Promise<PlatformCredential> {
+    if (process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET) {
+      return {
+        client_id: process.env.LINKEDIN_CLIENT_ID,
+        client_secret: process.env.LINKEDIN_CLIENT_SECRET,
+      };
+    }
+
     if (this.isValidCache('linkedin')) {
       return this.cache.get('linkedin')!;
     }

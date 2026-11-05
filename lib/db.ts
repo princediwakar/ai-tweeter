@@ -1146,12 +1146,10 @@ export async function claimPostForPosting(
  */
 export async function claimPostsForPosting(
   accountId: string,
-  personas: string[],
-  limit: number = 5
+  personasOrLimit: string[] | number = 5,
+  limitArg: number = 5
 ): Promise<Post[]> {
-  if (personas.length === 0) {
-    return [];
-  }
+  const limit = typeof personasOrLimit === 'number' ? personasOrLimit : limitArg;
   
   try {
     const result = await sql.query(
@@ -1159,16 +1157,20 @@ export async function claimPostsForPosting(
        SET status = 'posting'
        WHERE id IN (
          SELECT id FROM posts 
-         WHERE connected_account_id = $1 
-           AND status = 'ready' 
-           AND persona = ANY($2::text[])
-           AND (image_status = 'none' OR image_status = 'completed' OR image_status = 'failed')
+         WHERE (
+           connected_account_id = $1 
+           OR brand_profile_id IN (
+             SELECT id FROM brand_profiles 
+             WHERE twitter_account_id = $1 OR linkedin_account_id = $1
+           )
+         )
+         AND status = 'ready'
          ORDER BY created_at ASC
-         LIMIT $3
+         LIMIT $2
          FOR UPDATE SKIP LOCKED
        )
        RETURNING *`,
-      [accountId, personas, limit]
+      [accountId, limit]
     );
 
     return result.rows.map(row => ({
@@ -1176,24 +1178,20 @@ export async function claimPostsForPosting(
       connected_account_id: row.connected_account_id,
       brand_profile_id: row.brand_profile_id,
       content: row.content,
-      hashtags: row.hashtags || [],
-      persona: row.persona,
       status: row.status,
+      persona: (row.persona as string) || 'brand_engine',
       created_at: row.created_at,
-      posted_at: row.posted_at,
-      
+      posted_at: row.published_at,
+      published_at: row.published_at,
       error_message: row.error_message,
-      image_url: row.image_url,
-      image_status: row.image_status,
-      card_data: row.card_data,
-      source_url: row.source_url,
+      target_audience: row.target_audience,
+      narrative_tags: row.narrative_tags,
+      theme_summary: row.theme_summary,
+      platform_post_id: row.platform_post_id,
       thread_id: row.thread_id,
-      thread_sequence: row.thread_sequence,
-      
-      content_type: row.content_type || 'single_tweet',
     }));
   } catch (error) {
-    console.error('[Neon] Error claiming tweets for posting:', error);
+    console.error('[Neon] Error claiming posts for posting:', error);
     return [];
   }
 }
@@ -1204,19 +1202,22 @@ export async function claimPostsForPosting(
 export async function finalizePostPosting(
   tweetId: string,
   status: 'posted' | 'failed',
-  errorMessage?: string
+  errorMessage?: string,
+  platformPostId?: string
 ): Promise<void> {
   try {
     await sql`
       UPDATE posts 
       SET 
         status = ${status},
-        posted_at = CASE WHEN ${status} = 'posted' THEN NOW() ELSE posted_at END,
-        error_message = ${errorMessage || null}
+        published_at = CASE WHEN ${status} = 'posted' THEN NOW() ELSE published_at END,
+        platform_post_id = COALESCE(${platformPostId || null}, platform_post_id),
+        error_message = ${errorMessage || null},
+        updated_at = NOW()
       WHERE id = ${tweetId}
     `;
   } catch (error) {
-    console.error('[Neon] Error finalizing tweet posting:', error);
+    console.error('[Neon] Error finalizing post posting:', error);
     throw error;
   }
 }
